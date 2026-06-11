@@ -1,0 +1,12 @@
+{
+  "name": "rates-workbench",
+  "private": true,
+  "packageManager": "npm@10",
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "make test-py"
+  },
+  "devDependencies": { "turbo": "^2.0.6" }
+}

@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-surface; }
+  ::-webkit-scrollbar { @apply h-2 w-2; }
+  ::-webkit-scrollbar-thumb { @apply rounded bg-zinc-700; }
+}
+@layer components {
+  .num { @apply font-mono tabular-nums; }
+}
