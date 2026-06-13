@@ -5,6 +5,20 @@ choice that affects a number is listed here with its location, so model
 validation and future edits start from one place. Read the root AGENTS.md
 first for global invariants.
 
+## Package layout (v0.17 reorg)
+```
+core/      config curve vol lmm conventions pricing kernels scenarios interfaces
+models/    models (CC/PS/HPI) prepay
+products/  corp deposits cds mm hedges
+analytics/ risk stress accounting kpis
+strategy/  strategies unitlib optimizer
+demo.py __main__.py
+```
+Old flat import paths (mbs_risk.kernels, mbs_risk.corp, ...) remain valid
+via sys.modules aliases in __init__ -- tests, apps/api, and the skill use
+them unchanged. New code should import from the layered paths. The alias
+table is the back-compat contract: removing it is a breaking change.
+
 ## Module map
 
 | module | owns | key entry points |
@@ -242,3 +256,16 @@ pv_from_A) -- that gate caught two real init divergences on first run
 (ofh used * not /, wam missing int()), which is exactly why the pattern
 exists. Custom-prepay suites fall back to _run_risk_sequential. Threads:
 API settings n_threads (0 = all cores) -> numba.set_num_threads per job.
+
+**Optimizer (optimizer.py, v0.16).** Robust balance-sheet LP over the
+unit-library allocation space: maximin worst-case 27m NII (epigraph)
+s.t. absolute ratio floors (LCR/NSFR/CET1/EVE-limit), commercial
+business-plan rows, and EVERY constraint replicated per market scenario
+(each scenario = its own unit library + base KPIs -- behavioral models
+live per scenario). HiGHS via scipy; MEASURED 11ms for 3 scenarios x 35
+units. Duals are the deliverable: shadow_price on each binding row =
+marginal worst-case NII per unit of constraint (the price of liquidity /
+the cost of the loan mandate). Infeasible solves return the row labels
+-- "the plan cannot hold LCR in the bear steepener" is the answer, not
+an error. Linearizations disclosed in the module docstring (static RWA
+add-on, L2A cap at base mix, NII-retention-only CET1 row).

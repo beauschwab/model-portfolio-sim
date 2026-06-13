@@ -157,18 +157,20 @@ def run(req: RunRequest) -> JobStatus:
             return JobStatus(**store.JOBS[jid])
         sr, vp, spr = store.apply_scenario(sc, 0)
     books = req.books or list(store.BOOKS)
+    plan = store.compute_run_plan(
+        "scenario_nii" if (req.kind == "nii" and req.scenario) else req.kind, books)
     if req.kind == "risk":
-        jid = store.submit("risk", store.run_risk_all, books, sr, vp, spr)
+        jid = store.submit("risk", store.run_risk_all, books, sr, vp, spr, plan=plan)
     elif req.kind in ("stress", "deposit_stress"):
-        jid = store.submit("stress", store.run_stress_all, books, sr, vp)
+        jid = store.submit("stress", store.run_stress_all, books, sr, vp, plan=plan)
     elif req.kind == "nii":
-        jid = store.submit("nii", store.run_nii, sr, vp)
+        jid = store.submit("nii", store.run_nii, sr, vp, plan=plan)
     elif req.kind == "kpis":
-        jid = store.submit("kpis", store.run_kpis, sr, vp)
+        jid = store.submit("kpis", store.run_kpis, sr, vp, plan=plan)
     elif req.kind == "unitlib":
-        jid = store.submit("unitlib", store.build_unitlib_job, sr, vp)
+        jid = store.submit("unitlib", store.build_unitlib_job, sr, vp, plan=plan)
     elif req.kind == "strategy":
-        jid = store.submit("strategy", store.run_strategy_job, sr, vp)
+        jid = store.submit("strategy", store.run_strategy_job, sr, vp, plan=plan)
     else:
         raise HTTPException(422, f"unknown kind {req.kind}")
     return JobStatus(**store.JOBS[jid])
@@ -178,6 +180,21 @@ def run(req: RunRequest) -> JobStatus:
 def job(jid: str) -> JobStatus:
     if jid not in store.JOBS:
         raise HTTPException(404, "unknown job")
+    return JobStatus(**store.JOBS[jid])
+
+
+@app.post("/optimize")
+def optimize(opt: dict):
+    """Robust balance-sheet optimization (job): base market + named
+    MarketScenarios; absolute ratio floors + commercial plan rows; LP
+    with worst-case-NII objective; returns allocation + binding
+    constraints with shadow prices."""
+    sr, vp = store.MARKET["swap_rates"], store.MARKET["vol_pts"]
+    plan = store.compute_run_plan("optimize", list(store.BOOKS))
+    n_markets = 1 + len([n for n in opt.get("scenarios", []) if n in store.SCENARIOS])
+    plan["scenario_markets"] = n_markets
+    plan["monte_carlo_paths"] = int(store.SETTINGS.n_paths)
+    jid = store.submit("optimize", store.run_optimize_job, sr, vp, opt, plan=plan)
     return JobStatus(**store.JOBS[jid])
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mbs-risk"
-version = "0.15.0"
+version = "0.17.3"
 description = "Shifted-lognormal LMM OAS/risk/stress engine for agency MBS portfolios"
 requires-python = ">=3.10"
 dependencies = [

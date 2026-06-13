@@ -5,8 +5,45 @@
 @layer base {
   body { @apply bg-surface; }
   ::-webkit-scrollbar { @apply h-2 w-2; }
-  ::-webkit-scrollbar-thumb { @apply rounded bg-zinc-700; }
+  ::-webkit-scrollbar-thumb { @apply rounded bg-surface-2; }
+}
+@layer base {
+  :focus-visible { outline: 2px solid #fcd535; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 }
 @layer components {
+  .memo-rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
   .num { @apply font-mono tabular-nums; }
+
+  /* solve console: a thin light sweeps the active progress bar */
+  .solve-sweep { animation: solve-sweep 1.4s cubic-bezier(.4,0,.2,1) infinite; }
+  @keyframes solve-sweep { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+  /* a streamed log line settles up into place */
+  .log-in { animation: log-in .32s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes log-in { from { opacity: 0; transform: translateY(6px); } }
+  /* shadow-price / allocation rows reveal with a brief spring-out settle */
+  .reveal-row { animation: reveal-row .5s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes reveal-row { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+
+  /* command palette: a quick scale-in from the search bar */
+  .palette-pop { animation: palette-pop .16s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes palette-pop { from { opacity: 0; transform: translateY(-6px) scale(.985); } }
+
+  /* number that just changed flashes its direction (suppressed under reduced motion) */
+  [data-flash="up"] { animation: flash-up .7s ease-out; }
+  [data-flash="down"] { animation: flash-down .7s ease-out; }
+  @keyframes flash-up { 0% { color: #0ecb81; } 100% { color: inherit; } }
+  @keyframes flash-down { 0% { color: #f6465d; } 100% { color: inherit; } }
+}
+
+/* ── View Transitions: tiles morph on reorder / resize / expand ────────── */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(*) { animation-duration: .34s; animation-timing-function: cubic-bezier(.2,.7,.2,1); }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }

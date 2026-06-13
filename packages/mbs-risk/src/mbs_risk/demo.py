@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
-from .config import CAL_EXPIRIES, CAL_TENORS, DT
+from .core.config import CAL_EXPIRIES, CAL_TENORS, DT
 
 
 def demo_market():

@@ -7,12 +7,12 @@ import time
 import numpy as np
 import polars as pl
 
-from .config import (N_PATHS_SENS, RATIONAL_SIGMOID, STRESS_HORIZONS_M,
+from .core.config import (N_PATHS_SENS, RATIONAL_SIGMOID, STRESS_HORIZONS_M,
                      STRESS_SHOCKS_BP, SEED, USE_FLOAT32)
 from .demo import demo_histories, demo_market, demo_portfolio
-from .risk import run_risk
-from .scenarios import CRN, build_paths, run_engine, setup, shocked_paths
-from .stress import run_stress
+from .analytics.risk import run_risk
+from .core.scenarios import CRN, build_paths, run_engine, setup, shocked_paths
+from .analytics.stress import run_stress
 
 
 def _bench(n_sec: int):
@@ -26,9 +26,9 @@ def _bench(n_sec: int):
     oas = np.full(n_sec, 0.01)
 
     # JIT warmup on a small slice
-    from .kernels import stress_engine
-    from .config import MOY, PREPAY_PARAMS, SEASONALITY
-    from .prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS, LTV_KNOTS,
+    from .core.kernels import stress_engine
+    from .core.config import MOY, PREPAY_PARAMS, SEASONALITY
+    from .models.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS, LTV_KNOTS,
                          SMM_LUT, SMM_SCALE)
     sec8 = tuple(a[:8] for a in sec)
     _, _, _, cb8, cu8 = run_engine(base, sec8, oas[:8], STRESS_HORIZONS_M,

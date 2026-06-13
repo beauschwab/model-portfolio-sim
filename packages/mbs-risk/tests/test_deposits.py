@@ -453,3 +453,44 @@ def test_unitlib_interactive_kpis():
                                  for a in alloc])
     assert o2["nii_total_$"] == pytest.approx(3 * out["nii_total_$"],
                                               rel=1e-9)
+
+
+def test_optimizer_robust_lp():
+    """Feasible solve respects commercial floors; tightening a ratio
+    floor cannot improve worst-case NII; impossible plan reports
+    infeasible (the useful answer)."""
+    from mbs_risk.optimizer import optimize_balance_sheet
+    from mbs_risk.unitlib import build_unit_library
+    from mbs_risk.kpis import compute_kpis
+    from mbs_risk.accounting import run_balance_sheet_nii
+    from mbs_risk.demo import (demo_market, demo_histories,
+                               demo_deposit_history, model_balance_sheet,
+                               demo_hedge_book)
+    sr, vp = demo_market()
+    hist = demo_deposit_history()
+    bs = model_balance_sheet(scale=0.001, basis="amortized_cost",
+                             include_markets_bs=True)
+    bs["hedges"] = demo_hedge_book(scale=0.001)
+    nii = run_balance_sheet_nii(bs, sr, vp, hist, horizon=27)
+    libs = []
+    for d in (0.0, 0.02):
+        lib = build_unit_library(sr + d, vp, demo_histories(), hist)
+        libs.append((lib, compute_kpis(bs, sr + d, vp, hist,
+                                       nii_monthly=nii["monthly"])))
+    comm = [dict(label="min_cml", template="cml_float_3y",
+                 sense=">=", rhs=2e8)]
+    o1 = optimize_balance_sheet(libs, lcr_min=1.10, commercial=comm,
+                                max_total_assets=2e9)
+    assert o1["feasible"]
+    cml = sum(a["notional"] for a in o1["allocation"]
+              if a["template"] == "cml_float_3y")
+    assert cml >= 2e8 - 1.0
+    o2 = optimize_balance_sheet(libs, lcr_min=1.60, commercial=comm,
+                                max_total_assets=2e9)
+    if o2["feasible"]:
+        assert o2["worst_case_nii_$"] <= o1["worst_case_nii_$"] + 1.0
+    o3 = optimize_balance_sheet(
+        libs, commercial=[dict(label="impossible", template="agency_mbs",
+                               sense=">=", rhs=1e13)],
+        max_total_assets=2e9)
+    assert not o3["feasible"] and "labels" in o3

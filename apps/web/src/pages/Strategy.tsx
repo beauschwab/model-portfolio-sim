@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, awaitJob, fmt$ } from "../lib/api";
-import { Badge, Button, Card, CardBody, CardHeader, Input, Stat } from "../components/ui";
+import { Badge, Button, Card, CardBody, CardHeader, Input, Stat, InfoPop } from "../components/ui";
 
 type Alloc = { template: string; purchase_m: number; notional: number };
 type Eval = {
@@ -55,7 +55,7 @@ export default function StrategyPage() {
     setRows(rs => rs.map((r, j) => j === i ? { ...r, [k]: k === "template" ? v : Number(v) || 0 } : r));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-3">
         {!libReady
           ? <Button disabled={building} onClick={buildLib}>{building ? "building unit library…" : "Build unit library (~20s, one-time)"}</Button>
@@ -64,22 +64,23 @@ export default function StrategyPage() {
       </div>
 
       <Card>
-        <CardHeader title="Allocations" sub="forward-starting at-market purchases; behavioral models live in the unit tensor"
+        <CardHeader title={"Allocations"} sub="forward-starting at-market purchases; behavioral models live in the unit tensor — see ⓘ on each row for template terms"
           right={<Button variant="ghost" onClick={() => setRows([...rows, { template: "agency_mbs", purchase_m: 0, notional: 1e9 }])}>+ row</Button>} />
         <CardBody className="space-y-2">
           {rows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <select className="h-8 rounded-md border border-line bg-surface-2 px-2 text-xs text-zinc-200"
+              <select className="h-8 rounded-md border border-line bg-surface-2 px-2 text-xs text-paper"
                 value={r.template} onChange={e => set(i, "template", e.target.value)}>
                 {TEMPLATES.map(t => <option key={t}>{t}</option>)}
               </select>
-              <span className="text-[10px] text-zinc-500">month</span>
-              <input type="range" min={0} max={24} step={1} value={r.purchase_m} className="w-32 accent-emerald-500"
+              <span className="text-[10px] text-paper-faint">month</span>
+              <input type="range" min={0} max={24} step={1} value={r.purchase_m} className="w-32 accent-[#fcd535]"
                 onChange={e => set(i, "purchase_m", e.target.value)} />
               <span className="num w-6 text-xs">{r.purchase_m}</span>
-              <span className="text-[10px] text-zinc-500">notional $</span>
+              <span className="text-[10px] text-paper-faint">notional $</span>
               <Input className="w-36" value={r.notional} onChange={e => set(i, "notional", e.target.value)} />
-              <span className="num text-xs text-zinc-400">{fmt$(r.notional)}</span>
+              <span className="num text-xs text-paper-dim">{fmt$(r.notional)}</span>
+              <InfoPop width="15rem">{({ agency_mbs: "New-production agency pool at fwd 10y + 130bp, full prepay model live.", resi_whole_loan: "Whole-loan resi at fwd + 170bp; RSF 65%, RWA 50%.", cml_fixed_5y: "5y fixed commercial at fwd 5y + 190bp, bullet.", cml_float_3y: "3y SOFR + 180bp floater, quarterly resets.", auto_annuity_5y: "5y auto at fwd + 280bp, linear amortization.", cd_2y: "2y retail CD at fwd 2y + 15bp — funding; ASF 100% beyond 1y.", mmda_growth: "MMDA growth cohort at the modeled equilibrium rate; attrition model live." } as Record<string, string>)[r.template]}</InfoPop>
               <Button variant="danger" onClick={() => setRows(rows.filter((_, j) => j !== i))}>×</Button>
             </div>
           ))}
@@ -99,18 +100,18 @@ export default function StrategyPage() {
       )}
 
       {res && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-3 xl:grid-cols-2">
           <Card>
             <CardHeader title="Incremental NII" sub="monthly, $ — at-market carry of the program set" />
             <CardBody>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={niiData}>
-                  <CartesianGrid stroke="#1f1f23" strokeDasharray="3 3" />
-                  <XAxis dataKey="month" stroke="#3f3f46" fontSize={10} />
-                  <YAxis stroke="#3f3f46" fontSize={10} tickFormatter={v => `${(v / 1e6).toFixed(0)}M`} />
-                  <Tooltip contentStyle={{ background: "#101012", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }}
+                  <CartesianGrid stroke="#2b3139" strokeDasharray="3 3" />
+                  <XAxis dataKey="month" stroke="#707a8a" fontSize={10} />
+                  <YAxis stroke="#707a8a" fontSize={10} tickFormatter={v => `${(v / 1e6).toFixed(0)}M`} />
+                  <Tooltip contentStyle={{ background: "#1e2329", border: "1px solid #2b3139", borderRadius: 8, fontSize: 11 }}
                     formatter={(v: number) => `$${(v / 1e6).toFixed(2)}M`} />
-                  <Area dataKey="nii" stroke="#3ecf8e" fill="#3ecf8e22" strokeWidth={1.5} />
+                  <Area dataKey="nii" stroke="#fcd535" fill="#fcd53522" strokeWidth={1.5} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardBody>
@@ -120,12 +121,12 @@ export default function StrategyPage() {
             <CardBody>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={dvData}>
-                  <CartesianGrid stroke="#1f1f23" strokeDasharray="3 3" />
-                  <XAxis dataKey="month" stroke="#3f3f46" fontSize={10} />
-                  <YAxis stroke="#3f3f46" fontSize={10} tickFormatter={v => `${(v / 1e3).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ background: "#101012", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }}
+                  <CartesianGrid stroke="#2b3139" strokeDasharray="3 3" />
+                  <XAxis dataKey="month" stroke="#707a8a" fontSize={10} />
+                  <YAxis stroke="#707a8a" fontSize={10} tickFormatter={v => `${(v / 1e3).toFixed(0)}k`} />
+                  <Tooltip contentStyle={{ background: "#1e2329", border: "1px solid #2b3139", borderRadius: 8, fontSize: 11 }}
                     formatter={(v: number) => `$${(v / 1e3).toFixed(0)}k/bp`} />
-                  <Line dataKey="dv01" stroke="#60a5fa" dot={false} strokeWidth={1.5} />
+                  <Line dataKey="dv01" stroke="#2dbdb6" dot={false} strokeWidth={1.5} />
                 </LineChart>
               </ResponsiveContainer>
             </CardBody>

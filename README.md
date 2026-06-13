@@ -18,13 +18,21 @@ packages/
               AGENTS.md hierarchy (root / src / tests / skills).
 ```
 
+Docs: PRODUCT.md (what/who/journeys), ARCHITECTURE.md (layers and
+invariants), DESIGN.md (UI system), AGENTS.md hierarchy (modification
+contracts at every layer).
+
 ## Quick start
 ```bash
-make install      # editable python install + npm workspaces
-make dev-api      # :8000 — seeds a WFC-1Q26-proportional model balance sheet
-make dev-web      # :5173 — proxies /api to :8000
-make test-py      # 33 engine tests (the change gates)
+bun run setup     # uv Python envs + bun workspaces
+bun run dev:api   # :8000 — seeds a WFC-1Q26-proportional model balance sheet
+bun run dev:web   # :5173 — proxies /api to :8000
+bun run test:py   # 33 engine tests (the change gates)
 ```
+
+Toolchains: Python environments are managed with `uv`; frontend packages
+and scripts are managed with `bun`. The Makefile exposes the same targets for
+systems that have `make` available.
 
 ## What the UI does
 - **Dashboard** — book balances, stacked KRD-by-pillar across all five

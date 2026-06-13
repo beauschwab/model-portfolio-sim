@@ -158,3 +158,15 @@ batched_pv_engine: all 38 KRD/vega revaluations in one kernel launch
 multi-core architectural (one parallel region vs 38). Gated by a 1e-10
 cross-kernel invariant that caught two init bugs on first run. API
 settings gain n_threads (0 = all cores).
+
+## v0.16: robust balance-sheet optimizer
+optimizer.py: maximin worst-case NII LP over the unit library; absolute
+ratio floors + commercial plan constraints holding across multiple
+market scenarios simultaneously; 11ms solves with shadow prices on
+binding constraints. API: POST /optimize.
+
+## v0.17: layered package reorg
+src/mbs_risk reorganized into core/ models/ products/ analytics/
+strategy/ (matching ARCHITECTURE.md layers); old flat import paths kept
+working via module aliases -- zero changes needed in tests, API, or the
+skill. 34 tests green post-move.

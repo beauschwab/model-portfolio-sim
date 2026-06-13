@@ -51,3 +51,4 @@ class JobStatus(BaseModel):
     status: Literal["queued", "running", "done", "error"]
     detail: str | None = None
     result: Any | None = None
+    progress: dict[str, Any] | None = None

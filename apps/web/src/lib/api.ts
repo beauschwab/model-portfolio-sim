@@ -6,7 +6,23 @@ export type Row = Record<string, unknown>;
 export interface Market { swap_tenors: number[]; swap_rates: number[]; vol_pts: number[][]; source: string }
 export interface Scenario { name: string; ust10y_bp: number[]; twos_tens_bp: number[]; spread_bp: number[]; vol_bp: number[] }
 export interface Settings { n_paths: number; seed: number; horizon_months: number; shocks_bp: number[] }
-export interface Job { id: string; kind: string; status: "queued" | "running" | "done" | "error"; detail?: string; result?: unknown }
+export interface RunPlan {
+  kind: string; records: number; records_by_book: Record<string, number>;
+  in_scope: number; monte_carlo_paths: number; horizon_months: number;
+  rate_shocks_bp: number[]; scenario_path_steps: number; revaluations: number;
+  path_evaluations: number; reductions: number; crn_seed: number; note?: string;
+  scenario_markets?: number;
+}
+export interface RunProgress {
+  stage?: string; pct?: number; elapsed_s?: number;
+  plan?: Partial<RunPlan>;
+  stats?: Record<string, number>;
+  log?: { t: number; msg: string }[];
+}
+export interface Job {
+  id: string; kind: string; status: "queued" | "running" | "done" | "error";
+  detail?: string; result?: unknown; progress?: RunProgress;
+}
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(BASE + path, { headers: { "Content-Type": "application/json" }, ...init });

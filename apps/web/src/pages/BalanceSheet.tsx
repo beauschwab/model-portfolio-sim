@@ -23,7 +23,7 @@ export default function BalanceSheet() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Tabs tabs={BOOK_TABS} active={tab} onChange={t => setTab(t as BookName)} />
         <div className="flex gap-2">
@@ -40,7 +40,7 @@ export default function BalanceSheet() {
           sub="balances sized to the WFC 1Q26 mix (synthetic; see model_balance_sheet docstring)" />
         <CardBody className="p-0">
           {editing
-            ? <textarea className="h-[28rem] w-full bg-surface-2 p-3 font-mono text-[11px] text-zinc-300 outline-none" value={text} onChange={e => setText(e.target.value)} />
+            ? <textarea className="h-[28rem] w-full bg-surface-2 p-3 font-mono text-[11px] text-paper-dim outline-none" value={text} onChange={e => setText(e.target.value)} />
             : <DataTable rows={rows} />}
         </CardBody>
       </Card>

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, awaitJob, type Market, type Scenario } from "../lib/api";
 import { CurveChart, ScenarioPath } from "../components/charts";
-import { Button, Card, CardBody, CardHeader, Input, Badge } from "../components/ui";
+import { Button, Card, CardBody, CardHeader, Input, Badge, InfoPop, Popover } from "../components/ui";
+import DragSeries from "../components/DragSeries";
 
 const TENORS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30];
 const emptySc = (name: string): Scenario => ({ name, ust10y_bp: [], twos_tens_bp: [], spread_bp: [], vol_bp: [] });
@@ -42,17 +43,32 @@ export default function MarketPage() {
     } finally { setBusy(false); }
   };
 
-  const LegEditor = ({ label, value, onChange }: { label: string; value: number[]; onChange: (v: number[]) => void }) => (
-    <div className="flex items-center gap-2">
-      <div className="w-28 text-xs text-zinc-400">{label}</div>
-      <Input placeholder="e.g. 25, 50, 75, 100  (bp per quarter, last extends)"
-        value={value.join(", ")}
-        onChange={e => onChange(e.target.value.split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n)))} />
+  const [rng, setRng] = useState({ lo: -150, hi: 300, step: 5 });
+  const LegEditor = ({ label, value, color, onChange }: { label: string; value: number[]; color?: string; onChange: (v: number[]) => void }) => (
+    <div>
+      <div className="mb-0.5 flex items-center justify-between">
+        <div className="flex items-center text-xs text-paper-dim">{label}
+          <InfoPop>Drag the points to shape this leg by quarter — values snap to {rng.step}bp. Click a column to set it. The last point extends to Q9 on the engine side.</InfoPop>
+        </div>
+        <Popover width="13rem" trigger={<span className="text-[10px] text-paper-faint underline decoration-dotted">range {rng.lo}…{rng.hi}bp</span>}>
+          <div className="space-y-2">
+            <div className="text-[10px] uppercase tracking-wide text-paper-faint">Drag range & snap</div>
+            {(["lo", "hi", "step"] as const).map(k => (
+              <div key={k} className="flex items-center gap-2">
+                <span className="w-8 text-[10px] text-paper-faint">{k}</span>
+                <Input type="number" value={rng[k]} onChange={e => setRng({ ...rng, [k]: Number(e.target.value) })} />
+              </div>
+            ))}
+          </div>
+        </Popover>
+      </div>
+      <DragSeries values={value.length ? value : [0]} min={rng.lo} max={rng.hi} step={rng.step} unit="bp" color={color}
+        onChange={onChange} />
     </div>
   );
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-3 xl:grid-cols-2">
       <Card>
         <CardHeader title="Par swap curve" sub={mkt?.source ?? ""} right={<Button variant="ghost" onClick={saveMarket}>Save market</Button>} />
         <CardBody>
@@ -60,7 +76,7 @@ export default function MarketPage() {
           <div className="mt-3 grid grid-cols-5 gap-2">
             {TENORS.map((t, i) => (
               <div key={t}>
-                <div className="mb-1 text-[10px] text-zinc-500">{t}y</div>
+                <div className="mb-1 text-[10px] text-paper-faint">{t}y</div>
                 <Input value={((rates[i] ?? 0) * 100).toFixed(3)}
                   onChange={e => { const r = [...rates]; r[i] = parseFloat(e.target.value) / 100 || 0; setRates(r); }} />
               </div>
@@ -77,20 +93,20 @@ export default function MarketPage() {
           </div>} />
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-28 text-xs text-zinc-400">name</div>
+            <div className="w-28 text-xs text-paper-dim">name</div>
             <Input value={sc.name} onChange={e => setSc({ ...sc, name: e.target.value })} />
             <div className="flex gap-1">{Object.keys(scs).map(n => (
-              <button key={n} className="rounded bg-surface-3 px-2 py-1 text-[10px] text-zinc-400 hover:text-brand"
+              <button key={n} className="rounded bg-surface-3 px-2 py-1 text-[10px] text-paper-dim hover:text-brand"
                 onClick={() => setSc(scs[n])}>{n}</button>))}
             </div>
           </div>
-          <LegEditor label="10y UST (bp)" value={sc.ust10y_bp} onChange={v => setSc({ ...sc, ust10y_bp: v })} />
-          <LegEditor label="2s10s (bp)" value={sc.twos_tens_bp} onChange={v => setSc({ ...sc, twos_tens_bp: v })} />
-          <LegEditor label="spread (bp)" value={sc.spread_bp} onChange={v => setSc({ ...sc, spread_bp: v })} />
-          <LegEditor label="vol (bp)" value={sc.vol_bp} onChange={v => setSc({ ...sc, vol_bp: v })} />
+          <LegEditor label="10y UST (bp)" color="#fcd535" value={sc.ust10y_bp} onChange={v => setSc({ ...sc, ust10y_bp: v })} />
+          <LegEditor label="2s10s (bp)" color="#2dbdb6" value={sc.twos_tens_bp} onChange={v => setSc({ ...sc, twos_tens_bp: v })} />
+          <LegEditor label="spread (bp)" color="#f6465d" value={sc.spread_bp} onChange={v => setSc({ ...sc, spread_bp: v })} />
+          <LegEditor label="vol (bp)" color="#929aa5" value={sc.vol_bp} onChange={v => setSc({ ...sc, vol_bp: v })} />
           {path
             ? <ScenarioPath data={path} />
-            : <div className="flex h-40 items-center justify-center text-xs text-zinc-600">
+            : <div className="flex h-40 items-center justify-center text-xs text-paper-faint">
                 define legs and run — each quarter revalues the full balance sheet on the shifted market <Badge tone="zinc">base OAS held fixed</Badge>
               </div>}
         </CardBody>
