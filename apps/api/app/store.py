@@ -184,6 +184,48 @@ def report(stage: str | None = None, pct: float | None = None,
             p["log"] = p["log"][-60:]      # keep the tail bounded
 
 
+def node(nid: str, *, parent: str | None = None, label: str | None = None,
+         kind: str | None = None, status: str | None = None,
+         detail: str | None = None, **stat: float) -> None:
+    """Upsert a pipeline node on the running job's progress telemetry.
+
+    Nodes form a flat list with `parent` pointers (rendered as a tree on the
+    client). `kind` in {build, branch, paths, cashflow, oas, reduce, solve};
+    `status` in {pending, running, done, error}. `t0` is stamped the first time
+    a node goes `running`, `t1` when it reaches `done`/`error`. **stat carries
+    per-node counters (e.g. records, paths, calcs). Safe no-op off-thread."""
+    jid = _CUR_JID
+    if jid is None or jid not in JOBS:
+        return
+    with _LOCK:
+        p = JOBS[jid].setdefault("progress", {})
+        nodes = p.setdefault("nodes", [])
+        n = next((x for x in nodes if x["id"] == nid), None)
+        if n is None:
+            n = {"id": nid, "parent": parent, "label": label or nid,
+                 "kind": kind or "branch", "status": "pending",
+                 "detail": None, "stat": {}, "t0": None, "t1": None}
+            nodes.append(n)
+        if parent is not None:
+            n["parent"] = parent
+        if label is not None:
+            n["label"] = label
+        if kind is not None:
+            n["kind"] = kind
+        if detail is not None:
+            n["detail"] = detail
+        t0 = JOBS[jid].get("_t0")
+        now = round(time.perf_counter() - t0, 3) if t0 is not None else 0.0
+        if status is not None:
+            if status == "running" and n["t0"] is None:
+                n["t0"] = now
+            if status in ("done", "error"):
+                n["t1"] = now
+            n["status"] = status
+        for k, v in stat.items():
+            n["stat"][k] = n["stat"].get(k, 0) + v
+
+
 def compute_run_plan(kind: str, books: list[str]) -> dict:
     """Model the workload a run will dispatch, from current settings and
     book sizes. These are the quantities a quant developer reaches for:
@@ -241,7 +283,7 @@ def submit(kind: str, fn, *args, plan: dict | None = None) -> str:
                  "detail": None, "result": None,
                  "progress": {"stage": "queued", "pct": 0.0,
                               "plan": plan or {}, "stats": {},
-                              "elapsed_s": 0.0, "log": []}}
+                              "elapsed_s": 0.0, "log": [], "nodes": []}}
 
     def run():
         global _CUR_JID
@@ -277,41 +319,77 @@ def run_risk_all(books: list[str], sr, vp, spread_shift: float = 0.0):
     total = max(len(order), 1)
     done = 0
     factor = 1 + 2 + 2 * KRD_PILLARS              # base + parallel dv01 + KRD pillars
+    _oas_books = {"mbs", "loans", "debt", "cds"}  # books priced via an OAS solve
+    npaths = SETTINGS.n_paths
+
+    # declare the pipeline skeleton: build -> branch per book -> paths/cashflow/oas
+    node("build", parent=None, kind="build", status="running",
+         label="Position build", detail=f"{total} books in scope")
+    for b in order:
+        node(f"book:{b}", parent="build", kind="branch", label=b.upper(),
+             detail=f"{int(len(BOOKS[b]))} positions \u00b7 {factor} bump scenarios")
+        node(f"{b}:paths", parent=f"book:{b}", kind="paths", label="rate paths")
+        node(f"{b}:cf", parent=f"book:{b}", kind="cashflow", label="cashflow engine")
+        if b in _oas_books:
+            node(f"{b}:oas", parent=f"book:{b}", kind="oas", label="OAS solve")
+
     report(stage="seeding CRN", pct=3.0,
-           log=f"CRN draws: {SETTINGS.n_paths} paths, seed {SETTINGS.seed}")
+           log=f"CRN draws: {npaths} paths, seed {SETTINGS.seed}")
+    node("build", status="done", records=sum(int(len(BOOKS[b])) for b in order))
+
+    def _start(book: str):
+        n = int(len(BOOKS[book]))
+        node(f"book:{book}", status="running")
+        node(f"{book}:paths", status="running")
+        node(f"{book}:paths", status="done", paths=npaths)
+        node(f"{book}:cf", status="running")
+        report(paths_generated=npaths)
 
     def _did(book: str):
         nonlocal done
         done += 1
         n = int(len(BOOKS[book]))
         rv = n * factor
+        cf = n * factor * npaths
+        node(f"{book}:cf", status="done", calcs=cf)
+        report(cashflow_calcs=cf)
+        if book in _oas_books:
+            node(f"{book}:oas", status="running")
+            node(f"{book}:oas", status="done", calcs=n * factor)
+            report(oas_calcs=n * factor)
+        node(f"book:{book}", status="done")
         report(stage=f"revalued {book}", pct=3 + 94 * done / total,
                records=n, revaluations=rv,
-               path_evaluations=rv * SETTINGS.n_paths, reductions=rv,
+               path_evaluations=rv * npaths, reductions=rv,
                books_done=1, log=f"{book}: {n} positions \u2192 {rv} revaluations")
 
     if "mbs" in books:
         report(stage="revaluing mbs", log="mbs: OAS-held dv01 + KRD by pillar")
+        _start("mbs")
         out["mbs"] = run_risk(BOOKS["mbs"], sr, vp, *MBS_HISTS,
                               seed=SETTINGS.seed)
         _did("mbs")
     if "loans" in books:
         report(stage="revaluing loans")
+        _start("loans")
         out["loans"] = run_corp_risk(BOOKS["loans"], ASOF, sr, vp,
                                      *MBS_HISTS, seed=SETTINGS.seed)
         _did("loans")
     if "debt" in books:
         report(stage="revaluing debt")
+        _start("debt")
         out["debt"] = run_corp_risk(BOOKS["debt"], ASOF, sr, vp,
                                     *MBS_HISTS, seed=SETTINGS.seed)
         _did("debt")
     if "deposits" in books:
         report(stage="revaluing deposits")
+        _start("deposits")
         out["deposits"] = run_deposit_risk(BOOKS["deposits"], sr, vp,
                                            DEP_HIST, seed=SETTINGS.seed)
         _did("deposits")
     if "cds" in books:
         report(stage="revaluing cds")
+        _start("cds")
         out["cds"] = run_cd_risk(BOOKS["cds"], ASOF, sr, vp,
                                  seed=SETTINGS.seed)
         _did("cds")
@@ -332,50 +410,100 @@ def run_stress_all(books, sr, vp):
     out = {}
     shocks = tuple(SETTINGS.shocks_bp)
     factor = 1 + len(shocks)
+    npaths = SETTINGS.n_paths
+    node("build", parent=None, kind="build", status="running",
+         label="Position build", detail=f"{len(shocks)} forward shocks")
     report(stage="seeding CRN", pct=4.0,
            log=f"{len(shocks)} forward shocks: {list(shocks)} bp")
+    node("build", status="done")
+
+    def _stress_book(book: str, runner, p_run: float, p_done: float):
+        n = int(len(BOOKS[book]))
+        node(f"book:{book}", parent="build", kind="branch", label=book.upper(),
+             detail=f"{n} positions \u00d7 {factor} states", status="running")
+        node(f"{book}:paths", parent=f"book:{book}", kind="paths",
+             label="forward shock paths", status="running")
+        node(f"{book}:paths", status="done", paths=npaths)
+        report(paths_generated=npaths)
+        node(f"{book}:cf", parent=f"book:{book}", kind="cashflow",
+             label="stress cashflow engine", status="running")
+        report(stage=f"stressing {book}", pct=p_run)
+        res = runner(n)
+        cf = n * factor * npaths
+        node(f"{book}:cf", status="done", calcs=cf)
+        node(f"book:{book}", status="done")
+        report(stage=f"stressed {book}", pct=p_done, records=n,
+               revaluations=n * factor, path_evaluations=cf,
+               reductions=n * factor, books_done=1, cashflow_calcs=cf,
+               log=f"{book}: {n} positions \u00d7 {factor} states")
+        return res
+
     if "mbs" in books:
-        report(stage="stressing mbs", pct=20.0)
-        n = int(len(BOOKS["mbs"]))
-        pos, agg, prof = run_stress(BOOKS["mbs"], sr, vp, *MBS_HISTS,
-                                    shocks_bp=shocks,
-                                    seed=SETTINGS.seed)
-        out["mbs"] = {"agg": agg, "profile": prof}
-        report(stage="stressed mbs", pct=60.0, records=n,
-               revaluations=n * factor, path_evaluations=n * factor * SETTINGS.n_paths,
-               reductions=n * factor, books_done=1,
-               log=f"mbs: {n} positions \u00d7 {factor} states")
+        def _run_mbs(_n):
+            pos, agg, prof = run_stress(BOOKS["mbs"], sr, vp, *MBS_HISTS,
+                                        shocks_bp=shocks, seed=SETTINGS.seed)
+            out["mbs"] = {"agg": agg, "profile": prof}
+        _stress_book("mbs", _run_mbs, 20.0, 60.0)
     if "deposits" in books:
-        report(stage="stressing deposits", pct=70.0)
-        n = int(len(BOOKS["deposits"]))
-        pos, agg, prof = run_deposit_stress(
-            BOOKS["deposits"], sr, vp, DEP_HIST,
-            shocks_bp=shocks, seed=SETTINGS.seed)
-        out["deposits"] = {"agg": agg, "profile": prof}
-        report(stage="stressed deposits", pct=96.0, records=n,
-               revaluations=n * factor, path_evaluations=n * factor * SETTINGS.n_paths,
-               reductions=n * factor, books_done=1,
-               log=f"deposits: {n} positions \u00d7 {factor} states")
+        def _run_dep(_n):
+            pos, agg, prof = run_deposit_stress(
+                BOOKS["deposits"], sr, vp, DEP_HIST,
+                shocks_bp=shocks, seed=SETTINGS.seed)
+            out["deposits"] = {"agg": agg, "profile": prof}
+        _stress_book("deposits", _run_dep, 70.0, 96.0)
     return out
 
 
-def run_nii(sr, vp):
+def run_nii(sr, vp, *, node_parent: str | None = None, node_prefix: str = "nii"):
+    """Forward balance-sheet NII. When `node_parent` is given, attaches its
+    paths/cashflow/reduce nodes under that branch (so nested callers -- kpis,
+    scenario_grid, optimize -- can place it in their own tree without id
+    clashes) and stays quiet on stage/pct so the caller owns the bar."""
     from portfolio_risk.accounting import run_balance_sheet_nii
-    report(stage="simulating LMM paths", pct=8.0,
-           scenario_paths=SETTINGS.n_paths,
-           log=f"LMM: {SETTINGS.n_paths} paths \u00d7 {SETTINGS.horizon_months}m")
+    npaths = SETTINGS.n_paths
+    nested = node_parent is not None
+    pre = node_prefix
+    if not nested:                       # standalone run: own the root stages
+        node("build", parent=None, kind="build", status="running",
+             label="Position build")
+        node(pre, parent="build", kind="branch", label="Base market",
+             status="running")
+        node("build", status="done")
+        parent = pre
+    else:
+        parent = node_parent
+
+    node(f"{pre}:paths", parent=parent, kind="paths", label="LMM paths",
+         status="running", detail=f"{npaths} paths \u00d7 {SETTINGS.horizon_months}m")
+    if not nested:
+        report(stage="simulating LMM paths", pct=8.0,
+               log=f"LMM: {npaths} paths \u00d7 {SETTINGS.horizon_months}m")
+    report(scenario_paths=npaths, paths_generated=npaths)
+    node(f"{pre}:paths", status="done", paths=npaths)
+
     bs = {k: BOOKS[k] for k in ("mbs", "loans", "debt", "deposits",
                                 "cds", "mm") if k in BOOKS}
     bs["hedges"] = HEDGES
     bs["mbs_hists"] = MBS_HISTS
-    report(stage="forward balance & NII", pct=35.0)
+    node(f"{pre}:cf", parent=parent, kind="cashflow",
+         label="forward balance & NII", status="running")
+    if not nested:
+        report(stage="forward balance & NII", pct=35.0)
     out = run_balance_sheet_nii(bs, sr, vp, DEP_HIST,
                                 horizon=SETTINGS.horizon_months,
                                 seed=SETTINGS.seed, asof=ASOF)
     n = sum(int(len(BOOKS[k])) for k in bs if isinstance(BOOKS.get(k), pl.DataFrame))
-    report(stage="reducing to monthly NII", pct=55.0,
-           records=n, path_evaluations=n * SETTINGS.n_paths, reductions=n,
+    cf = n * npaths
+    node(f"{pre}:cf", status="done", calcs=cf)
+    node(f"{pre}:reduce", parent=parent, kind="reduce",
+         label="reduce to monthly NII", status="running")
+    if not nested:
+        report(stage="reducing to monthly NII", pct=55.0)
+    report(records=n, path_evaluations=cf, reductions=n, cashflow_calcs=cf,
            log="reduced path NII to monthly means")
+    node(f"{pre}:reduce", status="done")
+    if not nested:
+        node(pre, status="done")
     return out
 
 
@@ -388,10 +516,16 @@ def run_kpis(sr, vp):
     bs["equity"] = EQUITY
     bs["hedges"] = HEDGES
     nii = run_nii(sr, vp)
+    node("kpi:eve", parent="build", kind="solve", label="EVE & parallel dv01",
+         status="running")
     report(stage="EVE & parallel dv01", pct=65.0, log="full-reval EVE + dv01")
     out = compute_kpis(bs, sr, vp, DEP_HIST,
                        nii_monthly=nii["monthly"], seed=SETTINGS.seed)
+    node("kpi:eve", status="done")
+    node("kpi:ratios", parent="build", kind="solve", label="LCR / NSFR / CET1",
+         status="running")
     report(stage="LCR / NSFR / CET1", pct=90.0, log="liquidity + capital ratios")
+    node("kpi:ratios", status="done")
     out["nii_summary"] = nii["summary"]
     return out
 
@@ -399,8 +533,19 @@ def run_kpis(sr, vp):
 def build_unitlib_job(sr, vp):
     from portfolio_risk.unitlib import build_unit_library
     global UNITLIB, BASE_KPIS
+    npaths = SETTINGS.n_paths
+    node("build", parent=None, kind="build", status="running",
+         label="Position build")
+    node("unit:lib", parent="build", kind="cashflow", label="unit library",
+         detail="template unit tensor", status="running")
+    report(stage="building unit library", pct=4.0, scenario_paths=npaths,
+           paths_generated=npaths, log="template unit tensor")
     UNITLIB = build_unit_library(sr, vp, MBS_HISTS, DEP_HIST,
                                  seed=SETTINGS.seed)
+    n_units = len(UNITLIB["units"]) if isinstance(UNITLIB, dict) else 0
+    node("unit:lib", status="done", calcs=n_units * npaths, units=n_units)
+    node("build", status="done")
+    report(unit_columns=n_units, cashflow_calcs=n_units * npaths)
     BASE_KPIS = run_kpis(sr, vp)
     return {"units": len(UNITLIB["units"]),
             "templates": list(UNITLIB["templates"]),
@@ -428,10 +573,17 @@ def run_optimize_job(sr, vp, opt: dict):
     from portfolio_risk.optimizer import optimize_balance_sheet
     from portfolio_risk.unitlib import build_unit_library
     from portfolio_risk.kpis import compute_kpis
+    npaths = SETTINGS.n_paths
+    node("build", parent=None, kind="build", status="running",
+         label="Position build")
+    node("opt:base", parent="build", kind="branch", label="Base NII objective",
+         status="running")
     report(stage="base NII path", pct=4.0,
-           scenario_paths=SETTINGS.n_paths,
+           scenario_paths=npaths,
            log="base market NII path for the objective")
-    nii = run_nii(sr, vp)
+    nii = run_nii(sr, vp, node_parent="opt:base", node_prefix="opt:base")
+    node("opt:base", status="done")
+    node("build", status="done")
     scen_libs = []
     markets = [("base", sr, vp)]
     for name in opt.get("scenarios", []):
@@ -447,19 +599,35 @@ def run_optimize_job(sr, vp, opt: dict):
     span = 84.0 / total                               # 8% .. 92% across markets
     for i, (name, s2, v2) in enumerate(markets):
         base = 8.0 + span * i
+        node(f"mkt:{name}", parent="build", kind="branch",
+             label=f"market: {name}", detail=f"unit tensor ({i + 1}/{total})",
+             status="running")
+        node(f"mkt:{name}:paths", parent=f"mkt:{name}", kind="paths",
+             label="LMM paths", status="running")
+        node(f"mkt:{name}:paths", status="done", paths=npaths)
+        node(f"mkt:{name}:cf", parent=f"mkt:{name}", kind="cashflow",
+             label="unit library", status="running")
         report(stage=f"unit library: {name}", pct=base,
-               scenario_paths=SETTINGS.n_paths,
+               scenario_paths=npaths, paths_generated=npaths,
                log=f"building unit tensor under {name} market ({i + 1}/{total})")
         lib = build_unit_library(s2, v2, MBS_HISTS, DEP_HIST,
                                  seed=SETTINGS.seed)
         n_units = len(lib.get("units", [])) if isinstance(lib, dict) else 0
+        node(f"mkt:{name}:cf", status="done", calcs=n_units * npaths)
+        node(f"mkt:{name}:kpi", parent=f"mkt:{name}", kind="solve",
+             label="KPIs", status="running")
         report(stage=f"KPIs: {name}", pct=base + span * 0.6,
                revaluations=n_units, reductions=n_units,
-               unit_columns=n_units,
+               unit_columns=n_units, cashflow_calcs=n_units * npaths,
+               oas_calcs=n_units,
                log=f"{name}: {n_units} unit columns priced")
         scen_libs.append((lib, compute_kpis(bs, s2, v2, DEP_HIST,
                                             nii_monthly=nii["monthly"],
                                             seed=SETTINGS.seed)))
+        node(f"mkt:{name}:kpi", status="done", calcs=n_units)
+        node(f"mkt:{name}", status="done")
+    node("opt:lp", parent="build", kind="solve", label="LP maximin solve",
+         detail=f"{total} markets", status="running")
     report(stage="solving LP", pct=94.0,
            log=f"maximin LP across {total} markets")
     out = optimize_balance_sheet(
@@ -470,6 +638,7 @@ def run_optimize_job(sr, vp, opt: dict):
         commercial=opt.get("commercial"),
         max_total_assets=opt.get("max_total_assets"))
     nb = len(out.get("binding_constraints", []) or []) if isinstance(out, dict) else 0
+    node("opt:lp", status="done", detail=f"{nb} binding constraints")
     report(stage="LP solved", pct=99.0, binding_constraints=nb,
            log=f"{'feasible' if isinstance(out, dict) and out.get('feasible') else 'infeasible'} \u00b7 {nb} binding")
     return out
@@ -480,12 +649,20 @@ def run_scenario_grid(sc: MarketScenario):
     value/NII drift along the named path (base OAS held fixed -- the
     engine's global invariant)."""
     rows = []
+    node("build", parent=None, kind="build", status="running",
+         label="Position build", detail=f"{sc.name}: 9 quarters")
     for q in range(9):
+        node(f"q{q}", parent="build", kind="branch", label=f"Q{q + 1}",
+             detail="revalue at scenario market")
+    node("build", status="done")
+    for q in range(9):
+        node(f"q{q}", status="running")
         report(stage=f"quarter {q + 1}/9", pct=4 + 92 * q / 9,
                scenario_paths=SETTINGS.n_paths,
                log=f"Q{q + 1}: revalue at scenario market")
         sr, vp, spr = apply_scenario(sc, q)
-        nii = run_nii(sr, vp)
+        nii = run_nii(sr, vp, node_parent=f"q{q}", node_prefix=f"q{q}")
+        node(f"q{q}", status="done")
         s = nii["summary"]
         rows.append({"quarter": q + 1,
                      "ust10y_pct": float(sr[6] * 100),

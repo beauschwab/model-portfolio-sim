@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { IDockviewPanelProps } from "dockview";
 import { Badge } from "../components/ui";
+import PipelineMonitor from "../components/PipelineMonitor";
 import BalanceSheet from "../pages/BalanceSheet";
 import Dashboard from "../pages/Dashboard";
 import KpisPage from "../pages/Kpis";
@@ -13,6 +14,7 @@ import StrategyPage from "../pages/Strategy";
 
 export type PanelId =
   | "morning"
+  | "pipeline"
   | "risk"
   | "kpis"
   | "positions"
@@ -33,6 +35,7 @@ export interface WorkspacePanelDef {
 
 export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "morning", title: "Morning Sheet", railLabel: "AM", subtitle: "ALCO-ready summary · constraints · run notes", component: () => <MorningSheet /> },
+  { id: "pipeline", title: "Pipeline", railLabel: "PL", subtitle: "live orchestration · scenario fan-out · path & calc telemetry", component: () => <PipelineMonitor /> },
   { id: "risk", title: "Risk Desk", railLabel: "RD", subtitle: "KRD profile · NII forecast · 9Q stress P&L", component: () => <Dashboard /> },
   { id: "kpis", title: "KPIs", railLabel: "K", subtitle: "EVE · LCR · NSFR · CET1", component: () => <KpisPage /> },
   { id: "positions", title: "Positions", railLabel: "P", subtitle: "side → book → position · indicative client-side derivations", component: () => <Positions /> },

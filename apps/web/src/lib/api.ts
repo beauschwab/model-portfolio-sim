@@ -18,11 +18,25 @@ export interface RunPlan {
   path_evaluations: number; reductions: number; crn_seed: number; note?: string;
   scenario_markets?: number;
 }
+export type NodeKind = "build" | "branch" | "paths" | "cashflow" | "oas" | "reduce" | "solve";
+export type NodeStatus = "pending" | "running" | "done" | "error";
+export interface PipelineNode {
+  id: string;
+  parent: string | null;
+  label: string;
+  kind: NodeKind;
+  status: NodeStatus;
+  detail?: string | null;
+  stat?: Record<string, number>;
+  t0?: number | null;
+  t1?: number | null;
+}
 export interface RunProgress {
   stage?: string; pct?: number; elapsed_s?: number;
   plan?: Partial<RunPlan>;
   stats?: Record<string, number>;
   log?: { t: number; msg: string }[];
+  nodes?: PipelineNode[];
 }
 export interface Job {
   id: string; kind: string; status: "queued" | "running" | "done" | "error";

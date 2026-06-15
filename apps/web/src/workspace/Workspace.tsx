@@ -53,6 +53,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     addPanel(dockApi, "risk", { position: { referencePanel: "morning", direction: "within" } });
     addPanel(dockApi, "market", { position: { referencePanel: "risk", direction: "right" } });
     addPanel(dockApi, "positions", { position: { referencePanel: "risk", direction: "below" } });
+    addPanel(dockApi, "pipeline", { position: { referencePanel: "positions", direction: "within" }, inactive: true });
     addPanel(dockApi, "kpis", { position: { referencePanel: "market", direction: "within" }, inactive: true });
     addPanel(dockApi, "optimizer", { position: { referencePanel: "positions", direction: "within" }, inactive: true });
     dockApi.getPanel("risk")?.api.setActive();

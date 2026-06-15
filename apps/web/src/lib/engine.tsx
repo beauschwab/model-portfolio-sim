@@ -13,8 +13,10 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from "react";
-import { api, type Job, type Market, type Scenario, type Settings } from "./api";
+import { api, type Job, type Market, type PipelineNode, type RunPlan, type Scenario, type Settings } from "./api";
 import type { Sample } from "../components/Heartbeat";
+
+export type RunLog = { t: number; msg: string };
 
 export type Kpis = {
   eve: {
@@ -45,6 +47,10 @@ interface EngineState {
   pct: number;
   elapsed: number;
   samples: Sample[];
+  nodes: PipelineNode[];
+  stats: Record<string, number>;
+  plan: Partial<RunPlan>;
+  log: RunLog[];
   // actions
   setActive: (name: string) => void;
   setSettings: (s: Settings) => void;
@@ -68,6 +74,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [pct, setPct] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [samples, setSamples] = useState<Sample[]>([]);
+  const [nodes, setNodes] = useState<PipelineNode[]>([]);
+  const [stats, setStats] = useState<Record<string, number>>({});
+  const [plan, setPlan] = useState<Partial<RunPlan>>({});
+  const [log, setLog] = useState<RunLog[]>([]);
   const inFlight = useRef(false);
 
   const refreshMarket = useCallback(() => { api.market().then(setMarket).catch(() => {}); }, []);
@@ -93,7 +103,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     if (inFlight.current) return null; // single-flight: kernels saturate cores
     inFlight.current = true;
     setRunning(true); setActiveKind(kind); setStage("starting"); setPct(0);
-    setElapsed(0); setSamples([]);
+    setElapsed(0); setSamples([]); setNodes([]); setStats({}); setPlan({}); setLog([]);
     const t0 = performance.now();
     const clock = setInterval(() => setElapsed((performance.now() - t0) / 1000), 100);
     try {
@@ -102,6 +112,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
         if (p.stage) setStage(p.stage);
         if (typeof p.pct === "number") setPct(p.pct);
         if (typeof p.elapsed_s === "number") setElapsed(p.elapsed_s);
+        if (p.nodes) setNodes(p.nodes);
+        if (p.stats) setStats(p.stats);
+        if (p.plan) setPlan(p.plan);
+        if (p.log) setLog(p.log);
         const pe = p.stats?.path_evaluations;
         if (typeof pe === "number") {
           setSamples(s => {
@@ -130,10 +144,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<EngineState>(() => ({
     market, settings, scenarios, active, kpis,
-    running, activeKind, stage, pct, elapsed, samples,
+    running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run,
   }), [market, settings, scenarios, active, kpis, running, activeKind, stage, pct, elapsed, samples,
-       setSettings, refreshMarket, refreshScenarios, run]);
+       nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
