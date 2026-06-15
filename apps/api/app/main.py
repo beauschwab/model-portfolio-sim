@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 import polars as pl
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
@@ -47,7 +47,8 @@ def list_books():
 def get_book(name: str):
     if name not in store.BOOKS:
         raise HTTPException(404, f"unknown book {name}")
-    return store.BOOKS[name].to_dicts()
+    return Response(store.to_arrow_envelope(store.BOOKS[name]),
+                    media_type=store.ARROW_ENVELOPE_MIME)
 
 
 @app.put("/books/{name}")
@@ -183,6 +184,19 @@ def job(jid: str) -> JobStatus:
     return JobStatus(**store.JOBS[jid])
 
 
+@app.get("/jobs/{jid}/result")
+def job_result(jid: str):
+    """Computed frames for a finished job, as an Arrow IPC envelope. Polling
+    GET /jobs/{jid} stays cheap JSON; the heavy result is fetched once here."""
+    if jid not in store.JOBS:
+        raise HTTPException(404, "unknown job")
+    j = store.JOBS[jid]
+    if j["status"] != "done":
+        raise HTTPException(409, f"job {j['status']}")
+    return Response(store.to_arrow_envelope(j["result"]),
+                    media_type=store.ARROW_ENVELOPE_MIME)
+
+
 @app.post("/optimize")
 def optimize(opt: dict):
     """Robust balance-sheet optimization (job): base market + named
@@ -204,7 +218,9 @@ def strategy_eval(allocations: list[dict]):
     tensor dot product + closed-form KPI recalc. Requires the unit
     library (POST /run kind='unitlib', ~20s one-time)."""
     try:
-        return store.eval_strategy_sync(allocations)
+        return Response(store.to_arrow_envelope(
+            store.eval_strategy_sync(allocations)),
+            media_type=store.ARROW_ENVELOPE_MIME)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
 
@@ -230,9 +246,12 @@ def del_program(name: str):
 @app.get("/hedges")
 def get_hedges():
     if store.HEDGES is None:
-        return {"swaps": [], "swaptions": []}
-    sw, sp = store.HEDGES
-    return {"swaps": sw.to_dicts(), "swaptions": sp.to_dicts()}
+        payload = {"swaps": [], "swaptions": []}
+    else:
+        sw, sp = store.HEDGES
+        payload = {"swaps": sw, "swaptions": sp}
+    return Response(store.to_arrow_envelope(payload),
+                    media_type=store.ARROW_ENVELOPE_MIME)
 
 
 @app.get("/health")

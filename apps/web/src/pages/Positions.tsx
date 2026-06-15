@@ -6,7 +6,7 @@
  * derived figures are INDICATIVE client-side approximations (each ⓘ
  * says so) — engine-grade numbers come from Risk Desk / NII runs. */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmt$, type BookName, type Row } from "../lib/api";
+import { api, fmt$, rowsOf, type BookName, type Row } from "../lib/api";
 import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Popover, Spinner } from "../components/ui";
 
 type View = "summary" | "fwd balance" | "fwd nii" | "krd";
@@ -95,7 +95,7 @@ export default function Positions() {
   useEffect(() => {
     (async () => {
       const names = ["mbs", "loans", "mm", "debt", "deposits", "cds"] as BookName[];
-      const fetched = await Promise.all(names.map(b => api.book(b).catch(() => [] as Row[])));
+      const fetched = await Promise.all(names.map(b => api.book(b).then(rowsOf).catch(() => [] as Row[])));
       const out: Pos[] = [];
       names.forEach((b, bi) => {
         for (const r of fetched[bi]) {

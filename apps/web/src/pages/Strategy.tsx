@@ -15,9 +15,7 @@ type Eval = {
 const TEMPLATES = ["agency_mbs", "resi_whole_loan", "cml_fixed_5y", "cml_float_3y", "auto_annuity_5y", "cd_2y", "mmda_growth"];
 
 async function evalStrategy(alloc: Alloc[]): Promise<Eval> {
-  const r = await fetch("/api/strategy/eval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(alloc) });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+  return api.strategyEval(alloc) as Promise<Eval>;
 }
 
 export default function StrategyPage() {

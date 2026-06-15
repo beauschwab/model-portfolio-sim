@@ -1,6 +1,6 @@
 /** Book browser/editor: per-book tables with JSON round-trip editing. */
 import { useEffect, useState } from "react";
-import { api, type BookName, type Row } from "../lib/api";
+import { api, rowsOf, type BookName, type Row } from "../lib/api";
 import { Button, Card, CardBody, CardHeader, DataTable, Tabs } from "../components/ui";
 
 const BOOK_TABS: BookName[] = ["mbs", "loans", "debt", "deposits", "cds", "mm"];
@@ -11,7 +11,7 @@ export default function BalanceSheet() {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
 
-  const load = (b: BookName) => api.book(b).then(setRows).catch(() => setRows([]));
+  const load = (b: BookName) => api.book(b).then(t => setRows(rowsOf(t))).catch(() => setRows([]));
   useEffect(() => { load(tab); }, [tab]);
 
   const save = async () => {
