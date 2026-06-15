@@ -46,9 +46,12 @@ class RunRequest(BaseModel):
 
 
 class JobStatus(BaseModel):
+    """Status/progress only -- the computed result is fetched separately as an
+    Arrow envelope from GET /jobs/{id}/result. Extra keys in the JOBS dict
+    (notably the raw `result`) are ignored by pydantic, so JobStatus(**job)
+    never tries to JSON-encode the held DataFrames."""
     id: str
     kind: str
     status: Literal["queued", "running", "done", "error"]
     detail: str | None = None
-    result: Any | None = None
     progress: dict[str, Any] | None = None

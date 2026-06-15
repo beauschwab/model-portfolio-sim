@@ -148,7 +148,8 @@ async function pollWithTelemetry(
   for (;;) {
     const s = await api.job(id);
     if (s.progress) onTick(s.progress);
-    if (s.status === "done" || s.status === "error") return s;
+    if (s.status === "error") return s;
+    if (s.status === "done") { s.result = await api.jobResult(id); return s; }
     await new Promise(r => setTimeout(r, ms));
   }
 }
