@@ -3,15 +3,15 @@ import numpy as np
 import polars as pl  # noqa
 import pytest
 
-from mbs_risk import demo
-from mbs_risk.config import SEED
-from mbs_risk.deposits import (DepositDeck, LogisticBetaECM, _deposit_A,
+from portfolio_risk import demo
+from portfolio_risk.config import SEED
+from portfolio_risk.deposits import (DepositDeck, LogisticBetaECM, _deposit_A,
                                run_deposit_risk)
-from mbs_risk.demo import demo_deposit_book, demo_deposit_history
-from mbs_risk.pricing import solve_oas_from_A
-from mbs_risk.scenarios import CRN, build_rate_paths
-from mbs_risk.curve import bootstrap_curve, forwards_from_dfs
-from mbs_risk.vol import calibrate_abcd, factor_loadings
+from portfolio_risk.demo import demo_deposit_book, demo_deposit_history
+from portfolio_risk.pricing import solve_oas_from_A
+from portfolio_risk.scenarios import CRN, build_rate_paths
+from portfolio_risk.curve import bootstrap_curve, forwards_from_dfs
+from portfolio_risk.vol import calibrate_abcd, factor_loadings
 
 
 @pytest.fixture(scope="module")
@@ -79,7 +79,7 @@ def test_segment_flight_ordering(rate_paths):
     assert wal[1] < wal[0]               # MMDA shorter than DDA
     # duration ordering at common OAS: liability PV sensitivity to spread
     lo, hi = np.zeros(2), np.full(2, 0.02)
-    from mbs_risk.pricing import pv_from_A
+    from portfolio_risk.pricing import pv_from_A
     dur = pv_from_A(A, lo, crn.n) - pv_from_A(A, hi, crn.n)
     assert dur[1] < dur[0]
 
@@ -99,8 +99,8 @@ def test_deposit_risk_end_to_end():
 def test_deposit_zero_shock_invariant(rate_paths):
     """Gating pattern: deposit_stress_engine restarted from checkpoints
     under a ZERO shock must reproduce the base engine's forward values."""
-    from mbs_risk.config import STRESS_HORIZONS_M
-    from mbs_risk.deposits import (_dep_args, deposit_shocked_paths,
+    from portfolio_risk.config import STRESS_HORIZONS_M
+    from portfolio_risk.deposits import (_dep_args, deposit_shocked_paths,
                                    deposit_stress_engine)
     paths, crn = rate_paths
     deck = DepositDeck(demo_deposit_book(30))
@@ -125,8 +125,8 @@ def test_deposit_stress_eve_signs():
     """Sticky DDA book: rates up -> liability value falls -> bank EVE
     gains (positive eve_pnl); monotone in shock size."""
     import polars as pl  # noqa
-    from mbs_risk import run_deposit_stress
-    from mbs_risk.demo import demo_market
+    from portfolio_risk import run_deposit_stress
+    from portfolio_risk.demo import demo_market
     rows = [dict(id=f"D{i}", balance=1e8, segment="DDA", age_months=120.0,
                  avg_account_size=1.5e4, rate_paid=0.0, price=96.0)
             for i in range(10)]
@@ -161,8 +161,8 @@ def test_cd_matches_corp_bullet(rate_paths):
     """Cross-engine consistency: a CD with withdrawal disabled and no call
     is economically a fixed bullet -- must price within MC/grid tolerance
     of the corp engine on identical terms and identical paths."""
-    from mbs_risk.cds import CDDeck, _cd_A
-    from mbs_risk.corp import CorpDeck, _corp_A, corp_pv as cpv
+    from portfolio_risk.cds import CDDeck, _cd_A
+    from portfolio_risk.corp import CorpDeck, _corp_A, corp_pv as cpv
     paths, crn = rate_paths
     oas = np.array([0.01])
 
@@ -182,8 +182,8 @@ def test_cd_matches_corp_bullet(rate_paths):
 def test_cd_withdrawal_option_raises_liability_value(rate_paths):
     """The depositor's put costs the bank: at equal OAS, the retail CD
     (withdrawal on) must be worth MORE than the same CD with it off."""
-    from mbs_risk.cds import CDDeck, _cd_A
-    from mbs_risk.corp import corp_pv as cpv
+    from portfolio_risk.cds import CDDeck, _cd_A
+    from portfolio_risk.corp import corp_pv as cpv
     paths, crn = rate_paths
     oas = np.array([0.01])
 
@@ -195,8 +195,8 @@ def test_cd_withdrawal_option_raises_liability_value(rate_paths):
 
 def test_cd_issuer_call_lowers_liability_value(rate_paths):
     """The bank's call caps the liability's value: callable < bullet."""
-    from mbs_risk.cds import CDDeck, _cd_A
-    from mbs_risk.corp import corp_pv as cpv
+    from portfolio_risk.cds import CDDeck, _cd_A
+    from portfolio_risk.corp import corp_pv as cpv
     paths, crn = rate_paths
     oas = np.array([0.0])
     calls = [(ASOF_CD + _dt.timedelta(days=365 + 182 * i), 1.0)
@@ -213,8 +213,8 @@ def test_cd_issuer_call_lowers_liability_value(rate_paths):
 
 
 def test_cd_risk_end_to_end():
-    from mbs_risk import run_cd_risk
-    from mbs_risk.demo import demo_market, demo_cd_book
+    from portfolio_risk import run_cd_risk
+    from portfolio_risk.demo import demo_market, demo_cd_book
     sr, vp = demo_market()
     book = demo_cd_book(40)
     out = run_cd_risk(book, ASOF_CD, sr, vp)
@@ -233,7 +233,7 @@ def test_cd_risk_end_to_end():
 # --- accounting / NII -------------------------------------------------------
 def test_book_yield_par_bond():
     """A par-priced level annuity must yield exactly its coupon."""
-    from mbs_risk.accounting import book_yield, effective_income
+    from portfolio_risk.accounting import book_yield, effective_income
     T = 120
     c = 0.06
     cf = np.zeros((1, 360))
@@ -251,8 +251,8 @@ def test_book_yield_par_bond():
 def test_balance_sheet_nii_end_to_end():
     """Full model balance sheet through the NII framework: positive NII,
     asset income exceeds liability expense, sane model NIM."""
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_market, model_balance_sheet,
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_market, model_balance_sheet,
                                demo_deposit_history)
     sr, vp = demo_market()
     bs = model_balance_sheet(scale=0.001)
@@ -279,8 +279,8 @@ def test_nim_reconciles_to_reported_with_basis_and_mm():
     1Q26 avg-balance table): core-only at actual rates = 2.85%; markets
     book dilution ~ -38bp -> 2.47%; market-px basis would add +50-90bp;
     cheap synthetic deposits +34bp."""
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_deposit_history, demo_market,
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_deposit_history, demo_market,
                                model_balance_sheet)
     sr, vp = demo_market()
     bs = model_balance_sheet(scale=0.001, basis="amortized_cost",
@@ -301,9 +301,9 @@ def test_kpis_end_to_end():
     """EVE equals the equity plug (sheet balances), LCR/NSFR in sane
     ranges, RWA density calibrated, CET1 path accretes with positive NII
     at the filing NI/NII ratio."""
-    from mbs_risk.kpis import compute_kpis
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_market, model_balance_sheet,
+    from portfolio_risk.kpis import compute_kpis
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_market, model_balance_sheet,
                                demo_deposit_history)
     sr, vp = demo_market()
     bs = model_balance_sheet(scale=0.001, basis="amortized_cost",
@@ -329,7 +329,7 @@ def test_swap_pricing_and_parity(rate_paths):
     """At-market swap MtM ~ 0; receiver dv01 > 0 mirrors payer; swaption
     payer - receiver = cash-settled forward (path identity)."""
     import datetime as _dt
-    from mbs_risk.hedges import (HedgeDeck, swap_mtm_and_carry,
+    from portfolio_risk.hedges import (HedgeDeck, swap_mtm_and_carry,
                                  swaption_value)
     paths, crn = rate_paths
     asof = _dt.date(2026, 6, 10)
@@ -366,8 +366,8 @@ def test_swap_pricing_and_parity(rate_paths):
 def test_hedge_book_cuts_irrbb_outlier():
     """The validation arc: hedged EVE sensitivity must be materially
     inside the unhedged -27%."""
-    from mbs_risk.demo import demo_market, demo_hedge_book
-    from mbs_risk.hedges import run_hedge_risk
+    from portfolio_risk.demo import demo_market, demo_hedge_book
+    from portfolio_risk.hedges import run_hedge_risk
     import datetime as _dt
     sr, vp = demo_market()
     swaps, swpns = demo_hedge_book(scale=0.001)
@@ -383,9 +383,9 @@ def test_strategy_at_market_carry_and_reinvestment():
     """At-market fixed program earns ~E[ref]+spread on its balance;
     reinvestment program sized off real modeled MBS runoff produces
     positive incremental NII and a growing forward dv01."""
-    from mbs_risk.strategies import run_strategies
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_market, model_balance_sheet,
+    from portfolio_risk.strategies import run_strategies
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_market, model_balance_sheet,
                                demo_deposit_history)
     sr, vp = demo_market()
     bs = model_balance_sheet(scale=0.001, basis="amortized_cost",
@@ -425,10 +425,10 @@ def test_unitlib_interactive_kpis():
     """Unit library: at-market MBS units reprice ~par; eval is linear;
     KPI recalc moves the right direction (asset adds worsen +200 EVE,
     L2A adds raise LCR)."""
-    from mbs_risk.unitlib import build_unit_library, evaluate_strategy
-    from mbs_risk.kpis import compute_kpis
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_market, demo_histories,
+    from portfolio_risk.unitlib import build_unit_library, evaluate_strategy
+    from portfolio_risk.kpis import compute_kpis
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_market, demo_histories,
                                demo_deposit_history, model_balance_sheet,
                                demo_hedge_book)
     sr, vp = demo_market()
@@ -459,11 +459,11 @@ def test_optimizer_robust_lp():
     """Feasible solve respects commercial floors; tightening a ratio
     floor cannot improve worst-case NII; impossible plan reports
     infeasible (the useful answer)."""
-    from mbs_risk.optimizer import optimize_balance_sheet
-    from mbs_risk.unitlib import build_unit_library
-    from mbs_risk.kpis import compute_kpis
-    from mbs_risk.accounting import run_balance_sheet_nii
-    from mbs_risk.demo import (demo_market, demo_histories,
+    from portfolio_risk.optimizer import optimize_balance_sheet
+    from portfolio_risk.unitlib import build_unit_library
+    from portfolio_risk.kpis import compute_kpis
+    from portfolio_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.demo import (demo_market, demo_histories,
                                demo_deposit_history, model_balance_sheet,
                                demo_hedge_book)
     sr, vp = demo_market()

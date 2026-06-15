@@ -4,13 +4,13 @@
   "packageManager": "bun@1.2.19",
   "workspaces": ["apps/web"],
   "scripts": {
-    "setup": "uv sync --project apps/api && uv sync --project packages/mbs-risk --extra dev && bun install",
+    "setup": "uv sync --project apps/api && uv sync --project packages/portfolio-risk --extra dev && bun install",
     "dev": "turbo dev",
     "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload --reload-dir app --port 8000",
     "dev:web": "cd apps/web && bun run dev",
     "build": "turbo build",
     "test": "bun run test:py",
-    "test:py": "cd packages/mbs-risk && uv run --extra dev python -m pytest tests/ -q"
+    "test:py": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q"
   },
   "devDependencies": { "turbo": "^2.0.6" }
 }

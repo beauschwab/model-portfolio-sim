@@ -1,11 +1,11 @@
 [project]
 name = "rates-api"
 version = "0.1.0"
-description = "FastAPI service over the mbs-risk engine"
+description = "FastAPI service over the portfolio-risk engine"
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi>=0.110", "uvicorn[standard]>=0.29", "pydantic>=2.6", "mbs-risk",
+  "fastapi>=0.110", "uvicorn[standard]>=0.29", "pydantic>=2.6", "portfolio-risk",
 ]
 
 [tool.uv.sources]
-mbs-risk = { path = "../../packages/mbs-risk", editable = true }
+portfolio-risk = { path = "../../packages/portfolio-risk", editable = true }

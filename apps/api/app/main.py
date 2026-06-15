@@ -1,4 +1,4 @@
-"""Rates Workbench API -- FastAPI wrapper over the mbs-risk engine.
+"""Rates Workbench API -- FastAPI wrapper over the portfolio-risk engine.
 
 Run:  uvicorn app.main:app --reload --port 8000   (from apps/api)
 Docs: http://localhost:8000/docs
@@ -93,9 +93,9 @@ def put_settings(s: RiskSettings):
 
 @app.get("/assumptions")
 def get_assumptions():
-    from mbs_risk.config import PREPAY_PARAMS
-    from mbs_risk.deposits import SEGMENTS
-    from mbs_risk.cds import CD_EW_PARAMS
+    from portfolio_risk.config import PREPAY_PARAMS
+    from portfolio_risk.deposits import SEGMENTS
+    from portfolio_risk.cds import CD_EW_PARAMS
     return {"prepay": {"vector": list(map(float, PREPAY_PARAMS)),
                        "names": ["refi_max", "refi_a", "refi_b", "burn_k",
                                  "turnover", "cpr_cap", "hpa_beta",
@@ -111,13 +111,13 @@ def get_assumptions():
 def put_assumptions(p: AssumptionPatch):
     applied = []
     if p.deposit_segments:
-        from mbs_risk import deposits
+        from portfolio_risk import deposits
         for seg, vals in p.deposit_segments.items():
             if seg in deposits.SEGMENTS:
                 deposits.SEGMENTS[seg].update(vals)
                 applied.append(f"deposit:{seg}")
     if p.cd_ew_params:
-        from mbs_risk import cds
+        from portfolio_risk import cds
         cds.CD_EW_PARAMS[:] = np.array(p.cd_ew_params)
         applied.append("cd_ew_params")
     if p.prepay:

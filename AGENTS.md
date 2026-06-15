@@ -1,7 +1,7 @@
 # AGENTS.md — rates-workbench (monorepo root)
 
 Three layers, three contracts:
-- `packages/mbs-risk` — the quant engine. Its OWN AGENTS.md hierarchy
+- `packages/portfolio-risk` — the quant engine. Its OWN AGENTS.md hierarchy
   (root/src/tests) is authoritative for model assumptions, invariants,
   and extension recipes. Never modify kernels without reading it.
 - `apps/api` — FastAPI over the engine. Holds NO quant logic: adapters in
@@ -17,7 +17,7 @@ Rules that cross layers:
 1. Engine invariants (fixed-OAS, CRN, numba constant freezing) surface in
    the API/UI as behavior: scenario runs never re-solve OAS; prepay
    assumption edits report RESTART_REQUIRED rather than silently no-op.
-2. Adding a product = engine recipe first (packages/mbs-risk/src AGENTS),
+2. Adding a product = engine recipe first (packages/portfolio-risk/src AGENTS),
    then a `run_*` adapter in store.py, then a book tab + KRD key in web,
    and a unit template in unitlib.TEMPLATES if it should be available to
    the interactive Strategy Lab.

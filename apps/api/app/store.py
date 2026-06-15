@@ -37,7 +37,7 @@ BASE_KPIS = None
 
 def seed_demo():
     """Load the WFC-proportional model balance sheet + demo market."""
-    from mbs_risk.demo import (demo_deposit_history, demo_market,
+    from portfolio_risk.demo import (demo_deposit_history, demo_market,
                                model_balance_sheet)
     global DEP_HIST, MBS_HISTS, ASOF
     bs = model_balance_sheet(scale=0.01, basis="amortized_cost",
@@ -49,7 +49,7 @@ def seed_demo():
     ASOF = bs["asof"]
     global EQUITY, HEDGES
     EQUITY = bs.get("equity", 0.0)
-    from mbs_risk.demo import demo_hedge_book
+    from portfolio_risk.demo import demo_hedge_book
     HEDGES = demo_hedge_book(scale=0.01)
     DEP_HIST = demo_deposit_history()
     sr, vp = demo_market()
@@ -213,8 +213,8 @@ def submit(kind: str, fn, *args, plan: dict | None = None) -> str:
 
 # ---- engine adapters (each returns JSON-able frames) -------------------------
 def run_risk_all(books: list[str], sr, vp, spread_shift: float = 0.0):
-    from mbs_risk import run_cd_risk, run_corp_risk, run_deposit_risk
-    from mbs_risk.risk import run_risk
+    from portfolio_risk import run_cd_risk, run_corp_risk, run_deposit_risk
+    from portfolio_risk.risk import run_risk
     out = {}
     order = [b for b in ("mbs", "loans", "debt", "deposits", "cds") if b in books]
     total = max(len(order), 1)
@@ -270,8 +270,8 @@ def run_risk_all(books: list[str], sr, vp, spread_shift: float = 0.0):
 
 
 def run_stress_all(books, sr, vp):
-    from mbs_risk import run_deposit_stress
-    from mbs_risk.stress import run_stress
+    from portfolio_risk import run_deposit_stress
+    from portfolio_risk.stress import run_stress
     out = {}
     shocks = tuple(SETTINGS.shocks_bp)
     factor = 1 + len(shocks)
@@ -303,7 +303,7 @@ def run_stress_all(books, sr, vp):
 
 
 def run_nii(sr, vp):
-    from mbs_risk.accounting import run_balance_sheet_nii
+    from portfolio_risk.accounting import run_balance_sheet_nii
     report(stage="simulating LMM paths", pct=8.0,
            scenario_paths=SETTINGS.n_paths,
            log=f"LMM: {SETTINGS.n_paths} paths \u00d7 {SETTINGS.horizon_months}m")
@@ -323,7 +323,7 @@ def run_nii(sr, vp):
 
 
 def run_kpis(sr, vp):
-    from mbs_risk.kpis import compute_kpis
+    from portfolio_risk.kpis import compute_kpis
     bs = {k: BOOKS.get(k) for k in ("mbs", "loans", "debt", "deposits",
                                     "cds", "mm")}
     bs["mbs_hists"] = MBS_HISTS
@@ -340,7 +340,7 @@ def run_kpis(sr, vp):
 
 
 def build_unitlib_job(sr, vp):
-    from mbs_risk.unitlib import build_unit_library
+    from portfolio_risk.unitlib import build_unit_library
     global UNITLIB, BASE_KPIS
     UNITLIB = build_unit_library(sr, vp, MBS_HISTS, DEP_HIST,
                                  seed=SETTINGS.seed)
@@ -351,7 +351,7 @@ def build_unitlib_job(sr, vp):
 
 
 def eval_strategy_sync(allocations: list[dict]):
-    from mbs_risk.unitlib import evaluate_strategy
+    from portfolio_risk.unitlib import evaluate_strategy
     if UNITLIB is None:
         raise RuntimeError("unit library not built -- POST /run "
                            "kind='unitlib' first")
@@ -360,7 +360,7 @@ def eval_strategy_sync(allocations: list[dict]):
 
 
 def run_strategy_job(sr, vp):
-    from mbs_risk.strategies import run_strategies
+    from portfolio_risk.strategies import run_strategies
     nii = run_nii(sr, vp)
     return run_strategies(list(PROGRAMS.values()), sr, vp,
                           runoff_by_book=nii["runoff_vectors"],
@@ -369,9 +369,9 @@ def run_strategy_job(sr, vp):
 
 
 def run_optimize_job(sr, vp, opt: dict):
-    from mbs_risk.optimizer import optimize_balance_sheet
-    from mbs_risk.unitlib import build_unit_library
-    from mbs_risk.kpis import compute_kpis
+    from portfolio_risk.optimizer import optimize_balance_sheet
+    from portfolio_risk.unitlib import build_unit_library
+    from portfolio_risk.kpis import compute_kpis
     report(stage="base NII path", pct=4.0,
            scenario_paths=SETTINGS.n_paths,
            log="base market NII path for the objective")

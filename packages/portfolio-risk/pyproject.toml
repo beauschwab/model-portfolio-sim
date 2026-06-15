@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mbs-risk"
+name = "portfolio-risk"
 version = "0.17.3"
-description = "Shifted-lognormal LMM OAS/risk/stress engine for agency MBS portfolios"
+description = "Shifted-lognormal LMM portfolio risk engine for bank balance sheets"
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.26",
@@ -18,7 +18,7 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [project.scripts]
-mbs-risk = "mbs_risk.__main__:main"
+portfolio-risk = "portfolio_risk.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,4 +1,4 @@
-# mbs_risk internals and extension guide
+# portfolio_risk internals and extension guide
 
 ## Data flow
 

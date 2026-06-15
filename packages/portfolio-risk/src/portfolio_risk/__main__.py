@@ -1,4 +1,4 @@
-"""CLI: python -m mbs_risk [N_SEC] [bench|risk|stress|all]"""
+"""CLI: python -m portfolio_risk [N_SEC] [bench|risk|stress|all]"""
 from __future__ import annotations
 
 import sys

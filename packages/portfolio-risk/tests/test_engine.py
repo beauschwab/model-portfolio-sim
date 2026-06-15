@@ -3,14 +3,14 @@ Small portfolio / path counts to keep JIT-dominated runtime tolerable."""
 import numpy as np
 import pytest
 
-from mbs_risk import config, demo
-from mbs_risk.config import (MOY, PREPAY_PARAMS, RATIONAL_SIGMOID,
+from portfolio_risk import config, demo
+from portfolio_risk.config import (MOY, PREPAY_PARAMS, RATIONAL_SIGMOID,
                              SEASONALITY, SEED, STRESS_HORIZONS_M)
-from mbs_risk.kernels import engine, stress_engine
-from mbs_risk.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS, LTV_KNOTS,
+from portfolio_risk.kernels import engine, stress_engine
+from portfolio_risk.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS, LTV_KNOTS,
                              SMM_LUT, SMM_SCALE)
-from mbs_risk.pricing import solve_oas_from_A
-from mbs_risk.scenarios import (CRN, build_paths, run_engine, setup,
+from portfolio_risk.pricing import solve_oas_from_A
+from portfolio_risk.scenarios import (CRN, build_paths, run_engine, setup,
                                 shocked_paths)
 
 N_SEC, N_P = 200, 64
@@ -102,14 +102,14 @@ def test_batched_pv_matches_engine():
     """Gate for the 3rd MODEL-BLOCK copy: batched_pv_engine on a single
     scenario must equal pv_from_A(engine A) at the same OAS."""
     import numpy as np
-    from mbs_risk import demo
-    from mbs_risk.config import (MOY, PREPAY_PARAMS, RATIONAL_SIGMOID,
+    from portfolio_risk import demo
+    from portfolio_risk.config import (MOY, PREPAY_PARAMS, RATIONAL_SIGMOID,
                                  SEASONALITY)
-    from mbs_risk.kernels import batched_pv_engine
-    from mbs_risk.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS,
+    from portfolio_risk.kernels import batched_pv_engine
+    from portfolio_risk.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS,
                                  LTV_KNOTS, SMM_LUT, SMM_SCALE)
-    from mbs_risk.pricing import pv_from_A
-    from mbs_risk.scenarios import CRN, build_paths, run_engine, setup
+    from portfolio_risk.pricing import pv_from_A
+    from portfolio_risk.scenarios import CRN, build_paths, run_engine, setup
     sr, vp = demo.demo_market()
     port = demo.demo_portfolio(25)
     cc, ps = demo.demo_histories()

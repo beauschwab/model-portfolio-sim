@@ -1,13 +1,15 @@
-# mbs-risk
+# portfolio-risk
 
-Shifted-lognormal LMM OAS / risk / 9Q stress-capital engine for agency MBS.
+Shifted-lognormal LMM OAS / risk / 9Q stress-capital engine for bank
+balance sheets: MBS and whole loans, corporates, deposits, CDs, money
+markets, and hedge overlays on shared rate paths.
 
 ## Quick start
 ```
 pip install -e .
-python -m mbs_risk 10000 bench     # throughput probe + projection
-python -m mbs_risk 10000 risk      # KRD01s + vegas
-python -m mbs_risk 10000 stress    # 9Q forward valuation + shocks
+python -m portfolio_risk 10000 bench     # throughput probe + projection
+python -m portfolio_risk 10000 risk      # KRD01s + vegas
+python -m portfolio_risk 10000 stress    # 9Q forward valuation + shocks
 pytest tests/ -v
 ```
 
@@ -29,9 +31,10 @@ pytest tests/ -v
 
 ## Known limitations
 Deterministic CC vol features (no SV-LMM); abcd-projected point vegas;
-stylized prepay anchors (fit to loan-level before use); parallel-only
-forward shocks; frozen-weight Rebonato; no payment delay; demo fitters
-run on synthetic histories.
+stylized prepay and attrition anchors (fit to loan/account-level data
+before use); parallel-only forward shocks; frozen-weight Rebonato;
+rule-based exercise for callable paper; demo fitters run on synthetic
+histories.
 
 ## v0.5: modular components, conventions, corporates
 - **Swappable component models** (`interfaces.py`): CC / PS / HPI / prepay
@@ -166,7 +169,7 @@ market scenarios simultaneously; 11ms solves with shadow prices on
 binding constraints. API: POST /optimize.
 
 ## v0.17: layered package reorg
-src/mbs_risk reorganized into core/ models/ products/ analytics/
+src/portfolio_risk reorganized into core/ models/ products/ analytics/
 strategy/ (matching ARCHITECTURE.md layers); old flat import paths kept
 working via module aliases -- zero changes needed in tests, API, or the
 skill. 34 tests green post-move.

@@ -1,4 +1,4 @@
-# AGENTS.md — src/mbs_risk
+# AGENTS.md — src/portfolio_risk
 
 The model-assumptions ledger and the extension recipes. Every modeling
 choice that affects a number is listed here with its location, so model
@@ -14,7 +14,7 @@ analytics/ risk stress accounting kpis
 strategy/  strategies unitlib optimizer
 demo.py __main__.py
 ```
-Old flat import paths (mbs_risk.kernels, mbs_risk.corp, ...) remain valid
+Old flat import paths (portfolio_risk.kernels, portfolio_risk.corp, ...) remain valid
 via sys.modules aliases in __init__ -- tests, apps/api, and the skill use
 them unchanged. New code should import from the layered paths. The alias
 table is the back-compat contract: removing it is a breaking change.

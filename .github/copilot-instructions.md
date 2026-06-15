@@ -4,7 +4,7 @@ This repository is Rates Workbench, a monorepo with a Python quant engine,
 FastAPI API, and Vite/React trader dashboard.
 
 Follow the repository `AGENTS.md` hierarchy first. The root file defines the
-cross-layer contract; `packages/mbs-risk/AGENTS.md` and its nested files are
+cross-layer contract; `packages/portfolio-risk/AGENTS.md` and its nested files are
 authoritative before changing engine code, tests, or skills.
 
 Use these local commands:
@@ -17,7 +17,7 @@ Use these local commands:
 
 The Makefile mirrors these commands for systems where `make` is available.
 
-Keep quant logic inside `packages/mbs-risk`. The API in `apps/api` should adapt
+Keep quant logic inside `packages/portfolio-risk`. The API in `apps/api` should adapt
 engine outputs and keep state in the existing in-memory store shape. The web app
 in `apps/web` talks to the API through `src/lib/api.ts` and should preserve the
 existing Supabase-dark, zinc/emerald design language.

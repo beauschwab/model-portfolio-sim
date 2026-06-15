@@ -6,14 +6,14 @@ import polars as pl
 import pytest
 from numba import njit
 
-from mbs_risk import demo
-from mbs_risk.config import SEED
-from mbs_risk.conventions import (BDC, Calendar, DayCount, gen_schedule,
+from portfolio_risk import demo
+from portfolio_risk.config import SEED
+from portfolio_risk.conventions import (BDC, Calendar, DayCount, gen_schedule,
                                   us_bond_holidays, year_fraction)
-from mbs_risk.corp import CorpDeck, _corp_A, corp_pv, corp_solve_oas, run_corp_risk
-from mbs_risk.interfaces import ModelSuite
-from mbs_risk.pricing import solve_oas_from_A
-from mbs_risk.scenarios import (CRN, build_paths, run_engine, setup,
+from portfolio_risk.corp import CorpDeck, _corp_A, corp_pv, corp_solve_oas, run_corp_risk
+from portfolio_risk.interfaces import ModelSuite
+from portfolio_risk.pricing import solve_oas_from_A
+from portfolio_risk.scenarios import (CRN, build_paths, run_engine, setup,
                                 solve_base_oas)
 
 ASOF = dt.date(2026, 6, 10)
@@ -147,7 +147,7 @@ def test_exact_time_discounting(market_paths):
 def test_custom_prepay_model_swaps_in():
     """A constant-CPR prepay step via the generic engine: runs, prices
     differ from the S-curve default, and OAS still solves."""
-    from mbs_risk.kernels import _lut
+    from portfolio_risk.kernels import _lut
 
     @njit(inline="always", fastmath=True)
     def const_cpr_step(bal, burn_f, q, mtg_pm, hpi_pm, yoy_pm, season_m,
@@ -181,7 +181,7 @@ def test_custom_prepay_model_swaps_in():
 
 
 def test_stress_rejects_custom_prepay():
-    from mbs_risk.stress import run_stress
+    from portfolio_risk.stress import run_stress
     suite = ModelSuite.default()
     suite.prepay_step = lambda *a: None
     with pytest.raises(NotImplementedError):
@@ -194,7 +194,7 @@ def test_exact_fixing_interpolation():
     interpolation between bracketing monthly short-rate observations.
     Verified against a hand-computed price on a controlled 1-path market
     with a deterministic short-rate ramp."""
-    from mbs_risk.config import N_STEPS, DT
+    from portfolio_risk.config import N_STEPS, DT
 
     # controlled market: 1 path, short rate ramps 1bp/month from 3%
     short = (0.03 + 0.0001 * np.arange(N_STEPS))[None, :]

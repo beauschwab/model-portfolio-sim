@@ -153,7 +153,7 @@ function WorkbenchInner() {
         <Ledger />
         <TileGrid />
         <div className="pt-2 text-center text-[10px] leading-relaxed text-paper-faint">
-          mbs-risk v0.9 · LMM Monte Carlo · fixed-OAS / CRN · synthetic WFC-1Q26-proportional book · <kbd className="rounded border border-line px-1">⌘K</kbd> for commands
+          portfolio-risk v0.17.3 · LMM Monte Carlo · fixed-OAS / CRN · synthetic WFC-1Q26-proportional book · <kbd className="rounded border border-line px-1">⌘K</kbd> for commands
         </div>
       </main>
       <CommandPalette />

@@ -1,0 +1,5 @@
+site_name: Rates Workbench
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Portfolio Risk Engine: portfolio-risk-engine.md

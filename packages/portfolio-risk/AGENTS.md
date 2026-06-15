@@ -1,4 +1,4 @@
-# AGENTS.md — mbs-risk (root)
+# AGENTS.md — portfolio-risk (root)
 
 Shifted-lognormal LMM Monte Carlo engine pricing the full bank book on
 shared rate paths: agency MBS + whole loans, corporates/commercial
@@ -12,8 +12,8 @@ for ~300us interactive strategy evaluation with full KPI recalc).
 Outputs: OAS, KRD01s, vegas, 27m forward valuation, 9Q stress P&L,
 monthly NII, regulatory ratios.
 
-Deeper docs: `src/mbs_risk/AGENTS.md` (model assumptions + extension
-recipes), `tests/AGENTS.md` (what gates what), `skills/mbs-risk-engine/`
+Deeper docs: `src/portfolio_risk/AGENTS.md` (model assumptions + extension
+recipes), `tests/AGENTS.md` (what gates what), `skills/portfolio-risk-engine/`
 (the operator skill for LLM agents using — not modifying — the engine).
 
 ## Commands
@@ -21,8 +21,8 @@ recipes), `tests/AGENTS.md` (what gates what), `skills/mbs-risk-engine/`
 ```bash
 pip install -e .                      # editable install (pyproject)
 pytest tests/ -q                      # 33 tests; MUST pass before any ship
-python -m mbs_risk 10000 bench        # throughput probe + projection
-python -m mbs_risk 1000 all           # MBS risk + 9Q stress, demo data
+python -m portfolio_risk 10000 bench        # throughput probe + projection
+python -m portfolio_risk 1000 all           # MBS risk + 9Q stress, demo data
 ```
 
 First kernel call per process pays numba JIT (~20-40s). `cache=True` on
@@ -73,7 +73,7 @@ strategies (per-path fwd programs) | unitlib (unit tensor, linear eval)
 ## Versioning & shipping
 
 Bump `pyproject.toml` + `__init__.__version__` together. Refresh the
-embedded skill (`skills/mbs-risk-engine/` mirrors the source skill) and
+embedded skill (`skills/portfolio-risk-engine/` mirrors the source skill) and
 update `README.md` + skill references on any behavior change. Performance
 claims in docs are MEASURED on a single 2.1GHz core — re-measure before
 restating them.

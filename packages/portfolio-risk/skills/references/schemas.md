@@ -1,4 +1,4 @@
-# mbs_risk input/output schemas
+# portfolio_risk input/output schemas
 
 All frames are Polars. Rates, spreads, coupons, vols are DECIMALS
 (0.0408 = 4.08%). Prices are % of par (98.5) in frames.

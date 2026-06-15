@@ -3,7 +3,7 @@
 
 install:            ## python (editable) + node deps
 	uv sync --project apps/api
-	uv sync --project packages/mbs-risk --extra dev
+	uv sync --project packages/portfolio-risk --extra dev
 	bun install
 
 dev-api:            ## FastAPI on :8000 (seeds the WFC-proportional demo book)
@@ -13,7 +13,7 @@ dev-web:            ## Vite on :5173 (proxies /api -> :8000)
 	cd apps/web && bun run dev
 
 test-py:            ## engine test suite (the change gates)
-	cd packages/mbs-risk && uv run --extra dev python -m pytest tests/ -q
+	cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q
 
 build:              ## production web build
 	cd apps/web && bun run build

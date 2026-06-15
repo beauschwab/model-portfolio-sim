@@ -1,7 +1,7 @@
 # ARCHITECTURE.md — Rates Workbench
 
 ```
-apps/web (Vite/React/TS) ──HTTP──> apps/api (FastAPI) ──import──> packages/mbs-risk
+apps/web (Vite/React/TS) ──HTTP──> apps/api (FastAPI) ──import──> packages/portfolio-risk
    pages: Dashboard, KPIs,            routes -> store.py             (the engine)
    Balance Sheet, Market &            adapters; jobs on a
    Scenarios, Strategy Lab,           single worker thread;
@@ -9,7 +9,7 @@ apps/web (Vite/React/TS) ──HTTP──> apps/api (FastAPI) ──import──
                                       shaped state
 ```
 
-## Engine layering (packages/mbs-risk)
+## Engine layering (packages/portfolio-risk)
 1. **Paths**: curve bootstrap → abcd vol calibration → 3-factor shifted-
    lognormal LMM → df/short/4 par-swap paths, under CRN (one draw set per
    run; all scenario revaluations are differences of means).

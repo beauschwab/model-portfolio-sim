@@ -1,7 +1,7 @@
 # Rates Workbench
 
 Monorepo: a production-grade fixed-income/balance-sheet risk engine
-(`packages/mbs-risk`), a FastAPI service (`apps/api`), and a Vite/React
+(`packages/portfolio-risk`), a FastAPI service (`apps/api`), and a Vite/React
 trader dashboard (`apps/web`).
 
 ```
@@ -9,7 +9,7 @@ apps/
   api/        FastAPI wrapper: books, market, assumptions, scenarios, runs
   web/        Vite + React + TS + Tailwind + recharts (Supabase-dark theme)
 packages/
-  mbs-risk/   LMM Monte Carlo engine: MBS OAS, corporates, NMD deposits,
+  portfolio-risk/   LMM Monte Carlo engine: MBS OAS, corporates, NMD deposits,
               CDs, money markets, ASC 815 hedges (swaps/swaptions);
               KRD/vega risk, 9Q stress capital, NII accounting with
               amortized-cost basis, EVE/LCR/NSFR/CET1 KPIs, forward
