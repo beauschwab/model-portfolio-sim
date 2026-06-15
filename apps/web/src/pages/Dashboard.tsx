@@ -1,6 +1,6 @@
 /** Trader dashboard: book stats, KRD profile, NII forecast, 9Q stress. */
 import { useEffect, useState } from "react";
-import { api, awaitJob, fmt$, type BookName, type Job } from "../lib/api";
+import { api, awaitJob, colOf, fmt$, rowsOf, type BookName, type Job, type Table } from "../lib/api";
 import { KrdBar, NiiArea, StressLines } from "../components/charts";
 import { Badge, Button, Card, CardBody, CardHeader, ChartState, Spinner } from "../components/ui";
 
@@ -11,9 +11,9 @@ const TENORS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30];
 
 export default function Dashboard() {
   const [books, setBooks] = useState<Record<string, { positions: number; balance: number }>>({});
-  const [risk, setRisk] = useState<Record<string, Row[]> | null>(null);
-  const [nii, setNii] = useState<{ monthly: Row[]; summary: Row[] } | null>(null);
-  const [stress, setStress] = useState<Record<string, { agg: Row[] }> | null>(null);
+  const [risk, setRisk] = useState<Record<string, Table> | null>(null);
+  const [nii, setNii] = useState<{ monthly: Table; summary: Table } | null>(null);
+  const [stress, setStress] = useState<Record<string, { agg: Table }> | null>(null);
   const [status, setStatus] = useState<Record<Kind, RunState>>({ risk: "idle", nii: "idle", stress: "idle" });
   const [errors, setErrors] = useState<Record<Kind, string | null>>({ risk: null, nii: null, stress: null });
   const [elapsed, setElapsed] = useState(0);
@@ -52,18 +52,19 @@ export default function Dashboard() {
 
   const runAll = () => { void Promise.all([run("risk"), run("nii"), run("stress")]); };
 
+  // columnar aggregation straight off the Arrow tables
   const krdData = risk
     ? TENORS.map(t => {
         const row: Row = { tenor: `${t}y` };
-        for (const [book, rows] of Object.entries(risk))
-          row[book] = rows.reduce((a, r) => a + ((r[`krd01_${t}y`] as number) ?? 0), 0);
+        for (const [book, table] of Object.entries(risk))
+          row[book] = colOf(table, `krd01_${t}y`).reduce((a, x) => a + (x ?? 0), 0);
         return row;
       })
     : [];
 
   const stressData = stress?.mbs
     ? Object.values(
-        stress.mbs.agg.reduce((acc: Record<number, Row>, r) => {
+        rowsOf(stress.mbs.agg).reduce((acc: Record<number, Row>, r) => {
           const h = r.horizon_m as number;
           acc[h] ??= { horizon_m: h };
           acc[h][String(r.shock_bp)] = (r["pnl_$"] ?? r["eve_pnl_$"]) as number;
@@ -72,8 +73,12 @@ export default function Dashboard() {
     : [];
 
   const totalDv01 = risk
-    ? Object.values(risk).flat().reduce((a, r) => a + ((r.dv01 as number) ?? 0), 0)
+    ? Object.values(risk).reduce((a, table) => a + colOf(table, "dv01").reduce((s, x) => s + (x ?? 0), 0), 0)
     : null;
+
+  const niiAnnualized = nii
+    ? (rowsOf(nii.summary).find(s => s.metric === "nii_annualized_$")?.value as number) ?? 0
+    : 0;
 
   return (
     <div className="space-y-3">
@@ -111,10 +116,10 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader title="NII forecast" sub="monthly net interest income, 27m horizon"
-            right={nii && <Badge tone="green">{fmt$((nii.summary.find(s => s.metric === "nii_annualized_$")?.value as number) ?? 0)}/yr</Badge>} />
+            right={nii && <Badge tone="green">{fmt$(niiAnnualized)}/yr</Badge>} />
           <CardBody>
             {nii
-              ? <NiiArea data={nii.monthly as never} />
+              ? <NiiArea data={rowsOf(nii.monthly) as never} />
               : <ChartState kind={status.nii === "running" ? "loading" : status.nii === "error" ? "error" : "empty"}
                   hint="Run NII to populate" elapsed={elapsed} error={errors.nii} onRetry={() => run("nii")} />}
           </CardBody>

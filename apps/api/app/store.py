@@ -4,6 +4,9 @@ in a thread pool and land in JOBS. Swap for Postgres/Redis in production
 (the surface is deliberately repository-shaped)."""
 from __future__ import annotations
 
+import io
+import json
+import struct
 import threading
 import time
 import uuid
@@ -83,18 +86,72 @@ def apply_scenario(sc: MarketScenario, quarter: int
     return sr, vp, leg(sc.spread_bp)
 
 
-def _frames_to_json(obj):
-    if isinstance(obj, pl.DataFrame):
-        return obj.to_dicts()
-    if isinstance(obj, dict):
-        return {k: _frames_to_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_frames_to_json(v) for v in obj]
-    if isinstance(obj, np.ndarray):
-        return _frames_to_json(obj.tolist())
-    if isinstance(obj, np.generic):
-        return obj.item()
-    return obj
+# ---- Arrow envelope serialization -------------------------------------------
+# Computed polars frames cross the wire as Apache Arrow IPC, not JSON. A result
+# tree is split into a JSON "skeleton" (every pl.DataFrame leaf replaced by a
+# {"__arrow__": i} marker) plus N concatenated Arrow IPC blobs. Scalars, lists,
+# and numpy-derived arrays (e.g. runoff_vectors) stay inline in the skeleton.
+ARROW_ENVELOPE_MIME = "application/vnd.arrow-envelope"
+_IPC_COMPRESSION = None      # Arrow-JS IPC compression is version-fragile; these
+                             # frames are small -- uncompressed is the safe wire.
+# polars defaults string columns to the Arrow Utf8View layout (type 24), which
+# apache-arrow JS cannot read. oldest() emits plain Utf8 the JS reader accepts.
+_IPC_COMPAT = pl.CompatLevel.oldest()
+
+
+def _arrow_safe(df: pl.DataFrame) -> pl.DataFrame:
+    """Cast columns Arrow IPC cannot encode (pl.Object, e.g. the demo
+    `call_schedule` list column) to JSON-encoded Utf8. Anything else
+    unencodable surfaces loudly from write_ipc -- intentionally."""
+    obj_cols = [c for c, dt in zip(df.columns, df.dtypes) if dt == pl.Object]
+    if not obj_cols:
+        return df
+    return df.with_columns([
+        pl.col(c).map_elements(
+            lambda v: None if v is None else json.dumps(v, default=str),
+            return_dtype=pl.Utf8).alias(c)
+        for c in obj_cols
+    ])
+
+
+def _frames_to_arrow(obj):
+    """Walk a result tree, returning (skeleton, blobs). Each pl.DataFrame leaf
+    becomes a {"__arrow__": idx} marker and an Arrow IPC blob at that index."""
+    blobs: list[bytes] = []
+
+    def walk(o):
+        if isinstance(o, pl.DataFrame):
+            buf = io.BytesIO()
+            _arrow_safe(o).write_ipc(buf, compression=_IPC_COMPRESSION,
+                                     compat_level=_IPC_COMPAT)
+            blobs.append(buf.getvalue())
+            return {"__arrow__": len(blobs) - 1}
+        if isinstance(o, dict):
+            return {k: walk(v) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [walk(v) for v in o]
+        if isinstance(o, np.ndarray):
+            return walk(o.tolist())
+        if isinstance(o, np.generic):
+            return o.item()
+        return o
+
+    return walk(obj), blobs
+
+
+def _pack_envelope(skeleton, blobs: list[bytes]) -> bytes:
+    """Frame skeleton + blobs into the ARW1 binary envelope (little-endian)."""
+    sj = json.dumps(skeleton).encode("utf-8")
+    parts = [b"ARW1", struct.pack("<I", len(sj)), sj,
+             struct.pack("<I", len(blobs))]
+    parts += [struct.pack("<I", len(b)) for b in blobs]
+    parts += blobs
+    return b"".join(parts)
+
+
+def to_arrow_envelope(obj) -> bytes:
+    """Serialize a result object (frames + scalars) to an ARW1 envelope."""
+    return _pack_envelope(*_frames_to_arrow(obj))
 
 
 def report(stage: str | None = None, pct: float | None = None,
@@ -196,7 +253,7 @@ def submit(kind: str, fn, *args, plan: dict | None = None) -> str:
             if SETTINGS.n_threads > 0:
                 import numba
                 numba.set_num_threads(SETTINGS.n_threads)
-            JOBS[jid]["result"] = _frames_to_json(fn(*args))
+            JOBS[jid]["result"] = fn(*args)   # raw tree; encoded at /result
             JOBS[jid]["status"] = "done"
             report(stage="done", pct=100.0, log="run complete")
         except Exception as e:                      # surface to client
@@ -355,8 +412,7 @@ def eval_strategy_sync(allocations: list[dict]):
     if UNITLIB is None:
         raise RuntimeError("unit library not built -- POST /run "
                            "kind='unitlib' first")
-    return _frames_to_json(evaluate_strategy(UNITLIB, allocations,
-                                             base_kpis=BASE_KPIS))
+    return evaluate_strategy(UNITLIB, allocations, base_kpis=BASE_KPIS)
 
 
 def run_strategy_job(sr, vp):
@@ -416,7 +472,7 @@ def run_optimize_job(sr, vp, opt: dict):
     nb = len(out.get("binding_constraints", []) or []) if isinstance(out, dict) else 0
     report(stage="LP solved", pct=99.0, binding_constraints=nb,
            log=f"{'feasible' if isinstance(out, dict) and out.get('feasible') else 'infeasible'} \u00b7 {nb} binding")
-    return _frames_to_json(out)
+    return out
 
 
 def run_scenario_grid(sc: MarketScenario):
