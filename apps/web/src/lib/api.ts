@@ -8,7 +8,25 @@ const BASE = "/api";
 export type { Table };
 export type BookName = "mbs" | "loans" | "debt" | "deposits" | "cds" | "mm";
 export type Row = Record<string, unknown>;
-export interface Market { swap_tenors: number[]; swap_rates: number[]; vol_pts: number[][]; source: string }
+export interface Market {
+  swap_tenors: number[]; swap_rates: number[]; vol_pts: number[][]; source: string; revision: number;
+  provenance?: { curve?: string; volatility?: string; curve_as_of?: string; snapshot_id?: string; warnings?: string[] };
+}
+export interface ResearchSource { id: string; label: string; provider: string; access: string; use: string; notes: string; configured: boolean }
+export interface ResearchSnapshot {
+  id: string; dataset: string; as_of: string; fetched_at: string; observation_count: number; warnings: string[];
+  curve: { swap_rates: number[]; swap_tenors: number[]; as_of: string; max_zero_error_bp_30y: number; max_df_error_30y: number } | null;
+  observations?: { date: string; maturity?: string; series: string; value: number; unit: string; classification: string }[];
+  forecast?: { scenarios: string[]; runnable: string[]; periods: string[]; variables: string[]; alignment: string } | null;
+}
+export interface ForecastRequest { snapshot_id: string; scenario: string; start_period: string; horizon_months: number; alignment: "relative_replay"; expected_revision: number }
+export interface ForecastPreview {
+  snapshot_id: string; dataset: string; book_as_of: string; source_as_of: string; revision: number;
+  start_period: string; horizon_months: number; warnings: string[]; unused_variables: string[];
+  coverage: Record<string, { first_month: number; last_month: number; tail_months_in_report: number }>;
+  drivers: { month: number; short_rate?: number; policy_rate?: number; rate_10y?: number; mortgage_rate?: number; hpi?: number }[];
+}
+export interface ForecastResult { monthly: Table; summary: Table; base_summary: Table; runoff: Table; drivers: Table; warnings: string[]; provenance: ForecastPreview }
 export interface Scenario { name: string; ust10y_bp: number[]; twos_tens_bp: number[]; spread_bp: number[]; vol_bp: number[] }
 export interface Settings { n_paths: number; seed: number; horizon_months: number; shocks_bp: number[] }
 export interface RunPlan {
@@ -137,6 +155,17 @@ export const api = {
   putBook: (n: BookName, rows: Row[]) => j(`/books/${n}`, { method: "PUT", body: JSON.stringify(rows) }),
   market: () => j<Market>("/market"),
   putMarket: (m: Partial<Market>) => j("/market", { method: "PUT", body: JSON.stringify(m) }),
+  researchSources: () => j<ResearchSource[]>("/market-data/sources"),
+  researchSnapshots: () => j<ResearchSnapshot[]>("/market-data/snapshots"),
+  researchSnapshot: (id: string) => j<ResearchSnapshot>(`/market-data/snapshots/${id}?limit=25`),
+  fetchResearch: (request: { dataset: string; as_of: string; start: string; identifier: string; series: string[] }) =>
+    j<Job>("/market-data/fetch", { method: "POST", body: JSON.stringify(request) }),
+  importResearch: (request: unknown) => j<ResearchSnapshot>("/market-data/import", { method: "POST", body: JSON.stringify(request) }),
+  applyResearchCurve: (snapshot_id: string, expected_revision: number) => j<Market>("/market-data/active-curve", {
+    method: "PUT", body: JSON.stringify({ snapshot_id, expected_revision }),
+  }),
+  previewForecast: (request: ForecastRequest) => j<ForecastPreview>("/forecasts/preview", { method: "POST", body: JSON.stringify(request) }),
+  runForecast: (request: ForecastRequest) => j<Job>("/forecasts/run", { method: "POST", body: JSON.stringify(request) }),
   settings: () => j<Settings>("/settings"),
   putSettings: (s: Settings) => j("/settings", { method: "PUT", body: JSON.stringify(s) }),
   assumptions: () => j<Row>("/assumptions"),

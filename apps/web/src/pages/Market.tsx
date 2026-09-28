@@ -5,6 +5,7 @@ import { api, awaitJob, type Market, type Scenario } from "../lib/api";
 import { CurveChart, ScenarioPath } from "../components/charts";
 import { Button, Card, CardBody, CardHeader, Input, Badge, InfoPop, Popover } from "../components/ui";
 import DragSeries from "../components/DragSeries";
+import ResearchData from "../components/ResearchData";
 
 const TENORS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30];
 const emptySc = (name: string): Scenario => ({ name, ust10y_bp: [], twos_tens_bp: [], spread_bp: [], vol_bp: [] });
@@ -30,7 +31,8 @@ export default function MarketPage() {
     return { tenor: t, base: rates[i] ?? 0, scenario: (rates[i] ?? 0) + lvl + twist };
   }), [rates, sc]);
 
-  const saveMarket = async () => { await api.putMarket({ swap_rates: rates, vol_pts: mkt!.vol_pts }); alert("market saved"); };
+  const updateMarket = (m: Market) => { setMkt(m); setRates(m.swap_rates); };
+  const saveMarket = async () => { await api.putMarket({ swap_rates: rates, vol_pts: mkt!.vol_pts }); updateMarket(await api.market()); alert("market saved"); };
   const saveScenario = async () => { await api.putScenario(sc); setScs(await api.scenarios()); };
   const runScenarioNii = async () => {
     setBusy(true);
@@ -69,6 +71,7 @@ export default function MarketPage() {
 
   return (
     <div className="grid gap-3 xl:grid-cols-2">
+      <div className="xl:col-span-2"><ResearchData market={mkt} onMarket={updateMarket} /></div>
       <Card>
         <CardHeader title="Par swap curve" sub={mkt?.source ?? ""} right={<Button variant="ghost" onClick={saveMarket}>Save market</Button>} />
         <CardBody>

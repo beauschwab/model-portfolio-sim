@@ -1,5 +1,10 @@
 # Rates Workbench
 
+Public forecast research: Market & Scenarios now fetches Fed stress paths, SEP,
+Philadelphia Fed consensus and New York Fed expectations. Preview the source
+coverage and assumptions, then run conditional monthly income and runoff on the
+saved book. See [forecast sources and workflow](docs/forecast-scenarios.md).
+
 Monorepo: a production-grade fixed-income/balance-sheet risk engine
 (`packages/portfolio-risk`), a FastAPI service (`apps/api`), and a Vite/React
 trader dashboard (`apps/web`).
@@ -23,6 +28,9 @@ invariants), DESIGN.md (UI system), AGENTS.md hierarchy (modification
 contracts at every layer).
 
 ## Quick start
+
+Research feeds are available in **Market & Scenarios → Research market data**.
+See [source coverage and configuration](docs/market-data.md).
 ```bash
 bun run setup     # uv Python envs + bun workspaces
 bun run dev:api   # :8000 — seeds a WFC-1Q26-proportional model balance sheet

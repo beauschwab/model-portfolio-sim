@@ -21,6 +21,18 @@ callable negative dv01 — and that correction is documented inline).
 
 ## Patterns to copy when adding tests
 
+`test_forecast.py` gates forecast month/tenor construction, source unit conversion,
+mandatory HPI jump-off, flat tails, copy-on-write conditioning, zero-change and
+discount identities, frozen accounting and contractual floating-income response.
+API `test_forecasts.py` gates release eligibility, native SME decimals, SPF lagged
+actual exclusion, revision checks and snapshot isolation.
+
+`test_market_curve.py` gates research DF conversion: independent annual par
+identities, flat positive/negative-rate round trips, and invalid input rejection.
+API `test_market_data.py` gates normalization, snapshot integrity, no future
+curve fallback, credential redaction and atomic revision-checked application.
+
+
 - **Zero-magnitude invariant**: any new stress/checkpoint path gets a
   test where the zero shock must reproduce base values (rtol ≤1e-6).
 - **Controlled-path hand replication**: build a 1-path market with a

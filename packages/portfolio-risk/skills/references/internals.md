@@ -1,5 +1,31 @@
 # portfolio_risk internals and extension guide
 
+## Conditional forecast income (v0.20.1)
+
+`analytics.forecast` compiles source-period conventions to monthly drivers and
+conditions base paths for NII/runoff. Quarterly averages repeat, rate endpoints
+interpolate, and HPI log-interpolates from a required preceding anchor. Replay
+maps source month one to book projection month one; it does not redate contracts.
+Flat tails and unused macro variables must be disclosed. Basis to model rates
+is assumed zero. One CRN feeds base/conditional accounting; shifted-rate
+deviations are rescaled to means while preserving the model floor. Fixed-rate
+book yields and deposit initial rates are held. Floating contractual income
+changes adjust the base effective-income roll (approximation). Missing mortgage
+and HPI drivers retain base outputs. No default/provision/capital mapping exists.
+These paths are NOT arbitrage-free and MUST NOT feed OAS/EVE or derivative
+valuation. Existing risk, instantaneous scenarios and fast strategy eval remain
+separate. See `docs/forecast-scenarios.md` for source eligibility and limitations.
+
+## Research discount-curve projection (v0.19.1)
+
+`core.curve.market_discount_factors_to_par(times, discounts)` requires ascending
+ACT/365F times from zero through at least 30y, positive finite DFs and D(0)=1.
+It derives annual-payment par rates on the standard ten pillars, rejects
+forwards outside the shifted model domain and reports reconstruction error.
+Source daily DFs remain in API research snapshots; the engine still uses its
+existing sparse bootstrap and >30y extrapolation. Applying a source curve does
+not change the book date, prices, volatility or behavioral histories.
+
 ## Data flow
 
 ```

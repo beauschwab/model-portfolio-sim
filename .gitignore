@@ -6,3 +6,6 @@ node_modules/
 dist/
 .turbo/
 *.parquet
+test-results/
+playwright-report/
+.data/

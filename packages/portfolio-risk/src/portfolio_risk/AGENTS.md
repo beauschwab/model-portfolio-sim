@@ -42,6 +42,30 @@ table is the back-compat contract: removing it is a breaking change.
 
 ## Model assumptions ledger
 
+**Published forecast income (v0.20.1, analytics.forecast).** Explicit relative
+replay of source months onto the saved book's monthly projection. Source units
+and averaging/end-period conventions are preserved by ingestion. Quarterly
+average rates repeat monthly; endpoint rates interpolate; HPI log-interpolates
+from a mandatory preceding anchor. Flat tails extend through remaining-life
+cashflows and are disclosed. Treasury/policy-to-model basis is assumed zero.
+Multiple source tenors interpolate with flat ends; policy-only paths retain
+initial model tenor slope. Shifted-rate deviations are rescaled to source means
+with one shared CRN object. Missing mortgage/HPI inputs retain base model paths.
+These conditional paths are NOT arbitrage-free pricing paths: only NII/runoff
+is supported, never OAS/EVE or derivative valuation. Base effective yields and
+deposit opening rates are held; floaters add contractual income changes to the
+base effective-yield roll (approximation). No macro-to-default/capital mapping.
+`accounting.run_balance_sheet_nii` exposes keyword-only anchors/plan/CRN for this
+route; existing callers retain their behavior. See `docs/forecast-scenarios.md`.
+
+**Research DF adapter (v0.19.1).** `market_discount_factors_to_par` accepts
+ACT/365F times from source valuation date and positive DFs normalized at zero.
+It derives annual-unit-accrual model par rates and reports sparse reconstruction
+error over 0.25–30y. It does not import an exact full curve: missing sub-year
+pillars can cause material short-end error. Preserve diagnostic warnings and
+keep observed/derived/assumed provenance distinct. This is not model calibration.
+
+
 **Curve (curve.py).** Annual fixed leg par swaps at 10 pillars; sequential
 brentq on log-DF; log-linear DF interp; flat-zero extrapolation past 30y
 to the 40.25y forward grid.
