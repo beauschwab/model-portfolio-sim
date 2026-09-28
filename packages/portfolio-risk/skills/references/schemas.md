@@ -1,7 +1,17 @@
 # portfolio_risk input/output schemas
 
-All frames are Polars. Rates, spreads, coupons, vols are DECIMALS
-(0.0408 = 4.08%). Prices are % of par (98.5) in frames.
+## Published forecast replay (v0.20.1)
+
+`POST /forecasts/preview` and `POST /forecasts/run` accept `snapshot_id`,
+`scenario` (baseline/adverse/median), `start_period` (ISO first of month),
+`horizon_months` (3..120), `alignment: "relative_replay"`, and
+`expected_revision`. Source IDs: fed_stress, fed_sep, philly_spf, nyfed_sme.
+Preview JSON exposes monthly driver targets, coverage, warnings and unused
+variables. Run uses the existing asynchronous job/Arrow envelope and returns
+monthly/base/delta NII, summaries, runoff, drivers and snapshot provenance.
+Rates in driver targets are DECIMAL; HPI is a ratio rebased to 1. Snapshot
+observations retain their native units. No probability, EVE or capital result
+is implied. Active books/markets are never replaced by this route.
 
 ## Portfolio frame (required by run_risk / run_stress / setup)
 

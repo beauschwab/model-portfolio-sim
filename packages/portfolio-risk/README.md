@@ -1,5 +1,10 @@
 # portfolio-risk
 
+Published forecast income (v0.20.1): `analytics.forecast` replays external monthly
+drivers through existing cashflow engines, with shared CRN and frozen accounting
+anchors. Outputs conditional NII/runoff; no OAS/EVE or credit/capital forecast.
+See [forecast contracts and limitations](../../docs/forecast-scenarios.md).
+
 Shifted-lognormal LMM OAS / risk / 9Q stress-capital engine for bank
 balance sheets: MBS and whole loans, corporates, deposits, CDs, money
 markets, and hedge overlays on shared rate paths.

@@ -18,10 +18,11 @@ import numpy as np
 import polars as pl
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from . import store
+from . import store, market_data
 from .schemas import (AssumptionPatch, JobStatus, Market, MarketScenario,
-                      RiskSettings, RunRequest)
+                      RiskSettings, RunRequest, ForecastRequest)
 
 app = FastAPI(title="Rates Workbench API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
@@ -56,7 +57,9 @@ def put_book(name: str, rows: list[dict]):
     if name not in store.BOOKS:
         raise HTTPException(404, f"unknown book {name}")
     try:
-        store.BOOKS[name] = pl.DataFrame(rows)
+        with store._LOCK:
+            store.BOOKS[name] = pl.DataFrame(rows)
+            store.changed()
     except Exception as e:
         raise HTTPException(422, f"bad book payload: {e}")
     return {"ok": True, "positions": len(rows)}
@@ -65,18 +68,14 @@ def put_book(name: str, rows: list[dict]):
 # ---- market data ----------------------------------------------------------------
 @app.get("/market")
 def get_market():
-    return {"swap_tenors": [1, 2, 3, 4, 5, 7, 10, 15, 20, 30],
-            "swap_rates": store.MARKET["swap_rates"].tolist(),
-            "vol_pts": store.MARKET["vol_pts"].tolist(),
-            "source": store.MARKET.get("source", "")}
+    return store.market_view()
 
 
 @app.put("/market")
 def put_market(m: Market):
     if len(m.swap_rates) != 10:
         raise HTTPException(422, "expect 10 pillar rates")
-    store.MARKET["swap_rates"] = np.array(m.swap_rates)
-    store.MARKET["vol_pts"] = np.array(m.vol_pts)
+    store.replace_market(m)
     return {"ok": True}
 
 
@@ -88,7 +87,9 @@ def get_settings() -> RiskSettings:
 
 @app.put("/settings")
 def put_settings(s: RiskSettings):
-    store.SETTINGS = s
+    with store._LOCK:
+        store.SETTINGS = s
+        store.changed()
     return {"ok": True}
 
 
@@ -101,8 +102,8 @@ def get_assumptions():
                        "names": ["refi_max", "refi_a", "refi_b", "burn_k",
                                  "turnover", "cpr_cap", "hpa_beta",
                                  "lock_floor", "lock_slope"]},
-            "deposit_segments": SEGMENTS,
-            "cd_ew_params": list(map(float, CD_EW_PARAMS)),
+            "deposit_segments": store.snapshot()["assumptions"].get("deposit_segments", SEGMENTS),
+            "cd_ew_params": store.snapshot()["assumptions"].get("cd_ew_params", list(map(float, CD_EW_PARAMS))),
             "note": ("numba freezes module constants at first kernel "
                      "compile; prepay changes need a process restart to "
                      "reach the MBS kernel (engine AGENTS.md invariant 5)")}
@@ -110,19 +111,29 @@ def get_assumptions():
 
 @app.put("/assumptions")
 def put_assumptions(p: AssumptionPatch):
+    import copy
     applied = []
-    if p.deposit_segments:
-        from portfolio_risk import deposits
-        for seg, vals in p.deposit_segments.items():
-            if seg in deposits.SEGMENTS:
-                deposits.SEGMENTS[seg].update(vals)
+    with store._LOCK:
+        updated = copy.deepcopy(store.ASSUMPTIONS)
+        if p.deposit_segments is not None:
+            for seg, vals in p.deposit_segments.items():
+                if seg not in updated["deposit_segments"] or set(vals) - {"base", "amp", "b", "g0"}:
+                    raise HTTPException(422, "unknown deposit segment or parameter")
+                if any(v < 0 for v in vals.values()) or any(vals.get(k, 0) > 1 for k in ("base", "amp", "g0")):
+                    raise HTTPException(422, "deposit parameters are outside their supported domain")
+                updated["deposit_segments"][seg].update(vals)
                 applied.append(f"deposit:{seg}")
-    if p.cd_ew_params:
-        from portfolio_risk import cds
-        cds.CD_EW_PARAMS[:] = np.array(p.cd_ew_params)
-        applied.append("cd_ew_params")
-    if p.prepay:
-        applied.append("prepay:RESTART_REQUIRED (numba constant freezing)")
+        if p.cd_ew_params is not None:
+            if len(p.cd_ew_params) != 5 or any(v < 0 for v in p.cd_ew_params):
+                raise HTTPException(422, "expect five nonnegative CD withdrawal parameters")
+            updated["cd_ew_params"] = list(p.cd_ew_params)
+            applied.append("cd_ew_params")
+        if applied:
+            store.ASSUMPTIONS.clear()
+            store.ASSUMPTIONS.update(updated)
+            store.changed()
+        if p.prepay:
+            applied.append("prepay:RESTART_REQUIRED (numba constant freezing)")
     return {"applied": applied}
 
 
@@ -134,14 +145,19 @@ def list_scenarios():
 
 @app.put("/scenarios/{name}")
 def put_scenario(name: str, sc: MarketScenario):
-    sc.name = name
-    store.SCENARIOS[name] = sc
+    if sc.name != name:
+        raise HTTPException(422, "scenario name must match its URL")
+    with store._LOCK:
+        store.SCENARIOS[name] = sc
+        store.changed()
     return {"ok": True}
 
 
 @app.delete("/scenarios/{name}")
 def del_scenario(name: str):
-    store.SCENARIOS.pop(name, None)
+    with store._LOCK:
+        store.SCENARIOS.pop(name, None)
+        store.changed()
     return {"ok": True}
 
 
@@ -179,22 +195,22 @@ def run(req: RunRequest) -> JobStatus:
 
 @app.get("/jobs/{jid}")
 def job(jid: str) -> JobStatus:
-    if jid not in store.JOBS:
-        raise HTTPException(404, "unknown job")
-    return JobStatus(**store.JOBS[jid])
+    try:
+        return JobStatus(**store.job_status(jid))
+    except KeyError:
+        raise HTTPException(404, "unknown or expired job")
 
 
 @app.get("/jobs/{jid}/result")
 def job_result(jid: str):
     """Computed frames for a finished job, as an Arrow IPC envelope. Polling
     GET /jobs/{jid} stays cheap JSON; the heavy result is fetched once here."""
-    if jid not in store.JOBS:
-        raise HTTPException(404, "unknown job")
-    j = store.JOBS[jid]
-    if j["status"] != "done":
-        raise HTTPException(409, f"job {j['status']}")
-    return Response(store.to_arrow_envelope(j["result"]),
-                    media_type=store.ARROW_ENVELOPE_MIME)
+    try:
+        return Response(store.job_result(jid), media_type=store.ARROW_ENVELOPE_MIME)
+    except KeyError:
+        raise HTTPException(404, "unknown or expired job")
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
 
 
 @app.post("/optimize")
@@ -233,13 +249,17 @@ def list_programs():
 @app.put("/programs/{name}")
 def put_program(name: str, prog: dict):
     prog["name"] = name
-    store.PROGRAMS[name] = prog
+    with store._LOCK:
+        store.PROGRAMS[name] = prog
+        store.changed()
     return {"ok": True}
 
 
 @app.delete("/programs/{name}")
 def del_program(name: str):
-    store.PROGRAMS.pop(name, None)
+    with store._LOCK:
+        store.PROGRAMS.pop(name, None)
+        store.changed()
     return {"ok": True}
 
 
@@ -257,3 +277,79 @@ def get_hedges():
 @app.get("/health")
 def health():
     return {"ok": True, "books": list(store.BOOKS)}
+
+
+@app.exception_handler(market_data.DataError)
+async def research_data_error(_request, exc):
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
+@app.get("/market-data/sources")
+def research_sources():
+    return market_data.catalog()
+
+
+@app.post("/market-data/fetch")
+def fetch_research(req: market_data.FetchRequest) -> JobStatus:
+    jid = store.submit("market_data", store.fetch_research_data, req)
+    return JobStatus(**store.job_status(jid))
+
+
+@app.get("/market-data/snapshots")
+def research_snapshots():
+    return market_data.list_snapshots()
+
+
+@app.get("/market-data/snapshots/{sid}")
+def research_snapshot(sid: str, offset: int = 0, limit: int = 100):
+    if offset < 0 or not 1 <= limit <= 1000:
+        raise HTTPException(422, "offset must be nonnegative and limit between 1 and 1000")
+    try:
+        snap = market_data.get_snapshot(sid)
+    except KeyError:
+        raise HTTPException(404, "unknown research snapshot")
+    from .forecast_data import metadata
+    snap["forecast"] = metadata(snap)
+    snap["observations"] = snap["observations"][offset:offset + limit]
+    return snap | {"offset": offset, "limit": limit}
+
+
+@app.get("/market-data/snapshots/{sid}/export")
+def export_research_snapshot(sid: str):
+    try:
+        snap = market_data.get_snapshot(sid)
+    except KeyError:
+        raise HTTPException(404, "unknown research snapshot")
+    return JSONResponse(snap, headers={"Content-Disposition": f'attachment; filename="research-{sid[:12]}.json"'})
+
+
+@app.post("/market-data/import")
+def import_research(req: market_data.ImportRequest):
+    return market_data.summary(market_data.import_snapshot(req))
+
+
+@app.put("/market-data/active-curve")
+def apply_research_curve(req: market_data.ApplyRequest):
+    try:
+        return store.apply_research_curve(req.snapshot_id, req.expected_revision)
+    except KeyError:
+        raise HTTPException(404, "unknown research snapshot")
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@app.post("/forecasts/preview")
+def preview_forecast(req: ForecastRequest):
+    return store.prepare_forecast(req)[2]
+
+
+@app.post("/forecasts/run")
+def run_forecast(req: ForecastRequest) -> JobStatus:
+    state, plan, preview = store.prepare_forecast(req)
+    jid = store.submit("forecast_nii", store.run_forecast, plan, preview, state=state)
+    return JobStatus(**store.job_status(jid))
+
+
+@app.exception_handler(store.QueueFull)
+async def queue_full(_request, exc):
+    return JSONResponse(status_code=429, content={"detail": str(exc)}, headers={"Retry-After": "5"})

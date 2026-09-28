@@ -309,7 +309,9 @@ class DepositDeck:
         if missing:
             raise ValueError(f"deposit book missing columns: {missing}")
         S = len(book)
-        seg = [SEGMENTS.get(x, SEGMENTS["SAV"])
+        from ..core.runtime import assumption
+        segments = assumption("deposit_segments", SEGMENTS)
+        seg = [segments.get(x, segments["SAV"])
                for x in book["segment"].to_list()]
         self.base = np.array([g["base"] for g in seg])
         self.fl_amp = np.array([g["amp"] for g in seg])

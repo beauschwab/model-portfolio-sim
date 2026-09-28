@@ -4,6 +4,8 @@ in a thread pool and land in JOBS. Swap for Postgres/Redis in production
 (the surface is deliberately repository-shaped)."""
 from __future__ import annotations
 
+import copy
+from contextvars import ContextVar
 import io
 import json
 import struct
@@ -18,7 +20,7 @@ import polars as pl
 
 from .schemas import MarketScenario, RiskSettings
 
-_LOCK = threading.Lock()
+_LOCK = threading.RLock()
 _POOL = ThreadPoolExecutor(max_workers=1)   # numba kernels saturate cores
 _CUR_JID: str | None = None                 # job on the single worker thread
 KRD_PILLARS = 10                             # curve pillars bumped for key-rate durations
@@ -36,6 +38,14 @@ HEDGES = None
 PROGRAMS: dict[str, dict] = {}
 UNITLIB = None
 BASE_KPIS = None
+CACHE: dict = {}
+STATE_META = {"revision": 0}
+ASSUMPTIONS: dict = {}
+_RUN_STATE = ContextVar("application_run_state", default=None)
+MAX_JOBS = 50
+MAX_QUEUE = 32
+MAX_RESULT_BYTES = 256 * 1024 * 1024
+JOB_TTL_SECONDS = 3600
 
 
 def seed_demo():
@@ -55,10 +65,16 @@ def seed_demo():
     from portfolio_risk.demo import demo_hedge_book
     HEDGES = demo_hedge_book(scale=0.01)
     DEP_HIST = demo_deposit_history()
+    from portfolio_risk.products.deposits import SEGMENTS
+    from portfolio_risk.products.cds import CD_EW_PARAMS
+    ASSUMPTIONS.update(deposit_segments=copy.deepcopy(SEGMENTS), cd_ew_params=CD_EW_PARAMS.tolist())
     sr, vp = demo_market()
+    MARKET.clear()
     MARKET["swap_rates"] = sr
     MARKET["vol_pts"] = vp
-    MARKET["source"] = bs["source"]
+    MARKET["source"] = "Synthetic research market"
+    MARKET["provenance"] = {"curve": "assumed", "volatility": "assumed",
+                            "warnings": ["Curve, volatility and behavioral histories are synthetic demo inputs."]}
 
 
 def apply_scenario(sc: MarketScenario, quarter: int
@@ -277,33 +293,57 @@ def compute_run_plan(kind: str, books: list[str]) -> dict:
     }
 
 
-def submit(kind: str, fn, *args, plan: dict | None = None) -> str:
-    jid = uuid.uuid4().hex[:12]
-    JOBS[jid] = {"id": jid, "kind": kind, "status": "queued",
-                 "detail": None, "result": None,
-                 "progress": {"stage": "queued", "pct": 0.0,
-                              "plan": plan or {}, "stats": {},
-                              "elapsed_s": 0.0, "log": [], "nodes": []}}
+def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
+    state = state or snapshot()
+    args = copy.deepcopy(args)
+    with _LOCK:
+        prune_jobs()
+        if sum(j["status"] in ("queued", "running") for j in JOBS.values()) >= MAX_QUEUE:
+            raise QueueFull("compute queue is full; wait for a job to finish")
+        jid = uuid.uuid4().hex[:12]
+        JOBS[jid] = {"id": jid, "kind": kind, "status": "queued", "revision": state['revision'],
+                    "market_provenance": copy.deepcopy(state["market"].get("provenance", {})),
+                     "detail": None, "result": None,
+                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {},
+                                  "stats": {}, "elapsed_s": 0.0, "log": [], "nodes": []}}
 
     def run():
         global _CUR_JID
+        from portfolio_risk.core.runtime import RunConfig, run_context
+        import numba
         _CUR_JID = jid
+        token = _RUN_STATE.set(state)
         JOBS[jid]["status"] = "running"
         JOBS[jid]["_t0"] = time.perf_counter()
         report(stage="starting", pct=1.0, log=f"{kind} run started")
         try:
-            if SETTINGS.n_threads > 0:
-                import numba
-                numba.set_num_threads(SETTINGS.n_threads)
-            JOBS[jid]["result"] = fn(*args)   # raw tree; encoded at /result
-            JOBS[jid]["status"] = "done"
+            settings = state['settings']
+            numba.set_num_threads(settings.n_threads or numba.config.NUMBA_NUM_THREADS)
+            config = RunConfig(settings.n_paths, settings.n_paths_base, settings.horizon_months,
+                               state['assumptions'].get("deposit_segments"),
+                               tuple(state['assumptions'].get("cd_ew_params", [])) or None)
+            with run_context(config) as context:
+                encoded = to_arrow_envelope(fn(*args))
+                report(cache_hits=context.hits, cache_misses=context.misses)
+            if len(encoded) > MAX_RESULT_BYTES:
+                raise RuntimeError("result exceeds the retention byte limit; reduce book size")
+            with _LOCK:
+                JOBS[jid]["result"] = encoded
+                JOBS[jid]["status"] = "done"
+                JOBS[jid]["finished_at"] = time.time()
             report(stage="done", pct=100.0, log="run complete")
-        except Exception as e:                      # surface to client
-            JOBS[jid]["status"] = "error"
-            JOBS[jid]["detail"] = f"{type(e).__name__}: {e}"
+        except Exception as e:
+            with _LOCK:
+                JOBS[jid]["status"] = "error"
+                JOBS[jid]["finished_at"] = time.time()
+                JOBS[jid]["detail"] = f"{type(e).__name__}: {e}"
             report(stage="error", log=f"{type(e).__name__}: {e}")
         finally:
-            JOBS[jid].pop("_t0", None)
+            with _LOCK:
+                if jid in JOBS:
+                    JOBS[jid].pop("_t0", None)
+                prune_jobs()
+            _RUN_STATE.reset(token)
             _CUR_JID = None
 
     _POOL.submit(run)
@@ -674,3 +714,151 @@ def run_scenario_grid(sc: MarketScenario):
                          s.filter(pl.col("metric") == "nim_model_%")
                           ["value"][0])})
     return {"scenario": sc.name, "path": rows}
+
+
+def snapshot():
+    with _LOCK:
+        return {"books": {k: v.clone() for k, v in BOOKS.items()},
+                "market": copy.deepcopy(MARKET), "scenarios": copy.deepcopy(SCENARIOS),
+                "settings": SETTINGS.model_copy(deep=True), "dep_hist": DEP_HIST,
+                "mbs_hists": MBS_HISTS, "asof": ASOF, "equity": EQUITY,
+                "hedges": HEDGES, "programs": copy.deepcopy(PROGRAMS),
+                "assumptions": copy.deepcopy(ASSUMPTIONS), "revision": STATE_META["revision"]}
+
+
+def current_state():
+    return _RUN_STATE.get() or snapshot()
+
+
+def changed():
+    """Caller holds the repository lock; invalidate the published cache bundle."""
+    global UNITLIB, BASE_KPIS
+    STATE_META["revision"] += 1
+    CACHE.clear()
+    UNITLIB = BASE_KPIS = None
+
+
+def market_view():
+    with _LOCK:
+        return {"swap_tenors": [1, 2, 3, 4, 5, 7, 10, 15, 20, 30],
+                "swap_rates": MARKET["swap_rates"].tolist(), "vol_pts": MARKET["vol_pts"].tolist(),
+                "source": MARKET.get("source", ""), "revision": STATE_META["revision"],
+                "provenance": copy.deepcopy(MARKET.get("provenance", {}))}
+
+
+def replace_market(m):
+    with _LOCK:
+        MARKET.update(swap_rates=np.array(m.swap_rates), vol_pts=np.array(m.vol_pts),
+                      source="Manually supplied research market", provenance={
+                          "curve": "assumed", "volatility": "assumed",
+                          "warnings": ["Manually supplied inputs; source snapshot association cleared."]})
+        changed()
+
+
+def fetch_research_data(req):
+    from .market_data import fetch_snapshot, summary
+    report("Downloading research data", 0.1)
+    result = fetch_snapshot(req)
+    report("Research snapshot saved", 1.0)
+    return summary(result)
+
+
+def apply_research_curve(sid, expected_revision):
+    from .market_data import DataError, get_snapshot
+    from .schemas import Market
+    snap = get_snapshot(sid)
+    curve = snap.get("curve")
+    if snap["dataset"] != "eris_sofr" or not curve:
+        raise DataError("only an Eris discount-curve snapshot can replace the active curve")
+    with _LOCK:
+        if STATE_META["revision"] != expected_revision:
+            raise RuntimeError("inputs changed while reviewing this snapshot; reload before applying")
+        checked = Market(swap_rates=curve["swap_rates"], vol_pts=MARKET["vol_pts"].tolist())
+        prior_vol = MARKET.get("provenance", {}).get("volatility", "assumed")
+        warnings = list(snap["warnings"])
+        warnings.append(f"Book valuation date remains {ASOF}; market date is {curve['as_of']}. This is a research repricing of the existing book, not an aged portfolio.")
+        MARKET.update(swap_rates=np.array(checked.swap_rates), source=f"Eris SOFR {curve['as_of']} · derived research curve",
+                      provenance={"snapshot_id": sid, "curve": "derived", "curve_as_of": curve["as_of"],
+                                  "volatility": prior_vol, "warnings": warnings,
+                                  "projection": copy.deepcopy(curve)})
+        changed()
+        return market_view()
+
+
+def prune_jobs():
+    """Bound completed results by age, count and bytes; never evict active work."""
+    with _LOCK:
+        finished = sorted((j for j in JOBS.values() if j["status"] in ("done", "error")),
+                          key=lambda j: j.get("finished_at", 0))
+        total = sum(len(j.get("result") or b"") for j in finished)
+        for j in finished:
+            expired = time.time() - j.get("finished_at", time.time()) > JOB_TTL_SECONDS
+            if expired or len(JOBS) > MAX_JOBS or total > MAX_RESULT_BYTES:
+                total -= len(j.get("result") or b"")
+                JOBS.pop(j["id"], None)
+
+
+def job_status(jid):
+    with _LOCK:
+        prune_jobs()
+        j = JOBS[jid]
+        return copy.deepcopy({k: v for k, v in j.items() if k != "result"})
+
+
+def job_result(jid):
+    with _LOCK:
+        prune_jobs()
+        j = JOBS[jid]
+        if j["status"] != "done":
+            raise RuntimeError(f"job {j['status']}")
+        return j["result"]
+
+
+def balance_sheet(state):
+    bs = {k: v for k, v in state['books'].items() if len(v)}
+    bs.update(mbs_hists=state['mbs_hists'], asof=state['asof'],
+              equity=state['equity'], hedges=state['hedges'])
+    return bs
+
+
+def prepare_forecast(req):
+    from fastapi import HTTPException
+    from .market_data import get_snapshot
+    from .forecast_data import DATASETS, normalized_rows
+    from portfolio_risk.analytics.forecast import compile_forecast
+    state = snapshot()
+    if state["revision"] != req.expected_revision:
+        raise HTTPException(409, "Inputs changed. Reload before previewing or running a forecast.")
+    try:
+        source = get_snapshot(req.snapshot_id)
+    except KeyError:
+        raise HTTPException(404, "unknown research snapshot")
+    if source["dataset"] not in DATASETS:
+        raise HTTPException(422, "snapshot is not a supported forecast source")
+    try:
+        plan = compile_forecast(normalized_rows(source), req.scenario, str(req.start_period), req.horizon_months)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    preview = {"snapshot_id": source["id"], "dataset": source["dataset"],
+               "source_as_of": source["as_of"], "book_as_of": str(state["asof"]),
+               "revision": state["revision"], "scenario": req.scenario, "start_period": str(req.start_period),
+               "alignment": req.alignment, "horizon_months": req.horizon_months,
+               "warnings": source["warnings"] + plan["warnings"], "coverage": plan["coverage"],
+               "unused_variables": plan["unused_variables"], "sources": source["sources"],
+               "drivers": [{"month": m + 1, **{k: float(v[m]) for k, v in plan["targets"].items()}}
+                           for m in range(req.horizon_months)]}
+    return state, plan, preview
+
+
+def run_forecast(plan, provenance):
+    from portfolio_risk.analytics.forecast import run_forecast_nii
+    state = current_state()
+    report(stage="base and conditional monthly cashflows", pct=10)
+    result = run_forecast_nii(balance_sheet(state), state["market"]["swap_rates"],
+        state["market"]["vol_pts"], state["dep_hist"], plan, seed=state["settings"].seed)
+    result["provenance"] = provenance
+    return result
+
+
+class QueueFull(RuntimeError):
+    """The bounded compute queue cannot accept another job."""

@@ -9,6 +9,18 @@ Drive and extend the `portfolio_risk` package: OAS, KRD/vega risk,
 forward valuation, 9Q stress capital, NII, regulatory KPIs, strategies,
 and optimization for a bank balance sheet.
 
+Published forecasts (0.20.1): the API fetches Fed stress/SEP and Philly/NY Fed
+surveys. Preview source coverage before a relative replay on the saved book.
+`analytics.forecast.run_forecast_nii` produces conditional NII/runoff only;
+never use its conditioned paths for OAS/EVE pricing. See the forecast sections
+in the references and repository `docs/forecast-scenarios.md`.
+
+Research data (0.19.1): `core.curve.market_discount_factors_to_par` projects
+source DFs to annual model par rates and reports reconstruction errors. This
+does not provide an exact sub-year curve or replace volatility/behavioral fits.
+See `references/internals.md` and the repository `docs/market-data.md`.
+
+
 ## Setup and verification (always do this first in a fresh environment)
 
 ```bash

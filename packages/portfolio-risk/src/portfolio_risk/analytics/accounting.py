@@ -31,6 +31,8 @@ pricing -- the NII forecast and the risk numbers come from one model.
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import numpy as np
 import polars as pl
 
@@ -64,7 +66,7 @@ def book_yield(cf: np.ndarray, price: np.ndarray, max_iter: int = 60
         step = np.where(np.abs(dpv) > 1e-16, err / dpv, 0.0)
         y2 = y - step
         bad = (y2 <= lo) | (y2 >= hi) | ~np.isfinite(y2)
-        y = np.where(bad, 0.5 * (lo + hi), y2)
+        y = np.where(np.abs(err) >= 1e-12, np.where(bad, 0.5 * (lo + hi), y2), y)
     return y
 
 
@@ -116,7 +118,8 @@ def bucket_csr(per_off, pay_m, vals, horizon: int, n_pos: int) -> np.ndarray:
 # ----------------------------------------------------------------------------
 def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                           horizon: int = 27, seed: int | None = None,
-                          asof=None) -> dict:
+                          asof=None, *, forecast_plan=None, accounting_anchor=None,
+                          capture_anchor=False, crn=None) -> dict:
     """Monthly NII forecast for a model balance sheet (see
     demo.model_balance_sheet). bs keys (any subset): 'mbs' (+'mbs_hists'),
     'loans' (corp frame), 'debt' (corp frame, liability), 'deposits',
@@ -141,9 +144,29 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = crn or CRN(path_count(N_PATHS_SENS), seed)
     rpaths = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
+    if forecast_plan is not None:
+        if accounting_anchor is None:
+            raise ValueError("conditional forecast requires base accounting anchors")
+        from .forecast import condition_paths
+        rpaths = condition_paths(rpaths, forecast_plan)
     P = crn.n
+    anchors = {}
+    anchored = accounting_anchor or {}
+
+    def anchored_income(key, cf, price, income=None, floating=None):
+        a = anchored[key]
+        y, opening = a["yield"], a["opening"]
+        inc = np.zeros((len(y), horizon)); bvs = np.zeros_like(inc)
+        bv = opening.copy()
+        for m in range(horizon):
+            inc[:, m] = bv * y / 12.0
+            if floating is not None:
+                inc[floating, m] += income[floating, m] - a["coupon_income"][floating, m]
+            bv = bv + inc[:, m] - cf[:, m]
+            bvs[:, m] = bv
+        return inc, bvs, y
     cols: dict[str, np.ndarray] = {}
     runoff: dict[str, np.ndarray] = {}
     yields: list[tuple[str, str, float, float]] = []
@@ -157,15 +180,16 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
         cc_hist, ps_hist = bs["mbs_hists"]
         models, B2, abcd2, sec, tgt, face = setup(port, swap_rates, vol_pts,
                                                   cc_hist, ps_hist)
-        oas, _ = solve_base_oas(swap_rates, vol_pts, abcd2, B2, models, sec,
-                                tgt, seed=seed, n_paths=P,
-                                delay_y=port_delay(port))
         paths = build_paths(swap_rates, vol_pts, abcd2, B2, models, crn)
+        if forecast_plan is not None:
+            paths = condition_paths(paths, forecast_plan)
         _, _, _, _, _, Iout, Pacc = run_engine(paths, sec)
         bal = face
         px = tgt
         cf = (Iout + Pacc) / P
-        if "book_yield" in port.columns:
+        if "mbs" in anchored:
+            inc, bvs, y = anchored_income("mbs", cf, px)
+        elif "book_yield" in port.columns:
             # AMORTIZED-COST BASIS: caller supplies the historical-cost
             # effective yield (e.g. filing avg yields) instead of the
             # market-implied IRR -- the model then accrues like the HOLDER
@@ -181,6 +205,7 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                 bvs[:, m] = bv
         else:
             inc, bvs, y = effective_income(cf, px, horizon)
+        anchors["mbs"] = {"yield": y.copy(), "opening": np.ones(len(y)) if "book_yield" in port.columns else px.copy()}
         cols["mbs_income"] = (inc * bal[:, None]).sum(0)
         runoff["mbs"] = (Pacc[:, :horizon] / P * bal[:, None]).sum(0)
         earn_bal += (bvs * bal[:, None]).sum(0)
@@ -200,7 +225,9 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                            N_STEPS, n)
         Pm_far = bucket_csr(deck.per_off, deck.pay_m, Pcsr / P, N_STEPS, n)
         cf = Im_far + Pm_far
-        if "book_yield" in frame.columns:
+        if key in anchored:
+            inc, bvs, y = anchored_income(key, cf, deck.tgt, Im_far, deck.is_float.astype(bool))
+        elif "book_yield" in frame.columns:
             y = frame["book_yield"].to_numpy().astype(np.float64)
             inc = np.zeros((n, horizon)); bvs = np.zeros((n, horizon))
             bv = np.ones(n)
@@ -210,6 +237,8 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                 bvs[:, m] = bv
         else:
             inc, bvs, y = effective_income(cf, deck.tgt, horizon)
+        anchors[key] = {"yield": y.copy(), "opening": np.ones(n) if "book_yield" in frame.columns else deck.tgt.copy(),
+                        "coupon_income": Im_far.copy()}
         cols[lab] = (inc * bal[:, None]).sum(0)
         runoff[key] = (bucket_csr(deck.per_off, deck.pay_m, Pcsr / P,
                                   horizon, n) * bal[:, None]).sum(0)
@@ -224,12 +253,12 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
         deck = DepositDeck(frame)
         m = LogisticBetaECM()
         params = m.fit(dep_hist)
-        r0 = float(m.equilibrium(params, rpaths["short"][:, 0].mean()))
+        r0 = anchored.get("deposit_initial_rate", float(m.equilibrium(params, rpaths["short"][:, 0].mean())))
+        anchors["deposit_initial_rate"] = r0
         dep = m.paths(rpaths["short"].astype(np.float64), params, r0)
-        _, _, _, _, _, Iout = _deposit_A(deck, rpaths, dep, r0)
+        _, Pout_d, _, _, _, Iout = _deposit_A(deck, rpaths, dep, r0)
         cols["deposit_expense"] = (Iout[:, :horizon] / P
                                    * deck.bal[:, None]).sum(0)
-        _, Pout_d, *_ = _deposit_A(deck, rpaths, dep, r0)
         runoff["deposits"] = (Pout_d[:, :horizon] / P
                               * deck.bal[:, None]).sum(0)
 
@@ -277,7 +306,10 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                   float(nim * 100.0)]})
     by = pl.DataFrame(yields, schema=["book", "id", "book_yield", "balance"],
                       orient="row")
-    return {"monthly": monthly, "summary": summary, "book_yields": by,
+    result = {"monthly": monthly, "summary": summary, "book_yields": by,
             "runoff": pl.DataFrame({"month": months,
                                     **{k: v for k, v in runoff.items()}}),
             "runoff_vectors": runoff}
+    if capture_anchor:
+        result["accounting_anchor"] = anchors
+    return result

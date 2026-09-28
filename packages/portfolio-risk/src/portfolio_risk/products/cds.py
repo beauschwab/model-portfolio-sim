@@ -186,12 +186,13 @@ def cd_engine(short, df, per_off, pay_m, pay_frac, acc_m, tau, rem_y,
 
 
 def _cd_full(deck: CDDeck, paths) -> tuple:
+    from ..core.runtime import assumption
     return cd_engine(
         np.ascontiguousarray(paths["short"].astype(np.float64)),
         np.ascontiguousarray(paths["df"].astype(np.float64)),
         deck.per_off, deck.pay_m, deck.pay_frac, deck.acc_m, deck.tau,
         deck.rem_y, deck.call_px, deck.rate, deck.pen_m, deck.ew_mult,
-        deck.call_thr, CD_EW_PARAMS)
+        deck.call_thr, np.asarray(assumption("cd_ew_params", CD_EW_PARAMS)))
 
 
 def _cd_A(deck: CDDeck, paths):
