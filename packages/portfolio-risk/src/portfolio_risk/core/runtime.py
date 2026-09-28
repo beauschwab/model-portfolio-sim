@@ -65,4 +65,3 @@ def assumption(name, default):
     ctx = _CURRENT.get()
     value = getattr(ctx.config, name, None) if ctx else None
     return default if value is None else value
-
