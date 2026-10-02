@@ -1,3 +1,4 @@
+import { useEngineData } from "../lib/engine";
 /** Interactive strategy builder: allocations -> /strategy/eval (sync,
  * sub-ms) with live top-level KPI recalc. Requires the unit library
  * (one-time ~20s build); every slider move re-runs full KPIs. */
@@ -14,12 +15,13 @@ type Eval = {
 };
 const TEMPLATES = ["agency_mbs", "resi_whole_loan", "cml_fixed_5y", "cml_float_3y", "auto_annuity_5y", "cd_2y", "mmda_growth"];
 
-async function evalStrategy(alloc: Alloc[]): Promise<Eval> {
-  return api.strategyEval(alloc) as Promise<Eval>;
+async function evalStrategy(alloc: Alloc[], signal?: AbortSignal): Promise<Eval> {
+  return api.strategyEval(alloc, signal) as Promise<Eval>;
 }
 
 export default function StrategyPage() {
-  const [libReady, setLibReady] = useState(false);
+  const engine = useEngineData();
+  const libReady = engine.libraryReady;
   const [building, setBuilding] = useState(false);
   const [rows, setRows] = useState<Alloc[]>([
     { template: "agency_mbs", purchase_m: 0, notional: 2e9 },
@@ -32,20 +34,29 @@ export default function StrategyPage() {
   const buildLib = async () => {
     setBuilding(true);
     try {
-      const j = await api.run("unitlib");
-      const done = await awaitJob(j.id);
-      if (done.status === "done") setLibReady(true); else alert(done.detail);
+      const done = await engine.run("unitlib");
+      if (done.status === "error") alert(done.detail);
     } finally { setBuilding(false); }
   };
 
-  // debounced live eval on every edit — the interactive loop
+  useEffect(() => { setRes(null); setErr(null); }, [engine.revision]);
+  // Discard obsolete responses even when cancellation arrives after completion.
   useEffect(() => {
     if (!libReady) return;
-    if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      evalStrategy(rows).then(r => { setRes(r); setErr(null); }).catch(e => setErr(String(e)));
+    const controller = new AbortController();
+    let current = true;
+    const id = window.setTimeout(() => {
+      evalStrategy(rows, controller.signal).then(r => {
+        if (current) { setRes(r); setErr(null); }
+      }).catch(e => {
+        if (current && !controller.signal.aborted) {
+          setErr(String(e));
+          window.dispatchEvent(new Event("engine:inputs-changed"));
+        }
+      });
     }, 150);
-  }, [rows, libReady]);
+    return () => { current = false; clearTimeout(id); controller.abort(); };
+  }, [rows, libReady, engine.revision]);
 
   const niiData = useMemo(() => res?.nii_incremental.map((v, i) => ({ month: i + 1, nii: v })) ?? [], [res]);
   const dvData = useMemo(() => res?.fwd_dv01.map((v, i) => ({ month: i + 1, dv01: v })) ?? [], [res]);
@@ -72,7 +83,7 @@ export default function StrategyPage() {
                 {TEMPLATES.map(t => <option key={t}>{t}</option>)}
               </select>
               <span className="text-[10px] text-paper-faint">month</span>
-              <input type="range" min={0} max={24} step={1} value={r.purchase_m} className="w-32 accent-[#fcd535]"
+              <input type="range" min={0} max={Math.max(0, engine.libraryHorizon - 1)} step={1} value={r.purchase_m} className="w-32 accent-[#fcd535]"
                 onChange={e => set(i, "purchase_m", e.target.value)} />
               <span className="num w-6 text-xs">{r.purchase_m}</span>
               <span className="text-[10px] text-paper-faint">notional $</span>
@@ -87,13 +98,13 @@ export default function StrategyPage() {
 
       {res?.kpis && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-          <Stat label="Incr. NII (27m)" value={fmt$(res.nii_total_$)} />
+          <Stat label="Incr. NII (horizon)" value={fmt$(res.nii_total_$)} />
           <Stat label="ΔEVE @ +200 (new)" value={`${res.kpis["d_eve_pct_eve_+200"].toFixed(1)}%`}
             delta={Math.abs(res.kpis["d_eve_pct_eve_+200"]) > 15 ? "-IRRBB outlier" : "inside 15%"} />
           <Stat label="Duration gap" value={`${res.kpis.duration_gap_y.toFixed(2)}y`} />
           <Stat label="LCR" value={`${res.kpis.lcr_pct.toFixed(0)}%`} />
           <Stat label="NSFR" value={`${res.kpis.nsfr_pct.toFixed(0)}%`} />
-          <Stat label="CET1 @ Q9" value={`${res.kpis.cet1_q9_pct.toFixed(2)}%`} />
+          <Stat label="CET1 @ horizon" value={`${res.kpis.cet1_q9_pct.toFixed(2)}%`} />
         </div>
       )}
 
@@ -115,7 +126,7 @@ export default function StrategyPage() {
             </CardBody>
           </Card>
           <Card>
-            <CardHeader title="Forward dv01 added" sub="$/bp by month as cohorts stack and amortize" />
+            <CardHeader title="Forward dv01 added" sub="$/bp; base unit sensitivity scaled by outstanding balance" />
             <CardBody>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={dvData}>

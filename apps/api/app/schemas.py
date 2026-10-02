@@ -27,13 +27,24 @@ class Market(BaseModel):
         return self
 
 
+
+class PythonBackendDeprecated(ValueError):
+    """A historical/reference backend cannot execute through the application."""
+
+
 class RiskSettings(BaseModel):
+    # Accept historical snapshots for inspection; execution rejects Python below.
+    compute_backend: Literal['python', 'rust'] = 'rust'
     n_paths: int = Field(128, ge=32, le=2048)
     n_paths_base: int = Field(512, ge=32, le=2048)
     n_threads: int = Field(0, ge=0, le=256)  # 0 = all available cores
     seed: int = Field(7, ge=0, le=2**32 - 203)
     horizon_months: int = Field(27, ge=3, le=120)
     shocks_bp: list[FiniteFloat] = Field(default=[-100, 100, 200, 300], min_length=1, max_length=16)
+
+    def require_production_backend(self):
+        if self.compute_backend != 'rust':
+            raise PythonBackendDeprecated('PYTHON_BACKEND_DEPRECATED: select Rust in settings and rebuild libraries/sessions; Python is retained only as an independent engine test reference')
 
     @field_validator("n_threads")
     @classmethod
@@ -51,27 +62,92 @@ class RiskSettings(BaseModel):
         return value
 
 
+
 class AssumptionPatch(BaseModel):
     """Targeted model-assumption overrides (catalog at GET /assumptions)."""
-    prepay: dict[str, float] | None = None
-    deposit_segments: dict[str, dict[str, float]] | None = None
-    cd_ew_params: list[float] | None = None
+    prepay: dict[str, FiniteFloat] | None = None
+    deposit_segments: dict[str, dict[str, FiniteFloat]] | None = None
+    cd_ew_params: list[FiniteFloat] | None = None
 
 
 class MarketScenario(BaseModel):
     """Named 9Q market-path scenario in trader terms; each leg is a
     per-quarter list (<=9 values; last value extends to Q9)."""
-    name: str
-    ust10y_bp: list[float] = []
-    twos_tens_bp: list[float] = []
-    spread_bp: list[float] = []
-    vol_bp: list[float] = []
+    name: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    ust10y_bp: list[FiniteFloat] = Field(default_factory=list, max_length=9)
+    twos_tens_bp: list[FiniteFloat] = Field(default_factory=list, max_length=9)
+    spread_bp: list[FiniteFloat] = Field(default_factory=list, max_length=9)
+    vol_bp: list[FiniteFloat] = Field(default_factory=list, max_length=9)
+
+    @field_validator("ust10y_bp", "twos_tens_bp", "spread_bp", "vol_bp")
+    @classmethod
+    def bounded_legs(cls, values):
+        if any(abs(v) > 2000 for v in values):
+            raise ValueError("scenario legs must be within +/-2000 bp")
+        return values
+
+
+class ForecastRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    snapshot_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    scenario: Literal["baseline", "adverse", "median"]
+    start_period: date
+    horizon_months: int = Field(27, ge=3, le=120)
+    alignment: Literal["relative_replay"] = "relative_replay"
+    expected_revision: int = Field(ge=0)
+
+
+class Program(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    product: str = "custom"
+    side: Literal["asset", "liability"]
+    rate_ref: Literal["short", "s2", "s5", "s10", "s30"]
+    is_float: bool = False
+    spread_bp: FiniteFloat = Field(ge=-2000, le=2000)
+    term_m: int = Field(ge=1, le=360, strict=True)
+    amort: Literal["bullet", "annuity", "cpr"] = "bullet"
+    cpr_annual: FiniteFloat = Field(0.06, ge=0, lt=1)
+    start_m: int = Field(ge=0, le=359, strict=True)
+    end_m: int = Field(ge=0, le=359, strict=True)
+    monthly_notional: FiniteFloat | None = Field(None, ge=0)
+    reinvest_frac: FiniteFloat | None = Field(None, ge=0, le=1)
+    reinvest_source: BookName | None = None
+
+    @model_validator(mode="after")
+    def valid_window_and_size(self):
+        if self.end_m < self.start_m:
+            raise ValueError("end_m must not precede start_m")
+        if (self.monthly_notional is None) == (self.reinvest_frac is None):
+            raise ValueError("provide monthly_notional or reinvest_frac, exclusively")
+        if self.reinvest_frac is not None and self.reinvest_source is None:
+            raise ValueError("reinvestment requires a source book")
+        return self
 
 
 class RunRequest(BaseModel):
-    kind: Literal["risk", "stress", "nii", "deposit_stress", "kpis", "strategy", "unitlib"]
+    kind: Literal["risk", "stress", "nii", "deposit_stress", "kpis", "strategy", "unitlib", "pricing", "whatif"]
     books: list[BookName] | None = None
     scenario: str | None = None
+    spread_overrides_bp: dict[BookName, dict[str, FiniteFloat]] = Field(default_factory=dict)
+    assumption_overrides: dict[BookName, dict[str, dict[str, FiniteFloat]]] = Field(default_factory=dict)
+    calibration_mode: Literal['hold', 'recalibrate'] = 'hold'
+    include_analytics: bool = False
+    backend: Literal['rust'] = 'rust'
+    expected_revision: int | None = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def pricing_overrides(self):
+        if self.spread_overrides_bp and self.kind not in ("pricing", "whatif"):
+            raise ValueError("spread_overrides_bp is supported only for pricing/whatif runs")
+        if (self.assumption_overrides or self.calibration_mode != 'hold') and self.kind != 'whatif':
+            raise ValueError('temporary assumptions and recalibration require a whatif run')
+        if self.include_analytics and self.kind not in ('pricing', 'whatif'):
+            raise ValueError('pricing analytics/backend options require pricing or whatif')
+        if any(abs(v) > 2000 for rows in self.spread_overrides_bp.values() for v in rows.values()):
+            raise ValueError("instrument spread shifts must be within +/-2000 bp")
+        if self.books is not None and len(set(self.books)) != len(self.books):
+            raise ValueError("books must not contain duplicates")
+        return self
 
 
 class JobStatus(BaseModel):
@@ -88,11 +164,100 @@ class JobStatus(BaseModel):
     market_provenance: dict[str, Any] | None = None
 
 
-class ForecastRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    snapshot_id: str = Field(pattern=r"^[a-f0-9]{64}$")
-    scenario: Literal["baseline", "adverse", "median"]
-    start_period: date
-    horizon_months: int = Field(27, ge=3, le=120)
-    alignment: Literal["relative_replay"] = "relative_replay"
+class Allocation(BaseModel):
+    template: str
+    purchase_m: int = Field(ge=0, le=359, strict=True)
+    notional: FiniteFloat = Field(ge=0)
+
+    @field_validator("template")
+    @classmethod
+    def known_template(cls, value):
+        from portfolio_risk.strategy.unitlib import TEMPLATES
+        if value not in TEMPLATES:
+            raise ValueError("unknown template")
+        return value
+
+
+class CommercialConstraint(BaseModel):
+    label: str = Field(min_length=1, max_length=100)
+    template: str
+    sense: Literal[">=", "<="]
+    rhs: FiniteFloat = Field(ge=0)
+
+    @field_validator("template")
+    @classmethod
+    def known_template(cls, value):
+        if value in ("ALL_ASSET", "ALL_LIAB"):
+            return value
+        return Allocation.known_template(value)
+
+
+class OptimizeRequest(BaseModel):
+    lcr_min: FiniteFloat = Field(1.10, gt=0, le=10)
+    nsfr_min: FiniteFloat = Field(1.05, gt=0, le=10)
+    cet1_min: FiniteFloat = Field(0.10, gt=0, lt=1)
+    eve_limit: FiniteFloat = Field(0.15, gt=0, le=1)
+    max_total_assets: FiniteFloat = Field(3e10, gt=0)
+    cash_budget: FiniteFloat = Field(0, ge=0)
+    commercial: list[CommercialConstraint] = Field(default_factory=list, max_length=100)
+    capital_limits: list[dict] = Field(default_factory=list, max_length=2048)
+    scenarios: list[str] = Field(default_factory=list, max_length=12)
+
+
+class DecisionBuildRequest(BaseModel):
     expected_revision: int = Field(ge=0)
+    options: OptimizeRequest = Field(default_factory=OptimizeRequest)
+
+
+class DecisionUpdateRequest(BaseModel):
+    expected_revision: int = Field(ge=0)
+    version: int = Field(ge=0)
+    edits: dict[str, dict[str, FiniteFloat | None]] = Field(default_factory=dict, max_length=10000)
+    templates: dict[str, dict[str, FiniteFloat | None]] = Field(default_factory=dict, max_length=7)
+    constraints: OptimizeRequest | None = None
+
+
+class DecisionEvalRequest(BaseModel):
+    expected_revision: int = Field(ge=0)
+    version: int = Field(ge=0)
+    allocation: list[Allocation] = Field(max_length=4096)
+
+
+class BalanceStressRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+
+    @field_validator("specification")
+    @classmethod
+    def valid_stress_specification(cls, value):
+        from portfolio_risk.analytics.balance_stress import validate
+        validate(value)
+        return value
+
+
+class SavedBalanceStressRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+    position_mapping: dict[str, dict[str, Any]] = Field(max_length=2000)
+    amount_scale: FiniteFloat = Field(gt=0, le=1e9)
+    allocation: list[Allocation] = Field(default_factory=list, max_length=2000)
+    template_mapping: dict[str, dict[str, Any]] = Field(default_factory=dict, max_length=100)
+    observations: list[dict[str, Any]] = Field(default_factory=list, max_length=10000)
+    calibration: dict[str, Any] | None = None
+
+
+class StreamedBalanceStressRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+    backend: Literal['rust'] = 'rust'
+    large_book: bool = False
+
+    @model_validator(mode='after')
+    def valid_specification(self):
+        from portfolio_risk.analytics.balance_stress import validate
+        validate(self.specification, max_positions=60000 if self.large_book else 2000,
+                 max_work=90_000_000 if self.large_book else 3_000_000)
+        return self

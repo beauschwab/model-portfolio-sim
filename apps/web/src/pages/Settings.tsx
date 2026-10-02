@@ -14,7 +14,10 @@ export default function SettingsPage() {
   }, []);
 
   if (!s || !asm) return null;
-  const saveSettings = async () => { await api.putSettings(s); alert("settings saved"); };
+  const saveSettings = async () => {
+    try { await api.putSettings(s); alert("settings saved"); }
+    catch (e) { alert(String(e)); }
+  };
   const saveSegments = async () => {
     try { await api.putAssumptions({ deposit_segments: JSON.parse(segText) }); alert("applied"); }
     catch (e) { alert(String(e)); }
@@ -25,10 +28,20 @@ export default function SettingsPage() {
       <Card>
         <CardHeader title="Risk & scenario settings" right={<Button onClick={saveSettings}>Save</Button>} />
         <CardBody className="space-y-3">
-          {([["n_paths", "Monte Carlo paths"], ["seed", "CRN seed"], ["horizon_months", "NII/stress horizon (months)"]] as const).map(([k, label]) => (
+          <label className="flex items-center gap-3 text-xs text-paper-dim">
+            <span className="w-56">Product simulation backend</span>
+            <select aria-label="Product simulation backend" value={s.compute_backend ?? 'rust'}
+              className="rounded-md border border-line bg-surface-2 p-2 text-paper"
+              onChange={e => setS({ ...s, compute_backend: e.target.value as 'python' | 'rust' })}>
+              <option value="rust">Rust (production default)</option>
+              {s.compute_backend === 'python' && <option value="python" disabled>Python (deprecated — select Rust)</option>}
+            </select>
+          </label>
+          <p className="text-[11px] text-paper-faint">Rust is required for production calculations. Python calculation is deprecated and retained only for independent engine validation. Select Rust and rebuild older strategy libraries and sessions. Missing native libraries cause an error; calculations never silently fall back to Python.</p>
+          {([["n_paths", "Monte Carlo paths"], ["n_paths_base", "MBS base calibration paths"], ["n_threads", "Compute threads (0 = all)"], ["seed", "CRN seed"], ["horizon_months", "NII/stress horizon (months)"]] as const).map(([k, label]) => (
             <div key={k} className="flex items-center gap-3">
               <div className="flex w-56 items-center text-xs text-paper-dim">{label}
-                <InfoPop>{k === "n_paths" ? "Monte Carlo paths per revaluation. 128 is the sensitivity default; CRN keeps central differences stable at this count. Doubling paths roughly doubles run time." : k === "seed" ? "One CRN draw set per run — every scenario revaluation shares it, so risk numbers are differences of means under common randoms. Changing the seed changes every number coherently." : "Months for NII forecasting and the stress grid. 27 = the 9-quarter CCAR horizon."}</InfoPop>
+                <InfoPop>{k === "n_paths" ? "Paths per sensitivity and non-MBS calibration. Common random numbers keep central differences stable." : k === "n_paths_base" ? "Paths for MBS base OAS calibration and scenario spot marks; sensitivity paths are configured separately." : k === "n_threads" ? "Set for every job. Zero restores all threads supported by the server process." : k === "seed" ? "One shared random draw set per scenario family. Changing the seed changes every number coherently." : "Months for NII, stress, and strategy forecasts. 27 = nine quarters."}</InfoPop>
               </div>
               <Input type="number" value={s[k]} onChange={e => setS({ ...s, [k]: parseInt(e.target.value) || 0 })} />
             </div>

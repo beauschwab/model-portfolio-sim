@@ -18,6 +18,7 @@ Path arrays may be float32 (storage/bandwidth); scalar math is float64.
 from __future__ import annotations
 
 import numpy as np
+from .quant_native import kernel
 from numba import njit, prange
 
 
@@ -78,6 +79,7 @@ def _spline_eval(x, knots, coefs):
 
 
 # --- main engine ----------------------------------------------------------------
+@kernel('mbs')
 @njit(parallel=True, fastmath=True, cache=True)
 def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
            smm_lut, smm_scale, burn_lut, burn_scale,
@@ -196,6 +198,7 @@ def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
 
 
 # --- dedicated stress engine -------------------------------------------------------
+@kernel('mbs_stress')
 @njit(parallel=True, fastmath=True, cache=True)
 def stress_engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
                   smm_lut, smm_scale, burn_lut, burn_scale,
@@ -364,6 +367,7 @@ def make_generic_engine(step):
     return generic_engine
 
 
+@kernel('mbs_batch')
 @njit(parallel=True, fastmath=True, cache=True)
 def batched_pv_engine(mtg, hpi, yoy, df, scen, n_scen, moy, season, pp,
                       knots, coefs, smm_lut, smm_scale, burn_lut,

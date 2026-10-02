@@ -14,6 +14,16 @@ from ..models.models import yoy_from_hpi
 DRIVERS = {"short_rate", "policy_rate", "rate_5y", "rate_10y", "mortgage_rate", "hpi"}
 
 
+FORECAST_WARNINGS = [
+        "Relative replay: source month 1 is applied to the current book's first projection month; book dates are not moved. This is not a historical backtest.",
+        "Conditional NII/runoff only. No EVE, OAS recalibration, default losses, provisions, capital or scenario probabilities are inferred.",
+        "Source Treasury/policy rates proxy model rates with zero basis. With multiple source tenors, missing tenors use linear interpolation and flat extrapolation; policy-only sources retain the initial model curve slope.",
+        "Base Monte Carlo draws are reused. Shifted rate deviations are rescaled to source means, preserving the -2% rate floor. This is not an arbitrage-free pricing measure or an estimated real-world distribution.",
+        "Beyond the last source anchor each driver stays at its final level, including for remaining-life cashflows. Missing mortgage/HPI drivers retain the existing model path.",
+        "Quarterly average rates repeat within the quarter; dated rate endpoints interpolate linearly. Missing pre-first-endpoint values use the first endpoint.",
+    ]
+
+
 def month_number(day):
     d = date.fromisoformat(day)
     return d.year * 12 + d.month - 1
@@ -26,6 +36,15 @@ def compile_forecast(rows, scenario, start_period, horizon):
     endpoints are linearly interpolated; HPI is log-interpolated and rebased
     against the preceding month. Only rate-bearing source months may start a run.
     """
+    from ..core.quant_native import enabled,term_call
+    warnings=FORECAST_WARNINGS.copy()
+    if enabled():
+        result=term_call('financial-controller-1',dict(op='forecast_compile',request=dict(rows=rows,
+            scenario=scenario,start_period=start_period,horizon=horizon,months=N_STEPS)))
+        result['targets']={k:np.asarray(v) for k,v in result['targets'].items()}
+        if 'hpi' in result['targets']:
+            warnings.append("HPI uses log interpolation between quarter ends, rebased at replay month zero. Mortgage incentives retain the engine's two-month lag.")
+        return dict(scenario=scenario,start_period=start_period,horizon=horizon,warnings=warnings,**result)
     if not 1 <= horizon <= 120 or date.fromisoformat(start_period).day != 1:
         raise ValueError("forecast requires a month-start and horizon of 1..120 months")
     if scenario not in {r.get("scenario") for r in rows} or scenario not in {"baseline", "adverse", "median"}:
@@ -34,16 +53,8 @@ def compile_forecast(rows, scenario, start_period, horizon):
     start = month_number(start_period)
     if start not in {month_number(r["date"]) for r in selected if r.get("variable") in ("short_rate", "policy_rate")}:
         raise ValueError("start period must be a published rate-anchor month")
-    warnings = [
-        "Relative replay: source month 1 is applied to the current book's first projection month; book dates are not moved. This is not a historical backtest.",
-        "Conditional NII/runoff only. No EVE, OAS recalibration, default losses, provisions, capital or scenario probabilities are inferred.",
-        "Source Treasury/policy rates proxy model rates with zero basis. With multiple source tenors, missing tenors use linear interpolation and flat extrapolation; policy-only sources retain the initial model curve slope.",
-        "Base Monte Carlo draws are reused. Shifted rate deviations are rescaled to source means, preserving the -2% rate floor. This is not an arbitrage-free pricing measure or an estimated real-world distribution.",
-        "Beyond the last source anchor each driver stays at its final level, including for remaining-life cashflows. Missing mortgage/HPI drivers retain the existing model path.",
-        "Quarterly average rates repeat within the quarter; dated rate endpoints interpolate linearly. Missing pre-first-endpoint values use the first endpoint.",
-    ]
     targets, spans = {}, {}
-    for variable in DRIVERS:
+    for variable in sorted(DRIVERS):
         values = [r for r in selected if r.get("variable") == variable]
         if not values:
             continue
@@ -110,7 +121,7 @@ def condition_paths(base, plan):
     # Single short-rate source: preserve the base term structure via a parallel
     # shift. Multiple source tenors: direct proxy/interpolation, explicitly assumed.
     if len(anchors) == 1:
-        slope = base["swaps"][:, :, 0].mean(axis=0) - base["short"][:, 0].mean()
+        slope = base["swaps"][:, :, 0].mean(axis=0, dtype=np.float64) - base["short"][:, 0].mean(dtype=np.float64)
         target = short[None, :] + slope[:, None]
         out["swaps"] = rate_center(base["swaps"], target)
     else:
@@ -120,10 +131,10 @@ def condition_paths(base, plan):
     if "mtg" in base and "mortgage_rate" in t:
         target = t["mortgage_rate"].copy()
         if INC_LAG:
-            target = np.r_[base["mtg"][:, :INC_LAG].mean(axis=0), target[:-INC_LAG]]
+            target = np.r_[base["mtg"][:, :INC_LAG].mean(axis=0, dtype=np.float64), target[:-INC_LAG]]
         out["mtg"] = center(base["mtg"], target)
     if "hpi" in base and "hpi" in t:
-        out["hpi"] = base["hpi"].astype(float) / base["hpi"].mean(axis=0) * t["hpi"]
+        out["hpi"] = base["hpi"].astype(float) / base["hpi"].mean(axis=0, dtype=np.float64) * t["hpi"]
         out["yoy"] = yoy_from_hpi(out["hpi"])
     if any(not np.isfinite(v).all() for v in out.values()):
         raise ValueError("non-finite conditioned path")
@@ -136,15 +147,25 @@ def run_forecast_nii(bs, swap_rates, vol_pts, dep_hist, plan, seed=7):
     from ..core.runtime import path_count
     from ..core.config import N_PATHS_SENS
     horizon = plan["horizon"]
-    crn = CRN(path_count(N_PATHS_SENS), seed)
-    base = run_balance_sheet_nii(bs, swap_rates, vol_pts, dep_hist, horizon=horizon,
-                                 seed=seed, asof=bs["asof"], capture_anchor=True, crn=crn)
-    anchor = base.pop("accounting_anchor")
-    conditional = run_balance_sheet_nii(bs, swap_rates, vol_pts, dep_hist, horizon=horizon,
-        seed=seed, asof=bs["asof"], forecast_plan=plan, accounting_anchor=anchor, crn=crn)
-    monthly = conditional["monthly"].with_columns(
-        base["monthly"]["nii"].alias("base_nii"),
-        (conditional["monthly"]["nii"] - base["monthly"]["nii"]).alias("delta_nii"))
+    from ..core.quant_native import enabled,term_call
+    if enabled():
+        from ..core.lifecycle_native import accounting_request,accounting_result
+        request=accounting_request(bs,swap_rates,vol_pts,dep_hist,horizon,seed,bs['asof'],None,None,False,None,False)
+        output=term_call('financial-controller-1',dict(op='forecast_replay',books=request,
+            forecast=dict(targets={k:np.asarray(v).tolist() for k,v in plan['targets'].items()})))
+        base=accounting_result(output['base'],horizon)
+        conditional=accounting_result(output['conditional'],horizon)
+        monthly=conditional['monthly'].with_columns(base['monthly']['nii'].alias('base_nii'),pl.Series('delta_nii',output['delta_nii']))
+    else:
+        crn = CRN(path_count(N_PATHS_SENS), seed)
+        base = run_balance_sheet_nii(bs, swap_rates, vol_pts, dep_hist, horizon=horizon,
+                                     seed=seed, asof=bs["asof"], capture_anchor=True, crn=crn)
+        anchor = base.pop("accounting_anchor")
+        conditional = run_balance_sheet_nii(bs, swap_rates, vol_pts, dep_hist, horizon=horizon,
+            seed=seed, asof=bs["asof"], forecast_plan=plan, accounting_anchor=anchor, crn=crn)
+        monthly = conditional["monthly"].with_columns(
+            base["monthly"]["nii"].alias("base_nii"),
+            (conditional["monthly"]["nii"] - base["monthly"]["nii"]).alias("delta_nii"))
     targets = pl.DataFrame({"month": np.arange(1, horizon + 1),
                            **{k: v[:horizon] for k, v in plan["targets"].items()}})
     warnings = plan["warnings"] + [

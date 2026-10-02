@@ -45,6 +45,9 @@ def book_yield(cf: np.ndarray, price: np.ndarray, max_iter: int = 60
     cf (S,T) expected per-unit cashflows, price (S,). Newton with bisection
     fallback bracket [-0.5, 1.0]."""
     S, T = cf.shape
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(14,[cf,price,0,max_iter],[(S,0),(S,0),(S,)])[2]
     t = np.arange(1, T + 1)
     y = np.full(S, 0.05)
     lo, hi = np.full(S, -0.5), np.full(S, 1.0)
@@ -74,6 +77,9 @@ def effective_income(cf: np.ndarray, price: np.ndarray, horizon: int
                      ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(income[s, 0:H], book_value[s, 0:H] end-of-month, y[s]) under the
     level-yield roll: inc = bv*y/12; bv += inc - cash."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(14,[cf,price,horizon,60],[(len(cf),horizon),(len(cf),horizon),(len(cf),)])
     y = book_yield(cf, price)
     S = cf.shape[0]
     inc = np.zeros((S, horizon))
@@ -90,6 +96,9 @@ def smear_csr(per_off, acc_m, pay_m, vals, horizon: int, n_pos: int
               ) -> np.ndarray:
     """Spread per-period amounts evenly over accrual months acc_m..pay_m
     (inclusive of pay month) -> (n_pos, horizon) monthly accruals."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(15,[per_off,acc_m,pay_m,vals,horizon,True],[(n_pos,horizon)])[0]
     out = np.zeros((n_pos, horizon))
     for s in range(n_pos):
         for j in range(per_off[s], per_off[s + 1]):
@@ -106,6 +115,9 @@ def smear_csr(per_off, acc_m, pay_m, vals, horizon: int, n_pos: int
 
 def bucket_csr(per_off, pay_m, vals, horizon: int, n_pos: int) -> np.ndarray:
     """Per-period amounts at the pay month (cash timing) -> (n_pos, H)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(15,[per_off,pay_m,pay_m,vals,horizon,False],[(n_pos,horizon)])[0]
     out = np.zeros((n_pos, horizon))
     for s in range(n_pos):
         for j in range(per_off[s], per_off[s + 1]):
@@ -119,7 +131,7 @@ def bucket_csr(per_off, pay_m, vals, horizon: int, n_pos: int) -> np.ndarray:
 def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                           horizon: int = 27, seed: int | None = None,
                           asof=None, *, forecast_plan=None, accounting_anchor=None,
-                          capture_anchor=False, crn=None) -> dict:
+                          capture_anchor=False, crn=None, capture_cashflows=False) -> dict:
     """Monthly NII forecast for a model balance sheet (see
     demo.model_balance_sheet). bs keys (any subset): 'mbs' (+'mbs_hists'),
     'loans' (corp frame), 'debt' (corp frame, liability), 'deposits',
@@ -129,6 +141,12 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
     - expense. NIM uses average earning-asset balances from the engines.
     """
     import datetime as dt
+
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import accounting
+        return accounting(bs, swap_rates, vol_pts, dep_hist, horizon, seed, asof,
+                          forecast_plan, accounting_anchor, capture_anchor, crn, capture_cashflows)
 
     from ..products.cds import CDDeck, _cd_full
     from ..core.config import SEED
@@ -171,6 +189,21 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
     runoff: dict[str, np.ndarray] = {}
     yields: list[tuple[str, str, float, float]] = []
     earn_bal = np.zeros(horizon)     # avg earning assets $ for NIM
+    instrument_flows, openings = [], []
+
+    def capture(key, ids, balances, opening, principal, coupon, accrual, effective, sides, market_price=None):
+        if not capture_cashflows:
+            return
+        for i, sid in enumerate(ids):
+            openings.append(dict(book=key, id=str(sid), balance=float(balances[i]),
+                                 book_adjustment=float((opening[i]-1)*balances[i]), side=sides[i],
+                                 market_price=1. if market_price is None else float(market_price[i])))
+            for month in range(horizon):
+                instrument_flows.append(dict(book=key, id=str(sid), month=month+1,
+                    principal=float(principal[i, month]*balances[i]),
+                    cash_interest=float(coupon[i, month]*balances[i]),
+                    accrual_interest=float(accrual[i, month]*balances[i]),
+                    book_amortization=float((effective[i, month]-accrual[i, month])*balances[i])))
 
     # ---- MBS (effective interest on expected cashflows) ---------------------
     if "mbs" in bs:
@@ -208,6 +241,8 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
         anchors["mbs"] = {"yield": y.copy(), "opening": np.ones(len(y)) if "book_yield" in port.columns else px.copy()}
         cols["mbs_income"] = (inc * bal[:, None]).sum(0)
         runoff["mbs"] = (Pacc[:, :horizon] / P * bal[:, None]).sum(0)
+        capture('mbs', port['cusip'].to_list(), bal, anchors['mbs']['opening'],
+                Pacc/P, Iout/P, Iout/P, inc, ['asset']*len(bal), market_price=px)
         earn_bal += (bvs * bal[:, None]).sum(0)
         yields += [("mbs", sid, float(yy), float(bb))
                    for sid, yy, bb in zip(port["cusip"].to_list(), y, bal)]
@@ -239,6 +274,9 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
             inc, bvs, y = effective_income(cf, deck.tgt, horizon)
         anchors[key] = {"yield": y.copy(), "opening": np.ones(n) if "book_yield" in frame.columns else deck.tgt.copy(),
                         "coupon_income": Im_far.copy()}
+        capture(key, frame['id'].to_list(), bal, anchors[key]['opening'], Pm_far,
+                bucket_csr(deck.per_off, deck.pay_m, Icsr/P, horizon, n), Im_far,
+                inc, ['asset' if key == 'loans' else 'liability']*n, market_price=deck.tgt)
         cols[lab] = (inc * bal[:, None]).sum(0)
         runoff[key] = (bucket_csr(deck.per_off, deck.pay_m, Pcsr / P,
                                   horizon, n) * bal[:, None]).sum(0)
@@ -261,6 +299,8 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
                                    * deck.bal[:, None]).sum(0)
         runoff["deposits"] = (Pout_d[:, :horizon] / P
                               * deck.bal[:, None]).sum(0)
+        capture('deposits', frame['id'].to_list(), deck.bal, np.ones(deck.n),
+                Pout_d/P, Iout/P, Iout/P, Iout/P, ['liability']*deck.n)
 
     # ---- money-market / markets balance sheet (spread-to-short) -------------
     if bs.get("mm") is not None:
@@ -271,15 +311,23 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
         cols["mm_income"] = inc_m
         cols["mm_expense"] = exp_m
         earn_bal += mm_earning_assets(deck)
+        if capture_cashflows:
+            acc = np.maximum(rpaths['short'][:, :horizon].mean(0)[None, :]+deck.spr[:, None], 0.)/12
+            capture('mm', bs['mm']['id'].to_list(), deck.bal, np.ones(deck.n),
+                    np.zeros_like(acc), acc, acc, acc, bs['mm']['side'].to_list())
 
     # ---- CDs (contractual accrual, smeared) ----------------------------------
     if "cds" in bs:
         frame = bs["cds"]
         deck = CDDeck(frame, asof)
-        _, Icsr, _ = _cd_full(deck, rpaths)
+        _, Icsr, Pcsr = _cd_full(deck, rpaths)
         Im = smear_csr(deck.per_off, deck.acc_m, deck.pay_m, Icsr / P,
                        horizon, deck.n)
         cols["cd_expense"] = (Im * deck.bal[:, None]).sum(0)
+        capture('cds', frame['id'].to_list(), deck.bal, np.ones(deck.n),
+                bucket_csr(deck.per_off, deck.pay_m, Pcsr/P, horizon, deck.n),
+                bucket_csr(deck.per_off, deck.pay_m, Icsr/P, horizon, deck.n),
+                Im, Im, ['liability']*deck.n)
 
     if bs.get("hedges") is not None:
         from ..products.hedges import HedgeDeck, swap_mtm_and_carry
@@ -312,4 +360,7 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
             "runoff_vectors": runoff}
     if capture_anchor:
         result["accounting_anchor"] = anchors
+    if capture_cashflows:
+        result['instrument_cashflows'] = pl.DataFrame(instrument_flows)
+        result['instrument_openings'] = pl.DataFrame(openings)
     return result

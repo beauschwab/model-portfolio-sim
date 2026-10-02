@@ -45,6 +45,9 @@ def mm_income(deck: MMDeck, short: np.ndarray, horizon: int
     """(asset_income[m], liability_expense[m]) expected monthly accruals,
     $; rate floored at 0 per position (negative-rate pass-through is a
     policy choice -- floor matches USD convention)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(16,[short,deck.bal,deck.spr,deck.sign,horizon],[(horizon,)]*2)
     P = short.shape[0]
     r = np.maximum(short[:, :horizon].mean(0)[None, :]
                    + deck.spr[:, None], 0.0)        # E[short]+spread, floored

@@ -1,0 +1,6 @@
+[package]
+name = "portfolio-compute-control"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared native cancellation and deadline checkpoints"

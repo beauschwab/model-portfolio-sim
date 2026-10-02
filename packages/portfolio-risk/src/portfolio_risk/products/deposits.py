@@ -40,7 +40,10 @@ gains value when rates fall) and vegas. Also reports WAL of the runoff.
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import numpy as np
+from ..core.quant_native import kernel
 import polars as pl
 from numba import njit, prange
 from scipy.optimize import least_squares
@@ -76,6 +79,32 @@ ATTR_CAP = 0.50
 
 
 # --- deposit rate model --------------------------------------------------------
+def _equilibrium_jacobian(p, ff):
+    """Exact derivatives of the logistic equilibrium in parameter order."""
+    _, low, high, steepness, pivot = p
+    sigmoid = 1 / (1 + np.exp(-steepness * (ff - pivot)))
+    scale = ff * (high - low) * sigmoid * (1 - sigmoid)
+    return np.column_stack((np.ones_like(ff), ff * (1 - sigmoid), ff * sigmoid,
+                            scale * (ff - pivot), -scale * steepness))
+
+
+def _deposit_recurrence_jacobian(theta, ff, initial):
+    """Differentiate the observed-rate-anchored asymmetric ECM recurrence."""
+    a, low, high, k, pivot, up, down = theta
+    eq = a + ff * (low + (high - low) / (1 + np.exp(-k * (ff - pivot))))
+    equilibrium_gradient = _equilibrium_jacobian(theta[:5], ff)
+    jac = np.zeros((len(ff), 7))
+    previous = initial
+    for t in range(1, len(ff)):
+        gap = eq[t] - previous
+        index, speed = (5, up) if gap > 0 else (6, down)
+        jac[t] = (1 - speed) * jac[t - 1]
+        jac[t, :5] += speed * equilibrium_gradient[t]
+        jac[t, index] += gap
+        previous += speed * gap
+    return jac
+
+
 @register("deposit_rate", "logistic_beta_ecm")
 class LogisticBetaECM:
     """Long-run logistic beta to fed funds + asymmetric error correction."""
@@ -92,34 +121,42 @@ class LogisticBetaECM:
         is a single 240-step recursion -- negligible."""
         ff = hist["ff"].to_numpy()
         r = hist["dep_rate"].to_numpy()
-        T = len(r)
+        from ..core import quant_native as native
+        if native.enabled():
+            params, stats = native.call(26, [hist.select(['ff', 'dep_rate']).to_numpy()], [(7,), (3,)])
+            p, lam_up, lam_dn = params[:5], float(params[5]), float(params[6])
+            rmse = float(stats[0])
+        else:
+            T = len(r)
 
-        def eq_fn(p, x):
-            a, bmin, bmax, k, piv = p
-            return a + x * (bmin + (bmax - bmin)
-                            / (1.0 + np.exp(-k * (x - piv))))
+            def eq_fn(p, x):
+                a, bmin, bmax, k, piv = p
+                return a + x * (bmin + (bmax - bmin)
+                                / (1.0 + np.exp(-k * (x - piv))))
 
-        def resid(theta):
-            p, lu, ld = theta[:5], theta[5], theta[6]
-            eq = eq_fn(p, ff)
-            rm = np.empty(T)
-            rm[0] = r[0]
-            for t in range(1, T):
-                g = eq[t] - rm[t - 1]
-                rm[t] = rm[t - 1] + (lu if g > 0 else ld) * g
-            return rm - r
+            def resid(theta):
+                p, lu, ld = theta[:5], theta[5], theta[6]
+                eq = eq_fn(p, ff)
+                rm = np.empty(T)
+                rm[0] = r[0]
+                for t in range(1, T):
+                    g = eq[t] - rm[t - 1]
+                    rm[t] = rm[t - 1] + (lu if g > 0 else ld) * g
+                return rm - r
 
-        p0 = least_squares(
-            lambda p: eq_fn(p, ff) - r,
-            x0=np.array([0.001, 0.05, 0.5, 100.0, 0.02]),
-            bounds=([-0.01, 0.0, 0.05, 10.0, 0.0],
-                    [0.02, 0.5, 1.0, 500.0, 0.08])).x
-        sol = least_squares(
-            resid, x0=np.concatenate([p0, [0.25, 0.25]]),
-            bounds=([-0.01, 0.0, 0.05, 10.0, 0.0, 0.01, 0.01],
-                    [0.02, 0.5, 1.0, 500.0, 0.08, 1.0, 1.0]))
-        p, lam_up, lam_dn = sol.x[:5], float(sol.x[5]), float(sol.x[6])
-        rmse = np.sqrt(np.mean(sol.fun ** 2))
+            p0 = least_squares(
+                lambda p: eq_fn(p, ff) - r,
+                jac=lambda p: _equilibrium_jacobian(p, ff),
+                x0=np.array([0.001, 0.05, 0.5, 100.0, 0.02]),
+                bounds=([-0.01, 0.0, 0.05, 10.0, 0.0],
+                        [0.02, 0.5, 1.0, 500.0, 0.08])).x
+            sol = least_squares(
+                resid, x0=np.concatenate([p0, [0.25, 0.25]]),
+                jac=lambda theta: _deposit_recurrence_jacobian(theta, ff, r[0]),
+                bounds=([-0.01, 0.0, 0.05, 10.0, 0.0, 0.01, 0.01],
+                        [0.02, 0.5, 1.0, 500.0, 0.08, 1.0, 1.0]))
+            p, lam_up, lam_dn = sol.x[:5], float(sol.x[5]), float(sol.x[6])
+            rmse = np.sqrt(np.mean(sol.fun ** 2))
         plateau = p[4] + 2.0 / p[3]          # pivot + 2/k ~ logistic top
         if ff.max() < plateau:
             print(f"[dep] WARNING: history max ff {ff.max()*1e2:.1f}% < "
@@ -138,6 +175,9 @@ class LogisticBetaECM:
 
     def paths(self, short: np.ndarray, params: dict, r0: float) -> np.ndarray:
         """short (P,T) -> deposit rate paths (P,T), asymmetric ECM."""
+        from ..core import quant_native as native
+        if native.enabled():
+            return native.call(11,[3,short,np.r_[params['p'],params['lam_up'],params['lam_dn']],r0],[short.shape])[0]
         eq = self.equilibrium(params, short)
         lu, ld = params["lam_up"], params["lam_dn"]
         P, T = short.shape
@@ -162,6 +202,7 @@ class LogisticBetaECM:
 
 
 # --- attrition + valuation kernel -------------------------------------------------
+@kernel('deposit')
 @njit(parallel=True, fastmath=True, cache=True)
 def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
                    off, base, size_m, fl_amp, fl_b, fl_g0, age0, svc,
@@ -248,6 +289,7 @@ def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
     return A, Pout, FV, BAL, ck_bal, Iout
 
 
+@kernel('deposit_stress')
 @njit(parallel=True, fastmath=True, cache=True)
 def deposit_stress_engine(dep, short, vel, df, age_knots, age_coefs,
                           off, base, size_m, fl_amp, fl_b, fl_g0, age0, svc,
@@ -305,6 +347,11 @@ def deposit_stress_engine(dep, short, vel, df, age_knots, age_coefs,
 
 class DepositDeck:
     def __init__(self, book: pl.DataFrame):
+        from ..core import quant_native as native
+        if native.enabled():
+            from ..core.lifecycle_native import deposit_deck
+            self.__dict__.update(deposit_deck(book))
+            return
         missing = DEPOSIT_COLS - set(book.columns)
         if missing:
             raise ValueError(f"deposit book missing columns: {missing}")
@@ -358,19 +405,26 @@ def _deposit_A(deck: DepositDeck, paths, dep_paths, r0, oas=None,
 
 def run_deposit_risk(book: pl.DataFrame, swap_rates, vol_pts,
                      dep_hist: pl.DataFrame, seed: int = SEED,
-                     rate_model=None) -> pl.DataFrame:
+                     rate_model=None, oas=None) -> pl.DataFrame:
     """Liability OAS + 10 KRD01s + 9 vegas + WAL for an NMD book.
     Sign convention: positive krd/dv01 = liability VALUE rises when rates
     fall (sticky low-beta books -> long-duration liabilities -> the
     bank's EVE hedge asset). Negative OAS = franchise premium priced in."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import deposit_risk
+        return deposit_risk(book,swap_rates,vol_pts,dep_hist,seed,rate_model,oas)
     rate_model = rate_model or LogisticBetaECM()
+    from ..core.quant_native import enabled
+    if enabled() and type(rate_model) is not LogisticBetaECM:
+        raise ValueError("Custom deposit rate models are not supported by the Rust backend")
     deck = DepositDeck(book)
     params = rate_model.fit(dep_hist)
 
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     base = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
     r0 = float(rate_model.equilibrium(params, base["short"][:, 0].mean()))
 
@@ -379,7 +433,10 @@ def run_deposit_risk(book: pl.DataFrame, swap_rates, vol_pts,
         return _deposit_A(deck, paths, dep, r0)
 
     A, Pout, *_ = value(base)
-    oas, px = solve_oas_from_A(A, crn.n, deck.tgt, lo0=-0.15)
+    if oas is None:
+        oas, px = solve_oas_from_A(A, crn.n, deck.tgt, lo0=-0.15)
+    else:
+        px = pv_from_A(A, oas, crn.n)
     tg = (np.arange(N_STEPS) + 1.0) / 12.0
     wal = (Pout * tg[None, :]).sum(1) / np.maximum(Pout.sum(1), 1e-12)
 
@@ -436,30 +493,39 @@ def deposit_shocked_paths(base: dict, h: int, shock_bp: float,
 
 def run_deposit_stress(book: pl.DataFrame, swap_rates, vol_pts,
                        dep_hist: pl.DataFrame, shocks_bp=None,
-                       seed: int = SEED, rate_model=None):
+                       seed: int = SEED, rate_model=None, oas=None):
     """9Q monthly forward valuation + forward-starting shocks for an NMD
     book. Returns (positions_long, horizon_aggregates, fwd_dv01_profile).
     SIGN CONVENTION: stress_pnl is the LIABILITY value change;
     eve_pnl = -stress_pnl is the bank's EVE impact (sticky books GAIN EVE
     when rates rise: liability value falls faster than assets reprice)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import deposit_stress
+        return deposit_stress(book,swap_rates,vol_pts,dep_hist,shocks_bp,seed,rate_model,oas)
     from ..core.config import STRESS_HORIZONS_M, STRESS_SHOCKS_BP
     shocks_bp = shocks_bp or STRESS_SHOCKS_BP
     rate_model = rate_model or LogisticBetaECM()
+    from ..core.quant_native import enabled
+    if enabled() and type(rate_model) is not LogisticBetaECM:
+        raise ValueError("Custom deposit rate models are not supported by the Rust backend")
     deck = DepositDeck(book)
     params = rate_model.fit(dep_hist)
 
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     base = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
     r0 = float(rate_model.equilibrium(params, base["short"][:, 0].mean()))
     dep0 = rate_model.paths(base["short"].astype(np.float64), params, r0)
 
     A, _, *_ = _deposit_A(deck, base, dep0, r0)
-    oas, _ = solve_oas_from_A(A, crn.n, deck.tgt, lo0=-0.15)
+    if oas is None:
+        oas, _ = solve_oas_from_A(A, crn.n, deck.tgt, lo0=-0.15)
 
-    hz = STRESS_HORIZONS_M
+    from ..core.runtime import stress_horizons
+    hz = stress_horizons(STRESS_HORIZONS_M)
     nh = len(hz)
     _, _, FVb, BALb, ck_bal, *_ = _deposit_A(deck, base, dep0, r0, oas, hz,
                                          want_fwd=True)
@@ -469,6 +535,11 @@ def run_deposit_stress(book: pl.DataFrame, swap_rates, vol_pts,
     FVs = np.empty((len(shocks_bp), nh, deck.n))
     for j, dbp in enumerate(shocks_bp):
         for hi, h in enumerate(hz):
+            if dbp == 0:
+                # Preserve the exact identity; float32 restart checkpoints
+                # otherwise manufacture a small P&L on an unchanged state.
+                FVs[j, hi] = FVb[:, hi]
+                continue
             sp, dep2 = deposit_shocked_paths(base, int(h), dbp,
                                              rate_model, params, r0)
             args = _dep_args(deck, sp, dep2, r0)

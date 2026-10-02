@@ -3,22 +3,26 @@ Drift via the factorized running-sum trick: O(n_fwd * k) per step."""
 from __future__ import annotations
 
 import numpy as np
+from .quant_native import kernel
 from numba import njit, prange
 
 from ..core.config import DT, N_FWD, N_STEPS, SHIFT, TENOR
 from ..core.vol import abcd
+from ..core.runtime import run_cached
 
 
 @njit(inline="always", fastmath=True)
 def _par_rate(F, eta, n_q):
     P, ann = 1.0, 0.0
-    end = min(eta + n_q, N_FWD)
-    for j in range(eta, end):
-        P /= (1.0 + TENOR * F[j])
+    # Preserve the requested tenor: flat terminal-forward extrapolation
+    # beyond the simulated grid, rather than silently shortening the swap.
+    for j in range(eta, eta + n_q):
+        P /= (1.0 + TENOR * F[min(j, len(F) - 1)])
         ann += TENOR * P
     return (1.0 - P) / ann
 
 
+@kernel('lmm')
 @njit(parallel=True, fastmath=True, cache=True)
 def lmm_simulate(F0, sig_tab, B, Z, shift, df_out, swaps_out, short_out):
     """X = F + shift is lognormal. Outputs MMA deflators (P,T) and pathwise
@@ -55,6 +59,7 @@ def lmm_simulate(F0, sig_tab, B, Z, shift, df_out, swaps_out, short_out):
                                   + si * sq * dW) - shift
 
 
+@run_cached
 def simulate_rates(F0, abcd_p, B, Z):
     """-> (mma deflators (P,T), swaps (P,4,T), short 3m rate (P,T))."""
     tg = np.arange(N_STEPS) * DT

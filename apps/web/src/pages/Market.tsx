@@ -1,3 +1,4 @@
+import { useEngineData } from "../lib/engine";
 /** Market data + 9Q scenario builder: curve editor, vol grid, scenario
  * legs (10y level / 2s10s / spread / vol) with the projected curve. */
 import { useEffect, useMemo, useState } from "react";
@@ -11,6 +12,7 @@ const TENORS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30];
 const emptySc = (name: string): Scenario => ({ name, ust10y_bp: [], twos_tens_bp: [], spread_bp: [], vol_bp: [] });
 
 export default function MarketPage() {
+  const engine = useEngineData();
   const [mkt, setMkt] = useState<Market | null>(null);
   const [rates, setRates] = useState<number[]>([]);
   const [scs, setScs] = useState<Record<string, Scenario>>({});
@@ -38,15 +40,14 @@ export default function MarketPage() {
     setBusy(true);
     try {
       await api.putScenario(sc);
-      const j = await api.run("nii", sc.name);
-      const done = await awaitJob(j.id);
+      const done = await engine.run("nii", { scenario: sc.name });
       if (done.status === "done") setPath((done.result as { path: Record<string, number>[] }).path);
       else alert(done.detail);
     } finally { setBusy(false); }
   };
 
   const [rng, setRng] = useState({ lo: -150, hi: 300, step: 5 });
-  const LegEditor = ({ label, value, color, onChange }: { label: string; value: number[]; color?: string; onChange: (v: number[]) => void }) => (
+  const renderLeg = ({ label, value, color, onChange }: { label: string; value: number[]; color?: string; onChange: (v: number[]) => void }) => (
     <div>
       <div className="mb-0.5 flex items-center justify-between">
         <div className="flex items-center text-xs text-paper-dim">{label}
@@ -89,10 +90,10 @@ export default function MarketPage() {
       </Card>
 
       <Card>
-        <CardHeader title="9Q scenario builder" sub="trader-space legs mapped onto the LMM market: level via 10y, 2s10s twist around the 5y pivot, spread first-order on dv01, vol parallel on the ATM surface"
+        <CardHeader title="9Q scenario builder" sub="trader-space legs mapped onto the LMM market: level via 10y, 2s10s twist around the 5y pivot, spread applied to OAS for risk runs, vol parallel on the ATM surface"
           right={<div className="flex gap-2">
             <Button variant="ghost" onClick={saveScenario}>Save</Button>
-            <Button disabled={busy} onClick={runScenarioNii}>{busy ? "running…" : "Run 9Q NII"}</Button>
+            <Button disabled={busy} onClick={runScenarioNii}>{busy ? "running…" : "Compare NII forecasts"}</Button>
           </div>} />
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
@@ -103,10 +104,10 @@ export default function MarketPage() {
                 onClick={() => setSc(scs[n])}>{n}</button>))}
             </div>
           </div>
-          <LegEditor label="10y UST (bp)" color="#fcd535" value={sc.ust10y_bp} onChange={v => setSc({ ...sc, ust10y_bp: v })} />
-          <LegEditor label="2s10s (bp)" color="#2dbdb6" value={sc.twos_tens_bp} onChange={v => setSc({ ...sc, twos_tens_bp: v })} />
-          <LegEditor label="spread (bp)" color="#f6465d" value={sc.spread_bp} onChange={v => setSc({ ...sc, spread_bp: v })} />
-          <LegEditor label="vol (bp)" color="#929aa5" value={sc.vol_bp} onChange={v => setSc({ ...sc, vol_bp: v })} />
+          {renderLeg({ label: "10y UST (bp)", color: "#fcd535", value: sc.ust10y_bp, onChange: v => setSc({ ...sc, ust10y_bp: v }) })}
+          {renderLeg({ label: "2s10s (bp)", color: "#2dbdb6", value: sc.twos_tens_bp, onChange: v => setSc({ ...sc, twos_tens_bp: v }) })}
+          {renderLeg({ label: "spread (bp)", color: "#f6465d", value: sc.spread_bp, onChange: v => setSc({ ...sc, spread_bp: v }) })}
+          {renderLeg({ label: "vol (bp)", color: "#929aa5", value: sc.vol_bp, onChange: v => setSc({ ...sc, vol_bp: v }) })}
           {path
             ? <ScenarioPath data={path} />
             : <div className="flex h-40 items-center justify-center text-xs text-paper-faint">

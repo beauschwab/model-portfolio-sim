@@ -2,15 +2,25 @@
   "name": "rates-workbench",
   "private": true,
   "packageManager": "bun@1.2.19",
-  "workspaces": ["apps/web"],
+  "workspaces": [
+    "apps/web"
+  ],
   "scripts": {
     "setup": "uv sync --project apps/api && uv sync --project packages/portfolio-risk --extra dev && bun install",
     "dev": "turbo dev",
     "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload --reload-dir app --port 8000",
+    "dev:worker": "cd apps/api && uv run uvicorn app.worker:app --host 127.0.0.1 --port 8002 --workers 1",
+    "db:init": "cd apps/api && uv run python -m app.storage_admin init-demo",
     "dev:web": "cd apps/web && bun run dev",
-    "build": "turbo build",
-    "test": "bun run test:py",
-    "test:py": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q"
+    "build:native": "uv run --project apps/api python scripts/build_native.py && uv run --project apps/api python scripts/build_ledger_native.py && uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py",
+    "build": "bun run build:native && turbo build",
+    "test": "bun run test:py && bun run test:e2e",
+    "test:py": "bun run test:engine && bun run test:api",
+    "test:e2e": "cd apps/web && bun run test:e2e",
+    "test:engine": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q",
+    "test:api": "cd apps/api && uv run --extra dev python -m pytest tests/ -q"
   },
-  "devDependencies": { "turbo": "^2.0.6" }
+  "devDependencies": {
+    "turbo": "^2.0.6"
+  }
 }

@@ -103,6 +103,11 @@ export function ChartState({ kind, hint, elapsed, error, onRetry }: {
 
 export function DataTable({ rows, cols, maxH = "28rem" }:
   { rows: Record<string, unknown>[]; cols?: string[]; maxH?: string }) {
+  const [page, setPage] = _us(0);
+  const pageSize = 100;
+  const lastPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  _ue(() => setPage(0), [rows]);
   if (!rows.length) return <div className="px-3 py-2 text-xs text-paper-faint">no rows</div>;
   const cs = cols ?? Object.keys(rows[0]);
   // A column is numeric if its first non-null value is a number; numeric
@@ -112,7 +117,13 @@ export function DataTable({ rows, cols, maxH = "28rem" }:
     return row != null && typeof row[c] === "number";
   }));
   return (
-    <div className="overflow-auto" style={{ maxHeight: maxH }}>
+    <div>
+      {rows.length > pageSize && <nav aria-label="Table pages" className="flex items-center justify-end gap-3 border-b border-line px-3 py-2 text-xs">
+        <span>{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, rows.length)} of {rows.length}</span>
+        <button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</button>
+        <button disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Next</button>
+      </nav>}
+      <div className="overflow-auto" style={{ maxHeight: maxH }}>
       <table className="w-full text-left text-xs tabular-nums">
         <thead className="sticky top-0 z-10 bg-surface-2 text-paper-dim">
           <tr>{cs.map(c => (
@@ -120,7 +131,7 @@ export function DataTable({ rows, cols, maxH = "28rem" }:
           ))}</tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((r, i) => (
+          {rows.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map((r, i) => (
             <tr key={i} className="hover:bg-surface-2">
               {cs.map(c => {
                 const v = r[c];
@@ -137,6 +148,7 @@ export function DataTable({ rows, cols, maxH = "28rem" }:
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

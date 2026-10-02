@@ -30,6 +30,8 @@ duration on the expected coupon (first-order, no convexity, no OAS).
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import numpy as np
 import polars as pl
 
@@ -53,11 +55,25 @@ def _amort_factors(amort: str, term_m: int, cpr: float) -> np.ndarray:
     return (1.0 - smm) ** k
 
 
+def _native_program(prog, paths, horizon, runoff):
+    from ..core.quant_native import call
+    amounts=np.zeros(horizon)
+    for h in range(int(prog['start_m']),min(int(prog['end_m'])+1,horizon)):
+        amounts[h]=(float(prog['monthly_notional']) if 'monthly_notional' in prog
+                    else float(prog['reinvest_frac'])*float(runoff[h]))
+    factors=_amort_factors(prog.get('amort','bullet'),int(prog['term_m']),prog.get('cpr_annual',.06))
+    return call(13,[_ref(paths,prog['rate_ref']),amounts,factors,prog['spread_bp']*1e-4,
+                   bool(prog.get('is_float')),1 if prog['side']=='asset' else -1],[(horizon,)]*3)
+
+
 def program_cashflows(prog: dict, paths, horizon: int,
                       runoff: np.ndarray | None = None
                       ) -> tuple[np.ndarray, np.ndarray]:
     """(expected monthly interest $, expected month-end balance $) over
     the horizon for one program, averaged across paths."""
+    from ..core.quant_native import enabled
+    if enabled():
+        return _native_program(prog,paths,horizon,runoff)[:2]
     ref = _ref(paths, prog["rate_ref"])
     P = ref.shape[0]
     spr = prog["spread_bp"] * 1e-4
@@ -92,6 +108,9 @@ def fwd_dv01_profile(prog: dict, paths, horizon: int,
     """First-order $ dv01 added by the program at each forward month:
     closed-form modified duration of the remaining term at the expected
     coupon (floaters ~ one reset period). Sign: asset +, liability -."""
+    from ..core.quant_native import enabled
+    if enabled():
+        return _native_program(prog,paths,horizon,runoff)[2]
     ref = _ref(paths, prog["rate_ref"])
     spr = prog["spread_bp"] * 1e-4
     term = int(prog["term_m"])
@@ -124,6 +143,10 @@ def run_strategies(programs: list[dict], swap_rates, vol_pts,
                    horizon: int = 27, seed: int = 7) -> dict:
     """Evaluate a list of programs on one shared path set. Returns
     monthly incremental NII by program + balances + forward dv01."""
+    from ..core.quant_native import enabled
+    if enabled():
+        from ..core.lifecycle_native import forward_programs
+        return forward_programs(programs, swap_rates, vol_pts, runoff_by_book, horizon, seed)
     from ..core.config import N_PATHS_SENS, SWAP_TENORS
     from ..core.curve import bootstrap_curve, forwards_from_dfs
     from ..core.scenarios import CRN, build_rate_paths
@@ -132,7 +155,7 @@ def run_strategies(programs: list[dict], swap_rates, vol_pts,
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     paths = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
 
     months = np.arange(1, horizon + 1)

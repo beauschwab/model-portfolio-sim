@@ -1,6 +1,6 @@
 [project]
 name = "rates-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "FastAPI service over the portfolio-risk engine"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,6 +10,10 @@ dependencies = [
   "portfolio-risk",
   "httpx>=0.27",
   "openpyxl>=3.1,<4",
+  "sqlalchemy>=2.0.36,<2.1",
+  "psycopg[binary]>=3.2,<4",
+  "boto3>=1.35,<2",
+  "duckdb>=1.1,<2",
 ]
 
 [tool.uv.sources]
@@ -17,3 +21,6 @@ portfolio-risk = { path = "../../packages/portfolio-risk", editable = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
+iceberg = [
+    "pyiceberg[pyarrow,sql-sqlite]>=0.10,<0.11",
+]

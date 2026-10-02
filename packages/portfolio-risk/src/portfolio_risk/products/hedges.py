@@ -31,6 +31,8 @@ economics don't care about the accounting; the capital path does.
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import datetime as dt
 
 import numpy as np
@@ -53,6 +55,11 @@ class HedgeDeck:
     """Swap legs as two CorpDecks (fixed bond / par floater)."""
 
     def __init__(self, swaps: pl.DataFrame, asof: dt.date):
+        from ..core import quant_native as native
+        if native.enabled():
+            from ..core.lifecycle_native import hedge_deck
+            self.__dict__.update(hedge_deck(swaps, asof))
+            return
         missing = SWAP_COLS - set(swaps.columns)
         if missing:
             raise ValueError(f"swap book missing columns: {missing}")
@@ -100,6 +107,16 @@ def swaption_value(book: pl.DataFrame, paths, n_paths: int) -> np.ndarray:
     missing = SWPN_COLS - set(book.columns)
     if missing:
         raise ValueError(f"swaption book missing columns: {missing}")
+    from ..core import quant_native as native
+    if native.enabled():
+        terms=[]
+        for row in book.to_dicts():
+            tenor=float(row['tenor_y'])
+            if tenor not in SWPN_TENORS:
+                raise ValueError(f'tenor {tenor} not in emitted paths {SWPN_TENORS}')
+            terms.append([SWPN_TENORS.index(tenor),int(row['expiry_m']),int(tenor*2),
+                          1 if row['side']=='payer' else -1,row['strike']])
+        return native.call(12,[paths['swaps'],paths['df'],np.asarray(terms).reshape(-1,5),n_paths],[(len(book),)])[0]
     sw = paths["swaps"]            # (P, 4, T) array: [s2, s5, s10, s30]
     df = paths["df"]
     out = np.empty(len(book))
@@ -128,10 +145,14 @@ def run_hedge_risk(swaps: pl.DataFrame, swpns: pl.DataFrame | None,
                    horizon: int = 27) -> dict:
     """MtM, dv01, KRDs (+ vegas on swaptions), NII carry for the hedge
     book. Same fixed-everything CRN scenario loop as all risk drivers."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import hedge_risk
+        return hedge_risk(swaps, swpns, asof, swap_rates, vol_pts, seed, horizon)
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     deck = HedgeDeck(swaps, asof)
 
     def rp(sr, vp=vol_pts, recal=False):

@@ -1,3 +1,4 @@
+import { useEngineData } from "../lib/engine";
 /** Robust balance-sheet optimizer — OVERDRIVE: the solve is the spectacle.
  * Hitting Optimize opens a live solve console driven by the engine's run
  * telemetry: compute counters tween upward, a canvas "compute heartbeat"
@@ -97,8 +98,9 @@ function SolveConsole({ job, elapsed, reduced, samples }: {
 }
 
 export default function OptimizerPage() {
+  const engine = useEngineData();
   const reduced = useReducedMotion();
-  const [floors, setFloors] = useState({ lcr_min: 1.2, nsfr_min: 1.05, cet1_min: 0.10, eve_limit: 0.15, max_total_assets: 3e10 });
+  const [floors, setFloors] = useState({ lcr_min: 1.2, nsfr_min: 1.05, cet1_min: 0.10, eve_limit: 0.15, max_total_assets: 3e10, cash_budget: 0 });
   const [scens, setScens] = useState<string[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [comm, setComm] = useState<Comm[]>([{ label: "min_cml", template: "cml_float_3y", sense: ">=", rhs: 5e9 }]);
@@ -121,18 +123,14 @@ export default function OptimizerPage() {
   const run = async () => {
     setBusy(true); setRes(null); setElapsed(0); setSamples([]);
     try {
-      const r = await fetch("/api/optimize", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...floors, scenarios: picked, commercial: comm }),
-      });
-      const first = (await r.json()) as Job;
-      setJob(first);
-      const done = await awaitJob(first.id, (s) => {
+      const done = await engine.run("optimize", {
+        optimize: { ...floors, scenarios: picked, commercial: comm },
+        onTick: (s) => {
         setJob(s);
         const pe = s.progress?.stats?.path_evaluations ?? 0;
         const t = s.progress?.elapsed_s ?? 0;
         setSamples(prev => (prev.length && prev[prev.length - 1].t === t ? prev : [...prev, { t, pe }].slice(-240)));
-      }, 300);
+      }});
       setJob(done);
       if (done.status === "done") setRes(done.result as Result);
     } catch (e) {
@@ -140,9 +138,9 @@ export default function OptimizerPage() {
     } finally { setBusy(false); }
   };
 
-  const F = ({ k, label, step }: { k: keyof typeof floors; label: string; step?: number }) => (
+  const renderFloor = ({ k, label, step }: { k: keyof typeof floors; label: string; step?: number }) => (
     <div><div className="mb-1 flex items-center text-[10px] text-paper-faint">{label}
-        <InfoPop width="15rem">{k === "lcr_min" ? "Liquidity coverage floor, held in base AND every selected scenario. If it binds, its shadow price is the worst-case NII cost of one more unit of LCR." : k === "nsfr_min" ? "Stable funding floor — ASF/RSF with deck maturities driving the buckets." : k === "cet1_min" ? "CET1 ratio floor at quarter 9, NII-retention linearization (no AOCI leg)." : k === "eve_limit" ? "Two-sided |ΔEVE @ +200bp| cap as a fraction of EVE. 0.15 is the IRRBB outlier line." : "Cap on total new asset notional the optimizer may deploy."}</InfoPop>
+        <InfoPop width="15rem">{k === "lcr_min" ? "Liquidity coverage floor, held in base AND every selected scenario. If it binds, its shadow price is the worst-case NII cost of one more unit of LCR." : k === "nsfr_min" ? "Stable funding floor — ASF/RSF with deck maturities driving the buckets." : k === "cet1_min" ? "CET1 ratio floor at the configured horizon, NII-retention linearization (no AOCI leg)." : k === "eve_limit" ? "Two-sided |ΔEVE @ +200bp| cap as a fraction of EVE. 0.15 is the IRRBB outlier line." : k === "cash_budget" ? "Additional committed funding outside the base book, available throughout the horizon. With zero cash budget, new assets require matching funding throughout the horizon." : "Cap on total new asset notional the optimizer may deploy."}</InfoPop>
       </div>
       <Input type="number" step={step ?? 0.01} value={floors[k]} onChange={e => setFloors({ ...floors, [k]: Number(e.target.value) })} /></div>
   );
@@ -163,9 +161,10 @@ export default function OptimizerPage() {
           right={<Button disabled={busy} onClick={run}>{busy ? "solving…" : "Optimize"}</Button>} />
         <CardBody className="space-y-3">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <F k="lcr_min" label="LCR floor" /><F k="nsfr_min" label="NSFR floor" />
-            <F k="cet1_min" label="CET1 @ Q9 floor" step={0.005} /><F k="eve_limit" label="|ΔEVE+200| limit (× EVE)" step={0.01} />
-            <F k="max_total_assets" label="Max new assets $" step={1e9} />
+            {renderFloor({ k: "lcr_min", label: "LCR floor",  })}{renderFloor({ k: "nsfr_min", label: "NSFR floor",  })}
+            {renderFloor({ k: "cet1_min", label: "CET1 @ horizon floor", step: 0.005,  })}{renderFloor({ k: "eve_limit", label: "|ΔEVE+200| limit (× EVE)", step: 0.01,  })}
+            {renderFloor({ k: "max_total_assets", label: "Max new assets $", step: 1e9 })}
+            {renderFloor({ k: "cash_budget", label: "Committed funding budget $", step: 1e6 })}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] text-paper-faint">robust across:</span>
@@ -204,9 +203,11 @@ export default function OptimizerPage() {
       )}
       {res?.feasible && (
         <>
+          <p className="text-xs text-paper-faint">Linear coefficient replay passed. Dynamic stress has not run. Copy this allocation into a saved-book Balance-sheet Stress request and supply explicit template mappings to check daily cash, accounting and limits.</p>
+          <details><summary className="cursor-pointer text-xs">Candidate allocation for dynamic replay</summary><pre className="overflow-auto p-2 text-xs">{JSON.stringify(res.allocation, null, 2)}</pre></details>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <div className="reveal-row rounded-xl border border-line bg-surface-1 p-4" style={{ animationDelay: "40ms" }}>
-              <div className="text-[11px] uppercase tracking-wide text-paper-faint">Worst-case 27m NII</div>
+              <div className="text-[11px] uppercase tracking-wide text-paper-faint">Worst-case total NII</div>
               <div className="num mt-1 text-2xl font-semibold text-paper">{fmt$(res.worst_case_nii_$!)}</div>
             </div>
             <div className="reveal-row rounded-xl border border-line bg-surface-1 p-4" style={{ animationDelay: "100ms" }}>

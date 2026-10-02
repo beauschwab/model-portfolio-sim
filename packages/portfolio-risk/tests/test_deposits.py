@@ -447,7 +447,8 @@ def test_unitlib_interactive_kpis():
     e = base["eve"]
     base_d200 = -e["dv01_net_$"] * 200 / e["eve_$"] * 100
     assert k["d_eve_pct_eve_+200"] < base_d200       # more asset duration
-    assert k["lcr_pct"] > base["lcr"]["lcr_pct"]     # L2A HQLA added
+    # The demo is already at the Level 2A cap: additional MBS cannot create HQLA headroom.
+    assert k["lcr_pct"] == pytest.approx(base["lcr"]["lcr_pct"])
     assert out["nii_total_$"] > 0
     o2 = evaluate_strategy(lib, [{**a, "notional": 3 * a["notional"]}
                                  for a in alloc])

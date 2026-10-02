@@ -20,12 +20,19 @@ def _teff(delay_y):
 
 def pv_from_A(A: np.ndarray, oas: np.ndarray, n_paths: int,
               delay_y=None) -> np.ndarray:
+    from . import quant_native as native
+    if native.enabled():
+        return native.csr_price(*native.monthly_inputs(A, delay_y, TGRID), oas, n_paths)
     E = np.exp(-oas[:, None] * _teff(delay_y))
     return (A * E).sum(axis=1) / n_paths
 
 
 def solve_oas_from_A(A, n_paths, target, tol=1e-8, max_iter=40,
                      delay_y=None, lo0=-0.05, hi0=0.30):
+    from . import quant_native as native
+    if native.enabled():
+        return native.csr_solve(*native.monthly_inputs(A, delay_y, TGRID), target, n_paths,
+                                tol, max_iter, lo0, hi0)
     S = A.shape[0]
     T = _teff(delay_y)
     oas = np.zeros(S)
@@ -35,6 +42,7 @@ def solve_oas_from_A(A, n_paths, target, tol=1e-8, max_iter=40,
         px = (A * E).sum(1) / n_paths
         dpx = -(A * E * T).sum(1) / n_paths
         err = px - target
+        active = np.abs(err) >= tol
         lo = np.where(err > 0, np.maximum(lo, oas), lo)
         hi = np.where(err < 0, np.minimum(hi, oas), hi)
         if np.max(np.abs(err)) < tol:
@@ -42,5 +50,10 @@ def solve_oas_from_A(A, n_paths, target, tol=1e-8, max_iter=40,
         step = np.where(np.abs(dpx) > 1e-12, -err / dpx, 0.0)
         cand = oas + step
         bad = (cand <= lo) | (cand >= hi) | ~np.isfinite(cand)
-        oas = np.where(bad, 0.5 * (lo + hi), cand)
+        # Freeze converged rows: an instrument's calibration must not depend
+        # on slower-converging neighbors in an incremental pricing batch.
+        oas = np.where(active, np.where(bad, 0.5 * (lo + hi), cand), oas)
+    px = pv_from_A(A, oas, n_paths, delay_y=delay_y)
+    if not np.all(np.isfinite(px)) or np.max(np.abs(px - target), initial=0) > tol:
+        raise ValueError("OAS solve did not converge within the supported bracket")
     return oas, px

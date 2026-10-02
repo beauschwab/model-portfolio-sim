@@ -3,6 +3,8 @@ instantaneous parallel shocks, fixed OAS. Stressed passes restart from
 per-path state checkpoints captured during the base forward pass."""
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import time
 
 import numpy as np
@@ -13,14 +15,18 @@ from ..core.config import (MOY, N_PATHS_SENS, PREPAY_PARAMS, RATIONAL_SIGMOID,
 from ..core.kernels import stress_engine
 from ..models.prepay import (BURN_LUT, BURN_SCALE, LTV_COEFS, LTV_KNOTS, SMM_LUT,
                      SMM_SCALE)
-from ..core.scenarios import (CRN, build_paths, run_engine, setup, shocked_paths,
+from ..core.scenarios import (CRN, build_paths, port_delay, run_engine, setup, shocked_paths,
                         solve_base_oas)
 
 
 def run_stress(port: pl.DataFrame, swap_rates, vol_pts, cc_hist, ps_hist,
-               shocks_bp=STRESS_SHOCKS_BP, seed: int = SEED, suite=None):
+               shocks_bp=STRESS_SHOCKS_BP, seed: int = SEED, suite=None, oas=None):
     """-> (positions_long, horizon_aggregates, fwd_dv01_profile).
     Checkpoint memory: S * P * H * 2 * 4B (10k x 128 x 27 -> ~276 MB)."""
+    from ..core import quant_native
+    if quant_native.enabled():
+        return quant_native.mortgage_stress(port, swap_rates, vol_pts, cc_hist, ps_hist,
+                                           shocks_bp, seed, suite, oas)
     if suite is not None and suite.prepay_step is not None:
         raise NotImplementedError(
             "run_stress requires the default prepay model: stress_engine is "
@@ -28,12 +34,14 @@ def run_stress(port: pl.DataFrame, swap_rates, vol_pts, cc_hist, ps_hist,
             "prepay step. Promote the custom model into both MODEL-BLOCKs "
             "(kernels.py) and rerun the zero-shock invariant test.")
     models, B, abcd0, sec, tgt, face = setup(
-        port, swap_rates, vol_pts, cc_hist, ps_hist)
-    oas, _ = solve_base_oas(swap_rates, vol_pts, abcd0, B, models, sec, tgt,
-                            seed, suite=suite)
+        port, swap_rates, vol_pts, cc_hist, ps_hist, suite=suite)
+    if oas is None:
+        oas, _ = solve_base_oas(swap_rates, vol_pts, abcd0, B, models, sec, tgt,
+                                seed, suite=suite, delay_y=port_delay(port))
 
-    crn = CRN(N_PATHS_SENS, seed)
-    hz = STRESS_HORIZONS_M
+    crn = CRN(path_count(N_PATHS_SENS), seed)
+    from ..core.runtime import stress_horizons
+    hz = stress_horizons(STRESS_HORIZONS_M)
     nh = len(hz)
     S = len(port)
     base = build_paths(swap_rates, vol_pts, abcd0, B, models, crn,

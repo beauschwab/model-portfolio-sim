@@ -1,0 +1,15 @@
+[package]
+name = "portfolio-model-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared typed credit and dated cashflow models for native portfolio runtimes"
+
+[dependencies]
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

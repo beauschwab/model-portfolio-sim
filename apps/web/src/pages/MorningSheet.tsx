@@ -1,3 +1,4 @@
+import { useEngineData } from "../lib/engine";
 /** The Morning Sheet — the strategist's entry point, typeset as a
  * decision memo: masthead with the engraved curve, the position in one
  * paragraph of prose, then the constraint ledger where every KPI is
@@ -46,8 +47,9 @@ function Headroom({ label, value, limit, sense, unit, to }: {
 }
 
 export default function MorningSheet() {
+  const engine = useEngineData();
   const [mkt, setMkt] = useState<Market | null>(null);
-  const [k, setK] = useState<Kpis | null>(null);
+  const k = engine.kpis;
   const [busy, setBusy] = useState(false);
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
@@ -56,9 +58,8 @@ export default function MorningSheet() {
   const run = async () => {
     setBusy(true);
     try {
-      const j = await api.run("kpis");
-      const done = await awaitJob(j.id);
-      if (done.status === "done") setK(done.result as Kpis); else alert(done.detail);
+      const done = await engine.run("kpis");
+      if (done.status === "error") alert(done.detail);
     } finally { setBusy(false); }
   };
 

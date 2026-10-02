@@ -74,7 +74,7 @@ def test_income_replay_uses_live_engines_and_preserves_base_inputs():
         freq_months=3, daycount="ACT/360", is_float=True, coupon_or_spread=.01, price=100.)])
     bs = {"loans": port, "asof": dt.date(2026,6,10)}
     p = compile_forecast([row("2026-01-01", "short_rate", 1)], "baseline", "2026-01-01", 9)
-    with run_context(RunConfig(4,4)):
+    with run_context(RunConfig(4,4, compute_backend='python')):
         out = run_forecast_nii(bs, sr, vp, demo_deposit_history(), p)
     assert out["monthly"]["nii"].sum() < out["monthly"]["base_nii"].sum()
     assert out["monthly"].height == 9
@@ -89,7 +89,7 @@ def test_zero_conditioning_income_matches_base_with_fixed_accounting():
     port = pl.DataFrame([dict(id="fixed", face=1_000_000., maturity=dt.date(2027,6,10),
         freq_months=3, daycount="ACT/360", is_float=False, coupon_or_spread=.05, price=103.)])
     bs = {"loans": port, "asof": dt.date(2026,6,10)}
-    with run_context(RunConfig(4,4)):
+    with run_context(RunConfig(4,4, compute_backend='python')):
         base = run_balance_sheet_nii(bs,sr,vp,demo_deposit_history(),horizon=9,asof=bs["asof"],capture_anchor=True)
         again = run_balance_sheet_nii(bs,sr,vp,demo_deposit_history(),horizon=9,asof=bs["asof"],accounting_anchor=base["accounting_anchor"])
     np.testing.assert_allclose(base["monthly"].to_numpy(), again["monthly"].to_numpy(), rtol=1e-12)
