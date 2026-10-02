@@ -15,6 +15,12 @@ CC_FEATURES = ["s2", "s5", "s10", "s30", "v0", "v1", "v2", "v3", "v4", "v5"]
 def fit_current_coupon(hist: pl.DataFrame) -> dict:
     """Fair value: OLS cc ~ [4 swaps, 6 swaption vols, 1].
     Trend speed lambda from Delta(cc) ~ lambda * (fair - cc_lag)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        beta,stats=native.call(22,[hist.select(CC_FEATURES+['cc']).to_numpy()],[(11,),(2,)])
+        lam,r2=stats
+        print(f"[cc] lambda = {lam:.3f}  R2 = {r2:.3f}")
+        return {"beta":beta,"lam":float(lam)}
     X = np.column_stack([hist[c].to_numpy() for c in CC_FEATURES]
                         + [np.ones(len(hist))])
     y = hist["cc"].to_numpy()
@@ -31,6 +37,9 @@ def cc_paths(swaps: np.ndarray, volfeat: np.ndarray, cc_model: dict
     """swaps (P,4,T), volfeat (6,T) -> secondary CC (P,T) via
     cc_t = cc_{t-1} + lambda (fair_t - cc_{t-1})."""
     P, _, T = swaps.shape
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(11,[0,swaps,volfeat,cc_model['beta'],cc_model['lam']],[(P,T)])[0]
     beta, lam = cc_model["beta"], cc_model["lam"]
     fair = (np.einsum("pft,f->pt", swaps, beta[:4])
             + volfeat.T @ beta[4:10] + beta[10])
@@ -43,6 +52,12 @@ def cc_paths(swaps: np.ndarray, volfeat: np.ndarray, cc_model: dict
 
 # --- primary/secondary spread (OU via AR(1)) ----------------------------------
 def fit_ps_spread(hist: pl.DataFrame) -> dict:
+    from ..core import quant_native as native
+    if native.enabled():
+        kappa,theta,sigma=native.call(23,[hist['ps'].to_numpy(),DT],[(3,)])[0]
+        print(f"[ps] kappa = {kappa:.2f}  theta = {theta*1e4:.0f}bp"
+              f"  sigma = {sigma*1e4:.0f}bp/sqrt(y)")
+        return {"kappa":float(kappa),"theta":float(theta),"sigma":float(sigma)}
     x = hist["ps"].to_numpy()
     X = np.column_stack([x[:-1], np.ones(len(x) - 1)])
     (phi, c), *_ = np.linalg.lstsq(X, x[1:], rcond=None)
@@ -56,6 +71,9 @@ def fit_ps_spread(hist: pl.DataFrame) -> dict:
 
 def ps_paths(ps_model: dict, ps_spot: float, eps: np.ndarray) -> np.ndarray:
     k, th, sg = ps_model["kappa"], ps_model["theta"], ps_model["sigma"]
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(11,[1,eps,[k,th,sg,DT],ps_spot],[eps.shape])[0]
     P, T = eps.shape
     ps = np.empty((P, T))
     x = np.full(P, ps_spot)
@@ -68,6 +86,9 @@ def ps_paths(ps_model: dict, ps_spot: float, eps: np.ndarray) -> np.ndarray:
 # --- HPI ------------------------------------------------------------------------
 def hpi_paths(s10: np.ndarray, eps: np.ndarray) -> np.ndarray:
     """Lognormal HPI, drift linked to the 10y rate (clipped sensitivity)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.call(11,[2,s10,eps,[HPI_MU,HPI_BETA,HPI_SIG,DT]],[s10.shape])[0]
     dr = np.clip(s10 - s10[:, :1], -0.05, 0.05)
     dlog = (HPI_MU + HPI_BETA * dr) * DT + HPI_SIG * np.sqrt(DT) * eps
     return np.exp(np.clip(np.cumsum(dlog, axis=1), -3.0, 3.0))

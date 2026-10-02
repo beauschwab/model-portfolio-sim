@@ -1,0 +1,26 @@
+{
+  "scope": "Native current-coupon and PS-spread calibration controllers plus factor PCA; full Rust calculation lifecycle remains incomplete",
+  "engine_version": "0.27.3",
+  "product_abi": 3,
+  "linear_algebra": "Pinned nalgebra 0.34.2, SVD minimum-norm regression and symmetric eigen decomposition",
+  "solver_requirement": "HiGHS remains C++; no numerical LP solver rewrite",
+  "environment": "Local Windows checkout",
+  "engine_suite": {"passed": 373, "failed": 0, "skipped": 0, "seconds": 146.01},
+  "focused_calibration_suite": {"passed": 23, "failed": 0, "skipped": 0, "seconds": 1.04},
+  "native_product_final_output_suite": {"passed": 31, "failed": 0, "skipped": 0, "seconds": 16.79},
+  "rust_release_unit_tests": {"passed": 7, "failed": 0},
+  "rust_clippy_warnings_denied": "passed",
+  "rust_format": "passed",
+  "ownership": "NumPy lstsq and eigh forbidden during native calibration; raw history columns enter Rust and fitted parameters return",
+  "correctness": [
+    "Current-coupon coefficients, fitted functions and adjustment speed match independent NumPy reference",
+    "Minimum-norm rank-deficient designs match reference cutoff behavior",
+    "AR persistence clipping and post-clipping residual variance match reference",
+    "PCA row normalization and canonical first-row orientation (-,-,+) preserve the built-in factor/draw pairing",
+    "Backend-specific factor caches prevent Python cache hits from bypassing native execution",
+    "Existing final risk/stress/NII/KPI/strategy/ledger gates remain passing"
+  ],
+  "documentation": "25-chapter guide structure, browser and architecture checks passed; operator skill repackaged",
+  "remaining_python_ownership": ["Volatility and deposit nonlinear calibration controllers", "Seeded CRN generation", "Higher-level scenario/dependency/cache orchestration", "Unit-library pricing orchestration", "Saved-book mapping and final ledger reporting"],
+  "not_claimed": ["Full Rust lifecycle completion", "Performance improvement", "New 60000-instrument benchmark", "API or deployed-service validation in this iteration"]
+}

@@ -1,0 +1,34 @@
+{
+  "case_specific": {
+    "command": "uv run --project apps/api python scripts/reconstruct_svb.py",
+    "native_ledger_runs": 10,
+    "aggregate_positions_per_run": 15,
+    "checks_passed": 18,
+    "persisted_journal_rows_replayed": 1723,
+    "same_source_and_ledger_binary_across_runs": true,
+    "scope": "aggregate native daily ledger, native disclosed-input capital arithmetic, local artifacts and independent replay; not product-pricer calibration or HTTP/browser validation"
+  },
+  "broad_regression": {
+    "command": "uv run --project apps/api pytest packages/portfolio-risk/tests -q",
+    "passed": 749,
+    "skipped": 2,
+    "failed": 1,
+    "seconds": 411.98,
+    "failure": "test_broader_daily_state_parity_matrix[6]: RuntimeError: engine source changed during run",
+    "interpretation": "source identity guard interrupted a concurrent-edit run; not a clean all-suite checkpoint"
+  },
+  "affected_suite_rerun": {
+    "command": "uv run --project apps/api pytest packages/portfolio-risk/tests/test_balance_stream.py -q",
+    "passed": 55,
+    "failed": 0,
+    "seconds": 47.13,
+    "scope": "entire affected streamed-ledger suite, including previously interrupted randomized parity case"
+  },
+  "historical_validation": {
+    "opening_reconciliation": "passed, supplied balances",
+    "sale_loss": "approximate, underestimates announced after-tax loss",
+    "march9_cash": "material unreconciled difference due to stale consolidated proxy and missing cash bridge",
+    "bank_run_prediction": "not validated",
+    "regulatory_compliance": "not validated"
+  }
+}

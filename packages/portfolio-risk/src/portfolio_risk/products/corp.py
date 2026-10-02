@@ -1,7 +1,7 @@
 """Corporate bonds and loans on the same LMM paths and A-matrix machinery.
 
 Supported: fixed or floating coupons (index = simulated 3m rate), period
-caps/floors, custom amortization (bullet / annuity / explicit sinking-fund
+caps/floors, custom amortization (bullet / annuity / level_payment / explicit sinking-fund
 schedules), call and put schedules with rule-based exercise.
 
 Pipeline: contract frame + conventions -> CorpDeck (CSR-packed period and
@@ -29,19 +29,28 @@ which is exact within the model's own monthly discretization. The OAS
 layer likewise discounts per period at exact pay times (CSR A-vector,
 not a monthly A-matrix). Residual timing error: none beyond the monthly
 rate discretization itself.
+
+Amortization: saved ``annuity`` contracts retain equal-principal economics.
+The Rust-only ``level_payment`` mode produces equal total payments for fixed
+corporate coupons over their actual accrual schedule; it rejects floating,
+sinking, negative-amortization and truncated-grid contracts. It projects from
+the supplied remaining balance and does not infer a seasoned original payment.
 """
 from __future__ import annotations
+
+from ..core.runtime import path_count
 
 import datetime as dt
 
 import numpy as np
+from ..core.quant_native import kernel
 import polars as pl
 from numba import njit, prange
 
 from ..core.config import N_PATHS_SENS, N_STEPS, SEED, SWAP_TENORS, CURVE_BUMP, \
     VOL_BUMP
 from ..core.conventions import BDC, Calendar, DayCount, gen_schedule
-from ..core.scenarios import CRN, build_paths
+from ..core.scenarios import CRN, build_rate_paths
 from ..core.vol import calibrate_abcd, factor_loadings
 from ..core.curve import bootstrap_curve, forwards_from_dfs
 from ..models import models as mdl
@@ -56,6 +65,10 @@ class CorpDeck:
     def __init__(self, contracts: pl.DataFrame, asof: dt.date,
                  cal: Calendar | None = None,
                  bdc: BDC = BDC.MODIFIED_FOLLOWING):
+        from ..core import quant_native as native
+        if native.enabled():
+            self.__dict__.update(native.term_deck(contracts, asof, 'corporate', cal, bdc))
+            return
         missing = CORP_COLS - set(contracts.columns)
         if missing:
             raise ValueError(f"contracts missing columns: {missing}")
@@ -141,6 +154,7 @@ class CorpDeck:
         self.n = S
 
 
+@kernel('corp')
 @njit(parallel=True, fastmath=True, cache=True)
 def corp_engine(short, swap5, df, per_off, pay_m, pay_frac, fix_m, fix_w,
                 tau, prin, call_px, put_px, is_float, cpn, cap, floor,
@@ -231,6 +245,9 @@ def _corp_A(deck: CorpDeck, paths) -> np.ndarray:
 
 def corp_pv(deck: CorpDeck, Acsr, oas, n_paths) -> np.ndarray:
     """PV per security from the CSR A-vector at exact pay times."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.csr_price(deck.per_off, deck.t_pay, Acsr, oas, n_paths)
     rep = np.repeat(oas, np.diff(deck.per_off))
     contrib = Acsr * np.exp(-rep * deck.t_pay)
     return np.add.reduceat(contrib, deck.per_off[:-1]) / n_paths
@@ -238,6 +255,9 @@ def corp_pv(deck: CorpDeck, Acsr, oas, n_paths) -> np.ndarray:
 
 def corp_solve_oas(deck: CorpDeck, Acsr, n_paths, tol=1e-8, max_iter=40):
     """Vectorized Newton on exact-time OAS discounting."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.csr_solve(deck.per_off, deck.t_pay, Acsr, deck.tgt, n_paths, tol, max_iter)
     S = deck.n
     seg = deck.per_off[:-1]
     cnt = np.diff(deck.per_off)
@@ -249,6 +269,7 @@ def corp_solve_oas(deck: CorpDeck, Acsr, n_paths, tol=1e-8, max_iter=40):
         px = np.add.reduceat(E, seg) / n_paths
         dpx = -np.add.reduceat(E * deck.t_pay, seg) / n_paths
         err = px - deck.tgt
+        active = np.abs(err) >= tol
         lo = np.where(err > 0, np.maximum(lo, oas), lo)
         hi = np.where(err < 0, np.minimum(hi, oas), hi)
         if np.max(np.abs(err)) < tol:
@@ -256,34 +277,40 @@ def corp_solve_oas(deck: CorpDeck, Acsr, n_paths, tol=1e-8, max_iter=40):
         step = np.where(np.abs(dpx) > 1e-12, -err / dpx, 0.0)
         cand = oas + step
         bad = (cand <= lo) | (cand >= hi) | ~np.isfinite(cand)
-        oas = np.where(bad, 0.5 * (lo + hi), cand)
+        # Convergence is per instrument, independent of the batch composition.
+        oas = np.where(active, np.where(bad, 0.5 * (lo + hi), cand), oas)
+    px = corp_pv(deck, Acsr, oas, n_paths)
+    if not np.all(np.isfinite(px)) or np.max(np.abs(px - deck.tgt), initial=0) > tol:
+        raise ValueError("OAS solve did not converge within the supported bracket")
     return oas, px
 
 
 def run_corp_risk(contracts: pl.DataFrame, asof: dt.date, swap_rates,
                   vol_pts, cc_hist, ps_hist, seed: int = SEED,
-                  cal: Calendar | None = None) -> pl.DataFrame:
+                  cal: Calendar | None = None, oas=None) -> pl.DataFrame:
     """OAS + 10 KRD01s + 9 vegas for a corporate book, same scenario
     methodology as MBS (fixed-OAS central differences, CRN, abcd fixed for
     curve bumps / recalibrated for vol bumps). cc/ps histories are needed
     only because build_paths constructs the full path set; corp cashflows
     consume short/swap5/df."""
-    from ..core.scenarios import setup as _setup  # reuse fits/calibration
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.term_risk(contracts, asof, swap_rates, vol_pts, 'corporate', seed, cal, oas)
     deck = CorpDeck(contracts, asof, cal=cal)
 
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    models = {"cc": mdl.fit_current_coupon(cc_hist),
-              "ps": mdl.fit_ps_spread(ps_hist), "ps_spot": 0.012}
-
-    crn = CRN(N_PATHS_SENS, seed)
-    base = build_paths(swap_rates, vol_pts, abcd0, B, models, crn)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
+    base = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
     A = _corp_A(deck, base)
-    oas, px = corp_solve_oas(deck, A, crn.n)
+    if oas is None:
+        oas, px = corp_solve_oas(deck, A, crn.n)
+    else:
+        px = corp_pv(deck, A, oas, crn.n)
 
     def scen_pv(sr, vp, recal):
-        paths = build_paths(sr, vp, abcd0, B, models, crn,
+        paths = build_rate_paths(sr, vp, abcd0, B, crn,
                             recalibrate=recal, abcd_warm=abcd0)
         return corp_pv(deck, _corp_A(deck, paths), oas, crn.n)
 

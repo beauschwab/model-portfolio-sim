@@ -1,0 +1,1176 @@
+{
+  "case_id": "svbfg-20221231-march2023-reconstruction-v1",
+  "engine_version": "0.29.5",
+  "financial_backend": "rust",
+  "created_utc": "2026-10-02T00:13:12.918245+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "measured_scope": "ten small aggregate native ledger runs, persisted local Parquet, independent replay, native capital check; excludes source research, report writing and API/browser",
+  "elapsed_seconds": 1.5659198998473585,
+  "reference": {
+    "case_id": "svbfg-20221231-march2023-reconstruction-v1",
+    "balance_sheet_date": "2022-12-31",
+    "information_cutoff": "2023-03-07",
+    "entity": "SVB Financial Group and subsidiaries, consolidated",
+    "amount_unit": "USD millions",
+    "sources": {
+      "10k": {
+        "url": "https://www.sec.gov/Archives/edgar/data/719739/000071973923000021/sivb-20221231.htm",
+        "issuer_mirror": "https://d18rn0p25nwr6d.cloudfront.net/CIK-0000719739/e0b8bb11-3b21-4348-826f-7370b93d5b5c.html",
+        "published": "2023-02-24",
+        "locator": "Consolidated Balance Sheets; Note 22 Regulatory Matters; fair value disclosures",
+        "role": "opening observations, available before event"
+      },
+      "march8": {
+        "url": "https://s201.q4cdn.com/589201576/files/doc_downloads/2023/03/Q1-2023-Mid-Quarter-Update-vFINAL3-030823.pdf",
+        "published": "2023-03-08",
+        "locator": "slides 6 and 18",
+        "role": "outcome comparison and explicitly conditioned sale replay only"
+      },
+      "fed_evolution": {
+        "url": "https://www.federalreserve.gov/publications/2023-April-SVB-Evolution-of-Silicon-Valley-Bank.htm",
+        "published": "2023-04-28",
+        "locator": "SVBFG balance-sheet growth, uninsured funding, HTM duration and SVB failure",
+        "role": "retrospective source; 94% uninsured and 6.2-year duration describe year-end exposures, not independently calibrated behavioral parameters"
+      },
+      "dfpi": {
+        "url": "https://dfpi.ca.gov/wp-content/uploads/sites/337/2023/03/DFPI-Orders-Silicon-Valley-Bank-03102023.pdf",
+        "published": "2023-03-10",
+        "locator": "possession order: March 9 withdrawals and closing cash",
+        "role": "held-out cash outcome; withdrawals also used in separately labeled conditional replay"
+      },
+      "fed_regulation": {
+        "url": "https://www.federalreserve.gov/publications/2023-April-SVB-Federal-Reserve-Regulation.htm",
+        "published": "2023-04-28",
+        "locator": "Table 11 and capital/liquidity applicability",
+        "role": "retrospective regulatory context, not simulation calibration"
+      }
+    },
+    "observed_opening": {
+      "cash": 13803.0,
+      "afs_cost": 28602.0,
+      "afs_fair_value": 26069.0,
+      "afs_pledged_cost": 530.0,
+      "htm_carrying_value_net_allowance": 91321.0,
+      "htm_fair_value": 76169.0,
+      "nonmarketable_equity_securities": 2664.0,
+      "gross_loans": 74250.0,
+      "loan_allowance": 636.0,
+      "net_loans": 73614.0,
+      "premises_equipment": 394.0,
+      "goodwill": 375.0,
+      "other_intangibles": 136.0,
+      "lease_right_of_use": 335.0,
+      "other_assets": 3082.0,
+      "total_assets": 211793.0,
+      "noninterest_deposits": 80753.0,
+      "interest_deposits": 92356.0,
+      "total_deposits": 173109.0,
+      "short_term_borrowings": 13565.0,
+      "lease_liabilities": 413.0,
+      "other_liabilities": 3041.0,
+      "long_term_debt": 5370.0,
+      "total_liabilities": 195498.0,
+      "parent_equity": 16004.0,
+      "preferred_equity": 3646.0,
+      "noncontrolling_equity": 291.0,
+      "total_equity": 16295.0,
+      "reported_aoci": -1911.0,
+      "tangible_common_equity": 11880.0,
+      "tangible_assets": 211315.0,
+      "cet1": 13697.0,
+      "tier1": 17504.0,
+      "total_capital": 18380.0,
+      "rwa": 113628.0,
+      "cet1_ratio": 0.1205,
+      "tier1_ratio": 0.154,
+      "total_capital_ratio": 0.1618,
+      "tce_ratio": 0.0562,
+      "uninsured_share_approx": 0.94,
+      "htm_duration_years": 6.2
+    },
+    "observed_event": {
+      "sale_date": "2023-03-08",
+      "afs_sale_size_approx": 21000.0,
+      "afs_sale_after_tax_loss_approx": 1800.0,
+      "march9_withdrawals": 42000.0,
+      "march9_closing_cash_approx": -958.0,
+      "march10_additional_expected_withdrawals_lower_bound": 100000.0,
+      "march10_status": "expected/requested, not completed withdrawals; bank closed that morning"
+    },
+    "assumptions": {
+      "afs_duration_years": 3.5,
+      "afs_duration_basis": "illustrative aggregate sensitivity, not a fitted security tape or use of the later sold-subset duration",
+      "deposit_concentration": 0.8,
+      "deposit_digital_fraction": 1.0,
+      "deposit_operational_fraction": 0.1,
+      "behavioral_calibration": "none; stress sensitivities only, no estimated run probability",
+      "interest_and_operations": "zeroed to isolate liquidity and mark mechanics; no Jan-March NII, principal runoff, origination, deposit trend, hedge or fee forecast",
+      "opening_net_loans": "frozen net carrying value; gross loan and allowance retained as source facts, not credit/CECL modeling",
+      "other_assets": "fixed-value ledger placeholders, not priced securities",
+      "event_calendar": "day 0 = March 6 proxy, day 2 = March 8 sale, day 3 = March 9 withdrawals, day 4 = March 10 requested outflows; December 31 balances held unchanged until these events",
+      "sale_size_interpretation": "USD 21bn treated as cash proceeds in proxy; disclosure rounded and security-level proceeds/costs unavailable",
+      "sale_cost_allocation": "pro-rata year-end AFS cost and fair value; actual sold subset unavailable",
+      "tax_sensitivity": [
+        0.26,
+        0.27,
+        0.28
+      ],
+      "tax_sensitivity_basis": "March 8 Q1 guidance, retrospective comparison only; no immediate tax-refund liquidity assumed",
+      "htm_funding": "none in base; optional capacity/lag counterfactuals assume sufficient eligible unencumbered HTM with 5% haircut, not historical access",
+      "regulatory_ratios": "native treasury calculations use disclosed eligible capital and aggregate RWA; no bottom-up RWA or eligibility validation; daily ledger ratios are proxies and not reported as SVB capital"
+    }
+  },
+  "runs": {
+    "opening_and_rate_sensitivity": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\opening_and_rate_sensitivity\\run-f79962f060b2442b8b4a510489952559\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.04195139999501407,
+        "replay_and_finalize_seconds": 0.07688799989409745
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 301,
+        "gl_keys": 57,
+        "dynamic_validated": true,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "21717acbeb7bd093901ec1048dca49a3a10ad40a2644786824318fd0ce8902f0",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 13803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "rates_up_100bp",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 12071.91000000014,
+          "final_equity": 15382.585,
+          "minimum_cash": 12071.91000000014,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 3.637978807091713e-11,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "rates_up_200bp",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 10340.81999999982,
+          "final_equity": 14470.17,
+          "minimum_cash": 10340.81999999982,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 4.18367562815547e-11,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "behavioral_sensitivity": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\behavioral_sensitivity\\run-6f1f21442044459b880b968180a09b34\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.0393775999546051,
+        "replay_and_finalize_seconds": 0.08572899992577732
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 992,
+        "gl_keys": 152,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "66fedd6898e644c85d8d1f572a00e59a4706bf21af9ae307c03bdf5ce0cd4966",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 13803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "flight_005",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -7399.173933750238,
+          "final_equity": 16295.0,
+          "minimum_cash": -7399.173933750238,
+          "peak_cash_shortfall": 7399.173933750238,
+          "max_reconciliation_error": 5.820766091346741e-11,
+          "first_cash_breach_day": 20,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "flight_010",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -28601.347867500117,
+          "final_equity": 16295.0,
+          "minimum_cash": -28601.347867500117,
+          "peak_cash_shortfall": 28601.347867500117,
+          "max_reconciliation_error": 2.9103830456733704e-11,
+          "first_cash_breach_day": 9,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "flight_020",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -71005.69573499997,
+          "final_equity": 16295.0,
+          "minimum_cash": -71005.69573499997,
+          "peak_cash_shortfall": 71005.69573499997,
+          "max_reconciliation_error": 2.9103830456733704e-11,
+          "first_cash_breach_day": 4,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "flight_030",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -113410.0436025001,
+          "final_equity": 16295.0,
+          "minimum_cash": -113410.0436025001,
+          "peak_cash_shortfall": 113410.0436025001,
+          "max_reconciliation_error": 4.3655745685100555e-11,
+          "first_cash_breach_day": 2,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 27
+        },
+        {
+          "scenario": "flight_040",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -155814.39147000003,
+          "final_equity": 16295.0,
+          "minimum_cash": -155814.39147000003,
+          "peak_cash_shortfall": 155814.39147000003,
+          "max_reconciliation_error": 4.729372449219227e-11,
+          "first_cash_breach_day": 1,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 10
+        },
+        {
+          "scenario": "flight_050",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -159305.82689100003,
+          "final_equity": 16295.0,
+          "minimum_cash": -159305.82689100003,
+          "peak_cash_shortfall": 159305.82689100003,
+          "max_reconciliation_error": 4.3655745685100555e-11,
+          "first_cash_breach_day": 1,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 3
+        },
+        {
+          "scenario": "flight_100",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -159305.82689100003,
+          "final_equity": 16295.0,
+          "minimum_cash": -159305.82689100003,
+          "peak_cash_shortfall": 159305.82689100003,
+          "max_reconciliation_error": 4.3655745685100555e-11,
+          "first_cash_breach_day": 1,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 3
+        }
+      ]
+    },
+    "observed_day1_cash_only": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_cash_only\\run-05837ddef9e244578b5489d4ea095c69\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.029172799782827497,
+        "replay_and_finalize_seconds": 0.07441530004143715
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 42,
+        "gl_keys": 38,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "18d07558f1330f2b49ed42c9b9138f3771cc7604c55a5079b5deefbe9046bb8b",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 13803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -28197.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -28197.0,
+          "peak_cash_shortfall": 28197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "observed_day1_sale21": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_sale21\\run-20313291ccc64da99600c4c4fb8360b1\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.029168899869546294,
+        "replay_and_finalize_seconds": 0.07742929994128644
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 52,
+        "gl_keys": 40,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "93a32d8f57464e9e230143e8efbd6f4ad0843227c3580f09c76adade153a28cf",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 34803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -7197.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -7197.0,
+          "peak_cash_shortfall": 7197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "requested_day2_sale21": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\requested_day2_sale21\\run-ccf7eada8d3b43a6a23d0d7229d1aebf\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.029332000063732266,
+        "replay_and_finalize_seconds": 0.06165269995108247
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 56,
+        "gl_keys": 40,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "10381d16cedf69b0ec3de0eba30c6f884d5f5ec005f99ff44004c8728d6fef91",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 34803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -107197.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -107197.0,
+          "peak_cash_shortfall": 107197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 4
+        }
+      ]
+    },
+    "observed_day1_all_free_afs": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_all_free_afs\\run-78a13bf9f6d14e309122a56b3b0e670b\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.032257999991998076,
+        "replay_and_finalize_seconds": 0.08062430005520582
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 52,
+        "gl_keys": 40,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "b0ea92d02da066cf3f615e9e6fb4c347dcdae0329981ff79dd87b7a5b06898b9",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 39388.93692748759,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -2611.0630725124065,
+          "final_equity": 16295.0,
+          "minimum_cash": -2611.0630725124065,
+          "peak_cash_shortfall": 2611.0630725124065,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "observed_day1_sale21_funding5": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_sale21_funding5\\run-35e51f9eb14e49c4b872c873b015c8ea\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.0284813002217561,
+        "replay_and_finalize_seconds": 0.09441809984855354
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 56,
+        "gl_keys": 42,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "cbe3cbb1c01d474840d3078a1b408fa3882041445b8795d197907050bc0c563c",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 39803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -2197.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -2197.0,
+          "peak_cash_shortfall": 2197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "observed_day1_sale21_funding10": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_sale21_funding10\\run-5d940bf6a25545d1962aa957fe76dee2\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.03182319994084537,
+        "replay_and_finalize_seconds": 0.09703669999726117
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 56,
+        "gl_keys": 42,
+        "dynamic_validated": true,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "c9c2a741767355e8c81ff68378527be11514e8d5949310f99c9cc0f9f95205fb",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 44803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 2803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 2803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "observed_day1_sale21_funding10_lag3": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\observed_day1_sale21_funding10_lag3\\run-9a1d9665aff14e2ea16ba6bf88095256\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.03937919996678829,
+        "replay_and_finalize_seconds": 0.09169970010407269
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 56,
+        "gl_keys": 42,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "58a4dd946cdb0bfd632af051b53727363e415069e9f35311f3a5915e57a797ca",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 44803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 2803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -7197.0,
+          "peak_cash_shortfall": 7197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        }
+      ]
+    },
+    "requested_day2_sale21_funding20": {
+      "manifest": "artifacts\\svb-reconstruction\\runs\\requested_day2_sale21_funding20\\run-c832da86c59e49af82e5a9281de9a03d\\manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.03339830017648637,
+        "replay_and_finalize_seconds": 0.08857159991748631
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 60,
+        "gl_keys": 42,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "dae46a0c4e095dee74341747211bc428ce7697ff4ccbebd6e972d7b20b750234",
+      "source_sha256": "28e042d605104a9811cf438afe4ec6ee328b5afa5f0f15c462aadf942ee56fd3",
+      "input_sha256": "0f24e508550ec320e3db19ccd02ab755974fdca2465997f7a6b0280659859a9d",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": 54803.0,
+          "final_equity": 16295.0,
+          "minimum_cash": 13803.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "svbfg",
+          "entity": "SVB Financial Group and subsidiaries, consolidated",
+          "currency": "USD",
+          "final_cash": -87197.0,
+          "final_equity": 16295.0,
+          "minimum_cash": -87197.0,
+          "peak_cash_shortfall": 87197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 4,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": 4
+        }
+      ]
+    }
+  },
+  "opening_comparison": [
+    {
+      "metric": "total_assets",
+      "model": 211793.0,
+      "observed": 211793.0,
+      "difference": 0.0,
+      "units": "USD millions",
+      "status": "input reconciliation, not prediction"
+    },
+    {
+      "metric": "total_liabilities",
+      "model": 195498.0,
+      "observed": 195498.0,
+      "difference": 0.0,
+      "units": "USD millions",
+      "status": "input reconciliation, not prediction"
+    },
+    {
+      "metric": "total_equity",
+      "model": 16295.0,
+      "observed": 16295.0,
+      "difference": 0.0,
+      "units": "USD millions",
+      "status": "input reconciliation, not prediction"
+    },
+    {
+      "metric": "cash",
+      "model": 13803.0,
+      "observed": 13803.0,
+      "difference": 0.0,
+      "units": "USD millions",
+      "status": "input reconciliation, not prediction"
+    }
+  ],
+  "capital_comparison": [
+    {
+      "entity": "SVB Financial Group and subsidiaries, consolidated",
+      "currency": "USD",
+      "scenario": "reported_opening",
+      "period": "2022-12",
+      "metric": "cet1",
+      "status": "pass",
+      "numerator": 13697000000.0,
+      "denominator": 113628000000.0,
+      "ratio": 0.12054247192593374,
+      "minimum": 0.045,
+      "buffer": 0.025,
+      "required_ratio": 0.07,
+      "management_target": 0.07,
+      "headroom": 5743039999.999999,
+      "management_headroom": 5743039999.999999,
+      "headroom_bp": 505.4247192593374,
+      "observed_ratio": 0.1205,
+      "difference_bp": 0.424719259337486
+    },
+    {
+      "entity": "SVB Financial Group and subsidiaries, consolidated",
+      "currency": "USD",
+      "scenario": "reported_opening",
+      "period": "2022-12",
+      "metric": "tier1",
+      "status": "pass",
+      "numerator": 17504000000.0,
+      "denominator": 113628000000.0,
+      "ratio": 0.15404653782518393,
+      "minimum": 0.06,
+      "buffer": 0.025,
+      "required_ratio": 0.08499999999999999,
+      "management_target": 0.08499999999999999,
+      "headroom": 7845620000.0,
+      "management_headroom": 7845620000.0,
+      "headroom_bp": 690.4653782518394,
+      "observed_ratio": 0.154,
+      "difference_bp": 0.46537825183934345
+    },
+    {
+      "entity": "SVB Financial Group and subsidiaries, consolidated",
+      "currency": "USD",
+      "scenario": "reported_opening",
+      "period": "2022-12",
+      "metric": "total_capital",
+      "status": "pass",
+      "numerator": 18380000000.0,
+      "denominator": 113628000000.0,
+      "ratio": 0.16175590523462527,
+      "minimum": 0.08,
+      "buffer": 0.025,
+      "required_ratio": 0.10500000000000001,
+      "management_target": 0.10500000000000001,
+      "headroom": 6449059999.999998,
+      "management_headroom": 6449059999.999998,
+      "headroom_bp": 567.5590523462525,
+      "observed_ratio": 0.1618,
+      "difference_bp": -0.4409476537473034
+    },
+    {
+      "entity": "SVB Financial Group and subsidiaries, consolidated",
+      "currency": "USD",
+      "scenario": "reported_opening",
+      "period": "2022-12",
+      "metric": "tce_ta",
+      "status": "unconfigured",
+      "numerator": 11880000000.0,
+      "denominator": 211315000000.0,
+      "ratio": 0.05621938811726569,
+      "minimum": null,
+      "buffer": null,
+      "required_ratio": null,
+      "management_target": null,
+      "headroom": null,
+      "management_headroom": null,
+      "headroom_bp": null,
+      "observed_ratio": 0.0562,
+      "difference_bp": 0.1938811726569234
+    }
+  ],
+  "behavioral_sensitivity": [
+    {
+      "scenario": "flight_005",
+      "first_day_outflow": 752.2740786446702,
+      "fraction_of_observed_day1": 0.017911287586777864,
+      "day1_cash": 13050.72592135533,
+      "first_cash_breach_day": 20
+    },
+    {
+      "scenario": "flight_010",
+      "first_day_outflow": 1613.7769011125638,
+      "fraction_of_observed_day1": 0.03842325955029914,
+      "day1_cash": 12189.223098887436,
+      "first_cash_breach_day": 9
+    },
+    {
+      "scenario": "flight_020",
+      "first_day_outflow": 3841.1806325129364,
+      "fraction_of_observed_day1": 0.09145668172649848,
+      "day1_cash": 9961.819367487064,
+      "first_cash_breach_day": 4
+    },
+    {
+      "scenario": "flight_030",
+      "first_day_outflow": 7493.311848696207,
+      "fraction_of_observed_day1": 0.1784121868737192,
+      "day1_cash": 6309.688151303793,
+      "first_cash_breach_day": 2
+    },
+    {
+      "scenario": "flight_040",
+      "first_day_outflow": 21120.809614197802,
+      "fraction_of_observed_day1": 0.502876419385662,
+      "day1_cash": -7317.809614197802,
+      "first_cash_breach_day": 1
+    },
+    {
+      "scenario": "flight_050",
+      "first_day_outflow": 63884.60505427354,
+      "fraction_of_observed_day1": 1.521062025101751,
+      "day1_cash": -50081.60505427354,
+      "first_cash_breach_day": 1
+    },
+    {
+      "scenario": "flight_100",
+      "first_day_outflow": 63884.60505427354,
+      "fraction_of_observed_day1": 1.521062025101751,
+      "day1_cash": -50081.60505427354,
+      "first_cash_breach_day": 1
+    }
+  ],
+  "conditional_replays": [
+    {
+      "case": "observed_day1_cash_only",
+      "march8_cash": 13803.0,
+      "march9_cash": -28197.0,
+      "march10_counterfactual_cash": -28197.0,
+      "sale_proceeds": 0.0,
+      "realized_sale_pretax_loss": -0.0,
+      "funding_received": 0.0,
+      "march9_cash_difference_vs_observed": -27239.0
+    },
+    {
+      "case": "observed_day1_sale21",
+      "march8_cash": 34803.0,
+      "march9_cash": -7197.0,
+      "march10_counterfactual_cash": -7197.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 0.0,
+      "march9_cash_difference_vs_observed": -6239.0
+    },
+    {
+      "case": "requested_day2_sale21",
+      "march8_cash": 34803.0,
+      "march9_cash": -7197.0,
+      "march10_counterfactual_cash": -107197.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 0.0,
+      "march9_cash_difference_vs_observed": -6239.0
+    },
+    {
+      "case": "observed_day1_all_free_afs",
+      "march8_cash": 39388.93692748759,
+      "march9_cash": -2611.0630725124065,
+      "march10_counterfactual_cash": -2611.0630725124065,
+      "sale_proceeds": 25585.93692748759,
+      "realized_sale_pretax_loss": 2486.06307251241,
+      "funding_received": 0.0,
+      "march9_cash_difference_vs_observed": -1653.0630725124065
+    },
+    {
+      "case": "observed_day1_sale21_funding5",
+      "march8_cash": 39803.0,
+      "march9_cash": -2197.0,
+      "march10_counterfactual_cash": -2197.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 5000.0,
+      "march9_cash_difference_vs_observed": -1239.0
+    },
+    {
+      "case": "observed_day1_sale21_funding10",
+      "march8_cash": 44803.0,
+      "march9_cash": 2803.0,
+      "march10_counterfactual_cash": 2803.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 10000.0,
+      "march9_cash_difference_vs_observed": 3761.0
+    },
+    {
+      "case": "observed_day1_sale21_funding10_lag3",
+      "march8_cash": 34803.0,
+      "march9_cash": -7197.0,
+      "march10_counterfactual_cash": 2803.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 10000.0,
+      "march9_cash_difference_vs_observed": -6239.0
+    },
+    {
+      "case": "requested_day2_sale21_funding20",
+      "march8_cash": 54803.0,
+      "march9_cash": 12803.0,
+      "march10_counterfactual_cash": -87197.0,
+      "sale_proceeds": 21000.0,
+      "realized_sale_pretax_loss": 2040.4695231884602,
+      "funding_received": 20000.0,
+      "march9_cash_difference_vs_observed": 13761.0
+    }
+  ],
+  "rate_sensitivity": [
+    {
+      "scenario": "baseline",
+      "htm_market_value": 76169.0,
+      "htm_unrecognized_loss": 15152.0,
+      "book_equity": 16295.0,
+      "parent_equity_less_htm_gap": 852.0
+    },
+    {
+      "scenario": "rates_up_100bp",
+      "htm_market_value": 71446.522,
+      "htm_unrecognized_loss": 19874.478000000003,
+      "book_equity": 15382.585,
+      "parent_equity_less_htm_gap": -4782.893000000004
+    },
+    {
+      "scenario": "rates_up_200bp",
+      "htm_market_value": 66724.04400000001,
+      "htm_unrecognized_loss": 24596.95599999999,
+      "book_equity": 14470.17,
+      "parent_equity_less_htm_gap": -10417.785999999991
+    }
+  ],
+  "after_tax_sale_comparison": [
+    {
+      "tax_rate": 0.26,
+      "proxy_loss": 1509.9474471594606,
+      "observed_loss": 1800.0,
+      "difference": -290.0525528405394
+    },
+    {
+      "tax_rate": 0.27,
+      "proxy_loss": 1489.5427519275759,
+      "observed_loss": 1800.0,
+      "difference": -310.45724807242414
+    },
+    {
+      "tax_rate": 0.28,
+      "proxy_loss": 1469.1380566956914,
+      "observed_loss": 1800.0,
+      "difference": -330.8619433043086
+    }
+  ],
+  "validations": [
+    {
+      "check": "opening_and_rate_sensitivity: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "behavioral_sensitivity: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_cash_only: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_sale21: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "requested_day2_sale21: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_all_free_afs: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_sale21_funding5: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_sale21_funding10: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "observed_day1_sale21_funding10_lag3: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "requested_day2_sale21_funding20: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "opening assets/liabilities/total equity/cash match independently transcribed disclosure",
+      "passed": true
+    },
+    {
+      "check": "zero-event cash and equity unchanged through day 30",
+      "passed": true
+    },
+    {
+      "check": "four native capital ratios match disclosed rounding",
+      "passed": true
+    },
+    {
+      "check": "cash replay independently matches cash + proceeds - withdrawals",
+      "passed": true
+    },
+    {
+      "check": "AFS realized loss matches independent cost allocation; no double-counted book equity loss",
+      "passed": true
+    },
+    {
+      "check": "future March 10 requests do not change earlier output",
+      "passed": true
+    },
+    {
+      "check": "prearranged funding covers only obligations after its modeled settlement date",
+      "passed": true
+    },
+    {
+      "check": "same engine source and ledger binary across all ten simulations",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "Aggregate consolidated entity, not March 9 bank legal-entity cash reconstruction",
+    "Opening book totals and HTM fair values are inputs, not predicted outcomes",
+    "No security/depositor tape, observed bank-specific histories, historical OAS or MBS prepayment calibration",
+    "No Jan-March balance-sheet roll-forward, NII forecast, credit/default calibration or hedges",
+    "Run size/date exogenous in replay; behavioral sensitivities uncalibrated; no probability estimate",
+    "Daily time steps do not model intraday payment, collateral-transfer or discount-window cutoffs",
+    "Negative cash measures unpaid funding need; not a completed withdrawal financed by a hidden overdraft",
+    "March 10 expected withdrawals are a hypothetical obligation; receivership interrupts actual flows",
+    "Gross AFS OCI excludes tax and other AOCI components; reported consolidated AOCI is not replicated",
+    "HTM permission is a policy limit, not full accounting taint/reclassification logic",
+    "Daily liquidity/capital proxies are not regulatory results; no LCR/NSFR, SLR or TLAC validation",
+    "Funding access, sale settlement, tax realization, legal-entity fungibility and intraday run timing remain material unknowns"
+  ],
+  "reference_sha256": "ac103a161bd825b0ae8ab3cdd240b8da068a65a4fa79ca95a33e6cd4d455835a",
+  "downloaded_source_sha256": "e750f0a625b4c7dec520e8c908c2f0e1fb983826d39a990068b917664e7a6ad9"
+}

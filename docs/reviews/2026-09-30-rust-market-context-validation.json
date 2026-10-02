@@ -1,0 +1,31 @@
+{
+  "scope": "Native market path lifecycle from explicit par quotes, fitted parameters, factor loadings and shared random draws; full Rust calculation lifecycle remains incomplete",
+  "engine_version": "0.27.2",
+  "product_abi": 2,
+  "environment": "Local Windows checkout",
+  "engine_suite": {"passed": 350, "failed": 0, "skipped": 0, "seconds": 174.47},
+  "focused_market_and_product_suite": {"passed": 49, "failed": 0, "skipped": 0, "seconds": 19.31},
+  "api_default_suite": {"passed": 93, "failed": 0, "skipped": 0, "seconds": 95.08, "warnings": ["Existing Starlette/httpx deprecation"]},
+  "rust_release_unit_tests": {"passed": 5, "failed": 0},
+  "rust_clippy_warnings_denied": "passed",
+  "rust_format": "passed",
+  "ownership_gates": [
+    "Curve bootstrap does not invoke Python scipy brentq",
+    "A native rate/mortgage context performs exactly one FFI call with Python financial path stages forbidden",
+    "Forward parallel stress templates execute with Python shock response, HPI multiplier and YoY functions forbidden",
+    "Direct Rust MarketContext deterministic rate/CC/PS/HPI example requires no Python callbacks"
+  ],
+  "correctness_gates": [
+    "Random smooth par curves match independent SciPy bootstrap and reprice annual-leg quotes",
+    "Flat positive and negative curves retain flat-zero extrapolation",
+    "Shared-draw rate and mortgage outputs match Python reference",
+    "Positive, negative and zero parallel forward templates match reference",
+    "Existing final risk, stress, income, KPI, strategy and saved-book parity gates pass",
+    "Run-local cache is content keyed, invalidates changed curves/draws and does not persist into another run",
+    "Recalibration occurs only when explicitly requested"
+  ],
+  "solver_requirement": "HiGHS stays in C++ by explicit user instruction; Rust owns problem construction, invocation and validation",
+  "documentation": "25-chapter structure, local browser and architecture checks passed; operator skill repackaged",
+  "remaining_python_ownership": ["PCA and fit controllers", "NumPy-compatible seeded CRN generation", "multi-scenario risk orchestration", "dependency/cache orchestration", "unit-library pricing orchestration", "saved-book mapping and final ledger reporting"],
+  "not_claimed": ["full Rust lifecycle completion", "end-to-end performance improvement", "new 60000-instrument benchmark", "live PostgreSQL or S3 deployment validation"]
+}

@@ -1,0 +1,92 @@
+...FF............................                                        [100%]
+================================== FAILURES ===================================
+___________ test_income_reuses_live_cashflows_under_eviction[0.0-9] ___________
+
+inputs = {'books': {'mbs': shape: (3, 13)\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500... ,  0.23375527],\n       [ 5.        ,  5.        ,  0.22459237],\n       [ 5.        , 10.        ,  0.21766089]]), ...}
+base_paths = 9, scenario_shift = 0.0
+
+    @pytest.mark.parametrize('base_paths', [9, 11])
+    @pytest.mark.parametrize('scenario_shift', [0., .0025])
+    def test_income_reuses_live_cashflows_under_eviction(inputs, base_paths, scenario_shift):
+        args = inputs | {'config': RunConfig(9, base_paths, 7), 'include_analytics': True,
+                         'include_key_rates': False,
+                         'scenario_market': (inputs['swap_rates'] + scenario_shift, inputs['vol_pts'])}
+        cold = price_books(**args, cache=DependencyCache(max_bytes=0))
+        retained = price_books(**args, cache=DependencyCache(max_bytes=128*1024*1024))
+        equivalent(cold, retained)
+        np.testing.assert_allclose(cold['nii']['monthly'].to_numpy(), retained['nii']['monthly'].to_numpy(), rtol=1e-12)
+        np.testing.assert_allclose(cold['nii']['runoff'].to_numpy(), retained['nii']['runoff'].to_numpy(), rtol=1e-12)
+        assert cold['kpis'] == retained['kpis']
+        for book, frame in inputs['books'].items():
+            # Spot plus two risk legs; a shifted market needs original base too.
+            legs = 3 if scenario_shift == 0 else 4
+            if book == 'mbs' and base_paths != 9:
+                legs += 1 if scenario_shift == 0 else 2
+>           assert cold['graph'][f'cashflows:{book}']['computed'] == legs * len(frame)
+E           assert 12 == (3 * 3)
+E            +  where 3 = len(shape: (3, 10)\\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\\n\u2502 ...14  \u2506 null       \u2502\\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518)
+
+packages\portfolio-risk\tests\test_incremental.py:135: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+__________ test_income_reuses_live_cashflows_under_eviction[0.0-11] ___________
+
+inputs = {'books': {'mbs': shape: (3, 13)\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500... ,  0.23375527],\n       [ 5.        ,  5.        ,  0.22459237],\n       [ 5.        , 10.        ,  0.21766089]]), ...}
+base_paths = 11, scenario_shift = 0.0
+
+    @pytest.mark.parametrize('base_paths', [9, 11])
+    @pytest.mark.parametrize('scenario_shift', [0., .0025])
+    def test_income_reuses_live_cashflows_under_eviction(inputs, base_paths, scenario_shift):
+        args = inputs | {'config': RunConfig(9, base_paths, 7), 'include_analytics': True,
+                         'include_key_rates': False,
+                         'scenario_market': (inputs['swap_rates'] + scenario_shift, inputs['vol_pts'])}
+        cold = price_books(**args, cache=DependencyCache(max_bytes=0))
+        retained = price_books(**args, cache=DependencyCache(max_bytes=128*1024*1024))
+        equivalent(cold, retained)
+        np.testing.assert_allclose(cold['nii']['monthly'].to_numpy(), retained['nii']['monthly'].to_numpy(), rtol=1e-12)
+        np.testing.assert_allclose(cold['nii']['runoff'].to_numpy(), retained['nii']['runoff'].to_numpy(), rtol=1e-12)
+        assert cold['kpis'] == retained['kpis']
+        for book, frame in inputs['books'].items():
+            # Spot plus two risk legs; a shifted market needs original base too.
+            legs = 3 if scenario_shift == 0 else 4
+            if book == 'mbs' and base_paths != 9:
+                legs += 1 if scenario_shift == 0 else 2
+>           assert cold['graph'][f'cashflows:{book}']['computed'] == legs * len(frame)
+E           assert 12 == (3 * 3)
+E            +  where 3 = len(shape: (3, 10)\\n\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\\n\u2502 ...14  \u2506 null       \u2502\\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518)
+
+packages\portfolio-risk\tests\test_incremental.py:135: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+=========================== short test summary info ===========================
+FAILED packages\portfolio-risk\tests\test_incremental.py::test_income_reuses_live_cashflows_under_eviction[0.0-9]
+FAILED packages\portfolio-risk\tests\test_incremental.py::test_income_reuses_live_cashflows_under_eviction[0.0-11]
+2 failed, 31 passed in 26.94s

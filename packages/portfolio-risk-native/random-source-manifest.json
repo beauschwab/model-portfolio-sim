@@ -1,0 +1,14 @@
+{
+  "upstream": "https://github.com/numpy/numpy/tree/v2.4.6/numpy/random",
+  "scope": "SeedSequence integer entropy, PCG64 XSL-RR and float64 standard normal only; no C code runtime dependency",
+  "source_sha256": {
+    "bit_generator.pyx": "b6d2456b0a7dcf065c81ec8c549b4f6d136a858686075e6361a14f0a1dae0b88",
+    "distributions.c": "af37265f94fda047f5084d774929f6b53ad5b5506267145afcda5861f0f7de15",
+    "LICENSE.md": "e7d4f4fb20358f314210a892ae17351e04993813646f697ec387385ca2a36918",
+    "LICENSE.txt": "1be1df33863f97a7bc1c4d67980bd6c69c9a6fef0a5ee76e6ad6cb91e56e8491",
+    "pcg64.c": "21fdfe42947deb332cc2aaa870b44136d4ae23db4bdd19ef5ba7ffed4dc92718",
+    "pcg64.h": "2ce9cc9366a9993cfd786a1ee63eaad35d8761c0ff9744ee5508192156f33d4a",
+    "ziggurat_constants.h": "9f8b114014b8475777e88c6af80e126654fe0753693d6eabba365d3c4051236c",
+    "_pcg64.pyx": "4ef85d70e2287c8e6f0ad31f552a4f3186abbdf6f3f4d8f2b1ebabb3cd20acb2"
+  }
+}

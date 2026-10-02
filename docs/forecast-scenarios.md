@@ -149,9 +149,10 @@ small disposable synthetic books (32 paths, 27 months). These passed on Septembe
 28, 2026. It does not modify a running API's state. Live source integration and
 synthetic numerical tests do not establish production model suitability.
 
-The isolated market-data/forecast branch passed 74 engine/API tests, all three
-market-data/forecast browser tests, and the production web build. This excludes
-the unrelated native-pricing, What-If and Decision Lab work in the shared
-checkout. The live four-source/five-selection smoke also passed independently
-on this isolated branch. Existing framework deprecations and the web bundle-size
-warning remain.
+Final verification on that date: 138 engine/API tests, 12 browser tests, and the
+production web build passed. The forecast-specific browser test was repeated
+after the stale-result display guard was added. A real browser/API run also
+completed for the Fed adverse path against the full synthetic demo book in an
+isolated server; no live user book was changed. Source parser checks were rerun
+after the final range/missing-value hardening. Existing framework deprecations
+and the web bundle-size warning remain.

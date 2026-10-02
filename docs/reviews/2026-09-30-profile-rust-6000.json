@@ -1,0 +1,90 @@
+{
+  "backend": "rust",
+  "positions": 6000,
+  "paths": 128,
+  "threads": 4,
+  "seconds": 28.783114599995315,
+  "timings": {
+    "adapter_inclusive:1": {
+      "calls": 23,
+      "seconds": 0.4708801992237568
+    },
+    "adapter_inclusive:11": {
+      "calls": 92,
+      "seconds": 0.061689999187365174
+    },
+    "adapter_inclusive:14": {
+      "calls": 3,
+      "seconds": 0.01728079980239272
+    },
+    "adapter_inclusive:15": {
+      "calls": 10,
+      "seconds": 0.014829299878329039
+    },
+    "adapter_inclusive:17": {
+      "calls": 599,
+      "seconds": 0.3172487991396338
+    },
+    "adapter_inclusive:2": {
+      "calls": 46,
+      "seconds": 0.2643971999641508
+    },
+    "adapter_inclusive:3": {
+      "calls": 23,
+      "seconds": 0.0376735997851938
+    },
+    "adapter_inclusive:4": {
+      "calls": 23,
+      "seconds": 15.279708300018683
+    },
+    "adapter_inclusive:6": {
+      "calls": 23,
+      "seconds": 6.764058000408113
+    },
+    "adapter_inclusive:8": {
+      "calls": 5,
+      "seconds": 0.0105835001450032
+    },
+    "ffi:1": {
+      "calls": 23,
+      "seconds": 0.4581647014711052
+    },
+    "ffi:11": {
+      "calls": 92,
+      "seconds": 0.02606909954920411
+    },
+    "ffi:14": {
+      "calls": 3,
+      "seconds": 0.015771400183439255
+    },
+    "ffi:15": {
+      "calls": 10,
+      "seconds": 0.011167499702423811
+    },
+    "ffi:17": {
+      "calls": 599,
+      "seconds": 0.19695949950255454
+    },
+    "ffi:2": {
+      "calls": 46,
+      "seconds": 0.2352385006379336
+    },
+    "ffi:3": {
+      "calls": 23,
+      "seconds": 0.028145800111815333
+    },
+    "ffi:4": {
+      "calls": 23,
+      "seconds": 15.264552399981767
+    },
+    "ffi:6": {
+      "calls": 23,
+      "seconds": 6.7518865005113184
+    },
+    "ffi:8": {
+      "calls": 5,
+      "seconds": 0.007370200008153915
+    }
+  },
+  "computed_nodes": 288072
+}

@@ -1,0 +1,70 @@
+{
+  "threads": 4,
+  "paths": 128,
+  "base_paths": 128,
+  "horizon_months": 27,
+  "samples": {
+    "uncached": [
+      {
+        "seconds": 1.252860200125724,
+        "cache_hits": 0,
+        "cache_bytes": 0,
+        "calls": {
+          "calibrate_abcd": 6,
+          "simulate_rates": 22
+        }
+      },
+      {
+        "seconds": 1.2394378001336008,
+        "cache_hits": 0,
+        "cache_bytes": 0,
+        "calls": {
+          "calibrate_abcd": 6,
+          "simulate_rates": 22
+        }
+      },
+      {
+        "seconds": 1.2499511998612434,
+        "cache_hits": 0,
+        "cache_bytes": 0,
+        "calls": {
+          "calibrate_abcd": 6,
+          "simulate_rates": 22
+        }
+      }
+    ],
+    "cached": [
+      {
+        "seconds": 0.5859350000973791,
+        "cache_hits": 26,
+        "cache_bytes": 6687392,
+        "calls": {
+          "calibrate_abcd": 1,
+          "simulate_rates": 3
+        }
+      },
+      {
+        "seconds": 0.5736942000221461,
+        "cache_hits": 26,
+        "cache_bytes": 6687392,
+        "calls": {
+          "calibrate_abcd": 1,
+          "simulate_rates": 3
+        }
+      },
+      {
+        "seconds": 0.581492300145328,
+        "cache_hits": 26,
+        "cache_bytes": 6687392,
+        "calls": {
+          "calibrate_abcd": 1,
+          "simulate_rates": 3
+        }
+      }
+    ]
+  },
+  "kpis_equal_byte_for_byte": true,
+  "unit_build_s": 0.5707340999506414,
+  "strategy_eval_median_us": 16.999896615743637,
+  "strategy_eval_p95_us": 17.50001683831215
+}

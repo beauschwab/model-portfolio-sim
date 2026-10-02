@@ -1,0 +1,110 @@
+{
+  "verified_at_utc": "2026-10-01T01:18:15.622709+00:00",
+  "scope": "Raw corporate/CD schedule normalization and complete spot-risk drivers; full project-wide lifecycle remains incomplete",
+  "engine_version": "0.27.7",
+  "product_abi": 7,
+  "environment": "Local Windows, Python 3.12.11, four quant worker threads",
+  "engine_suite": {
+    "passed": 541,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 259.49
+  },
+  "api_suite": {
+    "passed": 93,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 84.8
+  },
+  "rust_release_unit_tests": {
+    "passed": 17,
+    "failed": 0
+  },
+  "new_ownership_parity_cache_cases": 64,
+  "focused_native_product_suite": {
+    "passed": 95,
+    "failed": 0,
+    "seconds": 29.91
+  },
+  "clippy_all_targets_warnings_denied": "passed",
+  "rust_format": "passed",
+  "documentation": {
+    "structure": "passed",
+    "browser": "passed",
+    "architecture": "passed",
+    "skill_mirrors": "identical",
+    "operator_skill": "packaged"
+  },
+  "native_library_sha256": "e9514ad60136ffc50186361da774741aa779d85e72eaa2c07ca61dad583c095b",
+  "standalone_executable_sha256": "c059b6205cea38408496cebcd6923dc33dfdc707cc7d5e620be0f90ea0cf7382",
+  "source_sha256": {
+    "packages/portfolio-risk-native/src/conventions.rs": "664981bb0de120ae82f57a04fe853934924753306644de5f877eb78a90dfc48e",
+    "packages/portfolio-risk-native/src/term_deck.rs": "4ab533b70e952ff1e764f07318989e9399baada06ecf901e9e2f1ebb0acfc4b8",
+    "packages/portfolio-risk-native/src/term_risk.rs": "c2fc59667e672803b712df54cee61f5ecf4bd8b70895fdfe009b938dcbc68644",
+    "packages/portfolio-risk-native/src/term_protocol.rs": "1962c497ccad97e4e08624ac85f1ddce1d8cb920995e65ba225d07a86a444536",
+    "packages/portfolio-risk-native/src/market_cache.rs": "d5b770f7f5fd709f0d8043a3da2a341222ec528a2955bc1a0b6c78a2f7287777",
+    "packages/portfolio-risk-native/src/mortgage_risk.rs": "b87a164aa703feae54e1349bc85fb59a5aa718293144f29fcb23d2230895cd5f",
+    "packages/portfolio-risk-native/src/quant.rs": "8b8593a5dee5cefda9a7c46276184df7ff8334791fb726c32bbdfdee7fa4e94a",
+    "packages/portfolio-risk-native/src/lib.rs": "d948b09ae60b0fc3eb84f8514c96de360c2ef0384716470fbadaca6da2c420e7",
+    "packages/portfolio-risk-native/src/bin/portfolio-term-risk.rs": "46028090ad6f14cd6da19abc74a4b5f7fba5c63d2485449e31bed0c7e66bd34b",
+    "packages/portfolio-risk/src/portfolio_risk/core/quant_native.py": "68aeafc6ea316d68fcabf64ce9ed44d105c0c39ec0bb36c964358e852c158851",
+    "packages/portfolio-risk/src/portfolio_risk/products/corp.py": "4b148f6b33a2534f73393e952296529db067db1c84c7fb6407317613d76e8e5f",
+    "packages/portfolio-risk/src/portfolio_risk/products/cds.py": "461c6d33cde4e8535dab44985dd954e822fc2060b4cd511be62100af9c0a2163",
+    "packages/portfolio-risk/tests/test_native_term_owner.py": "7100cad37da97a3cab891d2eed264d811605afa944ee59d41e8b57f22a6ec3b3",
+    "packages/portfolio-risk-native/Cargo.lock": "6d4e301f188effd581ac0e769fa4369b1f44d9d911733ed6faa503fd2a2c967a",
+    "scripts/benchmark_term_lifecycle.py": "6cc9fd49c51de6b3598bd796f8050856ad2dbc055789e41159566cb9225022a5"
+  },
+  "standalone_schemas": [
+    "term-risk-1",
+    "term-deck-1"
+  ],
+  "comparison": {
+    "report": "2026-09-30-rust-term-lifecycle-benchmark.json",
+    "parity": true,
+    "tolerance": {
+      "rtol": 1e-07,
+      "atol": 1e-05
+    },
+    "max_absolute_error": 8.849201549310237e-07
+  },
+  "scale_comparison": {
+    "report": "2026-09-30-rust-term-lifecycle-60000-benchmark.json",
+    "parity": true,
+    "positions_per_product": 60000,
+    "paths": 8,
+    "threads": 4,
+    "max_absolute_error": 1.1744050425477326e-06,
+    "scope": "Corporate/CD spot risk only, not full mixed-book/solver/ledger"
+  },
+  "publication_note": "Native build and financial source held fixed throughout API durable-job validation; local SQLite, no live PostgreSQL/S3/Iceberg validation",
+  "assumptions": [
+    "Adjusted accrual endpoints and simplified US holiday rules",
+    "Year-scoped New Year observation retained",
+    "Linear-principal annuity",
+    "Rule-based call/put exercise and CD withdrawal",
+    "Terminal-grid clamping"
+  ],
+  "limitations": [
+    "JSON input/standalone serialization and copies; Python risk outputs use contiguous numeric buffers",
+    "Component admission is not a process RSS ceiling",
+    "Cache pressure may recompute evicted scenario paths between chunks",
+    "Custom Python calendar subclasses are rejected"
+  ],
+  "remaining": [
+    "Other raw-product drivers",
+    "Cross-book accounting/KPI aggregation",
+    "Native unit-library pricing",
+    "Full dependency graph and selective recomputation",
+    "Saved-book/candidate mapping and final journal/report assembly",
+    "Unified cancellation/deadlines and publication/restart proof",
+    "Full equivalent 60000-instrument mixed-book/solver/ledger benchmark"
+  ],
+  "solver": "HiGHS stays C++; Rust owns strategy construction, invocation and validation",
+  "not_claimed": [
+    "Full Rust lifecycle completion",
+    "Production deployment",
+    "GSIB regulatory model validation",
+    "Standalone-Rust memory comparison",
+    "Linux execution"
+  ]
+}

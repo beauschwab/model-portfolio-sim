@@ -1,0 +1,143 @@
+{
+  "url": "http://127.0.0.1:8001",
+  "paths": 128,
+  "threads": 4,
+  "horizon": 27,
+  "positions": 375,
+  "poll_ms": 10,
+  "runs": [
+    {
+      "analytics": false,
+      "backend": "numpy",
+      "first_ms": 28.997299959883094,
+      "median_ms": 29.526500031352043,
+      "p95_ms": 31.11798008903861,
+      "samples_ms": [
+        29.526500031352043,
+        31.50780010037124,
+        29.558700043708086,
+        28.710999991744757,
+        28.794100042432547
+      ],
+      "arrow_bytes": 102787,
+      "max_numpy_error": 0.0,
+      "cache": {
+        "entries": 35965,
+        "bytes": 193805693,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "analytics": false,
+      "backend": "numba",
+      "first_ms": 29.998899903148413,
+      "median_ms": 29.491900000721216,
+      "p95_ms": 32.0621800608933,
+      "samples_ms": [
+        30.440100003033876,
+        29.491900000721216,
+        29.153400100767612,
+        32.46770007535815,
+        28.47909997217357
+      ],
+      "arrow_bytes": 102785,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "cache": {
+        "entries": 35977,
+        "bytes": 193816529,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "analytics": false,
+      "backend": "rust",
+      "first_ms": 29.822699958458543,
+      "median_ms": 31.050699995830655,
+      "p95_ms": 42.58184004575014,
+      "samples_ms": [
+        31.050699995830655,
+        28.777100145816803,
+        30.557499965652823,
+        45.32340005971491,
+        31.615599989891052
+      ],
+      "arrow_bytes": 102823,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "cache": {
+        "entries": 35990,
+        "bytes": 193827730,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "analytics": true,
+      "backend": "numpy",
+      "first_ms": 262.05049990676343,
+      "median_ms": 259.5824000891298,
+      "p95_ms": 270.4792599659413,
+      "samples_ms": [
+        257.97010003589094,
+        259.5824000891298,
+        257.7271000482142,
+        261.5491000469774,
+        272.7117999456823
+      ],
+      "arrow_bytes": 259981,
+      "max_numpy_error": 0.0,
+      "cache": {
+        "entries": 36261,
+        "bytes": 194074827,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "analytics": true,
+      "backend": "numba",
+      "first_ms": 260.3574001695961,
+      "median_ms": 261.9987998623401,
+      "p95_ms": 279.92581999860704,
+      "samples_ms": [
+        261.9987998623401,
+        265.80909988842905,
+        283.45500002615154,
+        260.7075998093933,
+        261.68400002643466
+      ],
+      "arrow_bytes": 259979,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "cache": {
+        "entries": 36531,
+        "bytes": 194321559,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "analytics": true,
+      "backend": "rust",
+      "first_ms": 259.5057000871748,
+      "median_ms": 260.15730015933514,
+      "p95_ms": 264.0625599306077,
+      "samples_ms": [
+        256.0797999612987,
+        260.15730015933514,
+        264.1485999338329,
+        259.2261000536382,
+        263.71839991770685
+      ],
+      "arrow_bytes": 260020,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "cache": {
+        "entries": 36823,
+        "bytes": 194576321,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    }
+  ],
+  "scope": "Loopback HTTP submission, queue, polling, serialization, transfer and Polars Arrow decode; no competing jobs. First call separate, not process-cold or comparable across backends. Different coupon edits for every backend/sample prevent shared cashflow-cache prewarming. Each last result checked against NumPy on identical inputs outside timing. Browser debounce/render measured separately."
+}

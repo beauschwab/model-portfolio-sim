@@ -1,0 +1,19 @@
+{
+  "backend": "numpy",
+  "positions": 375,
+  "paths": 128,
+  "threads": 4,
+  "analytics": true,
+  "includes_auxiliary": true,
+  "samples_ms": [
+    549,
+    512.7000000476837,
+    512.8999998569489,
+    512.7000000476837,
+    512.7000000476837
+  ],
+  "median_ms": 512.7000000476837,
+  "max_ms": 549,
+  "page_errors": [],
+  "scope": "Browser-clock Apply click through result DOM publication plus two animation frames. Includes configured debounce/polling, HTTP/Arrow and render scheduling. MutationObserver measurement excludes Playwright assertion polling. Five samples, no competing jobs; not a production latency SLA."
+}

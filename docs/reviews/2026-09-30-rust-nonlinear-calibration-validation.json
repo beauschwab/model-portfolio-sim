@@ -1,0 +1,74 @@
+{
+  "scope": "Native bounded volatility and joint deposit calibration controllers; full Rust calculation lifecycle remains incomplete",
+  "engine_version": "0.27.4",
+  "product_abi": 4,
+  "environment": "Local Windows checkout",
+  "solver_requirement": "HiGHS stays C++; Rust owns strategy problem construction, invocation and replay",
+  "nonlinear_solver": "Dense bounded TRF, adapted from SciPy 1.17.1 with BSD attribution; pinned nalgebra 0.34.2 SVD",
+  "engine_suite": {
+    "passed": 393,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 198.37
+  },
+  "focused_nonlinear_suite": {
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 2.09
+  },
+  "native_product_final_output_suite": {
+    "passed": 31,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 17.21,
+    "tolerances_changed": false
+  },
+  "rust_release_unit_tests": {
+    "passed": 10,
+    "failed": 0
+  },
+  "rust_clippy_all_targets_warnings_denied": "passed",
+  "rust_format": "passed",
+  "api_validation": {
+    "initial_full_suite": {
+      "passed": 92,
+      "failed": 1,
+      "seconds": 113.13
+    },
+    "initial_failure": "Restart test correctly rejected changed native binary identity because build_native.py ran concurrently; no application fix was required",
+    "stable_build_streamed_job_rerun": {
+      "passed": 8,
+      "failed": 0,
+      "seconds": 18.77
+    },
+    "coverage": "All 93 default API tests have passing evidence across the full run and targeted rerun; no PostgreSQL service was exercised in this iteration"
+  },
+  "ownership": "One native call per fit; Python least_squares, volatility value/Jacobian and deposit equilibrium callbacks are forbidden by tests",
+  "correctness": [
+    "Original objectives, initialization, bounds, linear loss, unit scaling, 1e-8 tolerances and 100*n budgets retained",
+    "Analytic volatility derivatives and bounded two-point deposit differentiation owned by Rust",
+    "Perturbed quote fits and warm starts match independent SciPy results",
+    "Deposit equilibrium and dynamic rates match across five seeded histories within 1e-8 absolute rate units",
+    "Constant history, invalid input and thread determinism gates pass",
+    "Rust-only tests exercise both calibration entrypoints and nonlinear bound convergence",
+    "Existing final risk/stress/NII/KPI/strategy/ledger gates remain passing"
+  ],
+  "documented_difference": "Native fit rejects exhausted evaluation budgets; existing Python adapters return unchecked SciPy results",
+  "documentation": "25-chapter guide structure, browser and architecture checks passed; operator skill repackaged",
+  "remaining_python_ownership": [
+    "Seeded shared random number generation",
+    "Raw-book schedules and normalization",
+    "Global scenario/dependency/cache orchestration",
+    "Unit-library pricing orchestration",
+    "Saved-book mapping and final ledger reporting"
+  ],
+  "not_claimed": [
+    "Full Rust lifecycle completion",
+    "Performance improvement",
+    "New 60000-instrument benchmark",
+    "Live provider or production validation",
+    "Real-data parameter identifiability validation"
+  ],
+  "native_library_sha256": "b1c5e5a319db8ef6f0bced1ce6710c559a1949f9c6f3f890d5a522a6b30bcd41"
+}

@@ -1,0 +1,36 @@
+name: Native product and strategy parity
+on:
+  push:
+    paths: ['packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', 'scripts/build*', '.github/workflows/native-products.yml']
+  pull_request:
+    paths: ['packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', 'scripts/build*', '.github/workflows/native-products.yml']
+permissions:
+  contents: read
+jobs:
+  parity:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NUMBA_NUM_THREADS: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: uv sync --project packages/portfolio-risk --extra dev --python 3.12
+      - run: cargo fmt --manifest-path packages/portfolio-model-core/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path packages/portfolio-model-core/Cargo.toml
+      - run: cargo clippy --locked --manifest-path packages/portfolio-model-core/Cargo.toml --all-targets -- -D warnings
+      - run: cargo fmt --manifest-path packages/portfolio-compute-control/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path packages/portfolio-compute-control/Cargo.toml
+      - run: cargo clippy --locked --manifest-path packages/portfolio-compute-control/Cargo.toml --all-targets -- -D warnings
+      - run: cargo fmt --manifest-path packages/portfolio-risk-native/Cargo.toml -- --check
+      - run: cargo clippy --locked --manifest-path packages/portfolio-risk-native/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path packages/portfolio-risk-native/Cargo.toml
+      - run: uv run --project packages/portfolio-risk python scripts/build_native.py
+      - run: uv run --project packages/portfolio-risk python scripts/build_ledger_native.py
+      - run: uv run --project packages/portfolio-risk --with libclang --with cmake python scripts/build_decision_native.py
+      - run: uv run --project packages/portfolio-risk --extra dev python -m pytest packages/portfolio-risk/tests -q

@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
+from ..core.runtime import path_count
 from ..models import models as mdl
 from ..core.config import (ADT, DT, HPI_BETA, HPI_MU, INC_LAG, MOY, N_FACTORS,
                      N_PATHS_BASE, N_STEPS, PREPAY_PARAMS, RATIONAL_SIGMOID,
@@ -27,10 +28,17 @@ class CRN:
     """One set of Gaussian draws shared across all scenario revaluations."""
 
     def __init__(self, n_paths: int, seed: int):
+        from . import quant_native as native
+        if native.enabled():
+            self.Z, self.eps_ps, self.eps_h = native.shared_draws(n_paths, seed, N_STEPS, N_FACTORS)
+            self.n = n_paths
+            return
         rng = np.random.default_rng(seed)
-        half = n_paths // 2
+        if n_paths < 1:
+            raise ValueError("n_paths must be positive")
+        half = (n_paths + 1) // 2
         Zb = rng.standard_normal((half, N_STEPS, N_FACTORS))
-        self.Z = np.concatenate([Zb, -Zb], axis=0)        # antithetic
+        self.Z = np.concatenate([Zb, -Zb], axis=0)[:n_paths]        # antithetic
         self.eps_ps = np.random.default_rng(seed + 101)\
             .standard_normal((n_paths, N_STEPS))
         self.eps_h = np.random.default_rng(seed + 202)\
@@ -42,10 +50,15 @@ def build_rate_paths(swap_rates, vol_pts, abcd_p, B, crn,
                      recalibrate=False, abcd_warm=None) -> dict:
     """Rate-only path set {df, short, swaps} for books that need no
     mortgage-side models (corporates, deposits)."""
+    from . import quant_native as native
+    if native.enabled() and not recalibrate:
+        return native.market_paths(swap_rates, abcd_p, B, crn)
     dfs = bootstrap_curve(SWAP_TENORS, swap_rates)
     F0 = forwards_from_dfs(dfs)
     if recalibrate:
         abcd_p = calibrate_abcd(vol_pts, F0, dfs, B, x0=abcd_warm, quiet=True)
+    if native.enabled():
+        return native.market_paths(swap_rates, abcd_p, B, crn)
     df, swaps, short = simulate_rates(F0, abcd_p, B, crn.Z)
     return {"df": df, "short": short, "swaps": swaps}
 
@@ -56,10 +69,22 @@ def build_paths(swap_rates, vol_pts, abcd_p, B, models, crn,
     suite: interfaces.ModelSuite (None -> default components)."""
     if suite is None:
         suite = ModelSuite.default()
+    from .quant_native import enabled
+    if enabled() and (type(suite.cc) is not mdl.TrendingCC or
+                      type(suite.ps) is not mdl.OUSpread or
+                      type(suite.hpi) is not mdl.RateLinkedHPI or
+                      suite.prepay_step is not None):
+        raise ValueError('Custom Python model suites are not supported by the Rust backend')
+    if enabled() and not recalibrate:
+        from .quant_native import market_paths
+        return market_paths(swap_rates, abcd_p, B, crn, models)
     dfs = bootstrap_curve(SWAP_TENORS, swap_rates)
     F0 = forwards_from_dfs(dfs)
     if recalibrate:
         abcd_p = calibrate_abcd(vol_pts, F0, dfs, B, x0=abcd_warm, quiet=True)
+    if enabled():
+        from .quant_native import market_paths
+        return market_paths(swap_rates, abcd_p, B, crn, models)
     df, swaps, short = simulate_rates(F0, abcd_p, B, crn.Z)
     volfeat = vol_feature_paths(abcd_p, F0, dfs, B)
     cc = suite.cc.paths(swaps, volfeat, models["cc"])
@@ -83,6 +108,15 @@ def shocked_paths(base: dict, h: int, shock_bp: float, models,
     re-shocked (second order). OAS held fixed by the caller."""
     if suite is None:
         suite = ModelSuite.default()
+    from . import quant_native as native
+    if native.enabled():
+        if type(suite.cc) is not mdl.TrendingCC or type(suite.hpi) is not mdl.RateLinkedHPI:
+            raise ValueError('Custom Python model suites are not supported by the Rust backend')
+        shape = base['mtg'].shape
+        mtg,hpi,yoy,df = native.call(21,[base['mtg'],base['hpi'],base['df'],
+            [h,shock_bp,DT,INC_LAG,models['cc']['lam'],HPI_BETA],models['cc']['beta']],[shape]*4)
+        return dict(mtg=mtg.astype(ADT),hpi=hpi.astype(ADT),yoy=yoy.astype(ADT),
+                    df=df.astype(ADT),short=base['short'],swaps=base['swaps'])
     d = shock_bp * 1e-4
     t = np.arange(N_STEPS)
     on = t >= h
@@ -115,6 +149,9 @@ def run_engine(paths, sec, oas=None, horizons=None, want_fwd=False,
         horizons = np.zeros(1, dtype=np.int64)
     kern = engine
     if suite is not None and suite.prepay_step is not None:
+        from .quant_native import enabled
+        if enabled():
+            raise ValueError('Custom Python prepayment models are not supported by the Rust backend')
         kern = make_generic_engine(suite.prepay_step)
     return kern(paths["mtg"], paths["hpi"], paths["yoy"], paths["df"],
                   MOY, SEASONALITY, PREPAY_PARAMS, LTV_KNOTS, LTV_COEFS,
@@ -134,9 +171,10 @@ def extract_sec(port: pl.DataFrame):
     return sec + (horig, static_multipliers(port))
 
 
-def setup(port, swap_rates, vol_pts, cc_hist, ps_hist, ps_spot=0.012):
-    models = {"cc": mdl.fit_current_coupon(cc_hist),
-              "ps": mdl.fit_ps_spread(ps_hist), "ps_spot": ps_spot}
+def setup(port, swap_rates, vol_pts, cc_hist, ps_hist, ps_spot=0.012, suite=None):
+    suite = suite or ModelSuite.default()
+    models = {"cc": suite.cc.fit(cc_hist),
+              "ps": suite.ps.fit(ps_hist), "ps_spot": ps_spot}
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
@@ -155,8 +193,9 @@ def port_delay(port: pl.DataFrame):
 
 
 def solve_base_oas(swap_rates, vol_pts, abcd0, B, models, sec, tgt,
-                   seed=SEED, n_paths=N_PATHS_BASE, suite=None,
+                   seed=SEED, n_paths=None, suite=None,
                    delay_y=None):
+    n_paths = path_count(N_PATHS_BASE, base=True) if n_paths is None else n_paths
     crn = CRN(n_paths, seed)
     paths = build_paths(swap_rates, vol_pts, abcd0, B, models, crn,
                         suite=suite)

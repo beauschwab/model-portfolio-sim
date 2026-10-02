@@ -34,9 +34,12 @@ value rises when rates fall.
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import datetime as dt
 
 import numpy as np
+from ..core.quant_native import kernel
 import polars as pl
 from numba import njit, prange
 
@@ -63,6 +66,10 @@ class CDDeck:
     def __init__(self, book: pl.DataFrame, asof: dt.date,
                  cal: Calendar | None = None,
                  bdc: BDC = BDC.MODIFIED_FOLLOWING):
+        from ..core import quant_native as native
+        if native.enabled():
+            self.__dict__.update(native.term_deck(book, asof, 'cd', cal, bdc))
+            return
         missing = CD_COLS - set(book.columns)
         if missing:
             raise ValueError(f"CD book missing columns: {missing}")
@@ -125,6 +132,7 @@ class CDDeck:
         self.n = len(rows)
 
 
+@kernel('cd')
 @njit(parallel=True, fastmath=True, cache=True)
 def cd_engine(short, df, per_off, pay_m, pay_frac, acc_m, tau, rem_y,
               call_px, rate, pen_m, ew_mult, call_thr, ewp):
@@ -201,20 +209,26 @@ def _cd_A(deck: CDDeck, paths):
 
 
 def run_cd_risk(book: pl.DataFrame, asof: dt.date, swap_rates, vol_pts,
-                seed: int = SEED, cal: Calendar | None = None
+                seed: int = SEED, cal: Calendar | None = None, oas=None
                 ) -> pl.DataFrame:
     """Liability OAS + KRDs + vegas for a CD book, same fixed-OAS CRN
     scenario methodology. No fitted histories needed (rate is contractual;
     withdrawal params are config -- fit to redemption panels)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.term_risk(book, asof, swap_rates, vol_pts, 'cd', seed, cal, oas)
     deck = CDDeck(book, asof, cal=cal)
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     base = build_rate_paths(swap_rates, vol_pts, abcd0, B, crn)
 
     A = _cd_A(deck, base)
-    oas, px = corp_solve_oas(deck, A, crn.n)
+    if oas is None:
+        oas, px = corp_solve_oas(deck, A, crn.n)
+    else:
+        px = corp_pv(deck, A, oas, crn.n)
 
     def scen_pv(sr, vp, recal):
         paths = build_rate_paths(sr, vp, abcd0, B, crn,

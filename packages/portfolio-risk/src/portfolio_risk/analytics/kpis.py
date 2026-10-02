@@ -6,8 +6,8 @@ mappings would apply. Every table below is module data: replace with
 your 12 CFR 249 / NSFR / standardized-approach internal mappings before
 treating any ratio as more than directional.
 
-EVE: market value of assets minus liabilities at solved model prices
-(prices ARE market by construction -- OAS solved to targets). Rate
+EVE: market value of assets minus liabilities. Base OAS calibrates to
+targets; supplied OAS reprices books under the requested market. Rate
 sensitivity from PARALLEL dv01s computed by +/-25bp full revaluations
 per book (3 engine passes each, shared CRN); Delta-EVE per shock is
 FIRST-ORDER (dv01 x shock). Convexity lives in the 9Q stress pack -- use
@@ -36,6 +36,8 @@ NII-and-AOCI skeleton of a capital plan, not PPNR.
 """
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import datetime as dt
 
 import numpy as np
@@ -46,7 +48,8 @@ LCR_RUNOFF = {"DDA": 0.05, "NOW": 0.10, "SAV": 0.10, "MMDA": 0.20}
 LCR_CD_RUNOFF = {"retail": 0.10, "brokered": 1.00}     # maturing <= 30d
 LCR_SECURED = {"REPO": 0.25, "ST_BORROW": 1.00, "TRADING_L": 0.00}
 LCR_INFLOW = {"RESALE": 0.50}
-L2A_FACTOR, L2_CAP = 0.85, 0.40
+from .balance_rules import L2_CAP, liquidity_components
+L2A_FACTOR = 0.85
 NSFR_ASF = {"equity": 1.00, "DDA": 0.95, "NOW": 0.95, "SAV": 0.95,
             "MMDA": 0.90, "cd_retail_lt1y": 0.95, "cd_brokered_lt6m": 0.50,
             "cd_ge1y": 1.00, "ltd_ge1y": 1.00, "ltd_lt1y": 0.50,
@@ -74,24 +77,31 @@ def _mv(frame: pl.DataFrame) -> float:
 
 
 def parallel_dv01s(bs: dict, swap_rates, vol_pts, dep_hist, seed: int = 7,
-                   bump_bp: float = 25.0) -> dict[str, float]:
+                   bump_bp: float = 25.0, oas_by_book=None, valued_books=None) -> dict[str, float]:
     """$ parallel dv01 per book via +/-bump full revaluations on shared
     CRN paths (base OAS solved once and held fixed -- engine invariant)."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import parallel_dv01s as run
+        return run(bs,swap_rates,vol_pts,dep_hist,seed,bump_bp,oas_by_book,valued_books)
     from ..products.cds import CDDeck, _cd_A
     from ..core.config import N_PATHS_SENS, SWAP_TENORS
     from ..products.corp import CorpDeck, _corp_A, corp_pv, corp_solve_oas
     from ..core.curve import bootstrap_curve, forwards_from_dfs
     from ..products.deposits import DepositDeck, LogisticBetaECM, _deposit_A
     from ..core.pricing import pv_from_A, solve_oas_from_A
+    from ..core.scenarios import port_delay
     from ..core.scenarios import (CRN, build_paths, build_rate_paths, run_engine,
                             setup, solve_base_oas)
     from ..core.vol import calibrate_abcd, factor_loadings
 
+    oas_by_book = oas_by_book or {}
+    valued_books = {} if valued_books is None else valued_books
     d = bump_bp * 1e-4
     B = factor_loadings()
     dfs0 = bootstrap_curve(SWAP_TENORS, swap_rates)
     abcd0 = calibrate_abcd(vol_pts, forwards_from_dfs(dfs0), dfs0, B)
-    crn = CRN(N_PATHS_SENS, seed)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
     out: dict[str, float] = {}
     asof = bs.get("asof") or dt.date.today()
 
@@ -103,13 +113,19 @@ def parallel_dv01s(bs: dict, swap_rates, vol_pts, dep_hist, seed: int = 7,
         cc_hist, ps_hist = bs["mbs_hists"]
         models, B2, a2, sec, tgt, face = setup(port, swap_rates, vol_pts,
                                                cc_hist, ps_hist)
-        oas, _ = solve_base_oas(swap_rates, vol_pts, a2, B2, models, sec,
-                                tgt, seed=seed, n_paths=crn.n)
+        oas = oas_by_book.get("mbs")
+        if oas is None:
+            oas, _ = solve_base_oas(swap_rates, vol_pts, a2, B2, models, sec,
+                                    tgt, seed=seed, n_paths=crn.n, delay_y=port_delay(port))
 
         def pv(sr):
             paths = build_paths(sr, vol_pts, a2, B2, models, crn)
             A, *_ = run_engine(paths, sec)
-            return float((pv_from_A(A, oas, crn.n) * face).sum())
+            return float((pv_from_A(A, oas, crn.n, delay_y=port_delay(port)) * face).sum())
+        if "mbs" in oas_by_book:
+            p0 = build_paths(swap_rates, vol_pts, a2, B2, models, crn)
+            prices = pv_from_A(run_engine(p0, sec)[0], oas, crn.n, delay_y=port_delay(port))
+            valued_books["mbs"] = port.with_columns(pl.Series("price", prices * 100))
         out["mbs"] = (pv(swap_rates - d) - pv(swap_rates + d)) \
             / (2 * bump_bp)
 
@@ -118,11 +134,15 @@ def parallel_dv01s(bs: dict, swap_rates, vol_pts, dep_hist, seed: int = 7,
             continue
         deck = CorpDeck(bs[key], asof)
         A = _corp_A(deck, rp(swap_rates))
-        oas, _ = corp_solve_oas(deck, A, crn.n)
+        oas = oas_by_book.get(key)
+        if oas is None:
+            oas, _ = corp_solve_oas(deck, A, crn.n)
 
         def pv(sr, deck=deck, oas=oas):
             return float((corp_pv(deck, _corp_A(deck, rp(sr)), oas, crn.n)
                           * deck.face).sum())
+        if key in oas_by_book:
+            valued_books[key] = bs[key].with_columns(pl.Series("price", corp_pv(deck, A, oas, crn.n) * 100))
         out[key] = (pv(swap_rates - d) - pv(swap_rates + d)) / (2 * bump_bp)
 
     if bs.get("deposits") is not None:
@@ -138,22 +158,30 @@ def parallel_dv01s(bs: dict, swap_rates, vol_pts, dep_hist, seed: int = 7,
             A, *_ = _deposit_A(deck, paths, dep, r0)
             return A
         A0 = dep_pv(swap_rates)
-        oas, _ = solve_oas_from_A(A0, crn.n, deck.tgt, lo0=-0.15)
+        oas = oas_by_book.get("deposits")
+        if oas is None:
+            oas, _ = solve_oas_from_A(A0, crn.n, deck.tgt, lo0=-0.15)
 
         def pv(sr):
             return float((pv_from_A(dep_pv(sr), oas, crn.n)
                           * deck.bal).sum())
+        if "deposits" in oas_by_book:
+            valued_books["deposits"] = bs["deposits"].with_columns(pl.Series("price", pv_from_A(A0, oas, crn.n) * 100))
         out["deposits"] = (pv(swap_rates - d) - pv(swap_rates + d)) \
             / (2 * bump_bp)
 
     if bs.get("cds") is not None:
         deck = CDDeck(bs["cds"], asof)
         A = _cd_A(deck, rp(swap_rates))
-        oas, _ = corp_solve_oas(deck, A, crn.n)
+        oas = oas_by_book.get("cds")
+        if oas is None:
+            oas, _ = corp_solve_oas(deck, A, crn.n)
 
         def pv(sr):
             return float((corp_pv(deck, _cd_A(deck, rp(sr)), oas, crn.n)
                           * deck.bal).sum())
+        if "cds" in oas_by_book:
+            valued_books["cds"] = bs["cds"].with_columns(pl.Series("price", corp_pv(deck, A, oas, crn.n) * 100))
         out["cds"] = (pv(swap_rates - d) - pv(swap_rates + d)) / (2 * bump_bp)
 
     out["mm"] = 0.0   # monthly reset; duration ~ 0 by construction
@@ -178,6 +206,10 @@ def parallel_dv01s(bs: dict, swap_rates, vol_pts, dep_hist, seed: int = 7,
 
 def eve_summary(bs: dict, dv01s: dict[str, float],
                 shocks_bp=(-200, -100, 100, 200)) -> dict:
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import kpis
+        return kpis('eve',bs,bs.get('asof') or dt.date.today(),dv01s=dv01s,shocks=shocks_bp)
     mv_a = sum(_mv(bs[k]) for k in ("mbs", "loans") if bs.get(k) is not None)
     mm_a = mm_l = 0.0
     if bs.get("mm") is not None:
@@ -197,7 +229,7 @@ def eve_summary(bs: dict, dv01s: dict[str, float],
     dur_a = dv_a * 1e4 / max(mv_a, 1e-9)
     dur_l = dv_l * 1e4 / max(mv_l, 1e-9)
     rows = [{"shock_bp": s, "d_eve_$": -dv_net * s,
-             "d_eve_pct_eve": -dv_net * s / eve * 100.0,
+             "d_eve_pct_eve": -dv_net * s / eve * 100.0 if eve else float('nan'),
              "method": "first-order (parallel dv01); convexity in 9Q stress"}
             for s in shocks_bp]
     worst = max(abs(r["d_eve_pct_eve"]) for r in rows)
@@ -205,7 +237,7 @@ def eve_summary(bs: dict, dv01s: dict[str, float],
             "irrbb_outlier": bool(worst > 15.0),
             "irrbb_worst_pct_eve": worst,
             "dv01_net_$": dv_net, "dur_assets_y": dur_a, "dur_liab_y": dur_l,
-            "duration_gap_y": dur_a - (mv_l / mv_a) * dur_l,
+            "duration_gap_y": dur_a - (mv_l / mv_a) * dur_l if mv_a else float('nan'),
             "eve_duration_y": dv_net * 1e4 / max(eve, 1e-9),
             "hedge_dv01_$": dv01s.get("hedges", 0.0),
             "sensitivity": rows}
@@ -214,6 +246,10 @@ def eve_summary(bs: dict, dv01s: dict[str, float],
 def lcr(bs: dict, asof: dt.date) -> dict:
     """Stylized 30-day LCR. CD/LTD outflows use REAL contractual
     maturities from the frames; deposits use segment runoff rates."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import kpis
+        return kpis('lcr',bs,asof)
     hqla_l1 = hqla_l2 = 0.0
     if bs.get("mm") is not None:
         hqla_l1 += float(bs["mm"].filter(pl.col("id") == "IEDB")
@@ -221,6 +257,7 @@ def lcr(bs: dict, asof: dt.date) -> dict:
     if bs.get("mbs") is not None:
         agency = bs["mbs"].filter(~pl.col("cusip").str.starts_with("HL"))
         hqla_l2 += _mv(agency) * L2A_FACTOR
+    hqla_l2_raw = hqla_l2
     hqla_l2 = min(hqla_l2, hqla_l1 * L2_CAP / (1 - L2_CAP))
     hqla = hqla_l1 + hqla_l2
 
@@ -248,15 +285,19 @@ def lcr(bs: dict, asof: dt.date) -> dict:
         for cat, w in LCR_INFLOW.items():
             inflow += float(bs["mm"].filter(pl.col("id") == cat)
                             ["balance"].sum()) * w
-    inflow = min(inflow, 0.75 * out)
-    net_out = max(out - inflow, 1e-9)
-    return {"hqla_l1_$": hqla_l1, "hqla_l2a_$": hqla_l2, "hqla_$": hqla,
+    hqla, inflow, net_out = liquidity_components(hqla_l1, hqla_l2_raw, out, inflow)
+    net_out = max(net_out, 1e-9)
+    return {"hqla_l2a_uncapped_$": hqla_l2_raw, "hqla_l1_$": hqla_l1, "hqla_l2a_$": hqla_l2, "hqla_$": hqla,
             "outflows_$": out, "inflows_capped_$": inflow,
             "net_outflows_$": net_out, "lcr_pct": hqla / net_out * 100.0}
 
 
 def nsfr(bs: dict, asof: dt.date) -> dict:
     """Stylized NSFR with deck maturities driving the ASF/RSF buckets."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import kpis
+        return kpis('nsfr',bs,asof)
     y1 = asof + dt.timedelta(days=365)
     m6 = asof + dt.timedelta(days=182)
     asf = 0.0
@@ -281,11 +322,15 @@ def nsfr(bs: dict, asof: dt.date) -> dict:
             * NSFR_ASF["ltd_ge1y"]
         asf += float(db.filter(pl.col("maturity") < y1)["face"].sum()) \
             * NSFR_ASF["ltd_lt1y"]
-    eve_proxy = sum(_mv(bs[k]) for k in ("mbs", "loans")
-                    if bs.get(k) is not None) \
-        - sum(_mv(bs[k]) for k in ("debt", "deposits", "cds")
-              if bs.get(k) is not None)
-    asf += max(eve_proxy, 0.0) * NSFR_ASF["equity"]
+    equity = bs.get("equity")
+    if equity is None:
+        equity = sum(_mv(bs[k]) for k in ("mbs", "loans") if bs.get(k) is not None)
+        equity -= sum(_mv(bs[k]) for k in ("debt", "deposits", "cds") if bs.get(k) is not None)
+        if bs.get("mm") is not None:
+            mm = bs["mm"]
+            equity += float(mm.filter(pl.col("side") == "asset")["balance"].sum())
+            equity -= float(mm.filter(pl.col("side") == "liability")["balance"].sum())
+    asf += max(float(equity), 0.0) * NSFR_ASF["equity"]
 
     rsf = 0.0
     if bs.get("mm") is not None:
@@ -312,6 +357,10 @@ def capital(bs: dict, nii_monthly: pl.DataFrame | None,
             stress_aoci_q: list[float] | None = None) -> dict:
     """Standardized credit RWA + density-calibrated add-on; CET1 path
     accreting retained NII, with optional AFS-mark AOCI leg."""
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import kpis
+        return kpis('capital',bs,bs.get('asof') or dt.date.today(),nii=nii_monthly,stress_aoci=stress_aoci_q)
     rwa = 0.0
     if bs.get("mbs") is not None:
         mbs = bs["mbs"]
@@ -338,10 +387,10 @@ def capital(bs: dict, nii_monthly: pl.DataFrame | None,
     rwa_total = rwa + addon
     cet1 = CET1_RATIO_T0 * rwa_total
     path = [{"quarter": 0, "cet1_$": cet1,
-             "cet1_ratio_pct": cet1 / rwa_total * 100.0, "drivers": "t0"}]
+             "cet1_ratio_pct": cet1 / rwa_total * 100.0 if rwa_total else float('nan'), "drivers": "t0"}]
     if nii_monthly is not None:
         nii = nii_monthly["nii"].to_numpy()
-        nq = len(nii) // 3
+        nq = (len(nii) + 2) // 3
         for q in range(nq):
             retained = nii[q * 3:(q + 1) * 3].sum() * NI_TO_NII \
                 * (1 - PAYOUT)
@@ -349,7 +398,7 @@ def capital(bs: dict, nii_monthly: pl.DataFrame | None,
                     and q < len(stress_aoci_q) else 0.0)
             cet1 += retained + aoci
             path.append({"quarter": q + 1, "cet1_$": cet1,
-                         "cet1_ratio_pct": cet1 / rwa_total * 100.0,
+                         "cet1_ratio_pct": cet1 / rwa_total * 100.0 if rwa_total else float('nan'),
                          "drivers": f"retained {retained/1e6:.0f}M"
                                     + (f", AOCI {aoci/1e6:+.0f}M"
                                        if aoci else "")})
@@ -369,9 +418,17 @@ def capital(bs: dict, nii_monthly: pl.DataFrame | None,
 
 def compute_kpis(bs: dict, swap_rates, vol_pts, dep_hist,
                  nii_monthly: pl.DataFrame | None = None,
-                 seed: int = 7) -> dict:
+                 seed: int = 7, oas_by_book=None) -> dict:
     asof = bs.get("asof") or dt.date.today()
-    dv = parallel_dv01s(bs, swap_rates, vol_pts, dep_hist, seed=seed)
-    return {"eve": eve_summary(bs, dv), "dv01s": dv,
-            "lcr": lcr(bs, asof), "nsfr": nsfr(bs, asof),
+    from ..core import quant_native as native
+    if native.enabled():
+        from ..core.lifecycle_native import kpis,balance_risk_request
+        return kpis('all',bs,asof,nii=nii_monthly,
+                    risk=balance_risk_request(bs,swap_rates,vol_pts,dep_hist,seed,25.,oas_by_book))
+    valued = {}
+    dv = parallel_dv01s(bs, swap_rates, vol_pts, dep_hist, seed=seed, oas_by_book=oas_by_book, valued_books=valued)
+    valued_bs = bs | valued
+    return {"nii_total_$": float(nii_monthly["nii"].sum()) if nii_monthly is not None else 0.0,
+            "eve": eve_summary(valued_bs, dv), "dv01s": dv,
+            "lcr": lcr(valued_bs, asof), "nsfr": nsfr(bs, asof),
             "capital": capital(bs, nii_monthly)}

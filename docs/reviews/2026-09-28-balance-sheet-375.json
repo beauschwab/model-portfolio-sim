@@ -1,0 +1,2701 @@
+{
+  "status": "passed",
+  "configuration": {
+    "positions": 375,
+    "paths": 128,
+    "threads": 4,
+    "key_rates": true
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.11",
+    "numba": "0.65.1",
+    "cpu": "Intel(R) Core(TM) i7-14700",
+    "logical_cores": 28,
+    "memory": {
+      "rss_bytes": 119885824,
+      "peak_rss_process_bytes": 120815616,
+      "private_bytes": 1670983680,
+      "peak_commit_process_bytes": 1671151616,
+      "system_available_bytes": 7971221504,
+      "system_total_bytes": 33979514880
+    }
+  },
+  "stages": {
+    "fixture": {
+      "wall_seconds": 0.017517999978736043,
+      "process_cpu_seconds": 0.21875,
+      "average_cpu_cores": 12.487156083201642,
+      "before": {
+        "rss_bytes": 119894016,
+        "peak_rss_process_bytes": 120815616,
+        "private_bytes": 1670983680,
+        "peak_commit_process_bytes": 1671151616,
+        "system_available_bytes": 7971221504,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 146849792,
+        "peak_rss_process_bytes": 146853888,
+        "private_bytes": 1732259840,
+        "peak_commit_process_bytes": 1732276224,
+        "system_available_bytes": 7947370496,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 146849792,
+      "sampled_peak_private_bytes": 1732259840,
+      "minimum_system_available_bytes": 7947370496
+    },
+    "initialize_three_market_session": {
+      "wall_seconds": 2.469273299910128,
+      "process_cpu_seconds": 9.328125,
+      "average_cpu_cores": 3.7776802593457384,
+      "before": {
+        "rss_bytes": 146915328,
+        "peak_rss_process_bytes": 146915328,
+        "private_bytes": 1732243456,
+        "peak_commit_process_bytes": 1732276224,
+        "system_available_bytes": 7946854400,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 282804224,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1896321024,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7832117248,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 303603712,
+      "sampled_peak_private_bytes": 1917853696,
+      "minimum_system_available_bytes": 7804616704
+    },
+    "first_solve_and_independent_replay": {
+      "wall_seconds": 0.020532799884676933,
+      "process_cpu_seconds": 0.125,
+      "average_cpu_cores": 6.0878204970615855,
+      "before": {
+        "rss_bytes": 282804224,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1896325120,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7832166400,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 286195712,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1899188224,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7831949312,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 286195712,
+      "sampled_peak_private_bytes": 1899188224,
+      "minimum_system_available_bytes": 7831949312
+    },
+    "constraint_update": {
+      "wall_seconds": 0.015678200172260404,
+      "process_cpu_seconds": 0.0625,
+      "average_cpu_cores": 3.9864269695052035,
+      "before": {
+        "rss_bytes": 286273536,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1899151360,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7831973888,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 286818304,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1899515904,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7831896064,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 286818304,
+      "sampled_peak_private_bytes": 1899515904,
+      "minimum_system_available_bytes": 7831896064
+    },
+    "single_mbs_update": {
+      "wall_seconds": 0.12540920008905232,
+      "process_cpu_seconds": 0.5,
+      "average_cpu_cores": 3.986948323129029,
+      "before": {
+        "rss_bytes": 286883840,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1899515904,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7831891968,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 287449088,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900277760,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7835373568,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 287449088,
+      "sampled_peak_private_bytes": 1900294144,
+      "minimum_system_available_bytes": 7831891968
+    },
+    "single_loans_update": {
+      "wall_seconds": 0.062005599960684776,
+      "process_cpu_seconds": 0.25,
+      "average_cpu_cores": 4.031893896011244,
+      "before": {
+        "rss_bytes": 287461376,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900244992,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7835496448,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 288276480,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900646400,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7838400512,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 288276480,
+      "sampled_peak_private_bytes": 1900646400,
+      "minimum_system_available_bytes": 7835496448
+    },
+    "single_debt_update": {
+      "wall_seconds": 0.07182869990356266,
+      "process_cpu_seconds": 0.25,
+      "average_cpu_cores": 3.480502923422677,
+      "before": {
+        "rss_bytes": 288391168,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900609536,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7838408704,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 288419840,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900646400,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7838404608,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 288419840,
+      "sampled_peak_private_bytes": 1900662784,
+      "minimum_system_available_bytes": 7838404608
+    },
+    "single_deposits_update": {
+      "wall_seconds": 0.08433049987070262,
+      "process_cpu_seconds": 0.3125,
+      "average_cpu_cores": 3.705658100914045,
+      "before": {
+        "rss_bytes": 288555008,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1900609536,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7838351360,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 289304576,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1901756416,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7837237248,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 289304576,
+      "sampled_peak_private_bytes": 1901756416,
+      "minimum_system_available_bytes": 7837237248
+    },
+    "single_cds_update": {
+      "wall_seconds": 0.06253909994848073,
+      "process_cpu_seconds": 0.671875,
+      "average_cpu_cores": 10.743279013504926,
+      "before": {
+        "rss_bytes": 289456128,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1901723648,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7837261824,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 289492992,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1901502464,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7837298688,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 289492992,
+      "sampled_peak_private_bytes": 1901776896,
+      "minimum_system_available_bytes": 7837261824
+    },
+    "hundred_loan_update": {
+      "wall_seconds": 0.2408292000181973,
+      "process_cpu_seconds": 0.953125,
+      "average_cpu_cores": 3.9576803806514365,
+      "before": {
+        "rss_bytes": 289624064,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1901465600,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7837118464,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 297857024,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1909460992,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7818231808,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 297857024,
+      "sampled_peak_private_bytes": 1909460992,
+      "minimum_system_available_bytes": 7814631424
+    },
+    "template_update": {
+      "wall_seconds": 0.9057003001216799,
+      "process_cpu_seconds": 3.609375,
+      "average_cpu_cores": 3.985175890429852,
+      "before": {
+        "rss_bytes": 297938944,
+        "peak_rss_process_bytes": 312868864,
+        "private_bytes": 1909424128,
+        "peak_commit_process_bytes": 1927249920,
+        "system_available_bytes": 7821533184,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 303640576,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914155008,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7813427200,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 322297856,
+      "sampled_peak_private_bytes": 1933271040,
+      "minimum_system_available_bytes": 7794540544
+    },
+    "native_allocation_replay": {
+      "wall_seconds": 0.006102400133386254,
+      "process_cpu_seconds": 0.046875,
+      "average_cpu_cores": 7.681403869855518,
+      "before": {
+        "rss_bytes": 303898624,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914294272,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7813181440,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 304033792,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914294272,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7812653056,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 304033792,
+      "sampled_peak_private_bytes": 1914343424,
+      "minimum_system_available_bytes": 7812653056
+    },
+    "python_allocation_replay": {
+      "wall_seconds": 0.0031132998410612345,
+      "process_cpu_seconds": 0.0,
+      "average_cpu_cores": 0.0,
+      "before": {
+        "rss_bytes": 304201728,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914294272,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7812448256,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 304201728,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914294272,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7812337664,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 304226304,
+      "sampled_peak_private_bytes": 1914347520,
+      "minimum_system_available_bytes": 7812308992
+    },
+    "fresh_scipy_same_coefficients": {
+      "wall_seconds": 0.02709549991413951,
+      "process_cpu_seconds": 0.171875,
+      "average_cpu_cores": 6.343304258811951,
+      "before": {
+        "rss_bytes": 304214016,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1914294272,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7812202496,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 307453952,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1920294912,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7806689280,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 307453952,
+      "sampled_peak_private_bytes": 1920294912,
+      "minimum_system_available_bytes": 7806689280
+    },
+    "persistent_native_same_coefficients": {
+      "wall_seconds": 0.01574659999459982,
+      "process_cpu_seconds": 0.0625,
+      "average_cpu_cores": 3.969110793532186,
+      "before": {
+        "rss_bytes": 307437568,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1920262144,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7806607360,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 307437568,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1920262144,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7806566400,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 307462144,
+      "sampled_peak_private_bytes": 1920315392,
+      "minimum_system_available_bytes": 7806566400
+    },
+    "full_rebuild_price_base": {
+      "wall_seconds": 0.5119435000233352,
+      "process_cpu_seconds": 1.921875,
+      "average_cpu_cores": 3.754076377397892,
+      "before": {
+        "rss_bytes": 225308672,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1839869952,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7877091328,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 257941504,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1871581184,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7841955840,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 257941504,
+      "sampled_peak_private_bytes": 1871712256,
+      "minimum_system_available_bytes": 7841955840
+    },
+    "full_rebuild_price_up25bp": {
+      "wall_seconds": 0.4810256001073867,
+      "process_cpu_seconds": 1.90625,
+      "average_cpu_cores": 3.962886797655756,
+      "before": {
+        "rss_bytes": 263483392,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1876971520,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7843020800,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 286576640,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1899876352,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7816945664,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 291287040,
+      "sampled_peak_private_bytes": 1905344512,
+      "minimum_system_available_bytes": 7812067328
+    },
+    "full_rebuild_price_down25bp": {
+      "wall_seconds": 0.49316659988835454,
+      "process_cpu_seconds": 1.953125,
+      "average_cpu_cores": 3.960375662995341,
+      "before": {
+        "rss_bytes": 292139008,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1905385472,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7811854336,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 316923904,
+        "peak_rss_process_bytes": 325644288,
+        "private_bytes": 1930141696,
+        "peak_commit_process_bytes": 1938571264,
+        "system_available_bytes": 7794765824,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 320237568,
+      "sampled_peak_private_bytes": 1934675968,
+      "minimum_system_available_bytes": 7786487808
+    },
+    "full_python_rebuild_and_solve": {
+      "wall_seconds": 2.299425099976361,
+      "process_cpu_seconds": 9.078125,
+      "average_cpu_cores": 3.9479976973780655,
+      "before": {
+        "rss_bytes": 225247232,
+        "peak_rss_process_bytes": 322613248,
+        "private_bytes": 1839779840,
+        "peak_commit_process_bytes": 1933283328,
+        "system_available_bytes": 7877091328,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 224636928,
+        "peak_rss_process_bytes": 333594624,
+        "private_bytes": 1839943680,
+        "peak_commit_process_bytes": 1946726400,
+        "system_available_bytes": 7885742080,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 328753152,
+      "sampled_peak_private_bytes": 1941815296,
+      "minimum_system_available_bytes": 7776862208
+    },
+    "full_key_rate_analytics_base_market": {
+      "wall_seconds": 2.5526699000038207,
+      "process_cpu_seconds": 10.21875,
+      "average_cpu_cores": 4.003161552531608,
+      "before": {
+        "rss_bytes": 225091584,
+        "peak_rss_process_bytes": 333594624,
+        "private_bytes": 1840336896,
+        "peak_commit_process_bytes": 1946726400,
+        "system_available_bytes": 7877947392,
+        "system_total_bytes": 33979514880
+      },
+      "after": {
+        "rss_bytes": 414699520,
+        "peak_rss_process_bytes": 467894272,
+        "private_bytes": 2028355584,
+        "peak_commit_process_bytes": 2082439168,
+        "system_available_bytes": 7680811008,
+        "system_total_bytes": 33979514880
+      },
+      "sampled_peak_rss_bytes": 460034048,
+      "sampled_peak_private_bytes": 2074423296,
+      "minimum_system_available_bytes": 7643832320
+    }
+  },
+  "fixture": {
+    "mbs": {
+      "positions": 120,
+      "distinct_economic_contracts": 120,
+      "notional": 6254690000.0,
+      "varied_field": "wac",
+      "terms_fingerprint": "d7c4268b8329337c616d56ced6e1c379ab77e9b4b68da8edfdbf9a566753861b"
+    },
+    "loans": {
+      "positions": 90,
+      "distinct_economic_contracts": 90,
+      "notional": 7342789999.999998,
+      "varied_field": "coupon_or_spread",
+      "terms_fingerprint": "ef0ca2de6d75c7649cdd1858dcbf055b60a88ca75e79d73b684357e6b4fa80e1"
+    },
+    "debt": {
+      "positions": 25,
+      "distinct_economic_contracts": 25,
+      "notional": 1839409999.9999995,
+      "varied_field": "coupon_or_spread",
+      "terms_fingerprint": "46cf6895f113fd46e4e844f7935753b61cc4e822bd8e4705836f950feed925de"
+    },
+    "deposits": {
+      "positions": 100,
+      "distinct_economic_contracts": 100,
+      "notional": 11469624668.112959,
+      "varied_field": "avg_account_size",
+      "terms_fingerprint": "2b8796f2bf1fb21d59f251d617f4d33543865a9252d2063ab35622add3cba174"
+    },
+    "cds": {
+      "positions": 40,
+      "distinct_economic_contracts": 40,
+      "notional": 1000000000.0,
+      "varied_field": "rate",
+      "terms_fingerprint": "b68b7d5761893426c6776fcbcc71257f075fa7b79be89279aa588fb9082f63ee"
+    }
+  },
+  "scope": {
+    "core_positions": 375,
+    "money_market_rows": 6,
+    "swap_rows": 3,
+    "swaption_rows": 2,
+    "scenarios": [
+      "base",
+      "up25bp",
+      "down25bp"
+    ],
+    "units_per_scenario": 35,
+    "horizon_months": 27,
+    "synthetic": true,
+    "notional_policy": "Preserve seed book balances; subdivide and vary economic terms",
+    "decision_metrics": "Spot/OAS, parallel DV01, NII/runoff, EVE/LCR/NSFR/CET1, robust LP, allocation replay",
+    "excluded": "Nonlinear forward stress, vega, forecast-conditioned NII, dynamic reinvestment, API/network/UI",
+    "initialization": "Empty pricing cache; existing Numba disk compilation caches may be warm"
+  },
+  "source_sha256": {
+    "packages\\portfolio-risk\\src\\portfolio_risk\\demo.py": "2409f46cbd9b3470821aa7c24766543bdcb45524cbfc5d5293d16951839a4ac9",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\__init__.py": "0f2f6ee8cd02caedb357f9ccd81fe031d6d61f54675a7cf0fb0662caa83fe1f6",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\__main__.py": "544b8528c7d0d3d034dd01f5046332351f755a1062ac7a309bb4700fad841d63",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\accounting.py": "06719be79cdaf369133b4b4ce037e6b34e359c5aee2540848b2283f0ab04e87a",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\calibration.py": "4f5ce4bb39afb5ce2f9205c9b5446772eaee78743acb2aae71a880b78ad1948f",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\forecast.py": "8aa5b5fc5b9d94d732f7d012bcf62459fa3ee99a30d84e1d9f592d4a27e0dc7d",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\incremental.py": "ef5ef99c23020cdde1f9c6caf18893d20c15a15524d54cdb45a4bae476c83b16",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\kpis.py": "43237ba5d4c453d96ff7f8085be31f6f2121b1356cb6d7cf467b52b6537f53a2",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\risk.py": "77b367a6d6e1a10d2e7eef616f69898ab44a0d1ec6c1fad25601c67c4507d845",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\stress.py": "4de362dd6a5d98a2b7fca28698a5a8a6e7f7f5ec25efe39eb4423dd33689e3d1",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\whatif.py": "8a4a74c1b2d1adae37208b3a31e1c9b1de51dfb647509cede368266b5dc34053",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\analytics\\__init__.py": "51fd6f03e11b833f19b1277ef4e236baf18a637bd559d39f9ac072383af8a15c",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\batch.py": "b742e3593fcdf729d6545770841bfac592c2cd1813228cc4d63507a6219f4830",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\config.py": "52ca18571d57235c00ccea13e9857f96c9bee7491372523b06aee16b9fa13368",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\conventions.py": "678993d0ef5ff3c63e2848e081556f637c104556b048320e459eb77586e48897",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\curve.py": "5c4d65b507b77e3a57af504572a352195e7d8717294e2578999e6295382b793c",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\dependency.py": "2018f6248927a2cd6ae5069d6935a2c223b2b5f0d1075751c04d1442dd930dcb",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\interfaces.py": "0f9202dc51d5eed24a893817d77e9dcfa8d174d2ff51c80246c060cbe06520e3",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\kernels.py": "3f48ca8f33afeaf2d46c59eb344ad73c6170a8c4b66cab532a6f595d7bcbaedb",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\lmm.py": "dda712be80b4f6efed7eedbc66d94fbe69c70df3c5c0067a24dd2df31b9feb24",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\native.py": "8b6abe87376e535428419112fdb9c06322a6b1bce98048cdcb57022692f92678",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\pricing.py": "e011dd94906acd0fcbe74f95e9a98f33018ade3d045aff3d54fc64eb437becba",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\runtime.py": "3e608acd50ef80800d5d9444cc84a92f19998957902c356de6b4dd83e6221b19",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\scenarios.py": "45ed3d21e3a681fb52b7609072aae18ff1b355731ff56a2ba6ef64fa26c0b4c4",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\vol.py": "190ad66d14a2492d85fbc61ed475b54560a38151fd1f4497a71f96883ac940ed",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\core\\__init__.py": "bc5872335b5028969fab0e0a6c678e4fe24b79c3f9dc5b4b57f4d77b057413f4",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\models\\models.py": "a8a9ffdbe75b0044007b82aa8196e4da0473674711ff61f724d94ac6886a10af",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\models\\prepay.py": "9901230a545a4e74a36d68a2b5603813c0b255c9e85be2abe05a7f00fdac7ba0",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\models\\__init__.py": "8f3c87c18a5e2458e3cba05f0e3969761c498f55d6de88c91ae76713b9d7642f",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\cds.py": "d0db0562d3652055ea3237933b1d087312ea07b744096a21fb253fe925cd64f8",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\corp.py": "1f6f67db5dd1f9007fa7013eb081daa2a47aeba65ff4f9a1bc6e4a90e95d9276",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\deposits.py": "0e6fe01245ca958d2128e5572a1ac9663b46f62d421855a80bd6e49c87bf0f6a",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\hedges.py": "8cf1e912ae6c7a4fca18d03f7b76c3808f89f706551e41e7686ef946bb1c0350",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\mm.py": "e1f116408a11a1cce36c569b77a6f083095ce0fb17b0601bbc43c7145197eaf0",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\products\\__init__.py": "7e8e6fdc025300ecf5c34b99f49a9750fac0459d0ad8c7c37db53ecaaf8d0ac0",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\strategy\\decision.py": "ea34b6be9aa0669139e59b0733ff6598a2420216a5b3304a3c36e1c8ef528f49",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\strategy\\optimizer.py": "cbfb713169cfc8fecb640406f9c2f0048380e2866e4b09fe72b64a2909446bc7",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\strategy\\strategies.py": "8e7a8d0bedf490c4ddb7839c6182629b61e8a1c0c10914b35d7f26ebc2077b84",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\strategy\\unitlib.py": "bc0e0f9825bbb8aadd91b3fcd028feedf5ccc7f5d0474b486a6ee4a36cfb840a",
+    "packages\\portfolio-risk\\src\\portfolio_risk\\strategy\\__init__.py": "afd2a532f39007aad235c8551dae589ceb9393d96dad98fe17b756fc3293bd5b"
+  },
+  "pricing_calls": [
+    {
+      "positions": 375,
+      "wall_seconds": 0.6833134000189602,
+      "graph": {
+        "cashflows:mbs": {
+          "reused": 240,
+          "computed": 360,
+          "batches": 3
+        },
+        "mortgage_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "market_fit": {
+          "reused": 5,
+          "computed": 1,
+          "batches": 1
+        },
+        "mortgage_fit": {
+          "reused": 2,
+          "computed": 1,
+          "batches": 1
+        },
+        "calibration:mbs": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 1
+        },
+        "marks:mbs": {
+          "reused": 0,
+          "computed": 360,
+          "batches": 3
+        },
+        "income:mbs": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 1
+        },
+        "cashflows:loans": {
+          "reused": 180,
+          "computed": 270,
+          "batches": 3
+        },
+        "rate_paths": {
+          "reused": 11,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 0,
+          "computed": 90,
+          "batches": 1
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 270,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 90,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 50,
+          "computed": 75,
+          "batches": 3
+        },
+        "calibration:debt": {
+          "reused": 0,
+          "computed": 25,
+          "batches": 1
+        },
+        "marks:debt": {
+          "reused": 0,
+          "computed": 75,
+          "batches": 3
+        },
+        "income:debt": {
+          "reused": 0,
+          "computed": 25,
+          "batches": 1
+        },
+        "cashflows:deposits": {
+          "reused": 200,
+          "computed": 300,
+          "batches": 3
+        },
+        "deposit_fit": {
+          "reused": 2,
+          "computed": 1,
+          "batches": 1
+        },
+        "deposit_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:deposits": {
+          "reused": 0,
+          "computed": 100,
+          "batches": 1
+        },
+        "marks:deposits": {
+          "reused": 0,
+          "computed": 300,
+          "batches": 3
+        },
+        "income:deposits": {
+          "reused": 0,
+          "computed": 100,
+          "batches": 1
+        },
+        "cashflows:cds": {
+          "reused": 120,
+          "computed": 120,
+          "batches": 3
+        },
+        "calibration:cds": {
+          "reused": 0,
+          "computed": 40,
+          "batches": 1
+        },
+        "marks:cds": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 3
+        },
+        "income:cds": {
+          "reused": 0,
+          "computed": 40,
+          "batches": 1
+        },
+        "auxiliary": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      "cache": {
+        "entries": 3013,
+        "bytes": 24983745,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "positions": 375,
+      "wall_seconds": 0.4671298998873681,
+      "graph": {
+        "cashflows:mbs": {
+          "reused": 360,
+          "computed": 360,
+          "batches": 3
+        },
+        "calibration:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "mortgage_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "market_fit": {
+          "reused": 5,
+          "computed": 1,
+          "batches": 1
+        },
+        "mortgage_fit": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:mbs": {
+          "reused": 0,
+          "computed": 360,
+          "batches": 3
+        },
+        "income:mbs": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 1
+        },
+        "cashflows:loans": {
+          "reused": 270,
+          "computed": 270,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 90,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 11,
+          "computed": 3,
+          "batches": 3
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 270,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 90,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 75,
+          "computed": 75,
+          "batches": 3
+        },
+        "calibration:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:debt": {
+          "reused": 0,
+          "computed": 75,
+          "batches": 3
+        },
+        "income:debt": {
+          "reused": 0,
+          "computed": 25,
+          "batches": 1
+        },
+        "cashflows:deposits": {
+          "reused": 300,
+          "computed": 300,
+          "batches": 3
+        },
+        "calibration:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "deposit_fit": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "deposit_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "marks:deposits": {
+          "reused": 0,
+          "computed": 300,
+          "batches": 3
+        },
+        "income:deposits": {
+          "reused": 0,
+          "computed": 100,
+          "batches": 1
+        },
+        "cashflows:cds": {
+          "reused": 120,
+          "computed": 120,
+          "batches": 3
+        },
+        "calibration:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:cds": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 3
+        },
+        "income:cds": {
+          "reused": 0,
+          "computed": 40,
+          "batches": 1
+        },
+        "auxiliary": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      "cache": {
+        "entries": 5649,
+        "bytes": 49826550,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "positions": 375,
+      "wall_seconds": 0.48621660005301237,
+      "graph": {
+        "cashflows:mbs": {
+          "reused": 360,
+          "computed": 360,
+          "batches": 3
+        },
+        "calibration:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "mortgage_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "market_fit": {
+          "reused": 5,
+          "computed": 1,
+          "batches": 1
+        },
+        "mortgage_fit": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:mbs": {
+          "reused": 0,
+          "computed": 360,
+          "batches": 3
+        },
+        "income:mbs": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 1
+        },
+        "cashflows:loans": {
+          "reused": 270,
+          "computed": 270,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 90,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 11,
+          "computed": 3,
+          "batches": 3
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 270,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 90,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 75,
+          "computed": 75,
+          "batches": 3
+        },
+        "calibration:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:debt": {
+          "reused": 0,
+          "computed": 75,
+          "batches": 3
+        },
+        "income:debt": {
+          "reused": 0,
+          "computed": 25,
+          "batches": 1
+        },
+        "cashflows:deposits": {
+          "reused": 300,
+          "computed": 300,
+          "batches": 3
+        },
+        "calibration:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "deposit_fit": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "deposit_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "marks:deposits": {
+          "reused": 0,
+          "computed": 300,
+          "batches": 3
+        },
+        "income:deposits": {
+          "reused": 0,
+          "computed": 100,
+          "batches": 1
+        },
+        "cashflows:cds": {
+          "reused": 120,
+          "computed": 120,
+          "batches": 3
+        },
+        "calibration:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:cds": {
+          "reused": 0,
+          "computed": 120,
+          "batches": 3
+        },
+        "income:cds": {
+          "reused": 0,
+          "computed": 40,
+          "batches": 1
+        },
+        "auxiliary": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      "cache": {
+        "entries": 8285,
+        "bytes": 74669355,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    }
+  ],
+  "initial_book_totals": {
+    "mbs": 5810413284.490308,
+    "loans": 7313699731.20189,
+    "debt": 1840645782.1997728,
+    "deposits": 11067131794.59436,
+    "cds": 995715442.4667588
+  },
+  "initial_kpis": {
+    "eve": {
+      "eve_$": 1803129996.431303,
+      "mv_assets_$": 18909623015.692196,
+      "mv_liabilities_$": 17106493019.260893,
+      "irrbb_outlier": false,
+      "irrbb_worst_pct_eve": 12.456578323170273,
+      "dv01_net_$": 1123041.501370213,
+      "dur_assets_y": 1.826910475910603,
+      "dur_liab_y": 1.362977984028288,
+      "duration_gap_y": 0.5938994661280417,
+      "eve_duration_y": 6.228289161585136,
+      "hedge_dv01_$": -1330990.6728576783,
+      "sensitivity": [
+        {
+          "shock_bp": -200,
+          "d_eve_$": 224608300.2740426,
+          "d_eve_pct_eve": 12.456578323170273,
+          "method": "first-order (parallel dv01); convexity in 9Q stress"
+        },
+        {
+          "shock_bp": -100,
+          "d_eve_$": 112304150.1370213,
+          "d_eve_pct_eve": 6.228289161585137,
+          "method": "first-order (parallel dv01); convexity in 9Q stress"
+        },
+        {
+          "shock_bp": 100,
+          "d_eve_$": -112304150.1370213,
+          "d_eve_pct_eve": -6.228289161585137,
+          "method": "first-order (parallel dv01); convexity in 9Q stress"
+        },
+        {
+          "shock_bp": 200,
+          "d_eve_$": -224608300.2740426,
+          "d_eve_pct_eve": -12.456578323170273,
+          "method": "first-order (parallel dv01); convexity in 9Q stress"
+        }
+      ]
+    },
+    "dv01s": {
+      "mbs": 3924672.6762489066,
+      "loans": 860936.8348976042,
+      "debt": 1543810.4600370915,
+      "deposits": 617639.4086167511,
+      "cds": 170127.46826477657,
+      "mm": 0.0,
+      "hedges": -1330990.6728576783
+    },
+    "lcr": {
+      "hqla_l2a_uncapped_$": 3331639395.192176,
+      "hqla_l1_$": 1412410000.0,
+      "hqla_l2a_$": 941606666.6666667,
+      "hqla_$": 2354016666.666667,
+      "outflows_$": 2228865089.536112,
+      "inflows_capped_$": 1077995000.0,
+      "net_outflows_$": 1150870089.5361118,
+      "lcr_pct": 204.54234479371297
+    },
+    "nsfr": {
+      "asf_$": 15296888271.371456,
+      "rsf_$": 9490305754.132158,
+      "nsfr_pct": 161.18435662318956
+    },
+    "capital": {
+      "rwa_credit_$": 9952855913.228512,
+      "rwa_addon_$": 1317279400.0091648,
+      "rwa_total_$": 11270135313.237677,
+      "rwa_density_pct": 59.599999999999994,
+      "cet1_t0_$": 1160823937.2634807,
+      "cet1_path": [
+        {
+          "quarter": 0,
+          "cet1_$": 1160823937.2634807,
+          "cet1_ratio_pct": 10.299999999999999,
+          "drivers": "t0"
+        },
+        {
+          "quarter": 1,
+          "cet1_$": 1191477071.7631483,
+          "cet1_ratio_pct": 10.571985505477144,
+          "drivers": "retained 31M"
+        },
+        {
+          "quarter": 2,
+          "cet1_$": 1223565845.7637966,
+          "cet1_ratio_pct": 10.85670945163028,
+          "drivers": "retained 32M"
+        },
+        {
+          "quarter": 3,
+          "cet1_$": 1260097251.410414,
+          "cet1_ratio_pct": 11.180852903605592,
+          "drivers": "retained 37M"
+        },
+        {
+          "quarter": 4,
+          "cet1_$": 1292508761.9045272,
+          "cet1_ratio_pct": 11.468440493224355,
+          "drivers": "retained 32M"
+        },
+        {
+          "quarter": 5,
+          "cet1_$": 1325837347.1234503,
+          "cet1_ratio_pct": 11.764165294148226,
+          "drivers": "retained 33M"
+        },
+        {
+          "quarter": 6,
+          "cet1_$": 1359683591.0279045,
+          "cet1_ratio_pct": 12.06448328469355,
+          "drivers": "retained 34M"
+        },
+        {
+          "quarter": 7,
+          "cet1_$": 1392531980.344001,
+          "cet1_ratio_pct": 12.355947303563966,
+          "drivers": "retained 33M"
+        },
+        {
+          "quarter": 8,
+          "cet1_$": 1426011548.373654,
+          "cet1_ratio_pct": 12.65301177616465,
+          "drivers": "retained 33M"
+        },
+        {
+          "quarter": 9,
+          "cet1_$": 1456682348.5515943,
+          "cet1_ratio_pct": 12.925154029345187,
+          "drivers": "retained 31M"
+        }
+      ],
+      "cfh_aoci_note": "cash-flow-hedge AOCI is EXCLUDED from CET1 (12 CFR 217.22(b)); AFS AOCI flows through for Category I/II -- pass only AFS marks via stress_aoci_q",
+      "note": "retained earnings = NII x NI_TO_NII (0.43, filing-calibrated net effect of provisions/opex/fees) x (1-payout); RWA static -- a capital-plan skeleton, not PPNR"
+    },
+    "scope": [
+      "mbs",
+      "loans",
+      "debt",
+      "deposits",
+      "cds"
+    ],
+    "includes_auxiliary": true
+  },
+  "initial_nii": 1250986939.9074566,
+  "base_repricing_max_error_price_points": {
+    "mbs": 9.656518784595391e-07,
+    "loans": 3.2331121246897965e-07,
+    "debt": 9.238740403816337e-07,
+    "deposits": 6.674693651120833e-07,
+    "cds": 7.820730161256506e-07
+  },
+  "initial_objective_$": 1455586527.4420555,
+  "native_identity": "decision-abi-v1:aee422bbf744f2bbb13e1891c75a5c93e0b3749bfc544ef010b70dafac9d31c2",
+  "initial_native_request_bytes": 329533,
+  "solver": {
+    "backend": "Rust-owned HiGHS (C++)",
+    "changed_matrix_entries": 0,
+    "model_reused": false,
+    "simplex_iterations": 35
+  },
+  "initial_cache": {
+    "entries": 8285,
+    "bytes": 74669355,
+    "max_bytes": 536870912,
+    "max_entries": 500000
+  },
+  "initial_bases": [
+    {
+      "eve": {
+        "eve_$": 1803129996.431303,
+        "mv_assets_$": 18909623015.692196,
+        "mv_liabilities_$": 17106493019.260893,
+        "irrbb_outlier": false,
+        "irrbb_worst_pct_eve": 12.456578323170273,
+        "dv01_net_$": 1123041.501370213,
+        "dur_assets_y": 1.826910475910603,
+        "dur_liab_y": 1.362977984028288,
+        "duration_gap_y": 0.5938994661280417,
+        "eve_duration_y": 6.228289161585136,
+        "hedge_dv01_$": -1330990.6728576783,
+        "sensitivity": [
+          {
+            "shock_bp": -200,
+            "d_eve_$": 224608300.2740426,
+            "d_eve_pct_eve": 12.456578323170273,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": -100,
+            "d_eve_$": 112304150.1370213,
+            "d_eve_pct_eve": 6.228289161585137,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 100,
+            "d_eve_$": -112304150.1370213,
+            "d_eve_pct_eve": -6.228289161585137,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 200,
+            "d_eve_$": -224608300.2740426,
+            "d_eve_pct_eve": -12.456578323170273,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          }
+        ]
+      },
+      "dv01s": {
+        "mbs": 3924672.6762489066,
+        "loans": 860936.8348976042,
+        "debt": 1543810.4600370915,
+        "deposits": 617639.4086167511,
+        "cds": 170127.46826477657,
+        "mm": 0.0,
+        "hedges": -1330990.6728576783
+      },
+      "lcr": {
+        "hqla_l2a_uncapped_$": 3331639395.192176,
+        "hqla_l1_$": 1412410000.0,
+        "hqla_l2a_$": 941606666.6666667,
+        "hqla_$": 2354016666.666667,
+        "outflows_$": 2228865089.536112,
+        "inflows_capped_$": 1077995000.0,
+        "net_outflows_$": 1150870089.5361118,
+        "lcr_pct": 204.54234479371297
+      },
+      "nsfr": {
+        "asf_$": 15296888271.371456,
+        "rsf_$": 9490305754.132158,
+        "nsfr_pct": 161.18435662318956
+      },
+      "capital": {
+        "rwa_credit_$": 9952855913.228512,
+        "rwa_addon_$": 1317279400.0091648,
+        "rwa_total_$": 11270135313.237677,
+        "rwa_density_pct": 59.599999999999994,
+        "cet1_t0_$": 1160823937.2634807,
+        "cet1_path": [
+          {
+            "quarter": 0,
+            "cet1_$": 1160823937.2634807,
+            "cet1_ratio_pct": 10.299999999999999,
+            "drivers": "t0"
+          },
+          {
+            "quarter": 1,
+            "cet1_$": 1191477071.7631483,
+            "cet1_ratio_pct": 10.571985505477144,
+            "drivers": "retained 31M"
+          },
+          {
+            "quarter": 2,
+            "cet1_$": 1223565845.7637966,
+            "cet1_ratio_pct": 10.85670945163028,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 3,
+            "cet1_$": 1260097251.410414,
+            "cet1_ratio_pct": 11.180852903605592,
+            "drivers": "retained 37M"
+          },
+          {
+            "quarter": 4,
+            "cet1_$": 1292508761.9045272,
+            "cet1_ratio_pct": 11.468440493224355,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 5,
+            "cet1_$": 1325837347.1234503,
+            "cet1_ratio_pct": 11.764165294148226,
+            "drivers": "retained 33M"
+          },
+          {
+            "quarter": 6,
+            "cet1_$": 1359683591.0279045,
+            "cet1_ratio_pct": 12.06448328469355,
+            "drivers": "retained 34M"
+          },
+          {
+            "quarter": 7,
+            "cet1_$": 1392531980.344001,
+            "cet1_ratio_pct": 12.355947303563966,
+            "drivers": "retained 33M"
+          },
+          {
+            "quarter": 8,
+            "cet1_$": 1426011548.373654,
+            "cet1_ratio_pct": 12.65301177616465,
+            "drivers": "retained 33M"
+          },
+          {
+            "quarter": 9,
+            "cet1_$": 1456682348.5515943,
+            "cet1_ratio_pct": 12.925154029345187,
+            "drivers": "retained 31M"
+          }
+        ],
+        "cfh_aoci_note": "cash-flow-hedge AOCI is EXCLUDED from CET1 (12 CFR 217.22(b)); AFS AOCI flows through for Category I/II -- pass only AFS marks via stress_aoci_q",
+        "note": "retained earnings = NII x NI_TO_NII (0.43, filing-calibrated net effect of provisions/opex/fees) x (1-payout); RWA static -- a capital-plan skeleton, not PPNR"
+      },
+      "scope": [
+        "mbs",
+        "loans",
+        "debt",
+        "deposits",
+        "cds"
+      ],
+      "includes_auxiliary": true,
+      "nii_total_$": 1250986939.9074566
+    },
+    {
+      "eve": {
+        "eve_$": 1743197283.5939808,
+        "mv_assets_$": 18786050554.904484,
+        "mv_liabilities_$": 17042853271.310503,
+        "irrbb_outlier": false,
+        "irrbb_worst_pct_eve": 13.283817554999947,
+        "dv01_net_$": 1157815.733881697,
+        "dur_assets_y": 1.8343006525782688,
+        "dur_liab_y": 1.3425631899284223,
+        "duration_gap_y": 0.6163167348548548,
+        "eve_duration_y": 6.641908777499973,
+        "hedge_dv01_$": -1344928.014696776,
+        "sensitivity": [
+          {
+            "shock_bp": -200,
+            "d_eve_$": 231563146.7763394,
+            "d_eve_pct_eve": 13.283817554999947,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": -100,
+            "d_eve_$": 115781573.3881697,
+            "d_eve_pct_eve": 6.641908777499974,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 100,
+            "d_eve_$": -115781573.3881697,
+            "d_eve_pct_eve": -6.641908777499974,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 200,
+            "d_eve_$": -231563146.7763394,
+            "d_eve_pct_eve": -13.283817554999947,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          }
+        ]
+      },
+      "dv01s": {
+        "mbs": 3939276.7530061603,
+        "loans": 851577.7409135803,
+        "debt": 1489425.7030016268,
+        "deposits": 633836.175543913,
+        "cds": 164848.8667957274,
+        "mm": 0.0,
+        "hedges": -1344928.014696776
+      },
+      "lcr": {
+        "hqla_l2a_uncapped_$": 3273923620.1784706,
+        "hqla_l1_$": 1412410000.0,
+        "hqla_l2a_$": 941606666.6666667,
+        "hqla_$": 2354016666.666667,
+        "outflows_$": 2228865089.536112,
+        "inflows_capped_$": 1077995000.0,
+        "net_outflows_$": 1150870089.5361118,
+        "lcr_pct": 204.54234479371297
+      },
+      "nsfr": {
+        "asf_$": 15296888271.371456,
+        "rsf_$": 9490305754.132158,
+        "nsfr_pct": 161.18435662318956
+      },
+      "capital": {
+        "rwa_credit_$": 9952855913.228512,
+        "rwa_addon_$": 1317279400.0091648,
+        "rwa_total_$": 11270135313.237677,
+        "rwa_density_pct": 59.599999999999994,
+        "cet1_t0_$": 1160823937.2634807,
+        "cet1_path": [
+          {
+            "quarter": 0,
+            "cet1_$": 1160823937.2634807,
+            "cet1_ratio_pct": 10.299999999999999,
+            "drivers": "t0"
+          },
+          {
+            "quarter": 1,
+            "cet1_$": 1192461891.576593,
+            "cet1_ratio_pct": 10.580723819490888,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 2,
+            "cet1_$": 1225762241.9132762,
+            "cet1_ratio_pct": 10.876198092080761,
+            "drivers": "retained 33M"
+          },
+          {
+            "quarter": 3,
+            "cet1_$": 1263755599.1780972,
+            "cet1_ratio_pct": 11.213313452356823,
+            "drivers": "retained 38M"
+          },
+          {
+            "quarter": 4,
+            "cet1_$": 1297354808.979589,
+            "cet1_ratio_pct": 11.511439507347724,
+            "drivers": "retained 34M"
+          },
+          {
+            "quarter": 5,
+            "cet1_$": 1332014211.080192,
+            "cet1_ratio_pct": 11.81897265701535,
+            "drivers": "retained 35M"
+          },
+          {
+            "quarter": 6,
+            "cet1_$": 1367203756.137021,
+            "cet1_ratio_pct": 12.131209769337293,
+            "drivers": "retained 35M"
+          },
+          {
+            "quarter": 7,
+            "cet1_$": 1401387853.44465,
+            "cet1_ratio_pct": 12.434525535807966,
+            "drivers": "retained 34M"
+          },
+          {
+            "quarter": 8,
+            "cet1_$": 1436132879.930658,
+            "cet1_ratio_pct": 12.742818431326242,
+            "drivers": "retained 35M"
+          },
+          {
+            "quarter": 9,
+            "cet1_$": 1468128272.819037,
+            "cet1_ratio_pct": 13.026713806129752,
+            "drivers": "retained 32M"
+          }
+        ],
+        "cfh_aoci_note": "cash-flow-hedge AOCI is EXCLUDED from CET1 (12 CFR 217.22(b)); AFS AOCI flows through for Category I/II -- pass only AFS marks via stress_aoci_q",
+        "note": "retained earnings = NII x NI_TO_NII (0.43, filing-calibrated net effect of provisions/opex/fees) x (1-payout); RWA static -- a capital-plan skeleton, not PPNR"
+      },
+      "scope": [
+        "mbs",
+        "loans",
+        "debt",
+        "deposits",
+        "cds"
+      ],
+      "includes_auxiliary": true,
+      "nii_total_$": 1299384082.687342
+    },
+    {
+      "eve": {
+        "eve_$": 1861612976.0562744,
+        "mv_assets_$": 19033406859.022606,
+        "mv_liabilities_$": 17171793882.966331,
+        "irrbb_outlier": false,
+        "irrbb_worst_pct_eve": 10.82949050836783,
+        "dv01_net_$": 1008016.0027227905,
+        "dur_assets_y": 1.783020311488497,
+        "dur_liab_y": 1.3893010341161138,
+        "duration_gap_y": 0.5296035597772921,
+        "eve_duration_y": 5.414745254183915,
+        "hedge_dv01_$": -1311397.5737286105,
+        "sensitivity": [
+          {
+            "shock_bp": -200,
+            "d_eve_$": 201603200.5445581,
+            "d_eve_pct_eve": 10.82949050836783,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": -100,
+            "d_eve_$": 100801600.27227905,
+            "d_eve_pct_eve": 5.414745254183915,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 100,
+            "d_eve_$": -100801600.27227905,
+            "d_eve_pct_eve": -5.414745254183915,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          },
+          {
+            "shock_bp": 200,
+            "d_eve_$": -201603200.5445581,
+            "d_eve_pct_eve": -10.82949050836783,
+            "method": "first-order (parallel dv01); convexity in 9Q stress"
+          }
+        ]
+      },
+      "dv01s": {
+        "mbs": 3834653.151088792,
+        "loans": 870439.525285997,
+        "debt": 1600556.4737965574,
+        "deposits": 613471.4426120108,
+        "cds": 171651.18351482012,
+        "mm": 0.0,
+        "hedges": -1311397.5737286105
+      },
+      "lcr": {
+        "hqla_l2a_uncapped_$": 3389476859.725947,
+        "hqla_l1_$": 1412410000.0,
+        "hqla_l2a_$": 941606666.6666667,
+        "hqla_$": 2354016666.666667,
+        "outflows_$": 2228865089.536112,
+        "inflows_capped_$": 1077995000.0,
+        "net_outflows_$": 1150870089.5361118,
+        "lcr_pct": 204.54234479371297
+      },
+      "nsfr": {
+        "asf_$": 15296888271.371456,
+        "rsf_$": 9490305754.132158,
+        "nsfr_pct": 161.18435662318956
+      },
+      "capital": {
+        "rwa_credit_$": 9952855913.228512,
+        "rwa_addon_$": 1317279400.0091648,
+        "rwa_total_$": 11270135313.237677,
+        "rwa_density_pct": 59.599999999999994,
+        "cet1_t0_$": 1160823937.2634807,
+        "cet1_path": [
+          {
+            "quarter": 0,
+            "cet1_$": 1160823937.2634807,
+            "cet1_ratio_pct": 10.299999999999999,
+            "drivers": "t0"
+          },
+          {
+            "quarter": 1,
+            "cet1_$": 1190486031.4130285,
+            "cet1_ratio_pct": 10.563191996592156,
+            "drivers": "retained 30M"
+          },
+          {
+            "quarter": 2,
+            "cet1_$": 1221325234.0257168,
+            "cet1_ratio_pct": 10.836828485911544,
+            "drivers": "retained 31M"
+          },
+          {
+            "quarter": 3,
+            "cet1_$": 1256317464.670718,
+            "cet1_ratio_pct": 11.147314825892751,
+            "drivers": "retained 35M"
+          },
+          {
+            "quarter": 4,
+            "cet1_$": 1287434975.8017025,
+            "cet1_ratio_pct": 11.423420748901808,
+            "drivers": "retained 31M"
+          },
+          {
+            "quarter": 5,
+            "cet1_$": 1319311843.888295,
+            "cet1_ratio_pct": 11.706264452199235,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 6,
+            "cet1_$": 1351684724.3972905,
+            "cet1_ratio_pct": 11.993509277653734,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 7,
+            "cet1_$": 1383061778.6325908,
+            "cet1_ratio_pct": 12.27191812868541,
+            "drivers": "retained 31M"
+          },
+          {
+            "quarter": 8,
+            "cet1_$": 1415134772.5539038,
+            "cet1_ratio_pct": 12.556502058069476,
+            "drivers": "retained 32M"
+          },
+          {
+            "quarter": 9,
+            "cet1_$": 1444339143.9748738,
+            "cet1_ratio_pct": 12.815632677261485,
+            "drivers": "retained 29M"
+          }
+        ],
+        "cfh_aoci_note": "cash-flow-hedge AOCI is EXCLUDED from CET1 (12 CFR 217.22(b)); AFS AOCI flows through for Category I/II -- pass only AFS marks via stress_aoci_q",
+        "note": "retained earnings = NII x NI_TO_NII (0.43, filing-calibrated net effect of provisions/opex/fees) x (1-payout); RWA static -- a capital-plan skeleton, not PPNR"
+      },
+      "scope": [
+        "mbs",
+        "loans",
+        "debt",
+        "deposits",
+        "cds"
+      ],
+      "includes_auxiliary": true,
+      "nii_total_$": 1198795800.0481737
+    }
+  ],
+  "constraint_update": {
+    "samples_ms": [
+      3.1877998262643814,
+      3.086599987000227,
+      3.00879986025393,
+      3.0288000125437975,
+      3.0425998847931623
+    ],
+    "median_ms": 3.0425998847931623,
+    "max_ms": 3.1877998262643814,
+    "work": {
+      "positions_repriced": 0,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [],
+      "ffi_request_bytes": 329
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 0.21190010011196136,
+      "native_solve": 0.8661998435854912,
+      "validation_and_publication": 1.954900100827217,
+      "total": 3.033099928870797
+    }
+  },
+  "single_mbs_update": {
+    "samples_ms": [
+      26.83630003593862,
+      22.851099958643317,
+      24.02870007790625,
+      25.25809989310801,
+      26.26459999009967
+    ],
+    "median_ms": 25.25809989310801,
+    "max_ms": 26.83630003593862,
+    "work": {
+      "positions_repriced": 1,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:mbs": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:mbs": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "mortgage_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:mbs": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:mbs": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:mbs": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:mbs": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "mortgage_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:mbs": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:mbs": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:mbs": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:mbs": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "mortgage_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:mbs": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:mbs": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 536
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 22.59170007891953,
+      "native_solve": 1.60579988732934,
+      "validation_and_publication": 2.0481999963521957,
+      "total": 26.245800079777837
+    }
+  },
+  "single_loans_update": {
+    "samples_ms": [
+      14.357500011101365,
+      12.136099860072136,
+      11.724099982529879,
+      11.634599883109331,
+      11.810599826276302
+    ],
+    "median_ms": 11.810599826276302,
+    "max_ms": 14.357500011101365,
+    "work": {
+      "positions_repriced": 1,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:loans": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:loans": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:loans": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 525
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 8.453599875792861,
+      "native_solve": 1.412099925801158,
+      "validation_and_publication": 1.9272000063210726,
+      "total": 11.79309980943799
+    }
+  },
+  "single_debt_update": {
+    "samples_ms": [
+      15.08580008521676,
+      13.779999921098351,
+      14.102699933573604,
+      13.459200039505959,
+      15.15819993801415
+    ],
+    "median_ms": 14.102699933573604,
+    "max_ms": 15.15819993801415,
+    "work": {
+      "positions_repriced": 1,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:debt": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:debt": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:debt": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:debt": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:debt": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:debt": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:debt": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:debt": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:debt": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:debt": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:debt": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:debt": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 494
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 11.926800012588501,
+      "native_solve": 1.2879001442342997,
+      "validation_and_publication": 1.9191999454051256,
+      "total": 15.134000219404697
+    }
+  },
+  "single_deposits_update": {
+    "samples_ms": [
+      16.929700039327145,
+      14.821200165897608,
+      16.03369996882975,
+      17.082899808883667,
+      19.241000059992075
+    ],
+    "median_ms": 16.929700039327145,
+    "max_ms": 19.241000059992075,
+    "work": {
+      "positions_repriced": 1,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:deposits": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:deposits": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_fit": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:deposits": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:deposits": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:deposits": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:deposits": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_fit": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:deposits": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:deposits": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:deposits": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:deposits": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_fit": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "deposit_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:deposits": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:deposits": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 483
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 16.017999965697527,
+      "native_solve": 1.3025999069213867,
+      "validation_and_publication": 1.9048000685870647,
+      "total": 19.225599942728877
+    }
+  },
+  "single_cds_update": {
+    "samples_ms": [
+      13.71530001051724,
+      12.305199867114425,
+      11.661599855870008,
+      12.754200026392937,
+      11.844000080600381
+    ],
+    "median_ms": 12.305199867114425,
+    "max_ms": 13.71530001051724,
+    "work": {
+      "positions_repriced": 1,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:cds": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:cds": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:cds": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:cds": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:cds": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:cds": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:cds": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:cds": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:cds": {
+            "reused": 3,
+            "computed": 3,
+            "batches": 3
+          },
+          "calibration:cds": {
+            "reused": 1,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:cds": {
+            "reused": 0,
+            "computed": 3,
+            "batches": 3
+          },
+          "income:cds": {
+            "reused": 0,
+            "computed": 1,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 483
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 8.44949996098876,
+      "native_solve": 1.3888999819755554,
+      "validation_and_publication": 1.9880000036209822,
+      "total": 11.826500063762069
+    }
+  },
+  "hundred_loan_update": {
+    "samples_ms": [
+      73.17760004661977,
+      75.42739994823933,
+      92.01250015757978
+    ],
+    "median_ms": 75.42739994823933,
+    "max_ms": 92.01250015757978,
+    "work": {
+      "positions_repriced": 90,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [
+        {
+          "cashflows:loans": {
+            "reused": 273,
+            "computed": 267,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 90,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 3,
+            "computed": 267,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 1,
+            "computed": 89,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:loans": {
+            "reused": 273,
+            "computed": 267,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 90,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 3,
+            "computed": 267,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 1,
+            "computed": 89,
+            "batches": 1
+          }
+        },
+        {
+          "cashflows:loans": {
+            "reused": 273,
+            "computed": 267,
+            "batches": 3
+          },
+          "calibration:loans": {
+            "reused": 90,
+            "computed": 0,
+            "batches": 0
+          },
+          "rate_paths": {
+            "reused": 3,
+            "computed": 0,
+            "batches": 0
+          },
+          "marks:loans": {
+            "reused": 3,
+            "computed": 267,
+            "batches": 3
+          },
+          "income:loans": {
+            "reused": 1,
+            "computed": 89,
+            "batches": 1
+          }
+        }
+      ],
+      "ffi_request_bytes": 31113
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 87.25910005159676,
+      "native_solve": 2.254999941214919,
+      "validation_and_publication": 2.2950000129640102,
+      "total": 91.80919989012182
+    }
+  },
+  "template_update": {
+    "samples_ms": [
+      312.1629001107067,
+      301.8062000628561,
+      291.458300082013
+    ],
+    "median_ms": 301.8062000628561,
+    "max_ms": 312.1629001107067,
+    "work": {
+      "positions_repriced": 0,
+      "templates_rebuilt": 1,
+      "total_positions": 375,
+      "pricing_graph": [],
+      "ffi_request_bytes": 24927
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 286.9358998723328,
+      "native_solve": 2.4030001368373632,
+      "validation_and_publication": 2.065500011667609,
+      "total": 291.4044999051839
+    }
+  },
+  "native_allocation_replay": {
+    "samples_ms": [
+      0.24800002574920654,
+      0.20410004071891308,
+      0.202300027012825,
+      0.2017999067902565,
+      0.20950008183717728,
+      0.20670006051659584,
+      0.22479984909296036,
+      0.20739994943141937,
+      0.20579993724822998,
+      0.20700017921626568,
+      0.17650006338953972,
+      0.16910000704228878,
+      0.16499985940754414,
+      0.23280014283955097,
+      0.19509997218847275,
+      0.19459985196590424,
+      0.17819995991885662,
+      0.1730998046696186,
+      0.17030001617968082,
+      0.17240014858543873,
+      0.17230003140866756,
+      0.170599902048707,
+      0.1737999264150858,
+      0.17110002227127552,
+      0.17289980314671993,
+      0.17230003140866756,
+      0.2975000534206629,
+      0.18740002997219563,
+      0.18480001017451286,
+      0.17910008318722248
+    ],
+    "median_ms": 0.18610002007335424,
+    "max_ms": 0.2975000534206629
+  },
+  "python_allocation_replay": {
+    "samples_ms": [
+      0.1818002201616764,
+      0.09609991684556007,
+      0.0950000248849392,
+      0.0950000248849392,
+      0.09530014358460903,
+      0.09619980119168758,
+      0.09380001574754715,
+      0.09410013444721699,
+      0.0955001451075077,
+      0.09749992750585079,
+      0.09680003859102726,
+      0.09449990466237068,
+      0.09480002336204052,
+      0.09400001727044582,
+      0.09510014206171036,
+      0.09400001727044582,
+      0.10409997776150703,
+      0.09580003097653389,
+      0.09350012987852097,
+      0.0950000248849392,
+      0.09449990466237068,
+      0.09409990161657333,
+      0.09409990161657333,
+      0.09540002793073654,
+      0.09769992902874947,
+      0.09389990009367466,
+      0.09540002793073654,
+      0.09520002640783787,
+      0.09360001422464848,
+      0.0937997829169035
+    ],
+    "median_ms": 0.0950000248849392,
+    "max_ms": 0.1818002201616764
+  },
+  "fresh_scipy_same_coefficients": {
+    "samples_ms": [
+      6.294899852946401,
+      5.102300085127354,
+      5.375300068408251,
+      5.316500086337328,
+      4.867000039666891
+    ],
+    "median_ms": 5.316500086337328,
+    "max_ms": 6.294899852946401
+  },
+  "same_coefficients_objective_difference_$": 9.5367431640625e-07,
+  "persistent_native_same_coefficients": {
+    "samples_ms": [
+      3.232700051739812,
+      3.122400026768446,
+      3.0203000642359257,
+      3.0564998742192984,
+      3.0970999505370855
+    ],
+    "median_ms": 3.0970999505370855,
+    "max_ms": 3.232700051739812,
+    "work": {
+      "positions_repriced": 0,
+      "templates_rebuilt": 0,
+      "total_positions": 375,
+      "pricing_graph": [],
+      "ffi_request_bytes": 189
+    },
+    "last_timings_ms": {
+      "pricing_and_coefficients": 0.1821999903768301,
+      "native_solve": 0.9162998758256435,
+      "validation_and_publication": 1.9894000142812729,
+      "total": 3.088099882006645
+    }
+  },
+  "full_rebuild_cache": {
+    "entries": 8285,
+    "bytes": 74669355,
+    "max_bytes": 536870912,
+    "max_entries": 500000
+  },
+  "full_rebuild_objective_difference_$": 0.0,
+  "key_rate_graph": {
+    "cashflows:mbs": {
+      "reused": 240,
+      "computed": 2760,
+      "batches": 23
+    },
+    "mortgage_paths": {
+      "reused": 0,
+      "computed": 23,
+      "batches": 23
+    },
+    "market_fit": {
+      "reused": 45,
+      "computed": 1,
+      "batches": 1
+    },
+    "mortgage_fit": {
+      "reused": 22,
+      "computed": 1,
+      "batches": 1
+    },
+    "calibration:mbs": {
+      "reused": 0,
+      "computed": 120,
+      "batches": 1
+    },
+    "marks:mbs": {
+      "reused": 0,
+      "computed": 2760,
+      "batches": 23
+    },
+    "income:mbs": {
+      "reused": 0,
+      "computed": 120,
+      "batches": 1
+    },
+    "cashflows:loans": {
+      "reused": 180,
+      "computed": 2070,
+      "batches": 23
+    },
+    "rate_paths": {
+      "reused": 91,
+      "computed": 23,
+      "batches": 23
+    },
+    "calibration:loans": {
+      "reused": 0,
+      "computed": 90,
+      "batches": 1
+    },
+    "marks:loans": {
+      "reused": 0,
+      "computed": 2070,
+      "batches": 23
+    },
+    "income:loans": {
+      "reused": 0,
+      "computed": 90,
+      "batches": 1
+    },
+    "cashflows:debt": {
+      "reused": 50,
+      "computed": 575,
+      "batches": 23
+    },
+    "calibration:debt": {
+      "reused": 0,
+      "computed": 25,
+      "batches": 1
+    },
+    "marks:debt": {
+      "reused": 0,
+      "computed": 575,
+      "batches": 23
+    },
+    "income:debt": {
+      "reused": 0,
+      "computed": 25,
+      "batches": 1
+    },
+    "cashflows:deposits": {
+      "reused": 200,
+      "computed": 2300,
+      "batches": 23
+    },
+    "deposit_fit": {
+      "reused": 22,
+      "computed": 1,
+      "batches": 1
+    },
+    "deposit_paths": {
+      "reused": 0,
+      "computed": 23,
+      "batches": 23
+    },
+    "calibration:deposits": {
+      "reused": 0,
+      "computed": 100,
+      "batches": 1
+    },
+    "marks:deposits": {
+      "reused": 0,
+      "computed": 2300,
+      "batches": 23
+    },
+    "income:deposits": {
+      "reused": 0,
+      "computed": 100,
+      "batches": 1
+    },
+    "cashflows:cds": {
+      "reused": 120,
+      "computed": 920,
+      "batches": 23
+    },
+    "calibration:cds": {
+      "reused": 0,
+      "computed": 40,
+      "batches": 1
+    },
+    "marks:cds": {
+      "reused": 0,
+      "computed": 920,
+      "batches": 23
+    },
+    "income:cds": {
+      "reused": 0,
+      "computed": 40,
+      "batches": 1
+    },
+    "auxiliary": {
+      "reused": 0,
+      "computed": 1,
+      "batches": 1
+    }
+  },
+  "key_rate_cache": {
+    "entries": 18073,
+    "bytes": 187089285,
+    "max_bytes": 536870912,
+    "max_entries": 500000
+  },
+  "key_rate_totals": {
+    "mbs": {
+      "dv01": 3924672.6762489076,
+      "krd01_1y": 42374.511108869905,
+      "krd01_2y": 73885.66722695304,
+      "krd01_3y": 114476.23393409314,
+      "krd01_4y": 141275.71789997738,
+      "krd01_5y": 230574.45425295446,
+      "krd01_7y": 457564.0699187703,
+      "krd01_10y": 903763.3514574986,
+      "krd01_15y": 898009.472307053,
+      "krd01_20y": 825175.3381891222,
+      "krd01_30y": 256982.05099617597
+    },
+    "loans": {
+      "dv01": 860936.8348976036,
+      "krd01_1y": -2897.1953516641033,
+      "krd01_2y": 96087.01392358395,
+      "krd01_3y": 99325.65025894549,
+      "krd01_4y": 164411.33348431624,
+      "krd01_5y": 312217.04906472156,
+      "krd01_7y": 191770.7561240879,
+      "krd01_10y": 0.0,
+      "krd01_15y": 0.0,
+      "krd01_20y": 0.0,
+      "krd01_30y": 0.0
+    },
+    "debt": {
+      "dv01": 1543810.4600370917,
+      "krd01_1y": -2158.2337011656446,
+      "krd01_2y": 1831.4931272003444,
+      "krd01_3y": 16784.705041477813,
+      "krd01_4y": 12028.30600335834,
+      "krd01_5y": 26804.232197293633,
+      "krd01_7y": 110706.93088749891,
+      "krd01_10y": 99633.07339315044,
+      "krd01_15y": 474550.2884718467,
+      "krd01_20y": 803239.3799559617,
+      "krd01_30y": 0.0
+    },
+    "deposits": {
+      "dv01": 617639.4086167505,
+      "krd01_1y": 114503.73800217555,
+      "krd01_2y": 113873.55610932283,
+      "krd01_3y": 105284.80630999996,
+      "krd01_4y": 72356.51269799529,
+      "krd01_5y": 68973.30885203341,
+      "krd01_7y": 71169.79519523178,
+      "krd01_10y": 42994.18935759802,
+      "krd01_15y": 16520.474086998875,
+      "krd01_20y": 5057.276342301272,
+      "krd01_30y": 1802.6941212865877
+    },
+    "cds": {
+      "dv01": 170127.4682647766,
+      "krd01_1y": 48496.0228685274,
+      "krd01_2y": 34661.32439799832,
+      "krd01_3y": 43836.45273842117,
+      "krd01_4y": 528.3443393430409,
+      "krd01_5y": 38356.196041118754,
+      "krd01_7y": 75.25230521280255,
+      "krd01_10y": 0.0,
+      "krd01_15y": 0.0,
+      "krd01_20y": 0.0,
+      "krd01_30y": 0.0
+    }
+  },
+  "sources_changed_during_run": [],
+  "final_memory": {
+    "rss_bytes": 229187584,
+    "peak_rss_process_bytes": 467894272,
+    "private_bytes": 1841315840,
+    "peak_commit_process_bytes": 2082439168,
+    "system_available_bytes": 7863676928,
+    "system_total_bytes": 33979514880
+  }
+}

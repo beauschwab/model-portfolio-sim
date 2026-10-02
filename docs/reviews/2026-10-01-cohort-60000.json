@@ -1,0 +1,11 @@
+{
+  "loans": 60000,
+  "cohorts": 5,
+  "source_bytes": 12768343,
+  "parse_seconds": 0.02682569995522499,
+  "build_seconds": 1.4718051000963897,
+  "lineage_rows": 60000,
+  "balance": 6090000000.0,
+  "build_id": "fa94793e68108d2dd8d342e53257aab8f6a8f4fad813a386ef0b098fad156963",
+  "scope": "Synthetic tape parsing, native grouping/moments and Python transport only; excludes SQL/S3 publication and financial pricing."
+}

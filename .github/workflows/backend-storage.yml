@@ -1,0 +1,37 @@
+name: Backend storage contracts
+on:
+  push:
+    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
+  pull_request:
+    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
+permissions:
+  contents: read
+jobs:
+  storage:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: workbench_test
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: workbench_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U workbench_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg://workbench_test:local_test_only@localhost:5432/workbench_test
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: uv sync --project apps/api --extra dev --extra iceberg --locked
+      - run: uv run --no-sync --project apps/api python scripts/build_native.py
+      - run: uv run --no-sync --project apps/api python scripts/build_ledger_native.py
+      - run: uv run --no-sync --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
+      - run: uv run --no-sync --extra dev --extra iceberg python -m pytest tests -q
+        working-directory: apps/api

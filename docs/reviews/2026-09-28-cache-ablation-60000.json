@@ -1,0 +1,307 @@
+{
+  "positions": 60000,
+  "baseline_sources_sha256_verified": true,
+  "measurements": [
+    {
+      "variant": "before",
+      "wall_seconds": 55.362278799992055,
+      "cpu_seconds": 148.78125,
+      "graph": {
+        "cashflows:mbs": {
+          "reused": 21507,
+          "computed": 74493,
+          "batches": 4
+        },
+        "mortgage_paths": {
+          "reused": 0,
+          "computed": 4,
+          "batches": 4
+        },
+        "market_fit": {
+          "reused": 6,
+          "computed": 2,
+          "batches": 2
+        },
+        "mortgage_fit": {
+          "reused": 3,
+          "computed": 1,
+          "batches": 1
+        },
+        "calibration:mbs": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 1
+        },
+        "marks:mbs": {
+          "reused": 0,
+          "computed": 57600,
+          "batches": 3
+        },
+        "income:mbs": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 1
+        },
+        "cashflows:loans": {
+          "reused": 28800,
+          "computed": 43200,
+          "batches": 3
+        },
+        "rate_paths": {
+          "reused": 11,
+          "computed": 4,
+          "batches": 4
+        },
+        "calibration:loans": {
+          "reused": 0,
+          "computed": 14400,
+          "batches": 1
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 43200,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 14400,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 8000,
+          "computed": 12000,
+          "batches": 3
+        },
+        "calibration:debt": {
+          "reused": 0,
+          "computed": 4000,
+          "batches": 1
+        },
+        "marks:debt": {
+          "reused": 0,
+          "computed": 12000,
+          "batches": 3
+        },
+        "income:debt": {
+          "reused": 0,
+          "computed": 4000,
+          "batches": 1
+        },
+        "cashflows:deposits": {
+          "reused": 24833,
+          "computed": 55167,
+          "batches": 4
+        },
+        "deposit_fit": {
+          "reused": 3,
+          "computed": 1,
+          "batches": 1
+        },
+        "deposit_paths": {
+          "reused": 0,
+          "computed": 4,
+          "batches": 4
+        },
+        "calibration:deposits": {
+          "reused": 0,
+          "computed": 16000,
+          "batches": 1
+        },
+        "marks:deposits": {
+          "reused": 0,
+          "computed": 48000,
+          "batches": 3
+        },
+        "income:deposits": {
+          "reused": 0,
+          "computed": 16000,
+          "batches": 1
+        },
+        "cashflows:cds": {
+          "reused": 19200,
+          "computed": 19200,
+          "batches": 3
+        },
+        "calibration:cds": {
+          "reused": 0,
+          "computed": 6400,
+          "batches": 1
+        },
+        "marks:cds": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 3
+        },
+        "income:cds": {
+          "reused": 0,
+          "computed": 6400,
+          "batches": 1
+        },
+        "auxiliary": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      "cache": {
+        "entries": 135793,
+        "bytes": 536864993,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      }
+    },
+    {
+      "variant": "after",
+      "wall_seconds": 48.04919570009224,
+      "cpu_seconds": 124.21875,
+      "graph": {
+        "cashflows:mbs": {
+          "reused": 0,
+          "computed": 57600,
+          "batches": 3
+        },
+        "mortgage_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "market_fit": {
+          "reused": 5,
+          "computed": 1,
+          "batches": 1
+        },
+        "mortgage_fit": {
+          "reused": 2,
+          "computed": 1,
+          "batches": 1
+        },
+        "calibration:mbs": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 1
+        },
+        "marks:mbs": {
+          "reused": 0,
+          "computed": 57600,
+          "batches": 3
+        },
+        "income:mbs": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 1
+        },
+        "cashflows:loans": {
+          "reused": 0,
+          "computed": 43200,
+          "batches": 3
+        },
+        "rate_paths": {
+          "reused": 11,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 0,
+          "computed": 14400,
+          "batches": 1
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 43200,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 14400,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 0,
+          "computed": 12000,
+          "batches": 3
+        },
+        "calibration:debt": {
+          "reused": 0,
+          "computed": 4000,
+          "batches": 1
+        },
+        "marks:debt": {
+          "reused": 0,
+          "computed": 12000,
+          "batches": 3
+        },
+        "income:debt": {
+          "reused": 0,
+          "computed": 4000,
+          "batches": 1
+        },
+        "cashflows:deposits": {
+          "reused": 0,
+          "computed": 48000,
+          "batches": 3
+        },
+        "deposit_fit": {
+          "reused": 2,
+          "computed": 1,
+          "batches": 1
+        },
+        "deposit_paths": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:deposits": {
+          "reused": 0,
+          "computed": 16000,
+          "batches": 1
+        },
+        "marks:deposits": {
+          "reused": 0,
+          "computed": 48000,
+          "batches": 3
+        },
+        "income:deposits": {
+          "reused": 0,
+          "computed": 16000,
+          "batches": 1
+        },
+        "cashflows:cds": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 3
+        },
+        "calibration:cds": {
+          "reused": 0,
+          "computed": 6400,
+          "batches": 1
+        },
+        "marks:cds": {
+          "reused": 0,
+          "computed": 19200,
+          "batches": 3
+        },
+        "income:cds": {
+          "reused": 0,
+          "computed": 6400,
+          "batches": 1
+        },
+        "auxiliary": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      "cache": {
+        "entries": 166229,
+        "bytes": 536863340,
+        "max_bytes": 536870912,
+        "max_entries": 500000,
+        "shared_entries": 13,
+        "shared_bytes": 14946252,
+        "shared_max_bytes": 67108864,
+        "shared_max_entries": 1024
+      }
+    }
+  ],
+  "status": "passed"
+}

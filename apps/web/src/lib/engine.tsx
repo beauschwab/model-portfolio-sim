@@ -13,7 +13,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from "react";
-import { api, type Job, type Market, type PipelineNode, type RunPlan, type Scenario, type Settings } from "./api";
+import { api, type Job, type Market, type PipelineNode, type RunPlan, type Scenario, type Settings, type PricingOptions } from "./api";
 import type { Sample } from "../components/Heartbeat";
 
 export type RunLog = { t: number; msg: string };
@@ -22,17 +22,17 @@ export type Kpis = {
   eve: {
     eve_$: number; duration_gap_y: number; dur_assets_y: number; dur_liab_y: number;
     dv01_net_$: number; irrbb_outlier: boolean; irrbb_worst_pct_eve: number;
-    sensitivity: Record<string, number | string>[];
+    sensitivity: { shock_bp: number; d_eve_pct_eve: number; d_eve_$: number; method: string }[];
   };
-  lcr: { lcr_pct: number; hqla_$: number };
-  nsfr: { nsfr_pct: number; asf_$: number };
+  lcr: { lcr_pct: number; hqla_$: number; net_outflows_$: number };
+  nsfr: { nsfr_pct: number; asf_$: number; rsf_$: number };
   capital: {
     rwa_total_$: number; rwa_density_pct: number;
-    cet1_path: { quarter: number; cet1_ratio_pct: number }[]; note: string;
+    cet1_path: { quarter: number; cet1_ratio_pct: number; cet1_$: number; drivers: string }[]; note: string;
   };
 };
 
-type RunOpts = { scenario?: string; books?: ("mbs" | "loans" | "debt" | "deposits" | "cds" | "mm")[] };
+type RunOpts = { optimize?: unknown; pricing?: PricingOptions; onTick?: (job: Job) => void; scenario?: string; books?: ("mbs" | "loans" | "debt" | "deposits" | "cds" | "mm")[] };
 
 interface EngineState {
   market: Market | null;
@@ -40,6 +40,9 @@ interface EngineState {
   scenarios: Record<string, Scenario>;
   active: string;
   kpis: Kpis | null;
+  revision: number;
+  libraryReady: boolean;
+  libraryHorizon: number;
   // live run telemetry
   running: boolean;
   activeKind: string | null;
@@ -56,10 +59,12 @@ interface EngineState {
   setSettings: (s: Settings) => void;
   refreshMarket: () => void;
   refreshScenarios: () => void;
-  run: (kind: string, opts?: RunOpts) => Promise<Job | null>;
+  run: (kind: string, opts?: RunOpts) => Promise<Job>;
 }
 
 const Ctx = createContext<EngineState | null>(null);
+type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "kpis" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run">;
+const DataCtx = createContext<EngineData | null>(null);
 
 export function EngineProvider({ children }: { children: ReactNode }) {
   const [market, setMarket] = useState<Market | null>(null);
@@ -78,7 +83,21 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [plan, setPlan] = useState<Partial<RunPlan>>({});
   const [log, setLog] = useState<RunLog[]>([]);
-  const inFlight = useRef(false);
+  const [revision, setRevision] = useState(0);
+  const [libraryReady, setLibraryReady] = useState(false);
+  const [libraryHorizon, setLibraryHorizon] = useState(27);
+  const revisionRef = useRef(0);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const pending = useRef(new Map<string, Promise<Job>>());
+  const refreshState = useCallback(async () => {
+    const state = await api.state();
+    if (state.revision !== revisionRef.current) setKpis(null);
+    revisionRef.current = state.revision;
+    setRevision(state.revision);
+    setLibraryReady(state.library_ready);
+    setLibraryHorizon(state.library_horizon ?? 27);
+    return state;
+  }, []);
 
   const refreshMarket = useCallback(() => { api.market().then(setMarket).catch(() => {}); }, []);
   const refreshScenarios = useCallback(() => {
@@ -91,24 +110,30 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshMarket();
     refreshScenarios();
-    api.settings().then(setSettingsState).catch(() => {});
-  }, [refreshMarket, refreshScenarios]);
+    const refresh = () => {
+      void refreshState().catch(() => {});
+      api.settings().then(setSettingsState).catch(() => {});
+      refreshMarket(); refreshScenarios();
+    };
+    refresh();
+    window.addEventListener("engine:inputs-changed", refresh);
+    return () => window.removeEventListener("engine:inputs-changed", refresh);
+  }, [refreshMarket, refreshScenarios, refreshState]);
 
   const setSettings = useCallback((s: Settings) => {
-    setSettingsState(s);
-    void api.putSettings(s).catch(() => {});
+    void api.putSettings(s).then(() => setSettingsState(s)).catch(e => alert(String(e)));
   }, []);
 
-  const run = useCallback(async (kind: string, opts?: RunOpts): Promise<Job | null> => {
-    if (inFlight.current) return null; // single-flight: kernels saturate cores
-    inFlight.current = true;
+  const execute = useCallback(async (kind: string, opts?: RunOpts): Promise<Job> => {
     setRunning(true); setActiveKind(kind); setStage("starting"); setPct(0);
     setElapsed(0); setSamples([]); setNodes([]); setStats({}); setPlan({}); setLog([]);
     const t0 = performance.now();
     const clock = setInterval(() => setElapsed((performance.now() - t0) / 1000), 100);
     try {
-      const j = await api.run(kind, opts?.scenario, opts?.books);
-      const done = await pollWithTelemetry(j.id, p => {
+      const j = kind === "optimize" ? await api.optimize(opts?.optimize) : await api.run(kind, opts?.scenario, opts?.books, opts?.pricing);
+      let done = await pollWithTelemetry(j.id, job => {
+        opts?.onTick?.(job);
+        const p = job.progress ?? {};
         if (p.stage) setStage(p.stage);
         if (typeof p.pct === "number") setPct(p.pct);
         if (typeof p.elapsed_s === "number") setElapsed(p.elapsed_s);
@@ -124,7 +149,11 @@ export function EngineProvider({ children }: { children: ReactNode }) {
             return next.length > 240 ? next.slice(next.length - 240) : next;
           });
         }
-      });
+      }, kind === "whatif" ? 75 : 300);
+      const fresh = await refreshState();
+      if (done.status === "done" && done.revision !== fresh.revision) {
+        done = { ...done, status: "error", detail: "Inputs changed during this run. Run again for current results." };
+      }
       if (done.status === "done") {
         setStage("done"); setPct(100);
         if (kind === "kpis") setKpis(done.result as Kpis);
@@ -132,36 +161,53 @@ export function EngineProvider({ children }: { children: ReactNode }) {
         setStage("error");
       }
       return done;
-    } catch {
+    } catch (error) {
       setStage("error");
-      return null;
+      return { id: "", kind, revision: revisionRef.current, status: "error", detail: String(error) };
     } finally {
       clearInterval(clock);
-      setRunning(false);
-      inFlight.current = false;
-    }
-  }, []);
 
+    }
+  }, [refreshState]);
+
+  const run = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
+    const key = JSON.stringify([revisionRef.current, kind, opts?.scenario, opts?.books, opts?.optimize, opts?.pricing]);
+    const existing = pending.current.get(key);
+    if (existing) return existing;
+    setRunning(true);
+    const task = queue.current.then(() => execute(kind, opts)).finally(() => {
+      pending.current.delete(key);
+      if (!pending.current.size) setRunning(false);
+    });
+    pending.current.set(key, task);
+    queue.current = task.catch(() => {});
+    return task;
+  }, [execute]);
+
+  const data = useMemo<EngineData>(() => ({ market, settings, scenarios, active, kpis, revision,
+    libraryReady, libraryHorizon, running, setActive, setSettings, refreshMarket, refreshScenarios, run }),
+    [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running,
+      setSettings, refreshMarket, refreshScenarios, run]);
   const value = useMemo<EngineState>(() => ({
-    market, settings, scenarios, active, kpis,
+    market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon,
     running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run,
-  }), [market, settings, scenarios, active, kpis, running, activeKind, stage, pct, elapsed, samples,
+  }), [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running, activeKind, stage, pct, elapsed, samples,
        nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;
 }
 
 /** Poll a job, surfacing each progress snapshot. Mirrors api.awaitJob but
  * exposes the RunProgress directly so callers can stream telemetry. */
 async function pollWithTelemetry(
   id: string,
-  onTick: (p: NonNullable<Job["progress"]>) => void,
+  onTick: (job: Job) => void,
   ms = 300,
 ): Promise<Job> {
   for (;;) {
     const s = await api.job(id);
-    if (s.progress) onTick(s.progress);
+    onTick(s);
     if (s.status === "error") return s;
     if (s.status === "done") { s.result = await api.jobResult(id); return s; }
     await new Promise(r => setTimeout(r, ms));
@@ -171,5 +217,13 @@ async function pollWithTelemetry(
 export function useEngine() {
   const c = useContext(Ctx);
   if (!c) throw new Error("useEngine must be used within EngineProvider");
+  return c;
+}
+
+
+/** Stable inputs/actions: elapsed-time updates do not rerender these consumers. */
+export function useEngineData() {
+  const c = useContext(DataCtx);
+  if (!c) throw new Error("useEngineData must be used within EngineProvider");
   return c;
 }

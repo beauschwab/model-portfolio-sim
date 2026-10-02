@@ -2,23 +2,33 @@
 differences under common random numbers."""
 from __future__ import annotations
 
+from ..core.runtime import path_count
+
 import numpy as np
 import polars as pl
 
-from ..core.config import CURVE_BUMP, N_PATHS_SENS, SEED, SWAP_TENORS, VOL_BUMP
+from ..core.config import CURVE_BUMP, N_PATHS_BASE, N_PATHS_SENS, SEED, SWAP_TENORS, VOL_BUMP
 from ..core.pricing import pv_from_A
 from ..core.scenarios import (CRN, build_paths, port_delay, run_engine, setup,
                         solve_base_oas)
 
 
 def run_risk(port: pl.DataFrame, swap_rates, vol_pts, cc_hist, ps_hist,
-             seed: int = SEED, suite=None) -> pl.DataFrame:
+             seed: int = SEED, suite=None, oas=None) -> pl.DataFrame:
+    from ..core import quant_native as native
+    if native.enabled():
+        return native.mortgage_risk(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, oas)
     models, B, abcd0, sec, tgt, face = setup(
-        port, swap_rates, vol_pts, cc_hist, ps_hist)
+        port, swap_rates, vol_pts, cc_hist, ps_hist, suite=suite)
     delay = port_delay(port)
-    oas, px = solve_base_oas(swap_rates, vol_pts, abcd0, B, models, sec, tgt,
-                             seed, suite=suite, delay_y=delay)
-    crn = CRN(N_PATHS_SENS, seed)
+    if oas is None:
+        oas, px = solve_base_oas(swap_rates, vol_pts, abcd0, B, models, sec, tgt,
+                                 seed, suite=suite, delay_y=delay)
+    else:
+        crn0 = CRN(path_count(N_PATHS_BASE, base=True), seed)
+        paths0 = build_paths(swap_rates, vol_pts, abcd0, B, models, crn0, suite=suite)
+        px = pv_from_A(run_engine(paths0, sec, suite=suite)[0], oas, crn0.n, delay_y=delay)
+    crn = CRN(path_count(N_PATHS_SENS), seed)
 
     def scen_pv(sr, vp, recal):
         paths = build_paths(sr, vp, abcd0, B, models, crn,
@@ -52,7 +62,7 @@ def run_risk(port: pl.DataFrame, swap_rates, vol_pts, cc_hist, ps_hist,
     stk = {k: [] for k in ("mtg", "hpi", "yoy", "df")}
     for (sr, vp, recal) in scen_defs:
         pth = build_paths(sr, vp, abcd0, B, models, crn,
-                          recalibrate=recal, abcd_warm=abcd0)
+                          recalibrate=recal, abcd_warm=abcd0, suite=suite)
         for k in stk:
             stk[k].append(pth[k])
     stacked = {k: np.ascontiguousarray(np.concatenate(v, axis=0))
@@ -79,7 +89,7 @@ def run_risk(port: pl.DataFrame, swap_rates, vol_pts, cc_hist, ps_hist,
     for j in range(vol_pts.shape[0]):
         e, n = vol_pts[j, 0], vol_pts[j, 1]
         cols[f"vega_{int(e)}x{int(n)}"] = face * (
-            PV[o + 2 * j] - PV[o + 2 * j + 1]) \
+            PV[o + 2 * j + 1] - PV[o + 2 * j]) \
             / (2.0 * VOL_BUMP) * 0.01                        # $ per vol-pt
     return port.with_columns(
         pl.Series("oas_bps", oas * 1e4),

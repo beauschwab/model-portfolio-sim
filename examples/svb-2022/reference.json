@@ -1,0 +1,110 @@
+{
+  "case_id": "svbfg-20221231-march2023-reconstruction-v1",
+  "balance_sheet_date": "2022-12-31",
+  "information_cutoff": "2023-03-07",
+  "entity": "SVB Financial Group and subsidiaries, consolidated",
+  "amount_unit": "USD millions",
+  "sources": {
+    "10k": {
+      "url": "https://www.sec.gov/Archives/edgar/data/719739/000071973923000021/sivb-20221231.htm",
+      "issuer_mirror": "https://d18rn0p25nwr6d.cloudfront.net/CIK-0000719739/e0b8bb11-3b21-4348-826f-7370b93d5b5c.html",
+      "published": "2023-02-24",
+      "locator": "Consolidated Balance Sheets; Note 22 Regulatory Matters; fair value disclosures",
+      "role": "opening observations, available before event"
+    },
+    "march8": {
+      "url": "https://s201.q4cdn.com/589201576/files/doc_downloads/2023/03/Q1-2023-Mid-Quarter-Update-vFINAL3-030823.pdf",
+      "published": "2023-03-08",
+      "locator": "slides 6 and 18",
+      "role": "outcome comparison and explicitly conditioned sale replay only"
+    },
+    "fed_evolution": {
+      "url": "https://www.federalreserve.gov/publications/2023-April-SVB-Evolution-of-Silicon-Valley-Bank.htm",
+      "published": "2023-04-28",
+      "locator": "SVBFG balance-sheet growth, uninsured funding, HTM duration and SVB failure",
+      "role": "retrospective source; 94% uninsured and 6.2-year duration describe year-end exposures, not independently calibrated behavioral parameters"
+    },
+    "dfpi": {
+      "url": "https://dfpi.ca.gov/wp-content/uploads/sites/337/2023/03/DFPI-Orders-Silicon-Valley-Bank-03102023.pdf",
+      "published": "2023-03-10",
+      "locator": "possession order: March 9 withdrawals and closing cash",
+      "role": "held-out cash outcome; withdrawals also used in separately labeled conditional replay"
+    },
+    "fed_regulation": {
+      "url": "https://www.federalreserve.gov/publications/2023-April-SVB-Federal-Reserve-Regulation.htm",
+      "published": "2023-04-28",
+      "locator": "Table 11 and capital/liquidity applicability",
+      "role": "retrospective regulatory context, not simulation calibration"
+    }
+  },
+  "observed_opening": {
+    "cash": 13803.0,
+    "afs_cost": 28602.0,
+    "afs_fair_value": 26069.0,
+    "afs_pledged_cost": 530.0,
+    "htm_carrying_value_net_allowance": 91321.0,
+    "htm_fair_value": 76169.0,
+    "nonmarketable_equity_securities": 2664.0,
+    "gross_loans": 74250.0,
+    "loan_allowance": 636.0,
+    "net_loans": 73614.0,
+    "premises_equipment": 394.0,
+    "goodwill": 375.0,
+    "other_intangibles": 136.0,
+    "lease_right_of_use": 335.0,
+    "other_assets": 3082.0,
+    "total_assets": 211793.0,
+    "noninterest_deposits": 80753.0,
+    "interest_deposits": 92356.0,
+    "total_deposits": 173109.0,
+    "short_term_borrowings": 13565.0,
+    "lease_liabilities": 413.0,
+    "other_liabilities": 3041.0,
+    "long_term_debt": 5370.0,
+    "total_liabilities": 195498.0,
+    "parent_equity": 16004.0,
+    "preferred_equity": 3646.0,
+    "noncontrolling_equity": 291.0,
+    "total_equity": 16295.0,
+    "reported_aoci": -1911.0,
+    "tangible_common_equity": 11880.0,
+    "tangible_assets": 211315.0,
+    "cet1": 13697.0,
+    "tier1": 17504.0,
+    "total_capital": 18380.0,
+    "rwa": 113628.0,
+    "cet1_ratio": 0.1205,
+    "tier1_ratio": 0.1540,
+    "total_capital_ratio": 0.1618,
+    "tce_ratio": 0.0562,
+    "uninsured_share_approx": 0.94,
+    "htm_duration_years": 6.2
+  },
+  "observed_event": {
+    "sale_date": "2023-03-08",
+    "afs_sale_size_approx": 21000.0,
+    "afs_sale_after_tax_loss_approx": 1800.0,
+    "march9_withdrawals": 42000.0,
+    "march9_closing_cash_approx": -958.0,
+    "march10_additional_expected_withdrawals_lower_bound": 100000.0,
+    "march10_status": "expected/requested, not completed withdrawals; bank closed that morning"
+  },
+  "assumptions": {
+    "afs_duration_years": 3.5,
+    "afs_duration_basis": "illustrative aggregate sensitivity, not a fitted security tape or use of the later sold-subset duration",
+    "deposit_concentration": 0.8,
+    "deposit_digital_fraction": 1.0,
+    "deposit_operational_fraction": 0.1,
+    "behavioral_calibration": "none; stress sensitivities only, no estimated run probability",
+    "interest_and_operations": "zeroed to isolate liquidity and mark mechanics; no Jan-March NII, principal runoff, origination, deposit trend, hedge or fee forecast",
+    "opening_net_loans": "frozen net carrying value; gross loan and allowance retained as source facts, not credit/CECL modeling",
+    "other_assets": "fixed-value ledger placeholders, not priced securities",
+    "event_calendar": "day 0 = March 6 proxy, day 2 = March 8 sale, day 3 = March 9 withdrawals, day 4 = March 10 requested outflows; December 31 balances held unchanged until these events",
+    "sale_size_interpretation": "USD 21bn treated as cash proceeds in proxy; disclosure rounded and security-level proceeds/costs unavailable",
+    "sale_cost_allocation": "pro-rata year-end AFS cost and fair value; actual sold subset unavailable",
+    "tax_sensitivity": [0.26, 0.27, 0.28],
+    "tax_sensitivity_basis": "March 8 Q1 guidance, retrospective comparison only; no immediate tax-refund liquidity assumed",
+    "htm_funding": "none in base; optional capacity/lag counterfactuals assume sufficient eligible unencumbered HTM with 5% haircut, not historical access",
+    "regulatory_ratios": "native treasury calculations use disclosed eligible capital and aggregate RWA; no bottom-up RWA or eligibility validation; daily ledger ratios are proxies and not reported as SVB capital"
+  }
+}

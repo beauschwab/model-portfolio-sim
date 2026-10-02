@@ -1,0 +1,1461 @@
+{
+  "synthetic": true,
+  "device": "NVIDIA T1000 8GB, 8192 MiB, 596.51, 7.5",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "results": [
+    {
+      "paths": 128,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 4,
+      "initialization_seconds": 0.10939249978400767,
+      "shared_preparation_seconds": 0.183214700082317,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "669e8c0908f30d7e56a3d3099589ff3882035c6eaffe113dba589fb64633a810",
+        "spread_draw_sha256": "faea8cb47da46ee2d9b98d378aeb76eef87b9ef0bce4a3bdf6770af05475c154",
+        "hpi_draw_sha256": "039f2ebcbd13ef792c9ddd04073de599b0545358568fb541ea13a8bf6053a42d"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 342528,
+            "max_absolute_error": 1.7780221739371882e-12,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 342528,
+            "max_absolute_error": 3.552713678800501e-15,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 2.2351741790771484e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.08065510005690157,
+            0.07831060001626611,
+            0.08090590010397136,
+            0.08743799990043044,
+            0.08996920008212328
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.0887962875366211,
+              "rust_call_seconds": 0.0913206,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.09240359999239445
+            },
+            {
+              "device_kernel_seconds": 0.08767919921875,
+              "rust_call_seconds": 0.0902542,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.09089779993519187
+            },
+            {
+              "device_kernel_seconds": 0.07116143798828126,
+              "rust_call_seconds": 0.0735164,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.07431389996781945
+            },
+            {
+              "device_kernel_seconds": 0.06919036865234375,
+              "rust_call_seconds": 0.0716886,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.07276190002448857
+            },
+            {
+              "device_kernel_seconds": 0.04937660980224609,
+              "rust_call_seconds": 0.0520941,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.05314850015565753
+            }
+          ],
+          "cpu_median_seconds": 0.08090590010397136,
+          "gpu_median_seconds": 0.07431389996781945,
+          "call_speedup": 1.0887048067589842,
+          "resident": {
+            "device_kernel_seconds": 0.04970425567626953,
+            "rust_call_seconds": 0.2514948,
+            "input_bytes": 1545496.0,
+            "scratch_bytes": 786432.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 4543976.0,
+            "python_call_seconds": 0.25269610015675426
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.8157313999254256,
+            "gpu": 0.30310370004735887
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.4359051000792533,
+              0.8157313999254256,
+              0.8410006000194699
+            ],
+            "gpu": [
+              0.30310370004735887,
+              0.2945143999531865,
+              0.3071174998767674
+            ]
+          },
+          "pipeline_speedup": 2.6912617688202767,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 309760,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 309760,
+            "max_absolute_error": 1.0835776720341528e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.10533950012177229,
+            0.10881139989942312,
+            0.10261730011552572,
+            0.10443609999492764,
+            0.09988499991595745
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.045709152221679684,
+              "rust_call_seconds": 0.0505571,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.052757499972358346
+            },
+            {
+              "device_kernel_seconds": 0.045699073791503904,
+              "rust_call_seconds": 0.0509934,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.05228449986316264
+            },
+            {
+              "device_kernel_seconds": 0.045676544189453126,
+              "rust_call_seconds": 0.0493679,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.0504337998572737
+            },
+            {
+              "device_kernel_seconds": 0.04590963363647461,
+              "rust_call_seconds": 0.0502144,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.051499499939382076
+            },
+            {
+              "device_kernel_seconds": 0.04543718338012695,
+              "rust_call_seconds": 0.0502224,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.05165220005437732
+            }
+          ],
+          "cpu_median_seconds": 0.10443609999492764,
+          "gpu_median_seconds": 0.05165220005437732,
+          "call_speedup": 2.021910003542571,
+          "resident": {
+            "device_kernel_seconds": 0.0449479362487793,
+            "rust_call_seconds": 0.2304173,
+            "input_bytes": 1493272.0,
+            "scratch_bytes": 786432.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 4491704.0,
+            "python_call_seconds": 0.23209139984101057
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.5533590000122786,
+            "gpu": 0.2596560998354107
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.5533590000122786,
+              0.557873300043866,
+              0.49556479998864233
+            ],
+            "gpu": [
+              0.2596560998354107,
+              0.26554960012435913,
+              0.2588211998809129
+            ]
+          },
+          "pipeline_speedup": 2.1311226671086816,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    },
+    {
+      "paths": 512,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 4,
+      "initialization_seconds": 0.13022590009495616,
+      "shared_preparation_seconds": 0.6851363000459969,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "1515a65ad50b99c96a134d1b109b2ad96a5c9758d889a4e9c0f1daaa805ecbe9",
+        "spread_draw_sha256": "43ada119a86b2c277bcef15cca274d1c1088733062e0717a0b8677a10aa25370",
+        "hpi_draw_sha256": "787060059078d9f33c009be02df9b100f74e5c92b84cbdc64f088757b1ee8cc1"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 539136,
+            "max_absolute_error": 7.107203714440402e-12,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 539136,
+            "max_absolute_error": 2.1316282072803006e-14,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 1.1175870895385742e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.5445345002226532,
+            0.5667534999083728,
+            0.5626831001136452,
+            0.5733387998770922,
+            0.5726310999598354
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.20228445434570314,
+              "rust_call_seconds": 0.2097059,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21450739982537925
+            },
+            {
+              "device_kernel_seconds": 0.20274263000488282,
+              "rust_call_seconds": 0.2100054,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.2149603001307696
+            },
+            {
+              "device_kernel_seconds": 0.20228713989257813,
+              "rust_call_seconds": 0.2102031,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21615599980577826
+            },
+            {
+              "device_kernel_seconds": 0.20231578063964845,
+              "rust_call_seconds": 0.2094121,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21449499996379018
+            },
+            {
+              "device_kernel_seconds": 0.20213760375976564,
+              "rust_call_seconds": 0.2100709,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21456369990482926
+            }
+          ],
+          "cpu_median_seconds": 0.5667534999083728,
+          "gpu_median_seconds": 0.21456369990482926,
+          "call_speedup": 2.6414230373532845,
+          "resident": {
+            "device_kernel_seconds": 0.20267308654785157,
+            "rust_call_seconds": 1.0229964,
+            "input_bytes": 5969176.0,
+            "scratch_bytes": 3145728.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 11326952.0,
+            "python_call_seconds": 1.0280061999801546
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 2.9624835001304746,
+            "gpu": 1.333512700162828
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              2.8720051997806877,
+              2.9624835001304746,
+              3.5788647001609206
+            ],
+            "gpu": [
+              1.333512700162828,
+              1.0825204998254776,
+              1.4174734000116587
+            ]
+          },
+          "pipeline_speedup": 2.2215637689605368,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 408064,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 408064,
+            "max_absolute_error": 6.821210263296962e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.44610029994510114,
+            0.49054450006224215,
+            0.4829451001714915,
+            0.4581404998898506,
+            0.4573860000818968
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.173140869140625,
+              "rust_call_seconds": 0.1802322,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.1820060999598354
+            },
+            {
+              "device_kernel_seconds": 0.17561395263671875,
+              "rust_call_seconds": 0.1837116,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.185636900132522
+            },
+            {
+              "device_kernel_seconds": 0.17327200317382813,
+              "rust_call_seconds": 0.1819094,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18438389990478754
+            },
+            {
+              "device_kernel_seconds": 0.1764207305908203,
+              "rust_call_seconds": 0.1842568,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18633330008015037
+            },
+            {
+              "device_kernel_seconds": 0.1773197784423828,
+              "rust_call_seconds": 0.1845687,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18673049984499812
+            }
+          ],
+          "cpu_median_seconds": 0.4581404998898506,
+          "gpu_median_seconds": 0.185636900132522,
+          "call_speedup": 2.46793875335558,
+          "resident": {
+            "device_kernel_seconds": 0.17620150451660155,
+            "rust_call_seconds": 0.8904428,
+            "input_bytes": 5916952.0,
+            "scratch_bytes": 3145728.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 11274680.0,
+            "python_call_seconds": 0.892746299970895
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 2.301221099914983,
+            "gpu": 1.1864383998326957
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              2.2643774000462145,
+              2.301221099914983,
+              2.33649959997274
+            ],
+            "gpu": [
+              1.2085512999910861,
+              0.929336000001058,
+              1.1864383998326957
+            ]
+          },
+          "pipeline_speedup": 1.9396043656708069,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    },
+    {
+      "paths": 2048,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 4,
+      "initialization_seconds": 0.12264030007645488,
+      "shared_preparation_seconds": 3.0488376999273896,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "93c66f43c6f30f81513f17f0f1fa9d09c41467664431214064857d6168133703",
+        "spread_draw_sha256": "858477ba12ed87020850144f9ea75b7eb6d8af2a3ac1ff00bcef6c77681ca427",
+        "hpi_draw_sha256": "278722f4e4ee2c03e6e2bf213bf68ee283e88e8f32efc346126a85b942f8caa9"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 1325568,
+            "max_absolute_error": 2.8956392839063483e-11,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 1325568,
+            "max_absolute_error": 5.684341886080802e-14,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 1.1920928955078125e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            2.458932999987155,
+            2.168004399864003,
+            2.2333009000867605,
+            2.16687440010719,
+            2.3221903999801725
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 1.1840142822265625,
+              "rust_call_seconds": 1.2268897,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 1.2401329001877457
+            },
+            {
+              "device_kernel_seconds": 0.8831959228515625,
+              "rust_call_seconds": 0.9059204,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.9170512999407947
+            },
+            {
+              "device_kernel_seconds": 1.2100958251953124,
+              "rust_call_seconds": 1.2467759,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 1.2589207999408245
+            },
+            {
+              "device_kernel_seconds": 0.8816763305664063,
+              "rust_call_seconds": 0.9076976,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.9221475999802351
+            },
+            {
+              "device_kernel_seconds": 1.1890155029296876,
+              "rust_call_seconds": 1.2326611,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 1.2481631999835372
+            }
+          ],
+          "cpu_median_seconds": 2.2333009000867605,
+          "gpu_median_seconds": 1.2401329001877457,
+          "call_speedup": 1.8008561015909323,
+          "resident": {
+            "device_kernel_seconds": 0.8873102172851561,
+            "rust_call_seconds": 4.4672948,
+            "input_bytes": 23663896.0,
+            "scratch_bytes": 12582912.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 38458856.0,
+            "python_call_seconds": 4.481569200055674
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 11.141669199801981,
+            "gpu": 4.8840354001149535
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              12.492220300016925,
+              10.848903400124982,
+              11.141669199801981
+            ],
+            "gpu": [
+              4.944339799927548,
+              4.614541299873963,
+              4.8840354001149535
+            ]
+          },
+          "pipeline_speedup": 2.281242515060342,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 801280,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 801280,
+            "max_absolute_error": 6.821210263296962e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            1.440503700170666,
+            1.426396399969235,
+            1.438001399859786,
+            1.445857800077647,
+            1.410984800197184
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 1.09322900390625,
+              "rust_call_seconds": 1.1193553,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 1.1226548999547958
+            },
+            {
+              "device_kernel_seconds": 0.7944314575195313,
+              "rust_call_seconds": 0.8159083,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8193253001663834
+            },
+            {
+              "device_kernel_seconds": 1.0897493896484376,
+              "rust_call_seconds": 1.116571,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 1.1201019999571145
+            },
+            {
+              "device_kernel_seconds": 0.78951220703125,
+              "rust_call_seconds": 0.8115549,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8155224998481572
+            },
+            {
+              "device_kernel_seconds": 1.053728515625,
+              "rust_call_seconds": 1.0812182,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 1.084955899976194
+            }
+          ],
+          "cpu_median_seconds": 1.438001399859786,
+          "gpu_median_seconds": 1.084955899976194,
+          "call_speedup": 1.325400783470866,
+          "resident": {
+            "device_kernel_seconds": 0.7946090698242189,
+            "rust_call_seconds": 3.9964779,
+            "input_bytes": 23611672.0,
+            "scratch_bytes": 12582912.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 38406584.0,
+            "python_call_seconds": 4.000084100058302
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 7.103768800152466,
+            "gpu": 4.369430599967018
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              7.194565899902955,
+              7.103768800152466,
+              7.080755600007251
+            ],
+            "gpu": [
+              4.467739199986681,
+              4.079285999992862,
+              4.369430599967018
+            ]
+          },
+          "pipeline_speedup": 1.62578822059929,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    },
+    {
+      "paths": 128,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 28,
+      "initialization_seconds": 0.11603659996762872,
+      "shared_preparation_seconds": 0.11393420002423227,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "669e8c0908f30d7e56a3d3099589ff3882035c6eaffe113dba589fb64633a810",
+        "spread_draw_sha256": "faea8cb47da46ee2d9b98d378aeb76eef87b9ef0bce4a3bdf6770af05475c154",
+        "hpi_draw_sha256": "039f2ebcbd13ef792c9ddd04073de599b0545358568fb541ea13a8bf6053a42d"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 342528,
+            "max_absolute_error": 1.7780221739371882e-12,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 342528,
+            "max_absolute_error": 3.552713678800501e-15,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 2.2351741790771484e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.02797020017169416,
+            0.02477089990861714,
+            0.02833999996073544,
+            0.024402600014582276,
+            0.0275089000351727
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.08827279663085938,
+              "rust_call_seconds": 0.0914896,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.09301599999889731
+            },
+            {
+              "device_kernel_seconds": 0.08416630554199218,
+              "rust_call_seconds": 0.0867803,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.08775099995546043
+            },
+            {
+              "device_kernel_seconds": 0.07157644653320312,
+              "rust_call_seconds": 0.0745493,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.07571600005030632
+            },
+            {
+              "device_kernel_seconds": 0.05056499099731445,
+              "rust_call_seconds": 0.0531169,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.054378499975427985
+            },
+            {
+              "device_kernel_seconds": 0.04996883010864258,
+              "rust_call_seconds": 0.0528395,
+              "input_bytes": 1545496.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4543976.0,
+              "python_call_seconds": 0.05427369987592101
+            }
+          ],
+          "cpu_median_seconds": 0.0275089000351727,
+          "gpu_median_seconds": 0.07571600005030632,
+          "call_speedup": 0.3633168685204655,
+          "resident": {
+            "device_kernel_seconds": 0.050587750244140625,
+            "rust_call_seconds": 0.2556177,
+            "input_bytes": 1545496.0,
+            "scratch_bytes": 786432.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 4543976.0,
+            "python_call_seconds": 0.25647720019333065
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.3548037998843938,
+            "gpu": 0.28443070012144744
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.14942899998277426,
+              0.3548037998843938,
+              0.36303810006938875
+            ],
+            "gpu": [
+              0.27876810007728636,
+              0.2871744001749903,
+              0.28443070012144744
+            ]
+          },
+          "pipeline_speedup": 1.2474173840337845,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 309760,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 309760,
+            "max_absolute_error": 1.0835776720341528e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.04322559991851449,
+            0.044056600192561746,
+            0.045909699983894825,
+            0.04041830007918179,
+            0.04248939990065992
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.045707168579101565,
+              "rust_call_seconds": 0.0488676,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.049853899981826544
+            },
+            {
+              "device_kernel_seconds": 0.0455431022644043,
+              "rust_call_seconds": 0.0488709,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.049882300198078156
+            },
+            {
+              "device_kernel_seconds": 0.04604159927368164,
+              "rust_call_seconds": 0.0488456,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.04977689986117184
+            },
+            {
+              "device_kernel_seconds": 0.045022655487060546,
+              "rust_call_seconds": 0.0481236,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.04905040003359318
+            },
+            {
+              "device_kernel_seconds": 0.04615615844726562,
+              "rust_call_seconds": 0.0489552,
+              "input_bytes": 1493272.0,
+              "scratch_bytes": 786432.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 4491704.0,
+              "python_call_seconds": 0.04980830010026693
+            }
+          ],
+          "cpu_median_seconds": 0.04322559991851449,
+          "gpu_median_seconds": 0.04980830010026693,
+          "call_speedup": 0.8678392924773363,
+          "resident": {
+            "device_kernel_seconds": 0.04562513961791992,
+            "rust_call_seconds": 0.2310875,
+            "input_bytes": 1493272.0,
+            "scratch_bytes": 786432.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 4491704.0,
+            "python_call_seconds": 0.23207460017874837
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.2285056000109762,
+            "gpu": 0.2550259998533875
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.2230905001051724,
+              0.23625030019320548,
+              0.2285056000109762
+            ],
+            "gpu": [
+              0.25504649989306927,
+              0.25124719995073974,
+              0.2550259998533875
+            ]
+          },
+          "pipeline_speedup": 0.8960090349311143,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    },
+    {
+      "paths": 512,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 28,
+      "initialization_seconds": 0.11426940001547337,
+      "shared_preparation_seconds": 0.30931319994851947,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "1515a65ad50b99c96a134d1b109b2ad96a5c9758d889a4e9c0f1daaa805ecbe9",
+        "spread_draw_sha256": "43ada119a86b2c277bcef15cca274d1c1088733062e0717a0b8677a10aa25370",
+        "hpi_draw_sha256": "787060059078d9f33c009be02df9b100f74e5c92b84cbdc64f088757b1ee8cc1"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 539136,
+            "max_absolute_error": 7.107203714440402e-12,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 539136,
+            "max_absolute_error": 2.1316282072803006e-14,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 1.1175870895385742e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.12102069985121489,
+            0.10106460005044937,
+            0.11649949988350272,
+            0.28726199991069734,
+            0.31552299996837974
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.20498236083984375,
+              "rust_call_seconds": 0.2116627,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21491619991138577
+            },
+            {
+              "device_kernel_seconds": 0.2035957794189453,
+              "rust_call_seconds": 0.2092692,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21221980010159314
+            },
+            {
+              "device_kernel_seconds": 0.2052416687011719,
+              "rust_call_seconds": 0.2118643,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21473070001229644
+            },
+            {
+              "device_kernel_seconds": 0.20435337829589845,
+              "rust_call_seconds": 0.2102439,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21322850021533668
+            },
+            {
+              "device_kernel_seconds": 0.20419973754882811,
+              "rust_call_seconds": 0.2121681,
+              "input_bytes": 5969176.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11326952.0,
+              "python_call_seconds": 0.21616280009038746
+            }
+          ],
+          "cpu_median_seconds": 0.12102069985121489,
+          "gpu_median_seconds": 0.21473070001229644,
+          "call_speedup": 0.5635929089053624,
+          "resident": {
+            "device_kernel_seconds": 0.20426463928222657,
+            "rust_call_seconds": 1.0289706,
+            "input_bytes": 5969176.0,
+            "scratch_bytes": 3145728.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 11326952.0,
+            "python_call_seconds": 1.033143499866128
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 1.404057600069791,
+            "gpu": 1.0879205998498946
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              1.3992047999054193,
+              1.404057600069791,
+              1.465461099985987
+            ],
+            "gpu": [
+              1.0879205998498946,
+              1.0854297000914812,
+              1.3484089002013206
+            ]
+          },
+          "pipeline_speedup": 1.2905883023664735,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 408064,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 408064,
+            "max_absolute_error": 6.821210263296962e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.13338120002299547,
+            0.13626240007579327,
+            0.13217919995076954,
+            0.1386812999844551,
+            0.12781440000981092
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.17816989135742187,
+              "rust_call_seconds": 0.1850706,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18655649991706014
+            },
+            {
+              "device_kernel_seconds": 0.17759027099609376,
+              "rust_call_seconds": 0.1850558,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.1865525001194328
+            },
+            {
+              "device_kernel_seconds": 0.1770877685546875,
+              "rust_call_seconds": 0.1835309,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.1851401999592781
+            },
+            {
+              "device_kernel_seconds": 0.17701823425292967,
+              "rust_call_seconds": 0.1838508,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18537840014323592
+            },
+            {
+              "device_kernel_seconds": 0.17793693542480468,
+              "rust_call_seconds": 0.1845236,
+              "input_bytes": 5916952.0,
+              "scratch_bytes": 3145728.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 11274680.0,
+              "python_call_seconds": 0.18629679991863668
+            }
+          ],
+          "cpu_median_seconds": 0.13338120002299547,
+          "gpu_median_seconds": 0.18629679991863668,
+          "call_speedup": 0.7159607684149616,
+          "resident": {
+            "device_kernel_seconds": 0.17641849365234374,
+            "rust_call_seconds": 0.8894108,
+            "input_bytes": 5916952.0,
+            "scratch_bytes": 3145728.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 11274680.0,
+            "python_call_seconds": 0.8920401001814753
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.6646575001068413,
+            "gpu": 0.9405621001496911
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.670900700148195,
+              0.6646575001068413,
+              0.6611603000201285
+            ],
+            "gpu": [
+              0.9377144000027329,
+              0.9405621001496911,
+              0.9493664999026805
+            ]
+          },
+          "pipeline_speedup": 0.7066598792371717,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    },
+    {
+      "paths": 2048,
+      "positions_per_product": 256,
+      "months": 360,
+      "threads": 28,
+      "initialization_seconds": 0.09686430008150637,
+      "shared_preparation_seconds": 0.9048687999602407,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "93c66f43c6f30f81513f17f0f1fa9d09c41467664431214064857d6168133703",
+        "spread_draw_sha256": "858477ba12ed87020850144f9ea75b7eb6d8af2a3ac1ff00bcef6c77681ca427",
+        "hpi_draw_sha256": "278722f4e4ee2c03e6e2bf213bf68ee283e88e8f32efc346126a85b942f8caa9"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 1325568,
+            "max_absolute_error": 2.8956392839063483e-11,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 1325568,
+            "max_absolute_error": 5.684341886080802e-14,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 1.1920928955078125e-07,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.8025102999527007,
+            0.8015919998288155,
+            0.8572356998920441,
+            0.838741100160405,
+            0.8321795000229031
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.8875745239257813,
+              "rust_call_seconds": 0.9131416,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.925560399889946
+            },
+            {
+              "device_kernel_seconds": 0.89503515625,
+              "rust_call_seconds": 0.9214068,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.9325498000252992
+            },
+            {
+              "device_kernel_seconds": 0.8925921020507812,
+              "rust_call_seconds": 0.9350504,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.9492531998548657
+            },
+            {
+              "device_kernel_seconds": 0.8916267700195313,
+              "rust_call_seconds": 0.9190755,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.930956499883905
+            },
+            {
+              "device_kernel_seconds": 0.8885189208984375,
+              "rust_call_seconds": 0.912527,
+              "input_bytes": 23663896.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38458856.0,
+              "python_call_seconds": 0.9240297998767346
+            }
+          ],
+          "cpu_median_seconds": 0.8321795000229031,
+          "gpu_median_seconds": 0.930956499883905,
+          "call_speedup": 0.8938972982375439,
+          "resident": {
+            "device_kernel_seconds": 0.8986208251953125,
+            "rust_call_seconds": 4.5161192,
+            "input_bytes": 23663896.0,
+            "scratch_bytes": 12582912.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 38458856.0,
+            "python_call_seconds": 4.527805299963802
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 4.290094299940392,
+            "gpu": 4.926916499854997
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              4.245226899860427,
+              4.405316499993205,
+              4.290094299940392
+            ],
+            "gpu": [
+              4.98673849995248,
+              4.665816700085998,
+              4.926916499854997
+            ]
+          },
+          "pipeline_speedup": 0.8707462974188123,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 801280,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 801280,
+            "max_absolute_error": 6.821210263296962e-13,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 70912,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.5510766000952572,
+            0.5591841000132263,
+            0.5997208999469876,
+            0.5482791000977159,
+            0.5708780998829752
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.7816795043945313,
+              "rust_call_seconds": 0.8031399,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.807107999920845
+            },
+            {
+              "device_kernel_seconds": 0.7984306030273437,
+              "rust_call_seconds": 0.8255213,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8294630998279899
+            },
+            {
+              "device_kernel_seconds": 0.800888671875,
+              "rust_call_seconds": 0.8216547,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8253277998883277
+            },
+            {
+              "device_kernel_seconds": 0.787031982421875,
+              "rust_call_seconds": 0.8094494,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8137544000055641
+            },
+            {
+              "device_kernel_seconds": 0.7914777221679687,
+              "rust_call_seconds": 0.8134406,
+              "input_bytes": 23611672.0,
+              "scratch_bytes": 12582912.0,
+              "compact_output_bytes": 2211840.0,
+              "numeric_device_bytes": 38406584.0,
+              "python_call_seconds": 0.8175638001412153
+            }
+          ],
+          "cpu_median_seconds": 0.5591841000132263,
+          "gpu_median_seconds": 0.8175638001412153,
+          "call_speedup": 0.683963869139803,
+          "resident": {
+            "device_kernel_seconds": 0.8018166381835938,
+            "rust_call_seconds": 4.0339151,
+            "input_bytes": 23611672.0,
+            "scratch_bytes": 12582912.0,
+            "compact_output_bytes": 2211840.0,
+            "numeric_device_bytes": 38406584.0,
+            "python_call_seconds": 4.038282299879938
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 2.784591699950397,
+            "gpu": 4.377669800072908
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              2.7828089999966323,
+              2.784591699950397,
+              2.7914025001227856
+            ],
+            "gpu": [
+              4.377669800072908,
+              4.1769731000531465,
+              4.479864099994302
+            ]
+          },
+          "pipeline_speedup": 0.6360899353130793,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    }
+  ],
+  "cpu_logical_processors": 28,
+  "nvrtc_version": "12.9.86",
+  "source_sha256": {
+    "experiments\\gpu-cashflows\\benchmark.py": "1d31c1223a85d9aab2d6a0be16eedc78c3592eec95226e04e33afacf2e995072",
+    "experiments\\gpu-cashflows\\src\\lib.rs": "26e1e5125061d3b51f08c3f34dd90b369e820f3274370f1ffdcf28fee5776d49",
+    "experiments\\gpu-cashflows\\src\\cashflows.cu": "0f2630c85e27abf1d9ba3f4926ddfb897f2b0424c3af8b766d6589750f44ef66",
+    "experiments\\gpu-cashflows\\Cargo.lock": "20e70a8d686c3d966ce4f96d96dce21b72b45b96beef4fd3d40036111880b7e5"
+  },
+  "gpu_binary_sha256": "e6191f2d17e627a8dee957ce1cf1f835ab880615ba4afae2b99c5ce94c15250a",
+  "cpu_binary_sha256": "95194c5afe4746f0fc545091b143cb8d23dc2c7fa79a3819045a0b17e6b85a41",
+  "scope": "Prepared base mortgage/deposit cashflows and five-scenario PV/DV01/frozen-yield NII stage; excludes API, ledger, artifacts, full KRD/vega and forward capture",
+  "cpu_timing": "Python adapter plus production Rust FFI, allocations and output copy",
+  "gpu_timing": "Python adapter plus Rust validation, transpose/packing, device allocation, upload, kernel, download and output copy; initialization separate",
+  "resident_timing": "CUDA events for repeated kernels on retained buffers; not end-to-end speedup"
+}

@@ -1,0 +1,238 @@
+{
+  "scope": "Raw-book accounting, mixed-book parallel KPIs, raw unit library, HiGHS solve and interactive coefficient evaluation; excludes incremental graph and daily ledger",
+  "configuration": {
+    "positions": 60000,
+    "paths": 8,
+    "horizon": 27,
+    "threads": 4,
+    "repeats": 3,
+    "output": "docs/reviews/2026-10-01-owned-lifecycle-benchmark-60000.json",
+    "child": null
+  },
+  "results": [
+    {
+      "backend": "python",
+      "version": "0.27.8",
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": {
+            "accounting": 2.1749035001266748,
+            "kpis": 5.181027000071481,
+            "unit_library": 0.12247620010748506,
+            "solve": 0.006668200017884374,
+            "total": 7.48508010013029
+          }
+        },
+        {
+          "phase": "warm_1",
+          "seconds": {
+            "accounting": 3.824471900006756,
+            "kpis": 5.176505800103769,
+            "unit_library": 0.12496250006370246,
+            "solve": 0.004980599973350763,
+            "total": 9.130924300057814
+          }
+        },
+        {
+          "phase": "warm_2",
+          "seconds": {
+            "accounting": 3.8783621001057327,
+            "kpis": 5.188929900061339,
+            "unit_library": 0.12261620000936091,
+            "solve": 0.004817300010472536,
+            "total": 9.194728699978441
+          }
+        },
+        {
+          "phase": "warm_3",
+          "seconds": {
+            "accounting": 3.8969972000923008,
+            "kpis": 5.181406700052321,
+            "unit_library": 0.1275683999992907,
+            "solve": 0.004925600020214915,
+            "total": 9.210901400074363
+          }
+        },
+        {
+          "phase": "edited",
+          "seconds": {
+            "accounting": 3.8504783001262695,
+            "kpis": 5.194632699945942,
+            "unit_library": 0.1239712000824511,
+            "solve": 0.004798299865797162,
+            "total": 9.173884500050917
+          }
+        }
+      ],
+      "baseline_memory": {
+        "rss_mb": 182.78515625,
+        "process_peak_rss_mb": 192.0234375
+      },
+      "final_memory": {
+        "rss_mb": 245.5078125,
+        "process_peak_rss_mb": 660.421875
+      },
+      "instrument_metadata": {
+        "mbs": {
+          "positions": 19200,
+          "distinct_economic_contracts": 19200,
+          "notional": 6254689999.999999,
+          "varied_field": "wac",
+          "terms_fingerprint": "05a8bbac4e6888eef44a842dae9b0ed4e14ea1af9793443415f3e28274126097"
+        },
+        "loans": {
+          "positions": 14400,
+          "distinct_economic_contracts": 14400,
+          "notional": 7342789999.999999,
+          "varied_field": "coupon_or_spread",
+          "terms_fingerprint": "5fc3520a90af19576646b860a80ec577e4874b04e8742c7fa4aeaa351748951e"
+        },
+        "debt": {
+          "positions": 4000,
+          "distinct_economic_contracts": 4000,
+          "notional": 1839409999.9999998,
+          "varied_field": "coupon_or_spread",
+          "terms_fingerprint": "629913d54ea3e89ab8a21c96c782a643f7a03097694f1a4fa1b01673ebbcbe76"
+        },
+        "deposits": {
+          "positions": 16000,
+          "distinct_economic_contracts": 16000,
+          "notional": 11469624668.112911,
+          "varied_field": "avg_account_size",
+          "terms_fingerprint": "15060303390fadfe42b49390c1987871c105b35b0257cdbb194472b1b9455151"
+        },
+        "cds": {
+          "positions": 6400,
+          "distinct_economic_contracts": 6400,
+          "notional": 1000000000.0,
+          "varied_field": "rate",
+          "terms_fingerprint": "4f5dd8822bae2abeefdd1ed3a5dce9630b3b3b074d7f4523edf7cb9590a93ee3"
+        }
+      },
+      "interactive_ms": {
+        "median": 0.0514,
+        "p95": 0.05470999999999999,
+        "p99": 0.069603
+      }
+    },
+    {
+      "backend": "rust",
+      "version": "0.27.8",
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": {
+            "accounting": 1.1526369999628514,
+            "kpis": 4.041098999790847,
+            "unit_library": 0.04745650012046099,
+            "solve": 0.01926550013013184,
+            "total": 5.260465499944985
+          }
+        },
+        {
+          "phase": "warm_1",
+          "seconds": {
+            "accounting": 2.128044600132853,
+            "kpis": 4.553132599918172,
+            "unit_library": 0.04992090002633631,
+            "solve": 0.010380299994722009,
+            "total": 6.741485300008208
+          }
+        },
+        {
+          "phase": "warm_2",
+          "seconds": {
+            "accounting": 2.096976400120184,
+            "kpis": 4.583241699961945,
+            "unit_library": 0.05017749988473952,
+            "solve": 0.010185000021010637,
+            "total": 6.740586000028998
+          }
+        },
+        {
+          "phase": "warm_3",
+          "seconds": {
+            "accounting": 2.094574499875307,
+            "kpis": 4.54905779985711,
+            "unit_library": 0.04941580002196133,
+            "solve": 0.01081290002912283,
+            "total": 6.703872399870306
+          }
+        },
+        {
+          "phase": "edited",
+          "seconds": {
+            "accounting": 2.1199946000706404,
+            "kpis": 4.579305099789053,
+            "unit_library": 0.050952300196513534,
+            "solve": 0.011810600059106946,
+            "total": 6.762067400151864
+          }
+        }
+      ],
+      "baseline_memory": {
+        "rss_mb": 181.73046875,
+        "process_peak_rss_mb": 192.96484375
+      },
+      "final_memory": {
+        "rss_mb": 246.625,
+        "process_peak_rss_mb": 356.51171875
+      },
+      "instrument_metadata": {
+        "mbs": {
+          "positions": 19200,
+          "distinct_economic_contracts": 19200,
+          "notional": 6254689999.999999,
+          "varied_field": "wac",
+          "terms_fingerprint": "05a8bbac4e6888eef44a842dae9b0ed4e14ea1af9793443415f3e28274126097"
+        },
+        "loans": {
+          "positions": 14400,
+          "distinct_economic_contracts": 14400,
+          "notional": 7342789999.999999,
+          "varied_field": "coupon_or_spread",
+          "terms_fingerprint": "5fc3520a90af19576646b860a80ec577e4874b04e8742c7fa4aeaa351748951e"
+        },
+        "debt": {
+          "positions": 4000,
+          "distinct_economic_contracts": 4000,
+          "notional": 1839409999.9999998,
+          "varied_field": "coupon_or_spread",
+          "terms_fingerprint": "629913d54ea3e89ab8a21c96c782a643f7a03097694f1a4fa1b01673ebbcbe76"
+        },
+        "deposits": {
+          "positions": 16000,
+          "distinct_economic_contracts": 16000,
+          "notional": 11469624668.112911,
+          "varied_field": "avg_account_size",
+          "terms_fingerprint": "15060303390fadfe42b49390c1987871c105b35b0257cdbb194472b1b9455151"
+        },
+        "cds": {
+          "positions": 6400,
+          "distinct_economic_contracts": 6400,
+          "notional": 1000000000.0,
+          "varied_field": "rate",
+          "terms_fingerprint": "4f5dd8822bae2abeefdd1ed3a5dce9630b3b3b074d7f4523edf7cb9590a93ee3"
+        }
+      },
+      "interactive_ms": {
+        "median": 0.0922,
+        "p95": 0.17761,
+        "p99": 0.25191
+      },
+      "native_binary_sha256": "c4b9e56ef3e7ac8045795bc9159b7dd0aa1f6573909035194e6ba9677d3aa8a7"
+    }
+  ],
+  "parity": true,
+  "values_checked": 398315,
+  "max_absolute_error": 0.0033372044563293457,
+  "tolerance": {
+    "rtol": 1e-07,
+    "atol": 1e-05
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "script_sha256": "c7f3e67cd2085e4e1f35ab856f2c68b40af2ee96a0e9bdf9e8682a4a71aa9d1a",
+  "memory_note": "Fresh process per backend. OS peak includes interpreter, imports, JIT/cache load, transport and retained compact numerical outputs. Identical thread/path budgets; no concurrent benchmark workloads."
+}

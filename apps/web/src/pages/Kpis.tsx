@@ -1,3 +1,4 @@
+import { useEngineData } from "../lib/engine";
 /** Top-level KPI board: EVE & duration gap, LCR, NSFR, CET1 projection.
  * Weight tables are stylized (the calibration seam) — labels say so. */
 import { useState } from "react";
@@ -16,16 +17,15 @@ type Kpis = {
 };
 
 export default function KpisPage() {
-  const [k, setK] = useState<Kpis | null>(null);
+  const engine = useEngineData();
+  const k = engine.kpis;
   const [busy, setBusy] = useState(false);
 
   const run = async () => {
     setBusy(true);
     try {
-      const j = await api.run("kpis");
-      const done = await awaitJob(j.id);
-      if (done.status === "done") setK(done.result as Kpis);
-      else alert(done.detail);
+      const done = await engine.run("kpis");
+      if (done.status === "error") alert(done.detail);
     } finally { setBusy(false); }
   };
 
