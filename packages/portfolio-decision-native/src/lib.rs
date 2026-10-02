@@ -456,6 +456,11 @@ pub unsafe extern "C" fn decision_free(pointer: *mut c_char) {
     }
 }
 
+/// Full raw graph/unit/solve/accounting/mapping/daily-ledger stream, no callbacks.
+pub fn run_workflow(request: Value, output: Box<dyn std::io::Write + Send>) -> Result<(), String> {
+    owned::run_streamed(request, output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -576,9 +581,4 @@ mod tests {
         let handle = dispatch(v).unwrap()["handle"].as_u64().unwrap();
         dispatch(json!({"op":"close","handle":handle})).unwrap();
     }
-}
-
-/// Full raw graph/unit/solve/accounting/mapping/daily-ledger stream, no callbacks.
-pub fn run_workflow(request: Value, output: Box<dyn std::io::Write + Send>) -> Result<(), String> {
-    owned::run_streamed(request, output)
 }
