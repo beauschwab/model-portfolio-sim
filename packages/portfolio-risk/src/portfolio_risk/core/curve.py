@@ -11,6 +11,9 @@ def bootstrap_curve(tenors: np.ndarray, rates: np.ndarray) -> np.ndarray:
     """Sequential log-DF bootstrap, brentq per pillar, log-linear DF interp.
     Returns discount factors on the quarterly grid (N_FWD+1,), flat-zero
     extrapolated beyond the last pillar."""
+    from . import quant_native as native
+    if native.enabled():
+        return native.call(18, [tenors, rates, N_FWD, TENOR], [(N_FWD+1,)])[0]
     kt, kl = [0.0], [0.0]
     for T, r in zip(tenors, rates):
         pay = np.arange(1.0, T + 0.5)
@@ -19,7 +22,9 @@ def bootstrap_curve(tenors: np.ndarray, rates: np.ndarray) -> np.ndarray:
             d = np.exp(np.interp(pay, kt + [T], kl + [lnd]))
             return r * d.sum() + d[-1] - 1.0
 
-        kl.append(brentq(resid, -5.0, 0.5))
+        # The default 2e-12 root tolerance can straddle a float32 path rounding
+        # boundary and amplify into KRD noise. Resolve the curve at f64 precision.
+        kl.append(brentq(resid, -5.0, 0.5, xtol=2e-15))
         kt.append(T)
     kt, kl = np.array(kt), np.array(kl)
     grid = np.arange(N_FWD + 1) * TENOR

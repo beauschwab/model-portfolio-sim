@@ -1,0 +1,63 @@
+{
+  "scope": "Rust seeded shared Gaussian generation; full lifecycle goal remains incomplete",
+  "engine_version": "0.27.5",
+  "product_abi": 5,
+  "environment": "Local Windows checkout, NumPy 2.4.6",
+  "solver_requirement": "HiGHS remains C++; strategy orchestration stays Rust-owned",
+  "native_library_sha256": "2268b6b60aefb3e121605ebf3634386541a260ae887a626b161a6d52cd332e36",
+  "focused_random_and_native_product_suite": {
+    "passed": 70,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 20.12,
+    "random_tests": 39,
+    "product_final_output_tests": 31
+  },
+  "rust_release_unit_tests": {
+    "passed": 12,
+    "failed": 0
+  },
+  "rust_clippy_all_targets_warnings_denied": "passed",
+  "rust_format": "passed",
+  "api_suite": {
+    "passed": 93,
+    "failed": 0,
+    "seconds": 119.28,
+    "note": "Build identity held fixed throughout; default SQLite tests; no live PostgreSQL service exercised"
+  },
+  "engine_suite": {
+    "passed": 432,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 253.0
+  },
+  "ownership": "SharedDraws owns integer SeedSequence mixing, PCG64 XSL-RR, normal Ziggurat including tails, antithetic rate tape and independent spread/HPI tapes; Python only serializes seed words and shapes",
+  "upstream": "https://github.com/numpy/numpy/tree/v2.4.6/numpy/random",
+  "correctness": [
+    "Seed zero golden PCG64 and normal values in standalone Rust tests",
+    "NumPy parity for one, two, seven and 32 paths across six seeds including multiword entropy and carry boundaries",
+    "A million independent normals exercises rejection/tail branches",
+    "Direct local comparisons were exact; cross-platform gate allows 2e-15 absolute tail-libm roundoff without stream drift",
+    "Native CRN construction forbids NumPy RNG callbacks",
+    "Identical tapes across thread counts; same seed replay and changed-seed isolation",
+    "Original downstream product/final-output tolerances unchanged"
+  ],
+  "memory_admission": "At most 128 Mi f64 values (1 GiB retained tapes), independently checked before Python outputs and in Rust; caller output copy requires additional memory",
+  "seed_admission": "Nonnegative integer entropy, at most 32768 bits; no lossy f64 conversion of whole seeds",
+  "documentation": "Guide structure, browser and architecture passed; operator skill packaged; upstream hashes and license notices preserved beside binaries",
+  "remaining": [
+    "Raw-book normalization and schedules",
+    "Global scenario orchestration",
+    "Native dependency and bounded-cache ownership",
+    "Unit-library pricing orchestration",
+    "Saved-book mapping and final ledger reports",
+    "Unified execution/cancellation/deadlines",
+    "Full 60000-instrument equivalence, memory and cold/warm/edit performance evidence"
+  ],
+  "not_claimed": [
+    "Full Rust lifecycle completion",
+    "Performance improvement",
+    "Production deployment",
+    "Linux execution or real-data model validation"
+  ]
+}

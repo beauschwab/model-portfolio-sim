@@ -5,7 +5,7 @@
  * (yield/OAD/sparkline), Fwd Balance, Fwd NII, and KRD heat. All
  * derived figures are INDICATIVE client-side approximations (each ⓘ
  * says so) — engine-grade numbers come from Risk Desk / NII runs. */
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { api, fmt$, rowsOf, type BookName, type Row } from "../lib/api";
 import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Popover, Spinner } from "../components/ui";
 
@@ -89,10 +89,19 @@ function BalEdit({ p, onSet }: { p: Pos; onSet: (v: number) => void }) {
 export default function Positions() {
   const [pos, setPos] = useState<Pos[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
   const [open, setOpen] = useState<Record<string, boolean>>({ Assets: true, Liabilities: true });
   const [view, setView] = useState<View>("summary");
 
   useEffect(() => {
+    const refresh = () => setRevision(value => value + 1);
+    window.addEventListener('engine:inputs-changed', refresh);
+    return () => window.removeEventListener('engine:inputs-changed', refresh);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
     (async () => {
       const names = ["mbs", "loans", "mm", "debt", "deposits", "cds"] as BookName[];
       const fetched = await Promise.all(names.map(b => api.book(b).then(rowsOf).catch(() => [] as Row[])));
@@ -104,10 +113,10 @@ export default function Positions() {
           out.push({ ...d, bal0: d.bal, book: b, side });
         }
       });
-      setPos(out);
-      setLoading(false);
+      if (active) { setPos(out); setLoading(false); }
     })();
-  }, []);
+    return () => { active = false; };
+  }, [revision]);
 
   const plug = useMemo(() => {
     const a = pos.filter(p => p.side > 0).reduce((s, p) => s + p.bal, 0);
@@ -127,16 +136,23 @@ export default function Positions() {
   const maxBal = useMemo(() => Math.max(1, ...pos.map(p => p.bal)), [pos]);
   const maxKrd = useMemo(() => Math.max(1, ...pos.flatMap(p => krdSplit(p))), [pos]);
 
-  const agg = (ps: Pos[]) => ({
-    bal: ps.reduce((s, p) => s + p.bal, 0), bal0: ps.reduce((s, p) => s + p.bal0, 0),
-    yld: ps.reduce((s, p) => s + p.yld * p.bal, 0) / Math.max(1, ps.reduce((s, p) => s + p.bal, 0)),
-    oad: ps.reduce((s, p) => s + p.oad * p.bal, 0) / Math.max(1, ps.reduce((s, p) => s + p.bal, 0)),
-    balQ: QTRS.map((_, i) => ps.reduce((s, p) => s + balPath(p)[i], 0)),
-    niiQ: QTRS.map((_, i) => ps.reduce((s, p) => s + niiPath(p)[i], 0)),
-    krd: PILLARS.map((_, i) => ps.reduce((s, p) => s + krdSplit(p)[i] * p.side, 0)),
-  });
+  const derived = useMemo(() => new Map(pos.map(p => [p, {
+    balQ: balPath(p), niiQ: niiPath(p), krd: krdSplit(p),
+  }])), [pos]);
+  const agg = (ps: Pos[]) => {
+    const total = ps.reduce((s, p) => s + p.bal, 0);
+    const balQ = QTRS.map(() => 0), niiQ = QTRS.map(() => 0), krd = PILLARS.map(() => 0);
+    let yld = 0, oad = 0, bal0 = 0;
+    for (const p of ps) {
+      const d = derived.get(p)!;
+      bal0 += p.bal0; yld += p.yld * p.bal; oad += p.oad * p.bal;
+      for (let i = 0; i < QTRS.length; i++) { balQ[i] += d.balQ[i]; niiQ[i] += d.niiQ[i]; }
+      for (let i = 0; i < PILLARS.length; i++) krd[i] += d.krd[i] * p.side;
+    }
+    return { bal: total, bal0, yld: yld / Math.max(1, total), oad: oad / Math.max(1, total), balQ, niiQ, krd };
+  };
 
-  const Cols = ({ a, p }: { a: ReturnType<typeof agg>; p?: Pos }) => view === "summary" ? (
+  const renderCols = ({ a, p }: { a: ReturnType<typeof agg>; p?: Pos }) => view === "summary" ? (
     <>
       <td className="num px-2 text-right text-xs">{(a.yld * 100).toFixed(2)}%</td>
       <td className="num px-2 text-right text-xs">{a.oad.toFixed(2)}y
@@ -201,8 +217,7 @@ export default function Positions() {
                   <div className="flex items-center justify-center gap-2 text-xs text-paper-faint"><Spinner /> loading positions…</div>
                 </td></tr>
               ) : (["Assets", "Liabilities"] as const).map(sideL => (
-                <SideRows key={sideL} label={sideL} books={groups[sideL]} open={open} setOpen={setOpen}
-                  agg={agg} Cols={Cols} setPos={setPos} />
+                <Fragment key={sideL}>{renderSideRows({ label: sideL, books: groups[sideL], open, setOpen, agg, renderCols, setPos })}</Fragment>
               ))}
             </tbody>
           </table>
@@ -211,7 +226,7 @@ export default function Positions() {
     </div>
   );
 
-  function SideRows({ label, books, open, setOpen, agg, Cols, setPos }: any) {
+  function renderSideRows({ label, books, open, setOpen, agg, renderCols, setPos }: any) {
     const all = (Object.values(books) as Pos[][]).flat();
     if (!all.length) return null;
     const a = agg(all);
@@ -222,17 +237,17 @@ export default function Positions() {
             <span className="mr-1 text-brand">{open[label] ? "▾" : "▸"}</span>{label}
           </td>
           <td className="num px-2 text-right text-paper">{fmt$(a.bal)}<Trend now={a.bal} was={a.bal0} /></td>
-          <Cols a={a} />
+          {renderCols({ a })}
         </tr>
         {open[label] && Object.entries(books).map(([b, ps]: [string, any]) => {
           const ab = agg(ps); const key = `${label}:${b}`;
           return (
-            <BookGroup key={b} bk={key} b={b} ps={ps} ab={ab} />
+            <Fragment key={b}>{renderBookGroup({ bk: key, b, ps, ab })}</Fragment>
           );
         })}
       </>
     );
-    function BookGroup({ bk, b, ps, ab }: any) {
+    function renderBookGroup({ bk, b, ps, ab }: any) {
       return (
         <>
           <tr className="hover:bg-surface-1">
@@ -241,7 +256,7 @@ export default function Positions() {
               <span className="ml-2 text-[10px] text-paper-faint">{ps.length}</span>
             </td>
             <td className="num px-2 text-right">{fmt$(ab.bal)}<Trend now={ab.bal} was={ab.bal0} /></td>
-            <Cols a={ab} />
+            {renderCols({ a: ab })}
           </tr>
           {open[bk] && ps.map((p: Pos) => (
             <tr key={p.id} className="hover:bg-surface-1" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 26px" }}>
@@ -249,7 +264,7 @@ export default function Positions() {
               <td className="px-2 text-right">
                 <BalEdit p={p} onSet={v => setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x))} />
               </td>
-              <Cols a={agg([p])} p={p} />
+              {renderCols({ a: agg([p]), p })}
             </tr>
           ))}
         </>

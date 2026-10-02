@@ -1,0 +1,29 @@
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+ABLATION before 4.091290900018066 14.40625
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+ABLATION after 5.075142899993807 17.34375
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+ABLATION after 5.041736599989235 17.1875
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+ABLATION before 5.2633368000388145 17.265625

@@ -27,7 +27,7 @@ test("research snapshot previews without mutation and applies with captured revi
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Open Market & Scenarios", exact: true }).click();
-  const panel = page;
+  const panel = page.getByRole("region", { name: "Market & Scenarios", exact: true });
   await panel.getByLabel("Saved research snapshots").selectOption(id);
   await expect(panel.getByText(/Maximum zero-rate difference/)).toContainText("8.000 bp");
   await expect(panel.getByText("2026-09-26", { exact: true })).toBeVisible();
@@ -52,7 +52,7 @@ test("failed source job surfaces error and keeps active market", async ({ page }
   await page.route("**/api/jobs/bad-feed", route => route.fulfill({ json: { id: "bad-feed", status: "error", detail: "upstream HTTP 429" } }));
   await page.goto("/");
   await page.getByRole("button", { name: "Open Market & Scenarios", exact: true }).click();
-  const panel = page;
+  const panel = page.getByRole("region", { name: "Market & Scenarios", exact: true });
   await panel.getByRole("button", { name: "Fetch snapshot" }).click();
   await expect(panel.getByRole("alert")).toContainText("upstream HTTP 429");
   await expect(panel.getByText("Active curve: assumed")).toBeVisible();

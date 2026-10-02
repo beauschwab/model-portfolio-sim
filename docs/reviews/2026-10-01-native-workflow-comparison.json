@@ -1,0 +1,13 @@
+{
+  "scope": "Before/after complete-workflow summaries and graph/solver results; all persisted journal rows independently replayed in each run, not a retained rowwise baseline comparison",
+  "numeric_count": 510,
+  "max_absolute_difference": 2.3874235921539366e-10,
+  "rtol": 1e-07,
+  "atol": 1e-05,
+  "parity": true,
+  "speedup": 2.125699676206782,
+  "native_rss_reduction_pct": 31.314881883638314,
+  "tree_rss_reduction_pct": 7.580623275589127,
+  "baseline_binary_sha256": "90219e669987b065ce0d7770ea4ae4a57f25a02e835dbe57579ea8fc622db971",
+  "optimized_binary_sha256": "e51003a20376a6af38451368d1f26f4e296f231f454ab170e01e8def39b1f886"
+}

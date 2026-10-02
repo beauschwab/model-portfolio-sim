@@ -1,0 +1,16 @@
+[package]
+name = "portfolio-gpu-experiment"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cudarc = { version = "=0.19.10", default-features = false, features = ["std", "driver", "nvrtc", "dynamic-loading", "cuda-12090"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

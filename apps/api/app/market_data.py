@@ -178,6 +178,12 @@ def _atomic(path, payload):
 def save_snapshot(payload, raw_files):
     encoded = _json(payload)
     sid = _hash(encoded)
+    from . import persistence
+    if persistence.REPO is not None:
+        raw_refs = [persistence.CODEC.objects.put(raw, 'bin') for raw in raw_files]
+        manifest = persistence.CODEC.dump({'payload': payload, 'raw_files': raw_refs})
+        persistence.REPO.save_research(sid, manifest)
+        return {'id': sid, **payload}
     with _LOCK:
         for raw in raw_files:
             _atomic(_root() / "raw" / (_hash(raw) + ".bin"), raw)
@@ -188,6 +194,12 @@ def save_snapshot(payload, raw_files):
 def get_snapshot(sid):
     if not re.fullmatch(r"[a-f0-9]{64}", sid):
         raise DataError("invalid snapshot identifier")
+    from . import persistence
+    if persistence.REPO is not None:
+        payload = persistence.CODEC.load(persistence.REPO.research(sid)['manifest'])['payload']
+        if _hash(_json(payload)) != sid or payload.get('schema_version') != VERSION:
+            raise DataError('snapshot integrity or version check failed')
+        return {'id': sid, **payload}
     try:
         raw = (_root() / "snapshots" / (sid + ".json")).read_bytes()
     except FileNotFoundError:
@@ -207,6 +219,9 @@ def summary(s):
 
 
 def list_snapshots():
+    from . import persistence
+    if persistence.REPO is not None:
+        return [summary(get_snapshot(row['id'])) for row in persistence.REPO.research()]
     files = sorted((_root() / "snapshots").glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:100]
     return [summary(get_snapshot(p.stem)) for p in files]
 

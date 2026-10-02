@@ -1,0 +1,368 @@
+{
+  "scope": "2 scenarios; synthetic daily accrual, full journal retention, all daily checks and independent closing replay; no product path generation or persistence",
+  "positions": 2000,
+  "days": 30,
+  "scenarios": 2,
+  "python": "3.12.11",
+  "source_sha256": "805e0a3c340f2ad1ec03fd6be4333189109598758cc5d75698065ebb6673f0bb",
+  "source_unchanged": true,
+  "wall_samples_seconds": [
+    1.4965850999578834,
+    2.6701795998960733,
+    3.6618547001853585
+  ],
+  "wall_median_seconds": 2.6701795998960733,
+  "journal_rows": 252004,
+  "journal_columnar_mib": 21.700096130371094,
+  "baseline_rss_mib": 114.82421875,
+  "sampled_peak_rss_mib": 391.25390625,
+  "profile_total_seconds": 7.2338124,
+  "self_time_groups": {
+    "columnar_conversion": {
+      "seconds": 0.05078960000000001,
+      "percent": 0.7021138673709594
+    },
+    "journal": {
+      "seconds": 2.4670769999999997,
+      "percent": 34.10479652472049
+    },
+    "daily_simulation": {
+      "seconds": 1.9032352000000003,
+      "percent": 26.31026483351988
+    },
+    "other": {
+      "seconds": 2.8127106,
+      "percent": 38.88282477438867
+    }
+  },
+  "top_self": [
+    {
+      "file": "journal.py",
+      "line": 39,
+      "function": "post",
+      "calls": 124002,
+      "self_seconds": 0.9815394000000001,
+      "cumulative_seconds": 1.7725765000000002
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 362,
+      "function": "_simulate",
+      "calls": 2,
+      "self_seconds": 0.8519047000000001,
+      "cumulative_seconds": 6.7049794
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 461,
+      "function": "observe",
+      "calls": 62,
+      "self_seconds": 0.5385256,
+      "cumulative_seconds": 1.4816691000000002
+    },
+    {
+      "file": "journal.py",
+      "line": 15,
+      "function": "replay",
+      "calls": 2,
+      "self_seconds": 0.4939622,
+      "cumulative_seconds": 1.2707901000000001
+    },
+    {
+      "file": "journal.py",
+      "line": 56,
+      "function": "verify",
+      "calls": 62,
+      "self_seconds": 0.4317983,
+      "cumulative_seconds": 0.7789982000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<method 'get' of 'dict' objects>",
+      "calls": 2020785,
+      "self_seconds": 0.39585580000000004,
+      "cumulative_seconds": 0.39585580000000004
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 416,
+      "function": "post",
+      "calls": 124000,
+      "self_seconds": 0.38357060000000004,
+      "cumulative_seconds": 2.1465609000000003
+    },
+    {
+      "file": "copy.py",
+      "line": 118,
+      "function": "deepcopy",
+      "calls": 382105,
+      "self_seconds": 0.3722403,
+      "cumulative_seconds": 0.7771809000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.max>",
+      "calls": 1368631,
+      "self_seconds": 0.31507670000000004,
+      "cumulative_seconds": 0.31507670000000004
+    },
+    {
+      "file": "journal.py",
+      "line": 20,
+      "function": "<genexpr>",
+      "calls": 756012,
+      "self_seconds": 0.2731172,
+      "cumulative_seconds": 0.3354532
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method from_dicts>",
+      "calls": 9,
+      "self_seconds": 0.2624017,
+      "cumulative_seconds": 0.2624017
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.all>",
+      "calls": 376009,
+      "self_seconds": 0.2321514,
+      "cumulative_seconds": 0.6981643000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.sum>",
+      "calls": 248126,
+      "self_seconds": 0.1850116,
+      "cumulative_seconds": 0.421229
+    },
+    {
+      "file": "copy.py",
+      "line": 217,
+      "function": "_deepcopy_dict",
+      "calls": 6005,
+      "self_seconds": 0.14344120000000002,
+      "cumulative_seconds": 0.6948880000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.min>",
+      "calls": 604186,
+      "self_seconds": 0.1355435,
+      "cumulative_seconds": 0.1355435
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.abs>",
+      "calls": 814228,
+      "self_seconds": 0.10738610000000001,
+      "cumulative_seconds": 0.10738610000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method math.isfinite>",
+      "calls": 818035,
+      "self_seconds": 0.1071113,
+      "cumulative_seconds": 0.1071113
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<method 'append' of 'list' objects>",
+      "calls": 528145,
+      "self_seconds": 0.1014555,
+      "cumulative_seconds": 0.1014555
+    },
+    {
+      "file": "journal.py",
+      "line": 44,
+      "function": "<genexpr>",
+      "calls": 376006,
+      "self_seconds": 0.0931904,
+      "cumulative_seconds": 0.130552
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method math.isclose>",
+      "calls": 632252,
+      "self_seconds": 0.0845336,
+      "cumulative_seconds": 0.0845336
+    }
+  ],
+  "top_cumulative": [
+    {
+      "file": "balance_stress.py",
+      "line": 921,
+      "function": "run_balance_stress",
+      "calls": 1,
+      "self_seconds": 0.010189100000000001,
+      "cumulative_seconds": 7.238025400000001
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 362,
+      "function": "_simulate",
+      "calls": 2,
+      "self_seconds": 0.8519047000000001,
+      "cumulative_seconds": 6.7049794
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 416,
+      "function": "post",
+      "calls": 124000,
+      "self_seconds": 0.38357060000000004,
+      "cumulative_seconds": 2.1465609000000003
+    },
+    {
+      "file": "journal.py",
+      "line": 39,
+      "function": "post",
+      "calls": 124002,
+      "self_seconds": 0.9815394000000001,
+      "cumulative_seconds": 1.7725765000000002
+    },
+    {
+      "file": "balance_stress.py",
+      "line": 461,
+      "function": "observe",
+      "calls": 62,
+      "self_seconds": 0.5385256,
+      "cumulative_seconds": 1.4816691000000002
+    },
+    {
+      "file": "journal.py",
+      "line": 62,
+      "function": "close",
+      "calls": 2,
+      "self_seconds": 0.027635600000000003,
+      "cumulative_seconds": 1.3068772000000002
+    },
+    {
+      "file": "journal.py",
+      "line": 15,
+      "function": "replay",
+      "calls": 2,
+      "self_seconds": 0.4939622,
+      "cumulative_seconds": 1.2707901000000001
+    },
+    {
+      "file": "journal.py",
+      "line": 56,
+      "function": "verify",
+      "calls": 62,
+      "self_seconds": 0.4317983,
+      "cumulative_seconds": 0.7789982000000001
+    },
+    {
+      "file": "copy.py",
+      "line": 118,
+      "function": "deepcopy",
+      "calls": 382105,
+      "self_seconds": 0.3722403,
+      "cumulative_seconds": 0.7771809000000001
+    },
+    {
+      "file": "copy.py",
+      "line": 191,
+      "function": "_deepcopy_list",
+      "calls": 7,
+      "self_seconds": 0.0033199,
+      "cumulative_seconds": 0.7768888
+    },
+    {
+      "file": "copy.py",
+      "line": 247,
+      "function": "_reconstruct",
+      "calls": 4002,
+      "self_seconds": 0.0141107,
+      "cumulative_seconds": 0.6989652000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.all>",
+      "calls": 376009,
+      "self_seconds": 0.2321514,
+      "cumulative_seconds": 0.6981643000000001
+    },
+    {
+      "file": "copy.py",
+      "line": 217,
+      "function": "_deepcopy_dict",
+      "calls": 6005,
+      "self_seconds": 0.14344120000000002,
+      "cumulative_seconds": 0.6948880000000001
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.sum>",
+      "calls": 248126,
+      "self_seconds": 0.1850116,
+      "cumulative_seconds": 0.421229
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<method 'get' of 'dict' objects>",
+      "calls": 2020785,
+      "self_seconds": 0.39585580000000004,
+      "cumulative_seconds": 0.39585580000000004
+    },
+    {
+      "file": "journal.py",
+      "line": 20,
+      "function": "<genexpr>",
+      "calls": 756012,
+      "self_seconds": 0.2731172,
+      "cumulative_seconds": 0.3354532
+    },
+    {
+      "file": "~",
+      "line": 0,
+      "function": "<built-in method builtins.max>",
+      "calls": 1368631,
+      "self_seconds": 0.31507670000000004,
+      "cumulative_seconds": 0.31507670000000004
+    },
+    {
+      "file": "frame.py",
+      "line": 378,
+      "function": "__init__",
+      "calls": 13,
+      "self_seconds": 4.72e-05,
+      "cumulative_seconds": 0.2641009
+    },
+    {
+      "file": "dataframe.py",
+      "line": 449,
+      "function": "sequence_to_pydf",
+      "calls": 13,
+      "self_seconds": 5.86e-05,
+      "cumulative_seconds": 0.26404130000000003
+    },
+    {
+      "file": "functools.py",
+      "line": 907,
+      "function": "wrapper",
+      "calls": 9,
+      "self_seconds": 6.13e-05,
+      "cumulative_seconds": 0.2626964
+    }
+  ],
+  "cautions": [
+    "cProfile adds overhead; use unprofiled samples for elapsed time",
+    "Module self-time groups exclude builtin time attributed to other; cumulative times overlap",
+    "RSS spans three sequential samples and includes allocator retention; not a cold-process peak",
+    "No Rust ledger implementation is measured; this identifies candidate work only"
+  ]
+}

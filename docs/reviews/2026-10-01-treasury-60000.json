@@ -1,0 +1,12 @@
+{
+  "positions": 60000,
+  "capital_snapshots": 2,
+  "elapsed_s": 1.5905419001355767,
+  "peak_process_rss_mib": 638.484375,
+  "backend": "rust",
+  "input_sha256": "4a5a85cd1d73c6825e8544ca5b339c464a51ad5dab3192480eec6e431c541bca",
+  "ftp_rows": 60000,
+  "capital_ratios": 26,
+  "max_elimination_error": 2.148747444152832e-05,
+  "scope": "Synthetic native FTP and supplied capital report including JSON transport and Polars formatting; no pricing, solver, ledger, HTTP, or persistence"
+}

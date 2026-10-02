@@ -1,0 +1,30 @@
+{
+  "backend": "python",
+  "positions": 6000,
+  "paths": 128,
+  "threads": 4,
+  "seconds": 18.511693599866703,
+  "timings": {
+    "cd": {
+      "calls": 23,
+      "seconds": 0.01170750125311315
+    },
+    "corp": {
+      "calls": 46,
+      "seconds": 0.08410589932464063
+    },
+    "deposit": {
+      "calls": 23,
+      "seconds": 3.2787015999201685
+    },
+    "lmm": {
+      "calls": 23,
+      "seconds": 0.3068849998526275
+    },
+    "mbs": {
+      "calls": 23,
+      "seconds": 7.8208291998598725
+    }
+  },
+  "computed_nodes": 288072
+}

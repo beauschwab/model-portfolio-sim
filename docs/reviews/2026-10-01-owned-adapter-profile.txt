@@ -1,0 +1,41 @@
+         778916 function calls (778802 primitive calls) in 6.995 seconds
+
+   Ordered by: cumulative time
+   List reduced from 202 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    6.995    6.995 C:\Users\schwa\Repos\model-portfolio-sim\scripts\profile_owned_lifecycles.py:24(run)
+        2    5.833    2.917    6.463    3.232 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\quant_native.py:89(term_call)
+        1    0.009    0.009    4.743    4.743 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\analytics\kpis.py:419(compute_kpis)
+        1    0.008    0.008    4.591    4.591 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:258(kpis)
+        1    0.014    0.014    2.251    2.251 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\analytics\accounting.py:131(run_balance_sheet_nii)
+        1    0.000    0.000    2.238    2.238 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:189(accounting)
+        2    0.000    0.000    0.588    0.294 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\__init__.py:183(dumps)
+        2    0.000    0.000    0.588    0.294 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\encoder.py:183(encode)
+        2    0.534    0.267    0.588    0.294 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\encoder.py:205(iterencode)
+        2    0.001    0.000    0.274    0.137 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:146(accounting_request)
+        1    0.078    0.078    0.212    0.212 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:231(kpi_request)
+       22    0.099    0.004    0.168    0.008 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\dataframe\frame.py:11766(rows)
+       20    0.000    0.000    0.168    0.008 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\dataframe\frame.py:1906(to_dicts)
+        6    0.070    0.012    0.168    0.028 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\quant_native.py:131(_term_deck_request)
+        1    0.000    0.000    0.143    0.143 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:215(balance_risk_request)
+       22    0.069    0.003    0.069    0.003 {method 'row_tuples' of 'builtins.PyDataFrame' objects}
+   376946    0.056    0.000    0.056    0.000 {method 'get' of 'dict' objects}
+    82735    0.032    0.000    0.053    0.000 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\quant_native.py:93(encode)
+        2    0.000    0.000    0.049    0.025 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:33(deposit_input)
+        2    0.000    0.000    0.047    0.024 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\lifecycle_native.py:127(mortgage_input)
+       20    0.000    0.000    0.045    0.002 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\dataframe\frame.py:10329(select)
+       20    0.000    0.000    0.043    0.002 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\_utils\deprecation.py:84(wrapper)
+       20    0.000    0.000    0.043    0.002 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\lazyframe\opt_flags.py:327(wrapper)
+       20    0.000    0.000    0.043    0.002 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\lazyframe\frame.py:2404(collect)
+       20    0.042    0.002    0.042    0.002 {method 'collect' of 'builtins.PyLazyFrame' objects}
+        2    0.012    0.006    0.037    0.019 C:\Users\schwa\Repos\model-portfolio-sim\packages\portfolio-risk\src\portfolio_risk\core\quant_native.py:205(_mortgage_inputs)
+        2    0.000    0.000    0.035    0.018 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\__init__.py:299(loads)
+        2    0.000    0.000    0.034    0.017 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\decoder.py:333(decode)
+        2    0.034    0.017    0.034    0.017 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\json\decoder.py:344(raw_decode)
+    99202    0.025    0.000    0.025    0.000 {method 'update' of 'dict' objects}
+        4    0.000    0.000    0.014    0.004 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\dataframe\frame.py:378(__init__)
+        1    0.000    0.000    0.013    0.013 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\_utils\construction\dataframe.py:449(sequence_to_pydf)
+        1    0.000    0.000    0.013    0.013 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\functools.py:907(wrapper)
+        1    0.000    0.000    0.013    0.013 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\_utils\construction\dataframe.py:698(_sequence_of_dict_to_pydf)
+        1    0.013    0.013    0.013    0.013 {built-in method from_dicts}

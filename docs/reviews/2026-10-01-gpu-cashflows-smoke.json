@@ -1,0 +1,261 @@
+{
+  "synthetic": true,
+  "device": "NVIDIA T1000 8GB, 8192 MiB, 596.51, 7.5",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "results": [
+    {
+      "paths": 128,
+      "positions_per_product": 32,
+      "months": 360,
+      "threads": 4,
+      "initialization_seconds": 0.1008349999319762,
+      "shared_preparation_seconds": 0.17333810008130968,
+      "shared_draws": {
+        "seed": 7,
+        "rate_draw_sha256": "669e8c0908f30d7e56a3d3099589ff3882035c6eaffe113dba589fb64633a810",
+        "spread_draw_sha256": "faea8cb47da46ee2d9b98d378aeb76eef87b9ef0bce4a3bdf6770af05475c154",
+        "hpi_draw_sha256": "039f2ebcbd13ef792c9ddd04073de599b0545358568fb541ea13a8bf6053a42d"
+      },
+      "results": [
+        {
+          "product": "mortgage",
+          "cashflow_parity": {
+            "cells": 42816,
+            "max_absolute_error": 1.2898571100095069e-12,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 42816,
+            "max_absolute_error": 2.6645352591003757e-15,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 8864,
+            "max_absolute_error": 5.960464477539063e-08,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.010447100037708879,
+            0.0102999999653548,
+            0.010022900067269802,
+            0.010940500069409609,
+            0.010041299974545836
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.018719295501708984,
+              "rust_call_seconds": 0.0199007,
+              "input_bytes": 1529368.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1904360.0,
+              "python_call_seconds": 0.020299700088799
+            },
+            {
+              "device_kernel_seconds": 0.018780160903930664,
+              "rust_call_seconds": 0.0200826,
+              "input_bytes": 1529368.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1904360.0,
+              "python_call_seconds": 0.020430499920621514
+            },
+            {
+              "device_kernel_seconds": 0.018786239624023437,
+              "rust_call_seconds": 0.0198976,
+              "input_bytes": 1529368.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1904360.0,
+              "python_call_seconds": 0.02020030003041029
+            },
+            {
+              "device_kernel_seconds": 0.018780223846435545,
+              "rust_call_seconds": 0.0199314,
+              "input_bytes": 1529368.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1904360.0,
+              "python_call_seconds": 0.02020439994521439
+            },
+            {
+              "device_kernel_seconds": 0.018739871978759766,
+              "rust_call_seconds": 0.0198456,
+              "input_bytes": 1529368.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1904360.0,
+              "python_call_seconds": 0.020133000100031495
+            }
+          ],
+          "cpu_median_seconds": 0.0102999999653548,
+          "gpu_median_seconds": 0.02020439994521439,
+          "call_speedup": 0.5097899464118684,
+          "resident": {
+            "device_kernel_seconds": 0.018801926422119145,
+            "rust_call_seconds": 0.0952759,
+            "input_bytes": 1529368.0,
+            "scratch_bytes": 98304.0,
+            "compact_output_bytes": 276480.0,
+            "numeric_device_bytes": 1904360.0,
+            "python_call_seconds": 0.09562489995732903
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.05456419987604022,
+            "gpu": 0.0624658998567611
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.05783389997668564,
+              0.05456419987604022,
+              0.0510793998837471
+            ],
+            "gpu": [
+              0.07361650001257658,
+              0.0624658998567611,
+              0.059251099824905396
+            ]
+          },
+          "pipeline_speedup": 0.8735037836829365,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        },
+        {
+          "product": "deposit",
+          "cashflow_parity": {
+            "cells": 38720,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "independent_python_parity": {
+            "cells": 38720,
+            "max_absolute_error": 4.973799150320701e-14,
+            "rtol": 1e-10,
+            "atol": 1e-10,
+            "passed": true
+          },
+          "final_financial_parity": {
+            "cells": 8864,
+            "max_absolute_error": 0.0,
+            "rtol": 1e-07,
+            "atol": 1e-05,
+            "passed": true
+          },
+          "cpu_seconds": [
+            0.005673999898135662,
+            0.007106599863618612,
+            0.006691700080409646,
+            0.005508500151336193,
+            0.0055924998596310616
+          ],
+          "gpu_samples": [
+            {
+              "device_kernel_seconds": 0.008757120132446288,
+              "rust_call_seconds": 0.0097874,
+              "input_bytes": 1477144.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1852088.0,
+              "python_call_seconds": 0.009968299884349108
+            },
+            {
+              "device_kernel_seconds": 0.007759456157684326,
+              "rust_call_seconds": 0.0088533,
+              "input_bytes": 1477144.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1852088.0,
+              "python_call_seconds": 0.009015800198540092
+            },
+            {
+              "device_kernel_seconds": 0.007758656024932861,
+              "rust_call_seconds": 0.008803,
+              "input_bytes": 1477144.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1852088.0,
+              "python_call_seconds": 0.00899200001731515
+            },
+            {
+              "device_kernel_seconds": 0.007773024082183838,
+              "rust_call_seconds": 0.0087551,
+              "input_bytes": 1477144.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1852088.0,
+              "python_call_seconds": 0.008930500131100416
+            },
+            {
+              "device_kernel_seconds": 0.009155776023864746,
+              "rust_call_seconds": 0.0101885,
+              "input_bytes": 1477144.0,
+              "scratch_bytes": 98304.0,
+              "compact_output_bytes": 276480.0,
+              "numeric_device_bytes": 1852088.0,
+              "python_call_seconds": 0.010363899869844317
+            }
+          ],
+          "cpu_median_seconds": 0.005673999898135662,
+          "gpu_median_seconds": 0.009015800198540092,
+          "call_speedup": 0.6293395786493183,
+          "resident": {
+            "device_kernel_seconds": 0.008041920089721679,
+            "rust_call_seconds": 0.0413094,
+            "input_bytes": 1477144.0,
+            "scratch_bytes": 98304.0,
+            "compact_output_bytes": 276480.0,
+            "numeric_device_bytes": 1852088.0,
+            "python_call_seconds": 0.041560899931937456
+          },
+          "prepared_five_scenario_pipeline_seconds": {
+            "cpu": 0.03022550023160875,
+            "gpu": 0.04752520006150007
+          },
+          "pipeline_samples_seconds": {
+            "cpu": [
+              0.029717199970036745,
+              0.03422329993918538,
+              0.03022550023160875
+            ],
+            "gpu": [
+              0.04752520006150007,
+              0.04745049984194338,
+              0.04769600019790232
+            ]
+          },
+          "pipeline_speedup": 0.6359889109881786,
+          "atomic_failure_checks": {
+            "expired_deadline": "deadline exceeded; output unpublished",
+            "unsupported_forward": "forward capture is unsupported",
+            "nonfinite_input": "nonfinite input"
+          }
+        }
+      ]
+    }
+  ],
+  "cpu_logical_processors": 28,
+  "nvrtc_version": "12.9.86",
+  "source_sha256": {
+    "experiments\\gpu-cashflows\\benchmark.py": "1d31c1223a85d9aab2d6a0be16eedc78c3592eec95226e04e33afacf2e995072",
+    "experiments\\gpu-cashflows\\src\\lib.rs": "26e1e5125061d3b51f08c3f34dd90b369e820f3274370f1ffdcf28fee5776d49",
+    "experiments\\gpu-cashflows\\src\\cashflows.cu": "0f2630c85e27abf1d9ba3f4926ddfb897f2b0424c3af8b766d6589750f44ef66",
+    "experiments\\gpu-cashflows\\Cargo.lock": "20e70a8d686c3d966ce4f96d96dce21b72b45b96beef4fd3d40036111880b7e5"
+  },
+  "gpu_binary_sha256": "e6191f2d17e627a8dee957ce1cf1f835ab880615ba4afae2b99c5ce94c15250a",
+  "cpu_binary_sha256": "95194c5afe4746f0fc545091b143cb8d23dc2c7fa79a3819045a0b17e6b85a41",
+  "scope": "Prepared base mortgage/deposit cashflows and five-scenario PV/DV01/frozen-yield NII stage; excludes API, ledger, artifacts, full KRD/vega and forward capture",
+  "cpu_timing": "Python adapter plus production Rust FFI, allocations and output copy",
+  "gpu_timing": "Python adapter plus Rust validation, transpose/packing, device allocation, upload, kernel, download and output copy; initialization separate",
+  "resident_timing": "CUDA events for repeated kernels on retained buffers; not end-to-end speedup"
+}

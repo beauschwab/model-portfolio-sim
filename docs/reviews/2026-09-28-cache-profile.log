@@ -1,0 +1,36 @@
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+         8087355 function calls (7773518 primitive calls) in 6.461 seconds
+
+   Ordered by: internal time
+   List reduced from 2010 to 25 due to restriction <25>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        3    1.078    0.359    1.098    0.366 scenarios.py:109(run_engine)
+        3    0.826    0.275    0.852    0.284 deposits.py:349(_deposit_A)
+       10    0.404    0.040    1.203    0.120 corp.py:58(__init__)
+       11    0.203    0.018    0.232    0.021 accounting.py:89(smear_csr)
+    48060    0.176    0.000    0.225    0.000 encoder.py:205(iterencode)
+297023/96026    0.172    0.000    0.516    0.000 dependency.py:58(_size)
+  1168424    0.164    0.000    0.256    0.000 {built-in method builtins.isinstance}
+  1183116    0.160    0.000    0.160    0.000 {method 'append' of 'list' objects}
+152944/48013    0.154    0.000    0.446    0.000 dependency.py:41(_freeze)
+   765302    0.141    0.000    0.141    0.000 {built-in method builtins.min}
+     6540    0.121    0.000    0.490    0.000 conventions.py:157(gen_schedule)
+        6    0.117    0.020    0.296    0.049 lmm.py:60(simulate_rates)
+    92244    0.093    0.000    0.134    0.000 conventions.py:150(_add_months)
+     2688    0.086    0.000    0.086    0.000 vol.py:27(abcd)
+   101616    0.085    0.000    0.172    0.000 conventions.py:128(adjust)
+1733/1728    0.077    0.000    0.093    0.000 ffi.py:210(__call__)
+   104970    0.077    0.000    0.077    0.000 {method 'tobytes' of 'numpy.ndarray' objects}
+        2    0.075    0.037    0.097    0.049 pricing.py:27(solve_oas_from_A)
+     2664    0.074    0.000    0.234    0.000 vol.py:32(model_swaption_vol)
+   272935    0.071    0.000    0.286    0.000 dependency.py:64(<genexpr>)
+    73/41    0.064    0.001    5.831    0.142 dependency.py:164(batch)
+   149600    0.062    0.000    0.087    0.000 conventions.py:120(is_business_day)
+    48013    0.062    0.000    0.094    0.000 dependency.py:123(_put)
+   110320    0.061    0.000    0.061    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+   104970    0.060    0.000    0.060    0.000 {built-in method numpy.frombuffer}
