@@ -2,26 +2,22 @@
 
 ## Production execution contract (0.29.4; supersedes historical defaults)
 
-Rust is the required production financial runtime. Python calculation is deprecated;
-it is retained only as an independent test/reference oracle, not an API/UI backend.
-New and omitted `compute_backend` settings resolve to `rust`. Historical explicit
-Python snapshots remain readable, but must be switched to Rust and their libraries/
-sessions rebuilt before production execution. Never silently change saved economics
-or fall back when native libraries are missing.
+The authoritative policy is `../../docs/rust-production-contract.md`.
+Follow its deployment, compatibility and validation rules. Rust owns built-in
+pricing, graph/coordinator, simulation, capital/FTP and solver financial logic.
+HiGHS remains C++; Rust constructs/invokes/validates its financial problem.
+Python API/storage adapters and independent verification remain application services.
 
-Implement new built-in pricing, graph/coordinator, simulation, capital/FTP and solver
-financial logic in Rust. HiGHS stays C++; Rust owns LP construction, invocation and
-allocation validation. Production pricing/what-if must enter the native graph with
-no custom discount-backend override. Do not reintroduce Python/NumPy/Numba execution
-choices in application requests or controls. Keep Python oracles explicit in tests
-so parity cannot accidentally compare Rust with itself. Defaults/ownership tests
-must run outside the reference test context and forbid Python financial callbacks.
+Rust is the new/omitted backend default. Historical Python inputs/results remain
+readable unchanged but need an explicit Rust selection and library/session rebuild
+before execution. Missing/mismatched native artifacts fail without fallback.
+Production pricing/what-if enters the native graph without a custom discount override.
+Never add Python/NumPy/Numba financial options to production requests or UI.
 
-The existing FastAPI/worker, persistence/artifact transport and independent verifier
-still use Python; this change does not claim a Rust HTTP/storage service. Keep quant
-logic out of adapters. See `docs/rust-production-contract.md` at the repository root
-for deployment, compatibility and validation rules. Preserve fixed OAS, CRN, final
-output tolerances, immutable publication and the coefficient-only interactive path.
+Preserve fixed base OAS, shared CRN, unchanged final-output tolerances, immutable
+verified publication and coefficient-only interactive evaluation. Python test
+oracles are explicit and independent; fresh-process default/ownership tests run
+outside their reference context and forbid Python financial callbacks.
 
 Version 0.28.0 provides a native built-in calculation runtime: raw calibration,
 CRN, scenario/edit dependency graph, all existing product drivers, accounting,
@@ -571,3 +567,43 @@ Detailed mathematics, schemas, sources and limits are in `docs/models/`;
 the product and decision/workflow artifacts and restart API/workers before use.
 Product ABI 8 and existing ledger protocol remain unchanged; additive schemas
 require new binaries. Saved economics require explicit model selection/rebuild.
+
+## Dated replay and credit accounting foundations (0.29.6)
+
+`dated-ledger-1` explicitly selects native scheduled recognition and actual-date
+settlement through `analytics.dated_ledger.run_dated_ledger`. Dated owners bypass
+legacy PD/default, generic interest, deposit flight/runoff, proportional scaling
+and synthetic maturity. The source supplies complete scenario/reverse-run coverage
+and explicit calendar recognition segments. Early/late interest rights and full
+contract tails survive principal settlement. Pricing-measure/overlapping sources,
+unsupported credit/draw/mark/collateral ownership and incompatible opening anchors
+fail before execution. Existing `balance-stress-2` economics and protocol 2 remain;
+the dated route uses ledger protocol 3 with separately versioned publication.
+
+Publication retains raw input and source/artifact hashes, event lineage and dated
+closing rights. Independent persisted verification checks source amounts/dates,
+once-only phases, transaction postings, principal/basis/rights and gross closing
+statements. Cancellation/deadline fences remain required through publication.
+This is scheduled expected recognition; it does not prove empirical behavior or
+accounting-standard compliance. The API/UI/saved-book/native graph and complete
+60,000-position joint graph/credit/solver/journal adoption remain open.
+
+Shared `credit_operator` provides reusable transition/earned-interest matrices
+for separate probability, principal, undrawn, signed accrual and basis vectors.
+No live-mass normalization or second probability weighting is permitted.
+`credit_accounting` supplies explicit physical daily policy steps and balanced
+journal intents, keeping economic loss separate from reviewed allowance,
+chargeoff and complete recovery tails. Those components are not yet automatically
+adopted by the dated daily route. Retain the complete issue gates in
+`docs/models/implementation-plan.md`; details are in `docs/models/dated-ledger.md`,
+`dated-store.md`, `credit-operator.md` and `credit-accounting.md`.
+Rebuild ledger and dependent decision/workflow binaries and restart workers before
+using new schemas. Component budgets are not aggregate RSS guarantees.
+
+## Architecture and interface maintenance
+
+Current architecture: `../../docs/architecture.md`. Interface/transport and dependency rules are in
+`../../docs/contracts/README.md`. Run `make check-architecture` from the root
+for boundary/contract changes. Dated version sections document historical migration
+stages; current production and shared-model contracts supersede their defaults.
+Preserve independent reference tests and all applicable numerical/publication gates.

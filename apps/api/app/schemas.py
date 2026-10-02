@@ -124,6 +124,35 @@ class Program(BaseModel):
         return self
 
 
+class MarketProvenance(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    curve: str | None = None
+    volatility: str | None = None
+    curve_as_of: str | None = None
+    snapshot_id: str | None = None
+    warnings: list[str] | None = None
+
+
+class MarketView(Market):
+    source: str
+    revision: int
+    provenance: MarketProvenance | None = None
+
+
+class StateStatus(BaseModel):
+    revision: int
+    library_ready: bool
+    library_horizon: int | None
+    worker_ready: bool | None = None
+
+
+class StressCapabilities(BaseModel):
+    durable: bool
+    rust: bool
+    large_book: bool
+    scope_id: str | None
+
+
 class RunRequest(BaseModel):
     kind: Literal["risk", "stress", "nii", "deposit_stress", "kpis", "strategy", "unitlib", "pricing", "whatif"]
     books: list[BookName] | None = None

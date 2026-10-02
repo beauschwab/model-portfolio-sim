@@ -1,5 +1,6 @@
 """Zero curve bootstrap from par swap rates (annual fixed leg)."""
 from __future__ import annotations
+from .abi_generated import Op
 
 import numpy as np
 from scipy.optimize import brentq
@@ -13,7 +14,7 @@ def bootstrap_curve(tenors: np.ndarray, rates: np.ndarray) -> np.ndarray:
     extrapolated beyond the last pillar."""
     from . import quant_native as native
     if native.enabled():
-        return native.call(18, [tenors, rates, N_FWD, TENOR], [(N_FWD+1,)])[0]
+        return native.call(Op.CURVE, [tenors, rates, N_FWD, TENOR], [(N_FWD+1,)])[0]
     kt, kl = [0.0], [0.0]
     for T, r in zip(tenors, rates):
         pay = np.arange(1.0, T + 0.5)

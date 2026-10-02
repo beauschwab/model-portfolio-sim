@@ -2,11 +2,13 @@
  *  Computed polars frames arrive as Apache Arrow IPC (see decodeEnvelope);
  *  scalar/list payloads stay JSON. */
 import { DataType, tableFromIPC, type Table } from "apache-arrow";
+import type { HttpSettings, HttpMarket, HttpState, HttpJob, HttpStressCapabilities,
+  ForecastRequest as HttpForecastRequest, MarketScenario, RunRequest } from './http.generated';
 
 const BASE = "/api";
 
 export type { Table };
-export type BookName = "mbs" | "loans" | "debt" | "deposits" | "cds" | "mm";
+export type BookName = NonNullable<RunRequest['books']>[number];
 export type Row = Record<string, unknown>;
 export type PricingOptions = {
   assumption_overrides?: Partial<Record<BookName, Record<string, Record<string, number>>>>;
@@ -14,10 +16,7 @@ export type PricingOptions = {
   calibration_mode?: 'hold' | 'recalibrate'; include_analytics?: boolean;
   backend?: 'rust'; expected_revision?: number;
 };
-export interface Market {
-  swap_tenors: number[]; swap_rates: number[]; vol_pts: number[][]; source: string; revision: number;
-  provenance?: { curve?: string; volatility?: string; curve_as_of?: string; snapshot_id?: string; warnings?: string[] };
-}
+export type Market = Omit<HttpMarket, 'swap_tenors'> & { swap_tenors: NonNullable<HttpMarket['swap_tenors']> };
 export interface ResearchSource { id: string; label: string; provider: string; access: string; use: string; notes: string; configured: boolean }
 export interface ResearchSnapshot {
   id: string; dataset: string; as_of: string; fetched_at: string; observation_count: number; warnings: string[];
@@ -25,7 +24,7 @@ export interface ResearchSnapshot {
   observations?: { date: string; maturity?: string; series: string; value: number; unit: string; classification: string }[];
   forecast?: { scenarios: string[]; runnable: string[]; periods: string[]; variables: string[]; alignment: string } | null;
 }
-export interface ForecastRequest { snapshot_id: string; scenario: string; start_period: string; horizon_months: number; alignment: "relative_replay"; expected_revision: number }
+export type ForecastRequest = Required<HttpForecastRequest>;
 export interface ForecastPreview {
   snapshot_id: string; dataset: string; book_as_of: string; source_as_of: string; revision: number;
   start_period: string; horizon_months: number; warnings: string[]; unused_variables: string[];
@@ -40,7 +39,7 @@ export interface BalanceStressResult {
   journal: Table; trial_balance: Table; funding_claims: Table;
   validation: { dynamic_validated: boolean; validation_scope: string; ruleset: string; breach_count: number };
 }
-export interface StressCapabilities { durable: boolean; rust: boolean; large_book: boolean; scope_id: string | null }
+export type StressCapabilities = HttpStressCapabilities;
 export interface PartitionTable {
   format: 'partitioned-parquet'; schema: Record<string, string>; rows: number;
   parts: { rows: number; ref: { key: string; sha256: string; bytes: number; format: string } }[];
@@ -51,8 +50,8 @@ export interface StressManifest {
     validation: { journal_replayed: boolean; dynamic_validated: boolean; journal_rows: number; gl_keys: number } };
 }
 export interface ResultPage { columns: string[]; rows: unknown[][]; offset: number; limit: number; total: number }
-export interface Scenario { name: string; ust10y_bp: number[]; twos_tens_bp: number[]; spread_bp: number[]; vol_bp: number[] }
-export interface Settings { compute_backend: 'python' | 'rust'; n_paths: number; n_paths_base: number; n_threads: number; seed: number; horizon_months: number; shocks_bp: number[] }
+export type Scenario = Required<MarketScenario>;
+export type Settings = Required<HttpSettings>;
 export interface RunPlan {
   kind: string; records: number; records_by_book: Record<string, number>;
   in_scope: number; monte_carlo_paths: number; horizon_months: number;
@@ -80,10 +79,9 @@ export interface RunProgress {
   log?: { t: number; msg: string }[];
   nodes?: PipelineNode[];
 }
-export interface Job {
-  id: string; revision: number; kind: string; status: "queued" | "running" | "done" | "error";
-  detail?: string; result?: unknown; progress?: RunProgress;
-}
+export type Job = Omit<HttpJob, 'revision' | 'progress'> & {
+  revision: number; result?: unknown; progress?: RunProgress | null;
+};
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(BASE + path, { headers: { "Content-Type": "application/json" }, ...init });
@@ -197,7 +195,7 @@ export const api = {
   updateDecision: (id: string, request: unknown) => j<Job>(`/decision/sessions/${id}/update`, { method: 'POST', body: JSON.stringify(request) }),
   evaluateDecision: (id: string, request: unknown) => j<DecisionEvaluation>(`/decision/sessions/${id}/eval`, { method: 'POST', body: JSON.stringify(request) }),
   closeDecision: (id: string) => j(`/decision/sessions/${id}`, { method: 'DELETE' }),
-  state: () => j<{ revision: number; library_ready: boolean; library_horizon: number | null }>("/state"),
+  state: () => j<HttpState>("/state"),
   optimize: (options: unknown) => j<Job>("/optimize", { method: "POST", body: JSON.stringify(options) }),
   books: () => j<Record<string, { positions: number; balance: number }>>("/books"),
   book: (n: BookName) => jArrow(`/books/${n}`) as Promise<Table>,

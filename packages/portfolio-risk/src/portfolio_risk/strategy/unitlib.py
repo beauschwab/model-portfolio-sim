@@ -21,6 +21,7 @@ APPROXIMATIONS (standard ALM new-business treatment, disclosed):
    in h.
 """
 from __future__ import annotations
+from .contracts import PreparedLibrary
 
 from ..core.runtime import path_count
 
@@ -340,7 +341,7 @@ def allocation_vectors(lib, template, h):
     return x
 
 
-def prepare_library(lib):
+def prepare_library(lib: PreparedLibrary):
     """Precompute integer-month interpolation outside the interactive path."""
     from ..core.quant_native import enabled
     if enabled():
@@ -351,7 +352,7 @@ def prepare_library(lib):
                       for name in lib["templates"] for h in range(lib["horizon"])}
 
 
-def evaluate_strategy(lib: dict, allocations: list[dict], base_kpis: dict | None = None) -> dict:
+def evaluate_strategy(lib: PreparedLibrary, allocations: list[dict], base_kpis: dict | None = None) -> dict:
     from ..core import quant_native as native
     if native.enabled():
         from ..core.lifecycle_native import evaluate_strategy as evaluate

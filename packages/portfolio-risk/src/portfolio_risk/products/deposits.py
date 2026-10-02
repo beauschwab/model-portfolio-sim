@@ -39,6 +39,7 @@ same fixed-OAS CRN scenario loop -> KRDs ($/bp, positive = liability
 gains value when rates fall) and vegas. Also reports WAL of the runoff.
 """
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 from ..core.runtime import path_count
 
@@ -123,7 +124,7 @@ class LogisticBetaECM:
         r = hist["dep_rate"].to_numpy()
         from ..core import quant_native as native
         if native.enabled():
-            params, stats = native.call(26, [hist.select(['ff', 'dep_rate']).to_numpy()], [(7,), (3,)])
+            params, stats = native.call(Op.FIT_DEPOSIT, [hist.select(['ff', 'dep_rate']).to_numpy()], [(7,), (3,)])
             p, lam_up, lam_dn = params[:5], float(params[5]), float(params[6])
             rmse = float(stats[0])
         else:
@@ -177,7 +178,7 @@ class LogisticBetaECM:
         """short (P,T) -> deposit rate paths (P,T), asymmetric ECM."""
         from ..core import quant_native as native
         if native.enabled():
-            return native.call(11,[3,short,np.r_[params['p'],params['lam_up'],params['lam_dn']],r0],[short.shape])[0]
+            return native.call(Op.BEHAVIORAL,[3,short,np.r_[params['p'],params['lam_up'],params['lam_dn']],r0],[short.shape])[0]
         eq = self.equilibrium(params, short)
         lu, ld = params["lam_up"], params["lam_dn"]
         P, T = short.shape

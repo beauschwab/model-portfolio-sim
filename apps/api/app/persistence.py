@@ -9,6 +9,22 @@ from pathlib import Path
 from .artifacts import Codec, Objects
 from .repository import Conflict, Repository
 from .storage_config import StorageConfig
+from .contracts import WorkspacePort, WorkspaceSnapshot, ModelIdentity, DurableRequest
+from .result_transport import to_arrow_envelope
+
+_WORKSPACE: WorkspacePort | None = None
+
+
+def bind_workspace(workspace: WorkspacePort) -> None:
+    """Application startup supplies its sole materialization explicitly."""
+    global _WORKSPACE
+    _WORKSPACE = workspace
+
+
+def workspace() -> WorkspacePort:
+    if _WORKSPACE is None:
+        raise RuntimeError('Bind the workspace state port before starting storage')
+    return _WORKSPACE
 
 CONFIG = None
 REPO = None
@@ -20,7 +36,7 @@ IDEMPOTENCY_KEY = ContextVar("idempotency_key", default=None)
 ACTIVE_JOB = ContextVar('active_job', default=None)
 
 
-def identity():
+def identity() -> ModelIdentity:
     global _IDENTITY
     if _IDENTITY is not None:
         return copy.deepcopy(_IDENTITY)
@@ -32,8 +48,8 @@ def identity():
         for path in sorted(folder.rglob("*.py")):
             digest.update(path.relative_to(folder).as_posix().encode())
             digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
-    # Native availability is optional; the adapter includes its own DLL digest
-    # in decision contexts. Record the selected binary when present as well.
+    # Reading a historical workspace needs no binary. Production execution
+    # independently requires matching native artifacts; identity pins those present.
     from .storage_config import ROOT
     import os
     candidates = [Path(os.environ["PORTFOLIO_DECISION_LIBRARY"])] if os.getenv("PORTFOLIO_DECISION_LIBRARY") else [
@@ -60,7 +76,7 @@ def identity():
 
 def start(config=None):
     global CONFIG, REPO, CODEC
-    from . import store
+    store = workspace()
     CONFIG = config or StorageConfig.from_env()
     if CONFIG.execution == "memory":
         REPO = CODEC = None
@@ -87,27 +103,12 @@ def stop():
     _IDENTITY = None
 
 
-def restore(state):
-    from . import store
-    store.TAPES.clear()
-    store.TAPES.update(state.get('tapes', {}))
-    store.COHORT_PUBLICATIONS.clear()
-    store.COHORT_PUBLICATIONS.update(state.get('cohort_publications', {}))
-    for field, name in (("books", "BOOKS"), ("market", "MARKET"), ("scenarios", "SCENARIOS"),
-                        ("programs", "PROGRAMS"), ("assumptions", "ASSUMPTIONS")):
-        target = getattr(store, name)
-        target.clear()
-        target.update(state[field])
-    for field, name in (("settings", "SETTINGS"), ("dep_hist", "DEP_HIST"), ("mbs_hists", "MBS_HISTS"),
-                        ("asof", "ASOF"), ("equity", "EQUITY"), ("hedges", "HEDGES")):
-        setattr(store, name, state[field])
-    store.STATE_META["revision"] = state["revision"]
-    store.CACHE.clear()
-    store.UNITLIB = store.BASE_KPIS = None
+def restore(state: WorkspaceSnapshot):
+    workspace().restore_snapshot(state)
 
 
 def refresh(force=False):
-    from . import store
+    store = workspace()
     if REPO is None:
         return
     with store._LOCK:
@@ -117,7 +118,7 @@ def refresh(force=False):
 
 
 def changed():
-    from . import store
+    store = workspace()
     if REPO is None:
         return
     expected = store.STATE_META["revision"]
@@ -132,37 +133,11 @@ def changed():
         raise
 
 
-def operation(fn):
-    from . import store, decision_store
-    from . import cohort_store
-    from . import treasury_store
-    allowed = {getattr(store, name): "store." + name for name in (
-        "run_pricing", "run_risk_all", "run_stress_all", "run_kpis_scenario", "run_nii",
-        "build_unitlib_job", "run_strategy_job", "run_optimize_job", "run_scenario_grid",
-        "run_forecast", "run_balance_stress", "run_streamed_balance_stress", "run_saved_balance_stress", "fetch_research_data", "run_treasury")}
-    allowed.update({decision_store.build: "decision.build", decision_store.update: "decision.update"})
-    allowed[treasury_store.run]='treasury.run'
-    allowed.update({getattr(cohort_store, name): 'cohort.'+name for name in ('import_tape','build','analytics','attribution','audit')})
-    if fn not in allowed:
-        raise ValueError("function is not registered for durable execution")
-    return allowed[fn]
-
-
-def resolve(name):
-    from . import store, decision_store
-    from . import cohort_store
-    from . import treasury_store
-    module, attr = name.split(".", 1)
-    fn = getattr({"store": store, "decision": decision_store, "cohort":cohort_store, "treasury":treasury_store}[module], attr)
-    if operation(fn) != name:
-        raise ValueError("unregistered operation")
-    return fn
-
-
-def submit(kind, fn, args, plan, state):
-    request = CODEC.dump({"operation": operation(fn), "args": args, "state": state, "identity": identity()})
+def submit(kind, operation: str, args, plan, state: WorkspaceSnapshot):
+    payload: DurableRequest = {"operation": operation, "args": args, "state": state, "identity": identity()}
+    request = CODEC.dump(payload)
     progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
-    from . import store
+    store = workspace()
     return REPO.enqueue(kind, state["revision"], request, progress,
                         key=IDEMPOTENCY_KEY.get(), max_queue=store.MAX_QUEUE)
 
@@ -180,8 +155,7 @@ def result_ref(jid):
 
 
 def job_result(jid):
-    from . import store
-    return store.to_arrow_envelope(CODEC.load(result_ref(jid)))
+    return to_arrow_envelope(CODEC.load(result_ref(jid)))
 
 
 def remote(path, payload=None, method="POST"):
@@ -203,7 +177,7 @@ def remote(path, payload=None, method="POST"):
 
 
 def assert_current(revision):
-    from . import store
+    store = workspace()
     if REPO is not None:
         if REPO.head() != revision:
             raise Conflict("inputs changed during calculation; candidate discarded")

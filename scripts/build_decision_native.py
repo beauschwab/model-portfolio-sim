@@ -1,4 +1,4 @@
-"""Build the optional decision prototype. Requires CMake, C++ tools and libclang.
+"""Build the required native decision/workflow runtime. Requires CMake, C++ tools and libclang.
 
 uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
 """

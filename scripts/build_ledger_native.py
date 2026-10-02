@@ -1,4 +1,4 @@
-"""Build the optional Rust ledger pilot; no external native dependencies."""
+"""Build the required native daily ledger library and streaming executable."""
 from pathlib import Path
 import subprocess
 

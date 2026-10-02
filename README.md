@@ -154,7 +154,7 @@ the Book Editor. Late results from obsolete inputs are hidden.
 
 The five-step implementation and NumPy/Numba/Rust measurements are documented in
 [the full comparison report](docs/reviews/2026-09-28-five-step-comparison.md).
-Rust is optional; NumPy remains the default. The pricing cache is bounded at
+Rust is required for production; Python/NumPy is retained as an explicit independent test reference. The pricing cache is bounded at
 512 MiB of accounted retained nodes and 500,000 entries, excluding in-flight
 arrays, request results and Python allocator overhead.
 
@@ -166,7 +166,7 @@ Browser tests use isolated ports 8001/5174 by default. Override
 
 Open **Decision Lab** for the complete temporary-assumption â†’ dependency update
 â†’ strategy coefficients â†’ robust optimization â†’ independent replay workflow.
-Build the optional Rust decision library with:
+Build the required Rust decision/workflow runtime with:
 
 ```powershell
 uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
@@ -179,7 +179,7 @@ session. Existing Strategy Lab and other pricing routes remain available.
 
 [Full prototype comparison and validation](docs/reviews/2026-09-28-decision-prototype.md)
 documents what Rust owns, measured end-to-end latency, native solver comparisons,
-and remaining scaling work. This is a hybrid prototype, not a full model rewrite.
+and remaining scaling work. Those dated prototype measurements describe an earlier checkpoint. Current Rust ownership and remaining application-service scope are in [the production contract](docs/rust-production-contract.md).
 
 - [Balance-sheet Stress](docs/balance-sheet-stress.md): daily liquidity, credit/capital, entity constraints, management policies and reverse stress. Explicit synthetic cohort research model with accounting reconciliation.
 
@@ -383,3 +383,10 @@ Conditional forecast jobs are not capital/FTP bridge sources. The Capital & FTP
 panel accepts compatible completed ledger/cohort analytics jobs. See
 `docs/capital-and-ftp.md` for current integration scope. Rebuild native product and
 decision/workflow binaries and restart workers.
+
+
+## Architecture maintenance
+
+[Current architecture](docs/architecture.md) identifies financial, application, storage and verification ownership.
+[Interface contracts](docs/contracts/README.md) describe generated HTTP/native layouts and retained transport/import compatibility.
+Run `make check-architecture` (or `bun run check:architecture`) before changing boundaries.

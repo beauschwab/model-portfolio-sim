@@ -2,26 +2,22 @@
 
 ## Production execution contract (0.29.4; supersedes historical defaults)
 
-Rust is the required production financial runtime. Python calculation is deprecated;
-it is retained only as an independent test/reference oracle, not an API/UI backend.
-New and omitted `compute_backend` settings resolve to `rust`. Historical explicit
-Python snapshots remain readable, but must be switched to Rust and their libraries/
-sessions rebuilt before production execution. Never silently change saved economics
-or fall back when native libraries are missing.
+The authoritative policy is `docs/rust-production-contract.md`.
+Follow its deployment, compatibility and validation rules. Rust owns built-in
+pricing, graph/coordinator, simulation, capital/FTP and solver financial logic.
+HiGHS remains C++; Rust constructs/invokes/validates its financial problem.
+Python API/storage adapters and independent verification remain application services.
 
-Implement new built-in pricing, graph/coordinator, simulation, capital/FTP and solver
-financial logic in Rust. HiGHS stays C++; Rust owns LP construction, invocation and
-allocation validation. Production pricing/what-if must enter the native graph with
-no custom discount-backend override. Do not reintroduce Python/NumPy/Numba execution
-choices in application requests or controls. Keep Python oracles explicit in tests
-so parity cannot accidentally compare Rust with itself. Defaults/ownership tests
-must run outside the reference test context and forbid Python financial callbacks.
+Rust is the new/omitted backend default. Historical Python inputs/results remain
+readable unchanged but need an explicit Rust selection and library/session rebuild
+before execution. Missing/mismatched native artifacts fail without fallback.
+Production pricing/what-if enters the native graph without a custom discount override.
+Never add Python/NumPy/Numba financial options to production requests or UI.
 
-The existing FastAPI/worker, persistence/artifact transport and independent verifier
-still use Python; this change does not claim a Rust HTTP/storage service. Keep quant
-logic out of adapters. See `docs/rust-production-contract.md` at the repository root
-for deployment, compatibility and validation rules. Preserve fixed OAS, CRN, final
-output tolerances, immutable publication and the coefficient-only interactive path.
+Preserve fixed base OAS, shared CRN, unchanged final-output tolerances, immutable
+verified publication and coefficient-only interactive evaluation. Python test
+oracles are explicit and independent; fresh-process default/ownership tests run
+outside their reference context and forbid Python financial callbacks.
 
 Three layers, three contracts:
 - `packages/portfolio-risk` â€” the quant engine. Its OWN AGENTS.md hierarchy
@@ -309,3 +305,12 @@ Detailed mathematics, schemas, sources and limits are in `docs/models/`;
 the product and decision/workflow artifacts and restart API/workers before use.
 Product ABI 8 and existing ledger protocol remain unchanged; additive schemas
 require new binaries. Saved economics require explicit model selection/rebuild.
+
+
+## Architecture and interface maintenance
+
+Current architecture: `docs/architecture.md`. Interface/transport and dependency rules are in
+`docs/contracts/README.md`. Run `make check-architecture` from the root
+for boundary/contract changes. Dated version sections document historical migration
+stages; current production and shared-model contracts supersede their defaults.
+Preserve independent reference tests and all applicable numerical/publication gates.

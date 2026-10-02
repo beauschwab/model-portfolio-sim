@@ -21,6 +21,7 @@ Schema (frame): id, balance, side ("asset"|"liability"),
 spread_bp (to the simulated short rate), category (free text label).
 """
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 import numpy as np
 import polars as pl
@@ -47,7 +48,7 @@ def mm_income(deck: MMDeck, short: np.ndarray, horizon: int
     policy choice -- floor matches USD convention)."""
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(16,[short,deck.bal,deck.spr,deck.sign,horizon],[(horizon,)]*2)
+        return native.call(Op.MONEY_MARKET,[short,deck.bal,deck.spr,deck.sign,horizon],[(horizon,)]*2)
     P = short.shape[0]
     r = np.maximum(short[:, :horizon].mean(0)[None, :]
                    + deck.spr[:, None], 0.0)        # E[short]+spread, floored

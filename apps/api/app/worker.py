@@ -16,6 +16,8 @@ import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from . import store, decision_store, persistence as db
+from . import operations
+from .contracts import WorkspaceSnapshot, DurableRequest, SavedLibrary
 from .schemas import Allocation, DecisionEvalRequest
 
 log = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ LEASE_SECONDS = max(3., float(os.getenv('WORKBENCH_LEASE_SECONDS', '60')))
 
 
 @contextmanager
-def computation(state):
+def computation(state: WorkspaceSnapshot):
     import numba
     from portfolio_risk.core.runtime import RunConfig, run_context
     settings = state['settings']
@@ -49,7 +51,7 @@ def recover():
         decision_store.close(sid, durable=False)
     ref = db.REPO.library()
     if ref:
-        saved = db.CODEC.load(ref)
+        saved: SavedLibrary = db.CODEC.load(ref)
         if saved['identity'] == db.identity():
             store.CACHE.update(saved['cache'])
     for row in db.REPO.saved_sessions():
@@ -73,7 +75,7 @@ def recover():
 
 def execute(job):
     """Publish output, session journal and library reference in one transaction."""
-    payload = db.CODEC.load(job['request'])
+    payload: DurableRequest = db.CODEC.load(job['request'])
     state = payload['state']
     with store._LOCK:
         store.JOBS[job['id']] = {'id': job['id'], 'status': 'running', 'progress': job['progress'],
@@ -88,7 +90,7 @@ def execute(job):
         with computation(state) as context:
             token = db.ACTIVE_JOB.set(job)
             try:
-                result = db.resolve(payload['operation'])(*copy.deepcopy(payload['args']))
+                result = operations.resolve(payload['operation'])(*copy.deepcopy(payload['args']))
             finally:
                 db.ACTIVE_JOB.reset(token)
             store.report(cache_hits=context.hits, cache_misses=context.misses)

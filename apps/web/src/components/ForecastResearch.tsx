@@ -7,7 +7,7 @@ const selectClass = "w-full rounded border border-surface-3 bg-surface-2 px-2 py
 
 export default function ForecastResearch({ snapshot, revision }: { snapshot: ResearchSnapshot; revision: number }) {
   const forecast = snapshot.forecast!;
-  const [scenario, setScenario] = useState(forecast.runnable.includes("baseline") ? "baseline" : "median");
+  const [scenario, setScenario] = useState<ForecastRequest['scenario']>(forecast.runnable.includes("baseline") ? "baseline" : "median");
   const [start, setStart] = useState(forecast.periods[0] || "");
   const [horizon, setHorizon] = useState(27);
   const [preview, setPreview] = useState<ForecastPreview | null>(null);
@@ -40,7 +40,10 @@ export default function ForecastResearch({ snapshot, revision }: { snapshot: Res
     <p className="text-xs text-paper-dim">Replay a published path on the current book. The selected source month becomes projection month 1; security dates stay unchanged. Results show conditional income and runoff, with no default-loss or capital forecast.</p>
     <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
       <label className="text-xs text-paper-dim">Scenario
-        <select aria-label="Forecast scenario" className={selectClass} value={scenario} disabled={busy} onChange={e => setScenario(e.target.value)}>
+        <select aria-label="Forecast scenario" className={selectClass} value={scenario} disabled={busy} onChange={e => {
+          const next = e.target.value;
+          if (next === 'baseline' || next === 'adverse' || next === 'median') setScenario(next);
+        }}>
           {forecast.runnable.map(s => <option key={s} value={s}>{s === "adverse" ? "Severely adverse" : s === "median" ? "Published median" : "Supervisory baseline"}</option>)}
         </select>
       </label>

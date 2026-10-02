@@ -1,4 +1,4 @@
-"""Build the optional Rust backend reproducibly; Python/NumPy remain sufficient."""
+"""Build the required Rust financial runtime reproducibly; restart workers after deployment."""
 from pathlib import Path
 import shutil
 import subprocess

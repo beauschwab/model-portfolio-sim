@@ -178,7 +178,7 @@ class Repository:
             count = conn.execute(sa.select(sa.func.count()).select_from(jobs).where(self.scoped(jobs),
                                      jobs.c.status.in_(["queued", "running"]))).scalar_one()
             if count >= max_queue:
-                from .store import QueueFull
+                from .contracts import QueueFull
                 raise QueueFull("compute queue is full; wait for a job to finish")
             jid = uuid.uuid4().hex
             conn.execute(jobs.insert().values(**self.identity, id=jid, kind=kind, revision=revision,

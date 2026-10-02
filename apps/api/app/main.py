@@ -4,13 +4,12 @@ Run:  uvicorn app.main:app --reload --port 8000   (from apps/api)
 Docs: http://localhost:8000/docs
 
 Design notes:
-- Long computations run on a single worker thread (numba kernels already
-  saturate cores); clients poll GET /jobs/{id}.
+- Long computations run through durable jobs in a separate Rust-backed worker
+  process, one at a time per workspace; clients poll GET /jobs/{id}.
 - Books are Polars frames keyed by name; PUT replaces wholesale (the UI
   edits client-side and submits the full book -- simple and auditable).
-- Assumption patches update per-run snapshot inputs; numba
-  freezes constants at first compile, so prepay-vector changes require a
-  process restart to affect the MBS kernel -- the endpoint says so.
+- Assumption patches use revisioned snapshots. Unsupported prepayment edits
+  report RESTART_REQUIRED. Python financial calculation is reference-test-only.
 """
 from __future__ import annotations
 from contextlib import asynccontextmanager
@@ -24,6 +23,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import store, market_data, decision_store, persistence
 from .schemas import DecisionBuildRequest, DecisionUpdateRequest, DecisionEvalRequest, BalanceStressRequest, SavedBalanceStressRequest, StreamedBalanceStressRequest
+from .schemas import MarketView, StateStatus, StressCapabilities
 from .schemas import (Allocation, OptimizeRequest, Program, AssumptionPatch, JobStatus, Market, MarketScenario,
                       RiskSettings, RunRequest, ForecastRequest, PythonBackendDeprecated)
 
@@ -172,7 +172,7 @@ def put_book(name: str, rows: list[dict]):
 
 
 # ---- market data ----------------------------------------------------------------
-@app.get("/market")
+@app.get("/market", response_model=MarketView, response_model_exclude_unset=True)
 def get_market():
     return store.market_view()
 
@@ -284,7 +284,7 @@ def streamed_balance_stress(req: StreamedBalanceStressRequest) -> JobStatus:
     return store.job_status(jid)
 
 
-@app.get('/balance-stress/capabilities')
+@app.get('/balance-stress/capabilities', response_model=StressCapabilities)
 def balance_stress_capabilities():
     import os
     from portfolio_risk.analytics.balance_stream import binary_path, _hash
@@ -350,9 +350,9 @@ def put_settings(s: RiskSettings):
 
 @app.get("/assumptions")
 def get_assumptions():
-    from portfolio_risk.config import PREPAY_PARAMS
-    from portfolio_risk.deposits import SEGMENTS
-    from portfolio_risk.cds import CD_EW_PARAMS
+    from portfolio_risk.core.config import PREPAY_PARAMS
+    from portfolio_risk.products.deposits import SEGMENTS
+    from portfolio_risk.products.cds import CD_EW_PARAMS
     return {"prepay": {"vector": list(map(float, PREPAY_PARAMS)),
                        "names": ["refi_max", "refi_a", "refi_b", "burn_k",
                                  "turnover", "cpr_cap", "hpa_beta",
@@ -563,7 +563,7 @@ def health():
     return {"ok": True, "books": list(store.BOOKS)}
 
 
-@app.get("/state")
+@app.get("/state", response_model=StateStatus, response_model_exclude_unset=True)
 def state_status():
     if persistence.REPO is not None:
         try:

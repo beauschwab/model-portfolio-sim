@@ -1,5 +1,6 @@
-//! Pure, ordered daily GL reduction. No pricing, policy or persistence semantics.
-//! One call per day (or closing replay); no retained pointers or global state.
+//! Native daily specification/ledger runtime and pure ordered GL reduction.
+//! Product pricing is external; policy/events execute in daily, transport persists.
+//! Reduction calls retain no pointers or global state.
 
 pub mod daily;
 pub mod credit_accounting;

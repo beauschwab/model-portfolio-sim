@@ -1,4 +1,5 @@
 """Raw input transport and table formatting for Rust-owned numerical lifecycles."""
+from .abi_generated import Op
 import operator
 import numpy as np
 import polars as pl
@@ -318,7 +319,7 @@ def evaluate_strategy(lib,allocations,base_kpis):
         base=[e['eve_$'],e['dv01_net_$'],e['mv_assets_$'],l.get('hqla_l1_$',l['hqla_$']),
               l.get('hqla_l2a_uncapped_$',l.get('hqla_l2a_$',0.)),l['net_outflows_$'],n['asf_$'],n['rsf_$'],
               c['cet1_path'][-1]['cet1_$'],c['rwa_total_$'],L2_CAP,NI_TO_NII,PAYOUT]
-    values,path,scalars=call(31,[np.asarray(vectors).reshape(-1,10,h),amounts,base],[(11,h),(3,h),(7,)])
+    values,path,scalars=call(Op.INTERACTIVE,[np.asarray(vectors).reshape(-1,10,h),amounts,base],[(11,h),(3,h),(7,)])
     result=dict(nii_incremental=values[0],balance=values[1],fwd_dv01=values[2],
                 **{'nii_total_$':float(scalars[0]),'dv01_at_t0_$':float(scalars[1])},
                 funding_gap=values[10],horizon_months=h,dv01_method='base unit DV01 scaled by outstanding balance')

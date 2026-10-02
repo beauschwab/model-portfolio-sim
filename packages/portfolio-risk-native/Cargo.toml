@@ -3,7 +3,7 @@ name = "portfolio-risk-native"
 version = "0.1.0"
 edition = "2021"
 license = "MIT AND BSD-3-Clause"
-description = "Optional validated CSR discount kernel for rates-workbench"
+description = "Required native financial runtime and bounded lifecycle protocols for rates-workbench"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

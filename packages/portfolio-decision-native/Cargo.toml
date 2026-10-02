@@ -3,7 +3,7 @@ name = "portfolio-decision-native"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Transactional incremental strategy decision prototype"
+description = "Native strategy coordination, HiGHS allocation and verified daily workflow"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

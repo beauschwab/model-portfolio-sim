@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 autobins = false
 license = "MIT"
-description = "Batched transactional ledger reduction pilot"
+description = "Native specification validation, daily ledger execution and ordered closing reduction"
 
 [[bin]]
 name = "portfolio-balance"

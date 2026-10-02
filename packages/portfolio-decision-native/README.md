@@ -1,5 +1,10 @@
 # Native decision and workflow execution
 
+Current ownership and deployment rules: [Rust production contract](../../docs/rust-production-contract.md) and [architecture](../../docs/architecture.md). Rust is required for built-in production financial execution. Build matching artifacts and restart API/workers.
+
+The versioned interface and measurement sections below retain their original dated scope; earlier pilot/prototype descriptions are historical.
+
+
 Rust owns instrument-delta lookup, staged aggregate updates, strategy coefficient
 state, a persistent HiGHS model, allocation replay, and versioned publication.
 Each session is an actor; its C++ HiGHS object is created/used/dropped on one thread.

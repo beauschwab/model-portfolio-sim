@@ -1,0 +1,2275 @@
+{
+  "abi_version": 8,
+  "buffer_contract": "All fields are borrowed, C-contiguous f64 buffers padded to three shape dimensions. Shapes and relationships are checked in quant::validate; this manifest names the positional contract, not a replacement for domain validation. Inputs must not overlap outputs, outputs are exclusively owned and disjoint, and no pointers survive the synchronous call. All output checks finish before any publication write.",
+  "operations": [
+    {
+      "id": 1,
+      "name": "LMM",
+      "inputs": [
+        {
+          "name": "F0",
+          "shape": "F",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "sig_tab",
+          "shape": "T x F",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "B",
+          "shape": "F x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "Z",
+          "shape": "P x T x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "shift",
+          "shape": "scalar",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "dt",
+          "shape": "scalar",
+          "unit": "years"
+        },
+        {
+          "name": "tenor",
+          "shape": "scalar",
+          "unit": "years"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "discount factor"
+        },
+        {
+          "name": "swaps",
+          "shape": "P x 4 x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "CORPORATE",
+      "inputs": [
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "swap5",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "per_off",
+          "shape": "S+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "pay_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "pay_frac",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "fix_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "fix_w",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "tau",
+          "shape": "K",
+          "unit": "years"
+        },
+        {
+          "name": "prin",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "call_px",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "put_px",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "is_float",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "cpn",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "cap",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "floor",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "call_thr",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "discounted_cashflows",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        },
+        {
+          "name": "interest",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        },
+        {
+          "name": "principal",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "CD",
+      "inputs": [
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "per_off",
+          "shape": "S+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "pay_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "pay_frac",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "acc_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "tau",
+          "shape": "K",
+          "unit": "years"
+        },
+        {
+          "name": "rem_y",
+          "shape": "K",
+          "unit": "years"
+        },
+        {
+          "name": "call_px",
+          "shape": "K",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "rate",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "pen_m",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "ew_mult",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "call_thr",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "ewp",
+          "shape": "5 [base_annual,amplitude,incentive_slope,gap_threshold,cap_annual]",
+          "unit": "annual hazard fractions, dimensionless amplitude, inverse decimal-rate slope, decimal-rate threshold"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "discounted_cashflows",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        },
+        {
+          "name": "interest",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        },
+        {
+          "name": "principal",
+          "shape": "K",
+          "unit": "path sum per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "MORTGAGE",
+      "inputs": [
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "yoy",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "moy",
+          "shape": "T",
+          "unit": "month of year (0..11)"
+        },
+        {
+          "name": "season",
+          "shape": "12",
+          "unit": "dimensionless seasonal multiplier"
+        },
+        {
+          "name": "pp",
+          "shape": "9 [refi_max,refi_intercept,refi_slope,burnout_decay,turnover_cpr,cpr_cap,hpa_beta,lock_floor,lock_slope]",
+          "unit": "annual CPR fractions and dimensionless/decimal-rate prepayment-model coefficients"
+        },
+        {
+          "name": "knots",
+          "shape": "L",
+          "unit": "loan-to-value ratio"
+        },
+        {
+          "name": "coefs",
+          "shape": "4 x (L-1)",
+          "unit": "LTV spline polynomial coefficients"
+        },
+        {
+          "name": "smm_lut",
+          "shape": "lookup grid",
+          "unit": "monthly prepayment fraction"
+        },
+        {
+          "name": "smm_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "burn_lut",
+          "shape": "lookup grid",
+          "unit": "dimensionless burnout multiplier"
+        },
+        {
+          "name": "burn_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wac",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "net",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wam",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "age",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "oltv",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "fac",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "horig",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "smult",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "horizons",
+          "shape": "H",
+          "unit": "months"
+        },
+        {
+          "name": "want_fwd",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "rational",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "A",
+          "shape": "S x T",
+          "unit": "discounted path sum per unit principal"
+        },
+        {
+          "name": "forward_value",
+          "shape": "S x H",
+          "unit": "path mean per unit principal"
+        },
+        {
+          "name": "balance",
+          "shape": "S x H",
+          "unit": "remaining principal fraction, undiscounted path sum"
+        },
+        {
+          "name": "checkpoint_balance",
+          "shape": "S x P x H",
+          "unit": "fraction"
+        },
+        {
+          "name": "checkpoint_burnout",
+          "shape": "S x P x H",
+          "unit": "model state"
+        },
+        {
+          "name": "interest",
+          "shape": "S x T",
+          "unit": "path sum per unit principal"
+        },
+        {
+          "name": "principal_flow",
+          "shape": "S x T",
+          "unit": "path sum per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "MORTGAGE_STRESS",
+      "inputs": [
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "yoy",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "moy",
+          "shape": "T",
+          "unit": "month of year (0..11)"
+        },
+        {
+          "name": "season",
+          "shape": "12",
+          "unit": "dimensionless seasonal multiplier"
+        },
+        {
+          "name": "pp",
+          "shape": "9 [refi_max,refi_intercept,refi_slope,burnout_decay,turnover_cpr,cpr_cap,hpa_beta,lock_floor,lock_slope]",
+          "unit": "annual CPR fractions and dimensionless/decimal-rate prepayment-model coefficients"
+        },
+        {
+          "name": "knots",
+          "shape": "L",
+          "unit": "loan-to-value ratio"
+        },
+        {
+          "name": "coefs",
+          "shape": "4 x (L-1)",
+          "unit": "LTV spline polynomial coefficients"
+        },
+        {
+          "name": "smm_lut",
+          "shape": "lookup grid",
+          "unit": "monthly prepayment fraction"
+        },
+        {
+          "name": "smm_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "burn_lut",
+          "shape": "lookup grid",
+          "unit": "dimensionless burnout multiplier"
+        },
+        {
+          "name": "burn_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wac",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "net",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wam",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "age",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "oltv",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "fac",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "horig",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "smult",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "h",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "h_idx",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "ck_bal",
+          "shape": "S x P",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "ck_burn",
+          "shape": "S x P",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "rational",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value",
+          "shape": "S",
+          "unit": "per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "DEPOSIT",
+      "inputs": [
+        {
+          "name": "dep",
+          "shape": "P x T",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "vel",
+          "shape": "P x T",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "age_knots",
+          "shape": "L",
+          "unit": "months"
+        },
+        {
+          "name": "age_coefs",
+          "shape": "4 x (L-1)",
+          "unit": "age spline polynomial coefficients"
+        },
+        {
+          "name": "off",
+          "shape": "S",
+          "unit": "annual decimal rate offset"
+        },
+        {
+          "name": "base",
+          "shape": "S",
+          "unit": "baseline monthly attrition fraction"
+        },
+        {
+          "name": "size_m",
+          "shape": "S",
+          "unit": "dimensionless size multiplier"
+        },
+        {
+          "name": "fl_amp",
+          "shape": "S",
+          "unit": "dimensionless flight multiplier"
+        },
+        {
+          "name": "fl_b",
+          "shape": "S",
+          "unit": "flight response inverse rate scale"
+        },
+        {
+          "name": "fl_g0",
+          "shape": "S",
+          "unit": "annual decimal rate gap"
+        },
+        {
+          "name": "age0",
+          "shape": "S",
+          "unit": "months"
+        },
+        {
+          "name": "svc",
+          "shape": "S",
+          "unit": "annual servicing fraction"
+        },
+        {
+          "name": "vel_coef",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "attr_cap",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "horizons",
+          "shape": "H",
+          "unit": "months"
+        },
+        {
+          "name": "want_fwd",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "A",
+          "shape": "S x T",
+          "unit": "discounted path sum per unit principal"
+        },
+        {
+          "name": "principal_runoff",
+          "shape": "S x T",
+          "unit": "undiscounted path sum per unit principal"
+        },
+        {
+          "name": "forward_value",
+          "shape": "S x H",
+          "unit": "per unit principal"
+        },
+        {
+          "name": "balance",
+          "shape": "S x H",
+          "unit": "fraction"
+        },
+        {
+          "name": "checkpoint_balance",
+          "shape": "S x P x H",
+          "unit": "fraction"
+        },
+        {
+          "name": "interest",
+          "shape": "S x T",
+          "unit": "path sum per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "DEPOSIT_STRESS",
+      "inputs": [
+        {
+          "name": "dep",
+          "shape": "P x T",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "vel",
+          "shape": "P x T",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "age_knots",
+          "shape": "L",
+          "unit": "months"
+        },
+        {
+          "name": "age_coefs",
+          "shape": "4 x (L-1)",
+          "unit": "age spline polynomial coefficients"
+        },
+        {
+          "name": "off",
+          "shape": "S",
+          "unit": "annual decimal rate offset"
+        },
+        {
+          "name": "base",
+          "shape": "S",
+          "unit": "baseline monthly attrition fraction"
+        },
+        {
+          "name": "size_m",
+          "shape": "S",
+          "unit": "dimensionless size multiplier"
+        },
+        {
+          "name": "fl_amp",
+          "shape": "S",
+          "unit": "dimensionless flight multiplier"
+        },
+        {
+          "name": "fl_b",
+          "shape": "S",
+          "unit": "flight response inverse rate scale"
+        },
+        {
+          "name": "fl_g0",
+          "shape": "S",
+          "unit": "annual decimal rate gap"
+        },
+        {
+          "name": "age0",
+          "shape": "S",
+          "unit": "months"
+        },
+        {
+          "name": "svc",
+          "shape": "S",
+          "unit": "annual servicing fraction"
+        },
+        {
+          "name": "vel_coef",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "attr_cap",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "h",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "h_idx",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "ck_bal",
+          "shape": "S x P",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value",
+          "shape": "S",
+          "unit": "per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "CSR_OAS",
+      "inputs": [
+        {
+          "name": "offsets",
+          "shape": "S+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "times",
+          "shape": "K",
+          "unit": "years"
+        },
+        {
+          "name": "sums",
+          "shape": "K",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "target",
+          "shape": "S",
+          "unit": "supplied monetary/notional unit"
+        },
+        {
+          "name": "paths",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "tolerance",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "max_iter",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "lo",
+          "shape": "scalar",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "hi",
+          "shape": "scalar",
+          "unit": "annual decimal rate/spread"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "pv",
+          "shape": "S",
+          "unit": "supplied price unit"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "CSR_PV",
+      "inputs": [
+        {
+          "name": "offsets",
+          "shape": "S+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "times",
+          "shape": "K",
+          "unit": "years"
+        },
+        {
+          "name": "sums",
+          "shape": "K",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "spread",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "paths",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pv",
+          "shape": "S",
+          "unit": "supplied price unit"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "MORTGAGE_BATCH",
+      "inputs": [
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "yoy",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "scen",
+          "shape": "P",
+          "unit": "scenario index"
+        },
+        {
+          "name": "n_scen",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "moy",
+          "shape": "T",
+          "unit": "month of year (0..11)"
+        },
+        {
+          "name": "season",
+          "shape": "12",
+          "unit": "dimensionless seasonal multiplier"
+        },
+        {
+          "name": "pp",
+          "shape": "9 [refi_max,refi_intercept,refi_slope,burnout_decay,turnover_cpr,cpr_cap,hpa_beta,lock_floor,lock_slope]",
+          "unit": "annual CPR fractions and dimensionless/decimal-rate prepayment-model coefficients"
+        },
+        {
+          "name": "knots",
+          "shape": "L",
+          "unit": "loan-to-value ratio"
+        },
+        {
+          "name": "coefs",
+          "shape": "4 x (L-1)",
+          "unit": "LTV spline polynomial coefficients"
+        },
+        {
+          "name": "smm_lut",
+          "shape": "lookup grid",
+          "unit": "monthly prepayment fraction"
+        },
+        {
+          "name": "smm_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "burn_lut",
+          "shape": "lookup grid",
+          "unit": "dimensionless burnout multiplier"
+        },
+        {
+          "name": "burn_scale",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wac",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "net",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "wam",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "age",
+          "shape": "S",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "oltv",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "fac",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "horig",
+          "shape": "S",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "smult",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "delay_y",
+          "shape": "S",
+          "unit": "years"
+        },
+        {
+          "name": "rational",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pv",
+          "shape": "J x S",
+          "unit": "per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "BEHAVIORAL",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "paths",
+          "shape": "P x T",
+          "unit": "mode 0/1/3 decimal rate; mode 2 HPI ratio"
+        }
+      ],
+      "variants": [
+        {
+          "name": "0 current coupon",
+          "inputs": [
+            {
+              "name": "mode",
+              "shape": "scalar",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "swaps",
+              "shape": "P x 4 x T",
+              "unit": "annual decimal rate/spread"
+            },
+            {
+              "name": "volatility_features",
+              "shape": "6 x T",
+              "unit": "volatility feature conventions"
+            },
+            {
+              "name": "beta",
+              "shape": "11",
+              "unit": "regression coefficients"
+            },
+            {
+              "name": "cc_lambda",
+              "shape": "scalar",
+              "unit": "model convention/parameter; packed fields documented in reference source"
+            }
+          ]
+        },
+        {
+          "name": "1 spread",
+          "inputs": [
+            {
+              "name": "mode",
+              "shape": "scalar",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "eps",
+              "shape": "P x T",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "ou_parameters",
+              "shape": "4 [kappa,theta,sigma,dt]",
+              "unit": "spread OU conventions; dt in years"
+            },
+            {
+              "name": "initial_spread",
+              "shape": "scalar",
+              "unit": "annual decimal rate/spread"
+            }
+          ]
+        },
+        {
+          "name": "2 HPI",
+          "inputs": [
+            {
+              "name": "mode",
+              "shape": "scalar",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "s10",
+              "shape": "P x T",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "eps",
+              "shape": "P x T",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "hpi_parameters",
+              "shape": "4 [mu,beta,sigma,dt]",
+              "unit": "HPI model conventions; dt in years"
+            }
+          ]
+        },
+        {
+          "name": "3 deposit rate",
+          "inputs": [
+            {
+              "name": "mode",
+              "shape": "scalar",
+              "unit": "dimensionless/index/count"
+            },
+            {
+              "name": "short",
+              "shape": "P x T",
+              "unit": "annual decimal rate/spread"
+            },
+            {
+              "name": "rate_parameters",
+              "shape": "7 [a,bmin,bmax,gamma,f0,lambda_up,lambda_down]",
+              "unit": "deposit rate model conventions"
+            },
+            {
+              "name": "initial_rate",
+              "shape": "scalar",
+              "unit": "annual decimal rate/spread"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "SWAPTION",
+      "inputs": [
+        {
+          "name": "swaps",
+          "shape": "P x 4 x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "terms",
+          "shape": "S x 5 [tenor_index,expiry_month,semiannual_periods,sign,strike]",
+          "unit": "index in emitted [2,5,10,30] year swaps; month index; count; +/-1; annual decimal rate"
+        },
+        {
+          "name": "n_paths",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pv",
+          "shape": "S",
+          "unit": "supplied notional unit"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "PROGRAM",
+      "inputs": [
+        {
+          "name": "reference_paths",
+          "shape": "P x T",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "amounts",
+          "shape": "H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "balance_factors",
+          "shape": "remaining contract months",
+          "unit": "principal fraction"
+        },
+        {
+          "name": "spread",
+          "shape": "scalar",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "floating",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "side",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "nii",
+          "shape": "H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "balance",
+          "shape": "H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "dv01",
+          "shape": "H",
+          "unit": "supplied monetary unit per bp"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "INCOME",
+      "inputs": [
+        {
+          "name": "cf",
+          "shape": "S x T",
+          "unit": "supplied monetary/notional unit"
+        },
+        {
+          "name": "price",
+          "shape": "S",
+          "unit": "supplied monetary/notional unit"
+        },
+        {
+          "name": "horizon",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "max_iter",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "nii",
+          "shape": "S x H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "balance",
+          "shape": "S x H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "yield",
+          "shape": "S",
+          "unit": "annual decimal book yield"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "ACCRUAL",
+      "inputs": [
+        {
+          "name": "per_off",
+          "shape": "S+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "acc_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "pay_m",
+          "shape": "K",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "vals",
+          "shape": "K",
+          "unit": "supplied monetary/notional unit"
+        },
+        {
+          "name": "horizon",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        },
+        {
+          "name": "is_coupon",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "accrual",
+          "shape": "S x H",
+          "unit": "supplied monetary unit"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "MONEY_MARKET",
+      "inputs": [
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "balance",
+          "shape": "S",
+          "unit": "supplied monetary/notional unit"
+        },
+        {
+          "name": "spread",
+          "shape": "S",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "sign",
+          "shape": "S",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "horizon",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "asset_nii",
+          "shape": "H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "liability_nii",
+          "shape": "H",
+          "unit": "supplied monetary unit"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "VOLATILITY",
+      "inputs": [
+        {
+          "name": "queries",
+          "shape": "Q x 4",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "abcd_parameters",
+          "shape": "4 [a,b,c,d]",
+          "unit": "abcd volatility model parameter conventions"
+        },
+        {
+          "name": "F0",
+          "shape": "F",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "dfs",
+          "shape": "F+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "B",
+          "shape": "F x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "tenor",
+          "shape": "scalar",
+          "unit": "years"
+        },
+        {
+          "name": "shift",
+          "shape": "scalar",
+          "unit": "annual decimal rate/spread"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "value_jacobian",
+          "shape": "Q x 5 [value,da,db,dc,dd]",
+          "unit": "volatility value and analytic parameter derivatives"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "CURVE",
+      "inputs": [
+        {
+          "name": "tenors",
+          "shape": "10 standard pillars",
+          "unit": "years"
+        },
+        {
+          "name": "rates",
+          "shape": "10 standard pillars",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "n_forwards",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "tenor",
+          "shape": "scalar",
+          "unit": "years"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "dfs",
+          "shape": "F+1",
+          "unit": "discount factor"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "RATE_PATHS",
+      "inputs": [
+        {
+          "name": "tenors",
+          "shape": "10 standard pillars",
+          "unit": "years"
+        },
+        {
+          "name": "swap_rates",
+          "shape": "10 standard pillars",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "abcd_parameters",
+          "shape": "4 [a,b,c,d]",
+          "unit": "abcd volatility model parameter conventions"
+        },
+        {
+          "name": "B",
+          "shape": "F x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "Z",
+          "shape": "P x T x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "rate_config",
+          "shape": "3 [dt,tenor,shift]",
+          "unit": "years, years, decimal rate"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "discount factor"
+        },
+        {
+          "name": "swaps",
+          "shape": "P x 4 x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "MORTGAGE_PATHS",
+      "inputs": [
+        {
+          "name": "tenors",
+          "shape": "10 standard pillars",
+          "unit": "years"
+        },
+        {
+          "name": "swap_rates",
+          "shape": "10 standard pillars",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "abcd_parameters",
+          "shape": "4 [a,b,c,d]",
+          "unit": "abcd volatility model parameter conventions"
+        },
+        {
+          "name": "B",
+          "shape": "F x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "Z",
+          "shape": "P x T x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "rate_config",
+          "shape": "3 [dt,tenor,shift]",
+          "unit": "years, years, decimal rate"
+        },
+        {
+          "name": "cc_vol_points",
+          "shape": "6 x 2 [expiry,tenor]",
+          "unit": "years"
+        },
+        {
+          "name": "beta",
+          "shape": "11 regression coefficients",
+          "unit": "regression coefficients"
+        },
+        {
+          "name": "cc_lambda",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "ps_parameters",
+          "shape": "4 [kappa,theta,sigma,spot]",
+          "unit": "OU parameter conventions"
+        },
+        {
+          "name": "eps_ps",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "eps_h",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "hpi_parameters",
+          "shape": "3 [mu,beta,sigma]",
+          "unit": "HPI model parameter conventions"
+        },
+        {
+          "name": "incentive_lag",
+          "shape": "scalar",
+          "unit": "months/index as specified by reference signature"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "discount factor"
+        },
+        {
+          "name": "swaps",
+          "shape": "P x 4 x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "short",
+          "shape": "P x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "ratio"
+        },
+        {
+          "name": "yoy",
+          "shape": "P x T",
+          "unit": "ratio"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "PARALLEL_SHOCK",
+      "inputs": [
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "shock_config",
+          "shape": "6 [horizon,shock_bp,dt,incentive_lag,cc_lambda,hpi_beta]",
+          "unit": "mixed months,bp,years,model parameters"
+        },
+        {
+          "name": "beta",
+          "shape": "11 regression coefficients",
+          "unit": "regression coefficients"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "mtg",
+          "shape": "P x T",
+          "unit": "annual decimal rate"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "ratio"
+        },
+        {
+          "name": "yoy",
+          "shape": "P x T",
+          "unit": "ratio"
+        },
+        {
+          "name": "df",
+          "shape": "P x T",
+          "unit": "discount factor"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "FIT_CC",
+      "inputs": [
+        {
+          "name": "history",
+          "shape": "N x 11 [CC_FEATURES then cc]",
+          "unit": "explicit observed rates/features"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "beta",
+          "shape": "11",
+          "unit": "feature regression coefficients"
+        },
+        {
+          "name": "fit_stats",
+          "shape": "2 [lambda,r_squared]",
+          "unit": "dimensionless"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "FIT_PS",
+      "inputs": [
+        {
+          "name": "history",
+          "shape": "N",
+          "unit": "observed decimal spread"
+        },
+        {
+          "name": "dt",
+          "shape": "scalar",
+          "unit": "years"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "parameters",
+          "shape": "3 [kappa,theta,sigma]",
+          "unit": "OU parameter conventions"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "FACTOR_LOADINGS",
+      "inputs": [
+        {
+          "name": "n_forwards",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "n_factors",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "tenor",
+          "shape": "scalar",
+          "unit": "years"
+        },
+        {
+          "name": "minimum_std",
+          "shape": "scalar",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "loadings",
+          "shape": "F x C",
+          "unit": "dimensionless"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "FIT_VOL",
+      "inputs": [
+        {
+          "name": "vol_pts",
+          "shape": "Q x 3",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "F0",
+          "shape": "F",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "dfs",
+          "shape": "F+1",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "B",
+          "shape": "F x C",
+          "unit": "dimensionless/index/count"
+        },
+        {
+          "name": "initial_parameters",
+          "shape": "4 [a,b,c,d]",
+          "unit": "abcd volatility model parameter conventions"
+        },
+        {
+          "name": "curve_config",
+          "shape": "2 [tenor,shift]",
+          "unit": "years,decimal rate"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "parameters",
+          "shape": "4 [a,b,c,d]",
+          "unit": "abcd volatility conventions"
+        },
+        {
+          "name": "fit_stats",
+          "shape": "3 [rmse,evaluations,status]",
+          "unit": "volatility,count,code"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "FIT_DEPOSIT",
+      "inputs": [
+        {
+          "name": "history",
+          "shape": "N x 2 [ff,dep_rate]",
+          "unit": "annual decimal rates"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "parameters",
+          "shape": "7 [a,bmin,bmax,gamma,f0,lambda_up,lambda_down]",
+          "unit": "deposit rate model conventions"
+        },
+        {
+          "name": "fit_stats",
+          "shape": "3 [rmse,evaluations,status]",
+          "unit": "decimal rate,count,code"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "SHARED_DRAWS",
+      "inputs": [
+        {
+          "name": "seed_words",
+          "shape": "W",
+          "unit": "uint32 entropy transported as f64"
+        },
+        {
+          "name": "dimensions",
+          "shape": "3 [paths,months,factors]",
+          "unit": "positive integer counts"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rates",
+          "shape": "P x T x C",
+          "unit": "normal draw"
+        },
+        {
+          "name": "spread",
+          "shape": "P x T",
+          "unit": "normal draw"
+        },
+        {
+          "name": "hpi",
+          "shape": "P x T",
+          "unit": "normal draw"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "MORTGAGE_RISK",
+      "inputs": [
+        {
+          "name": "tenors",
+          "shape": "10 standard pillars",
+          "unit": "years"
+        },
+        {
+          "name": "swap_rates",
+          "shape": "10 standard pillars",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "vol_quotes",
+          "shape": "Q x 3",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "cc_history",
+          "shape": "N x 11 [CC_FEATURES then cc]",
+          "unit": "decimal rates/vol features in CC_FEATURES order"
+        },
+        {
+          "name": "ps_history",
+          "shape": "N",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "book",
+          "shape": "S x 13 [wac,net_coupon,wam,age,oltv,factor,fico,avg_loan_size,state_code,channel_code,price,current_face,pay_delay_days]",
+          "unit": "source book coupon percent/months/LTV percent/fraction/score/money/codes/price percent/money/days"
+        },
+        {
+          "name": "original_hpi",
+          "shape": "empty or S",
+          "unit": "HPI ratio"
+        },
+        {
+          "name": "seed_words",
+          "shape": "W (uint32 entropy)",
+          "unit": "uint32 entropy transported as f64"
+        },
+        {
+          "name": "risk_config",
+          "shape": "17 [base_paths,sensitivity_paths,months,forwards,factors,dt,tenor,shift,float32_paths,curve_bump,vol_bump,hpi_mu,hpi_beta,hpi_sigma,incentive_lag,ps_spot,rational]",
+          "unit": "counts/years/decimal rates/model parameters; see RiskConfig"
+        },
+        {
+          "name": "fixed_oas",
+          "shape": "empty or S",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "month_of_year",
+          "shape": "T",
+          "unit": "month of year (0..11)"
+        },
+        {
+          "name": "seasonality",
+          "shape": "12",
+          "unit": "dimensionless seasonal multiplier"
+        },
+        {
+          "name": "prepay_parameters",
+          "shape": "9 [refi_max,refi_intercept,refi_slope,burnout_decay,turnover_cpr,cpr_cap,hpa_beta,lock_floor,lock_slope]",
+          "unit": "annual CPR fractions and dimensionless/decimal-rate prepayment-model coefficients"
+        },
+        {
+          "name": "ltv_knots",
+          "shape": "L",
+          "unit": "loan-to-value ratio"
+        },
+        {
+          "name": "ltv_coefficients",
+          "shape": "4 x (L-1)",
+          "unit": "LTV spline polynomial coefficients"
+        },
+        {
+          "name": "smm_table",
+          "shape": "lookup grid",
+          "unit": "monthly prepayment fraction"
+        },
+        {
+          "name": "table_scales",
+          "shape": "2 [smm_scale,burnout_scale]",
+          "unit": "lookup index scale"
+        },
+        {
+          "name": "burnout_table",
+          "shape": "lookup grid",
+          "unit": "dimensionless burnout multiplier"
+        },
+        {
+          "name": "cc_vol_points",
+          "shape": "6 x 2 [expiry,tenor]",
+          "unit": "years"
+        },
+        {
+          "name": "fico_x",
+          "shape": "spline grid",
+          "unit": "FICO score"
+        },
+        {
+          "name": "fico_y",
+          "shape": "spline grid",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "size_x",
+          "shape": "spline grid",
+          "unit": "loan size in source monetary units"
+        },
+        {
+          "name": "size_y",
+          "shape": "spline grid",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "state_multipliers",
+          "shape": "code lookup vector",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "channel_multipliers",
+          "shape": "code lookup vector",
+          "unit": "dimensionless multiplier"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "price",
+          "shape": "S",
+          "unit": "price percent of principal"
+        },
+        {
+          "name": "dv01",
+          "shape": "S",
+          "unit": "per unit principal per bp"
+        },
+        {
+          "name": "sensitivities",
+          "shape": "(10+Q) x S",
+          "unit": "risk per unit principal"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "MORTGAGE_FORWARD_STRESS",
+      "inputs": [
+        {
+          "name": "tenors",
+          "shape": "10 standard pillars",
+          "unit": "years"
+        },
+        {
+          "name": "swap_rates",
+          "shape": "10 standard pillars",
+          "unit": "annual decimal rate/spread"
+        },
+        {
+          "name": "vol_quotes",
+          "shape": "Q x 3",
+          "unit": "model convention/parameter; packed fields documented in reference source"
+        },
+        {
+          "name": "cc_history",
+          "shape": "N x 11 [CC_FEATURES then cc]",
+          "unit": "decimal rates/vol features in CC_FEATURES order"
+        },
+        {
+          "name": "ps_history",
+          "shape": "N",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "book",
+          "shape": "S x 13 [wac,net_coupon,wam,age,oltv,factor,fico,avg_loan_size,state_code,channel_code,price,current_face,pay_delay_days]",
+          "unit": "source book coupon percent/months/LTV percent/fraction/score/money/codes/price percent/money/days"
+        },
+        {
+          "name": "original_hpi",
+          "shape": "empty or S",
+          "unit": "HPI ratio"
+        },
+        {
+          "name": "seed_words",
+          "shape": "W (uint32 entropy)",
+          "unit": "uint32 entropy transported as f64"
+        },
+        {
+          "name": "risk_config",
+          "shape": "17 [base_paths,sensitivity_paths,months,forwards,factors,dt,tenor,shift,float32_paths,curve_bump,vol_bump,hpi_mu,hpi_beta,hpi_sigma,incentive_lag,ps_spot,rational]",
+          "unit": "counts/years/decimal rates/model parameters; see RiskConfig"
+        },
+        {
+          "name": "fixed_oas",
+          "shape": "empty or S",
+          "unit": "annual decimal spread"
+        },
+        {
+          "name": "month_of_year",
+          "shape": "T",
+          "unit": "month of year (0..11)"
+        },
+        {
+          "name": "seasonality",
+          "shape": "12",
+          "unit": "dimensionless seasonal multiplier"
+        },
+        {
+          "name": "prepay_parameters",
+          "shape": "9 [refi_max,refi_intercept,refi_slope,burnout_decay,turnover_cpr,cpr_cap,hpa_beta,lock_floor,lock_slope]",
+          "unit": "annual CPR fractions and dimensionless/decimal-rate prepayment-model coefficients"
+        },
+        {
+          "name": "ltv_knots",
+          "shape": "L",
+          "unit": "loan-to-value ratio"
+        },
+        {
+          "name": "ltv_coefficients",
+          "shape": "4 x (L-1)",
+          "unit": "LTV spline polynomial coefficients"
+        },
+        {
+          "name": "smm_table",
+          "shape": "lookup grid",
+          "unit": "monthly prepayment fraction"
+        },
+        {
+          "name": "table_scales",
+          "shape": "2 [smm_scale,burnout_scale]",
+          "unit": "lookup index scale"
+        },
+        {
+          "name": "burnout_table",
+          "shape": "lookup grid",
+          "unit": "dimensionless burnout multiplier"
+        },
+        {
+          "name": "cc_vol_points",
+          "shape": "6 x 2 [expiry,tenor]",
+          "unit": "years"
+        },
+        {
+          "name": "fico_x",
+          "shape": "spline grid",
+          "unit": "FICO score"
+        },
+        {
+          "name": "fico_y",
+          "shape": "spline grid",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "size_x",
+          "shape": "spline grid",
+          "unit": "loan size in source monetary units"
+        },
+        {
+          "name": "size_y",
+          "shape": "spline grid",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "state_multipliers",
+          "shape": "code lookup vector",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "channel_multipliers",
+          "shape": "code lookup vector",
+          "unit": "dimensionless multiplier"
+        },
+        {
+          "name": "horizons",
+          "shape": "H",
+          "unit": "months"
+        },
+        {
+          "name": "shocks",
+          "shape": "J",
+          "unit": "basis points"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "base_value",
+          "shape": "H x S",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "base_price",
+          "shape": "H x S",
+          "unit": "price percent"
+        },
+        {
+          "name": "shocked_value",
+          "shape": "J x H x S",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "pnl",
+          "shape": "J x H x S",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "aggregate_base",
+          "shape": "J x H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "aggregate_pnl",
+          "shape": "J x H",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "forward_dv01",
+          "shape": "H or empty",
+          "unit": "supplied monetary unit per bp"
+        },
+        {
+          "name": "oas",
+          "shape": "S",
+          "unit": "annual decimal spread"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "MORTGAGE_CACHE",
+      "inputs": [
+        {
+          "name": "clear",
+          "shape": "scalar",
+          "unit": "dimensionless/index/count"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "statistics",
+          "shape": "5 [entries,retained_bytes,hits,misses,evictions]",
+          "unit": "counts/bytes"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "INTERACTIVE",
+      "inputs": [
+        {
+          "name": "vectors",
+          "shape": "A x 10 x H (unitlib.METRICS order)",
+          "unit": "prepared per-unit coefficients"
+        },
+        {
+          "name": "amounts",
+          "shape": "A",
+          "unit": "supplied monetary unit"
+        },
+        {
+          "name": "base_kpis",
+          "shape": "empty or 13 [eve,net_dv01,mv_assets,hqla_l1,hqla_l2,outflow,asf,rsf,cet1,rwa,l2_cap,ni_to_nii,payout]",
+          "unit": "money/money per bp/research fractions"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "values",
+          "shape": "11 x H (METRICS then funding gap)",
+          "unit": "supplied monetary units; dv01 row per bp"
+        },
+        {
+          "name": "kpi_path",
+          "shape": "3 x H [eve_shock,lcr,nsfr]",
+          "unit": "percent"
+        },
+        {
+          "name": "scalars",
+          "shape": "7 [nii,dv01,eve_shock,duration_gap,lcr,nsfr,cet1]",
+          "unit": "money,money/bp,percent,years,percent"
+        }
+      ]
+    }
+  ]
+}

@@ -121,6 +121,7 @@ def main():
     parser.add_argument('--namespace', default='workbench')
     args = parser.parse_args()
     from pyiceberg.catalog import load_catalog
+    from . import store  # binds the explicit workspace port for this CLI process
     db.start()
     try:
         print(json.dumps(publish(db.REPO, db.CODEC, args.job_id, load_catalog(args.catalog), args.namespace), indent=2))

@@ -29,6 +29,7 @@ cohorts through the MBS engine; forward dv01 is closed-form modified
 duration on the expected coupon (first-order, no convexity, no OAS).
 """
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 from ..core.runtime import path_count
 
@@ -62,7 +63,7 @@ def _native_program(prog, paths, horizon, runoff):
         amounts[h]=(float(prog['monthly_notional']) if 'monthly_notional' in prog
                     else float(prog['reinvest_frac'])*float(runoff[h]))
     factors=_amort_factors(prog.get('amort','bullet'),int(prog['term_m']),prog.get('cpr_annual',.06))
-    return call(13,[_ref(paths,prog['rate_ref']),amounts,factors,prog['spread_bp']*1e-4,
+    return call(Op.PROGRAM,[_ref(paths,prog['rate_ref']),amounts,factors,prog['spread_bp']*1e-4,
                    bool(prog.get('is_float')),1 if prog['side']=='asset' else -1],[(horizon,)]*3)
 
 

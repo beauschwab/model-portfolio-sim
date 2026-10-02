@@ -2,6 +2,7 @@
 primary/secondary OU spread, HPI process. Fitters take Polars frames of
 monthly history; path builders consume CRN shocks."""
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 import numpy as np
 import polars as pl
@@ -17,7 +18,7 @@ def fit_current_coupon(hist: pl.DataFrame) -> dict:
     Trend speed lambda from Delta(cc) ~ lambda * (fair - cc_lag)."""
     from ..core import quant_native as native
     if native.enabled():
-        beta,stats=native.call(22,[hist.select(CC_FEATURES+['cc']).to_numpy()],[(11,),(2,)])
+        beta,stats=native.call(Op.FIT_CC,[hist.select(CC_FEATURES+['cc']).to_numpy()],[(11,),(2,)])
         lam,r2=stats
         print(f"[cc] lambda = {lam:.3f}  R2 = {r2:.3f}")
         return {"beta":beta,"lam":float(lam)}
@@ -39,7 +40,7 @@ def cc_paths(swaps: np.ndarray, volfeat: np.ndarray, cc_model: dict
     P, _, T = swaps.shape
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(11,[0,swaps,volfeat,cc_model['beta'],cc_model['lam']],[(P,T)])[0]
+        return native.call(Op.BEHAVIORAL,[0,swaps,volfeat,cc_model['beta'],cc_model['lam']],[(P,T)])[0]
     beta, lam = cc_model["beta"], cc_model["lam"]
     fair = (np.einsum("pft,f->pt", swaps, beta[:4])
             + volfeat.T @ beta[4:10] + beta[10])
@@ -54,7 +55,7 @@ def cc_paths(swaps: np.ndarray, volfeat: np.ndarray, cc_model: dict
 def fit_ps_spread(hist: pl.DataFrame) -> dict:
     from ..core import quant_native as native
     if native.enabled():
-        kappa,theta,sigma=native.call(23,[hist['ps'].to_numpy(),DT],[(3,)])[0]
+        kappa,theta,sigma=native.call(Op.FIT_PS,[hist['ps'].to_numpy(),DT],[(3,)])[0]
         print(f"[ps] kappa = {kappa:.2f}  theta = {theta*1e4:.0f}bp"
               f"  sigma = {sigma*1e4:.0f}bp/sqrt(y)")
         return {"kappa":float(kappa),"theta":float(theta),"sigma":float(sigma)}
@@ -73,7 +74,7 @@ def ps_paths(ps_model: dict, ps_spot: float, eps: np.ndarray) -> np.ndarray:
     k, th, sg = ps_model["kappa"], ps_model["theta"], ps_model["sigma"]
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(11,[1,eps,[k,th,sg,DT],ps_spot],[eps.shape])[0]
+        return native.call(Op.BEHAVIORAL,[1,eps,[k,th,sg,DT],ps_spot],[eps.shape])[0]
     P, T = eps.shape
     ps = np.empty((P, T))
     x = np.full(P, ps_spot)
@@ -88,7 +89,7 @@ def hpi_paths(s10: np.ndarray, eps: np.ndarray) -> np.ndarray:
     """Lognormal HPI, drift linked to the 10y rate (clipped sensitivity)."""
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(11,[2,s10,eps,[HPI_MU,HPI_BETA,HPI_SIG,DT]],[s10.shape])[0]
+        return native.call(Op.BEHAVIORAL,[2,s10,eps,[HPI_MU,HPI_BETA,HPI_SIG,DT]],[s10.shape])[0]
     dr = np.clip(s10 - s10[:, :1], -0.05, 0.05)
     dlog = (HPI_MU + HPI_BETA * dr) * DT + HPI_SIG * np.sqrt(DT) * eps
     return np.exp(np.clip(np.cumsum(dlog, axis=1), -3.0, 3.0))

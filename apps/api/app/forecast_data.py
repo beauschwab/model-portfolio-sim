@@ -86,8 +86,8 @@ def fed_sep(req, feed):
         # Preserve published uncertainty ranges without treating them as probabilities.
         for group, offset in (("central_tendency", len(periods)), ("range", 2 * len(periods))):
             for period, value in zip(periods, row[1 + offset:1 + offset + len(periods)]):
-                cleaned = value.strip().replace("−", "-")
-                match = re.fullmatch(r"(-?\d+(?:\.\d+)?)\s*[–-]\s*(-?\d+(?:\.\d+)?)", cleaned)
+                cleaned = value.strip().replace("âˆ’", "-")
+                match = re.fullmatch(r"(-?\d+(?:\.\d+)?)\s*[â€“-]\s*(-?\d+(?:\.\d+)?)", cleaned)
                 nums = list(match.groups()) if match else ([cleaned] if re.fullmatch(r"-?\d+(?:\.\d+)?", cleaned) else [])
                 if nums and period != "Longer run":
                     for side, v in (("low", nums[0]), ("high", nums[-1])):

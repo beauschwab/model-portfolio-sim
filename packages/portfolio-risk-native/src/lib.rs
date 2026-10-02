@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 #[cfg(feature = "allocator-mimalloc")]
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+pub mod abi_operations;
 pub mod accounting_lifecycle;
 pub mod balance_risk;
 pub mod cache;

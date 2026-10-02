@@ -1,5 +1,5 @@
 # Rates Workbench monorepo
-.PHONY: install dev-api dev-worker dev-web init-db test-py test build build-native
+.PHONY: install dev-api dev-worker dev-web init-db test-py test build build-native check-architecture
 
 install:            ## python (editable) + node deps
 	uv sync --project apps/api
@@ -18,7 +18,13 @@ dev-api:            ## FastAPI on :8000; start dev-worker for calculations
 dev-web:            ## Vite on :5173 (proxies /api -> :8000)
 	cd apps/web && bun run dev
 
-test-py:            ## engine and API regression suites
+check-architecture: ## static boundaries and reproducible HTTP/native contracts
+	python scripts/check_architecture.py
+	python -m unittest discover -s scripts/tests -v
+	python scripts/generate_native_contracts.py --check
+	uv run --project apps/api python scripts/generate_http_contracts.py --check
+
+test-py: check-architecture ## engine and API regression suites
 	cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q
 	cd apps/api && uv run --extra dev python -m pytest tests/ -q
 
