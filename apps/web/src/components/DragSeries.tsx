@@ -3,7 +3,7 @@
  * Click an empty column to set it; drag to sculpt; the path is the leg. */
 import { useMemo, useRef, useState } from "react";
 
-export default function DragSeries({ values, onChange, min, max, step, unit, color = "#fcd535", n = 9 }: {
+export default function DragSeries({ values, onChange, min, max, step, unit, color = "var(--viz-1)", n = 9 }: {
   values: number[]; onChange: (v: number[]) => void;
   min: number; max: number; step: number; unit: string; color?: string; n?: number;
 }) {
@@ -42,17 +42,17 @@ export default function DragSeries({ values, onChange, min, max, step, unit, col
       onPointerUp={() => setDrag(null)} onPointerLeave={() => setDrag(null)}>
       {Array.from({ length: n }, (_, i) => (
         <g key={i}>
-          <line x1={x(i)} x2={x(i)} y1={PY} y2={H - PY} stroke="#2b3139" strokeWidth="1" />
-          <text x={x(i)} y={H - 1} textAnchor="middle" fontSize="7.5" fill="#707a8a">Q{i + 1}</text>
+          <line x1={x(i)} x2={x(i)} y1={PY} y2={H - PY} stroke="var(--border-subtle)" strokeWidth="1" />
+          <text x={x(i)} y={H - 1} textAnchor="middle" fontSize="7.5" fill="var(--text-tertiary)">Q{i + 1}</text>
         </g>
       ))}
-      {zy !== null && <line x1={PX} x2={W - PX} y1={zy} y2={zy} stroke="#2b3139" strokeDasharray="3 3" />}
+      {zy !== null && <line x1={PX} x2={W - PX} y1={zy} y2={zy} stroke="var(--border-strong)" strokeDasharray="3 3" />}
       <path d={path} fill="none" stroke={color} strokeWidth="1.5" />
       {vals.map((v, i) => (
         <g key={i} className="cursor-ns-resize">
-          <circle cx={x(i)} cy={y(v)} r={drag === i ? 6 : 4} fill="#0b0e11" stroke={color} strokeWidth="1.5" />
+          <circle cx={x(i)} cy={y(v)} r={drag === i ? 6 : 4} fill="var(--surface-3)" stroke={color} strokeWidth="1.5" />
           {(drag === i) && (
-            <text x={x(i)} y={y(v) - 9} textAnchor="middle" fontSize="8.5" fill="#eaecef" className="num">
+            <text x={x(i)} y={y(v) - 9} textAnchor="middle" fontSize="8.5" fill="var(--text-primary)" className="num">
               {v}{unit}
             </text>
           )}

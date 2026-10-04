@@ -1,0 +1,15 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aperture Risk">
+  <rect width="48" height="48" rx="5" fill="#16181B"></rect>
+  <rect x="0.5" y="0.5" width="47" height="47" rx="4.5" stroke="#2E3137"></rect>
+  <g transform="translate(24 24)">
+    <path fill="#F2B300" fill-rule="evenodd" d="M0 -13 L11.26 -6.5 L11.26 6.5 L0 13 L-11.26 6.5 L-11.26 -6.5 Z M0 -6 L5.2 -3 L5.2 3 L0 6 L-5.2 3 L-5.2 -3 Z"></path>
+    <g stroke="#16181B" stroke-width="1.5" stroke-linecap="round">
+      <line x1="0" y1="-13" x2="5.2" y2="-3"></line>
+      <line x1="11.26" y1="-6.5" x2="5.2" y2="3"></line>
+      <line x1="11.26" y1="6.5" x2="0" y2="6"></line>
+      <line x1="0" y1="13" x2="-5.2" y2="3"></line>
+      <line x1="-11.26" y1="6.5" x2="-5.2" y2="-3"></line>
+      <line x1="-11.26" y1="-6.5" x2="0" y2="-6"></line>
+    </g>
+  </g>
+</svg>

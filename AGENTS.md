@@ -33,7 +33,8 @@ Three layers, three contracts:
   one at a time per workspace (kernels saturate cores).
 - `apps/web` â€” Vite/React. Talks only to the API via `src/lib/api.ts`.
   UI primitives are hand-rolled shadcn-style in `components/ui.tsx`;
-  theme tokens in `tailwind.config.js` (Supabase dark: zinc + emerald).
+  theme tokens in `src/styles/aperture.css`, mapped in `tailwind.config.js`
+  (Aperture Risk design system; see DESIGN.md before changing UI styling).
 
 Commands: `make install | dev-api | dev-web | test-py | build`.
 

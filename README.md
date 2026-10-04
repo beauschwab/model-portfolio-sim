@@ -28,7 +28,7 @@ trader dashboard (`apps/web`).
 ```
 apps/
   api/        FastAPI wrapper: books, market, assumptions, scenarios, runs
-  web/        Vite + React + TS + Tailwind + recharts (Supabase-dark theme)
+  web/        Vite + React + TS + Tailwind + recharts (Aperture Risk design system)
 packages/
   portfolio-risk/   LMM Monte Carlo engine: MBS OAS, corporates, NMD deposits,
               CDs, money markets, ASC 815 hedges (swaps/swaptions);

@@ -1,3 +1,4 @@
+import { LayoutGrid, Trash2 } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type SerializedDockview } from "dockview";
 import clsx from "clsx";
@@ -154,7 +155,7 @@ export function WorkspaceSurface() {
 export function ActivityRail() {
   const { activePanel, openPanel } = useWorkspace();
   return (
-    <aside className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-surface-1 px-2 py-2" aria-label="Workspace panels">
+    <aside className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-[var(--gray-1000)] py-2.5" aria-label="Workspace panels">
       {PANEL_DEFS.map(panel => (
         <button
           key={panel.id}
@@ -164,17 +165,16 @@ export function ActivityRail() {
           aria-current={activePanel === panel.id ? "page" : undefined}
           onClick={() => openPanel(panel.id)}
           className={clsx(
-            "group relative grid h-10 w-10 place-items-center rounded-md border text-[11px] font-semibold transition-colors",
+            "group relative grid h-[38px] w-[38px] place-items-center rounded-sm transition-colors duration-fast",
             activePanel === panel.id
-              ? "border-brand/60 bg-brand-deep text-brand"
-              : "border-transparent text-paper-faint hover:border-line hover:bg-surface-2 hover:text-paper",
+              ? "bg-brand/15 text-brand-hover"
+              : "text-paper-faint hover:bg-surface-2 hover:text-paper",
           )}
         >
-          <span aria-hidden>{panel.railLabel}</span>
-          {activePanel === panel.id && <span className="absolute left-0 top-1 h-8 w-0.5 rounded-full bg-brand" />}
+          <panel.icon aria-hidden className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          {activePanel === panel.id && <span className="absolute -left-[9px] top-[9px] bottom-[9px] w-0.5 bg-brand" />}
         </button>
       ))}
-      <div className="mt-auto pb-1 text-[10px] text-paper-faint" title="Drag tabs to split or tab panels">dock</div>
     </aside>
   );
 }
@@ -184,38 +184,38 @@ export function LayoutMenu() {
   const [name, setName] = useState("");
   return (
     <Popover width="18rem" trigger={
-      <span className="inline-flex h-8 items-center rounded-md border border-line bg-surface-2 px-3 text-xs font-medium text-paper-dim hover:bg-surface-3 hover:text-paper">
-        layouts
+      <span className="inline-flex h-control-sm items-center gap-1.5 rounded-sm border border-line-strong bg-surface-2 px-2.5 text-sm font-medium text-paper-dim transition-colors duration-fast hover:bg-surface-3 hover:text-paper">
+        <LayoutGrid aria-hidden className="h-3.5 w-3.5" strokeWidth={1.5} />Layouts
       </span>
     }>
       <div className="space-y-3">
         <div>
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-paper-faint">Save current layout</div>
+          <div className="mb-1 eyebrow">Save current layout</div>
           <div className="flex gap-2">
             <input
               value={name}
               onChange={event => setName(event.target.value)}
               placeholder="ALCO pack"
-              className="h-8 min-w-0 flex-1 rounded-md border border-line bg-surface-2 px-2 text-xs text-paper outline-none placeholder:text-paper-dim focus:border-brand"
+              className="h-control min-w-0 flex-1 rounded-sm border border-line-strong bg-surface-base px-2 text-sm text-paper outline-none placeholder:text-paper-dim focus:border-brand"
             />
-            <Button variant="ghost" onClick={() => { saveLayoutAs(name); setName(""); }}>Save</Button>
+            <Button variant="secondary" onClick={() => { saveLayoutAs(name); setName(""); }}>Save</Button>
           </div>
         </div>
         <div>
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-paper-faint">Named layouts</div>
+          <div className="mb-1 eyebrow">Named layouts</div>
           <div className="max-h-44 space-y-1 overflow-auto">
-            {namedLayouts.length === 0 && <div className="rounded-md bg-surface-2 px-2 py-2 text-xs text-paper-faint">No saved layouts yet.</div>}
+            {namedLayouts.length === 0 && <div className="rounded-md bg-surface-2 px-2 py-2 text-sm text-paper-faint">No saved layouts yet.</div>}
             {namedLayouts.map(item => (
               <div key={item.name} className="flex items-center gap-1 rounded-md bg-surface-2 p-1">
-                <button type="button" onClick={() => applyLayout(item.layout)} className="min-w-0 flex-1 truncate px-2 py-1 text-left text-xs text-paper-dim hover:text-brand">
+                <button type="button" onClick={() => applyLayout(item.layout)} className="min-w-0 flex-1 truncate px-2 py-1 text-left text-sm text-paper-dim hover:text-brand">
                   {item.name}
                 </button>
-                <button type="button" onClick={() => deleteLayout(item.name)} className="h-6 w-6 rounded text-paper-faint hover:bg-surface-3 hover:text-down" aria-label={`Delete ${item.name}`}>×</button>
+                <button type="button" onClick={() => deleteLayout(item.name)} className="grid h-6 w-6 place-items-center rounded-sm text-paper-faint hover:bg-surface-3 hover:text-danger" aria-label={`Delete ${item.name}`}><Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
               </div>
             ))}
           </div>
         </div>
-        <button type="button" onClick={resetLayout} className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-xs font-medium text-paper-dim hover:bg-surface-3 hover:text-brand">
+        <button type="button" onClick={resetLayout} className="w-full rounded-sm border border-line-strong bg-surface-2 px-2 py-1.5 text-sm font-medium text-paper-dim hover:bg-surface-3 hover:text-brand">
           Reset to default desk
         </button>
       </div>

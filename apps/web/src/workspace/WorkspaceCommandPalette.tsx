@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { useEngine } from "../lib/engine";
@@ -151,49 +152,47 @@ export function WorkspaceCommandPalette() {
   let group = "";
   return (
     <div className="fixed inset-0 z-[1000] flex items-start justify-center px-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label="Command palette">
-      <button aria-hidden tabIndex={-1} className="absolute inset-0 cursor-default bg-ink/70 backdrop-blur-sm" onClick={close} />
-      <div className="palette-pop relative w-full max-w-xl overflow-hidden rounded-xl border border-brand/30 bg-surface-1 shadow-2xl">
+      <button aria-hidden tabIndex={-1} className="absolute inset-0 cursor-default bg-black/65 backdrop-blur-sm" onClick={close} />
+      <div className="palette-pop relative w-full max-w-xl overflow-hidden rounded-lg border border-line-strong bg-surface-overlay shadow-xl">
         <div className="flex items-center gap-2.5 border-b border-line px-4">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#929aa5" strokeWidth="1.5" aria-hidden>
-            <circle cx="7" cy="7" r="5" /><path d="M11 11l3 3" strokeLinecap="round" />
-          </svg>
+          <Search aria-hidden className="h-4 w-4 shrink-0 text-paper-faint" strokeWidth={1.5} />
           <input
             ref={inputRef}
             value={query}
             onChange={event => setQuery(event.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Open panels, run jobs, switch scenarios, apply layouts..."
-            className="h-12 w-full bg-transparent text-sm text-paper outline-none placeholder:text-paper-dim"
+            className="h-12 w-full bg-transparent text-md text-paper outline-none placeholder:text-paper-dim"
           />
-          <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-paper-faint sm:block">esc</kbd>
+          <kbd className="hidden shrink-0 rounded border border-line px-1.5 py-0.5 text-2xs text-paper-faint sm:block">esc</kbd>
         </div>
         <div ref={listRef} className="max-h-[52vh] overflow-auto py-1.5">
-          {filtered.length === 0 && <div className="px-4 py-8 text-center text-xs text-paper-faint">No matching actions</div>}
+          {filtered.length === 0 && <div className="px-4 py-8 text-center text-sm text-paper-faint">No matching actions</div>}
           {filtered.map((action, index) => {
             const header = action.group !== group ? action.group : null;
             group = action.group;
             return (
               <div key={action.id}>
-                {header && <div className="px-4 pb-1 pt-2.5 text-[10px] font-medium uppercase tracking-wider text-paper-faint">{header}</div>}
+                {header && <div className="px-4 pb-1 pt-2.5 eyebrow">{header}</div>}
                 <button
                   data-index={index}
                   disabled={action.disabled}
                   onMouseMove={() => setSelected(index)}
                   onClick={() => !action.disabled && action.run()}
                   className={clsx(
-                    "flex w-full items-center gap-3 px-4 py-2 text-left text-sm",
+                    "flex w-full items-center gap-3 px-4 py-2 text-left text-md",
                     action.disabled && "opacity-40",
                     index === selected ? "bg-surface-3 text-paper" : "text-paper-dim hover:bg-surface-2 hover:text-paper",
                   )}
                 >
                   <span className="truncate">{action.label}</span>
-                  {action.hint && <span className="num ml-auto shrink-0 truncate text-[11px] text-paper-faint">{action.hint}</span>}
+                  {action.hint && <span className="num ml-auto shrink-0 truncate text-xs text-paper-faint">{action.hint}</span>}
                 </button>
               </div>
             );
           })}
         </div>
-        <div className="flex items-center gap-3 border-t border-line px-4 py-2 text-[10px] text-paper-faint">
+        <div className="flex items-center gap-3 border-t border-line px-4 py-2 text-2xs text-paper-faint">
           <span><kbd className="rounded border border-line px-1">↑</kbd><kbd className="ml-0.5 rounded border border-line px-1">↓</kbd> move</span>
           <span><kbd className="rounded border border-line px-1">↵</kbd> run</span>
           <span className="ml-auto">{engine.running ? "engine busy — runs queued" : "ready"}</span>

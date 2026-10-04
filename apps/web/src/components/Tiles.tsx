@@ -14,6 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import clsx from "clsx";
+import { Columns2, GripVertical, Maximize2, Minimize2, X } from "lucide-react";
 import { startViewTransition } from "./motion";
 
 export type TileSize = "sm" | "md" | "lg" | "full";
@@ -184,9 +185,9 @@ export function TileGrid() {
               dragId.current = null; setDragging(null); setOver(null);
             }}
             className={clsx(
-              "group/tile flex min-w-0 flex-col overflow-hidden rounded-xl border bg-surface-1 shadow-sm transition-colors",
+              "group/tile flex min-w-0 flex-col overflow-hidden rounded-md border bg-surface-1 shadow-inset-top transition-colors duration-fast",
               COLSPAN[tileSize],
-              over === id && dragging !== id ? "border-brand/60" : "border-line",
+              over === id && dragging !== id ? "border-brand" : "border-line-strong",
               dragging === id && "opacity-60",
             )}
           >
@@ -205,46 +206,33 @@ export function TileGrid() {
               )}
             >
               {!expanded && (
-                <span aria-hidden className="text-paper-faint/60 transition-colors group-hover/tile:text-paper-faint" title="drag to reorder">
-                  <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
-                    <circle cx="2" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" />
-                    <circle cx="2" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" />
-                    <circle cx="2" cy="12" r="1.2" /><circle cx="8" cy="12" r="1.2" />
-                  </svg>
+                <span aria-hidden className="text-paper-faint/60 transition-colors group-hover/tile:text-paper-faint" title="Drag to reorder">
+                  <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </span>
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-medium text-paper">{def.title}</h2>
+                  <h2 className="truncate text-md font-semibold tracking-tight text-paper-heading">{def.title}</h2>
                   {def.badge}
                 </div>
-                {def.subtitle && <p className="truncate text-[11px] text-paper-faint">{def.subtitle}</p>}
+                {def.subtitle && <p className="truncate text-xs text-paper-faint">{def.subtitle}</p>}
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-0.5">
                 {!expanded && (
                   <TileBtn label={`width: ${tileSize}`} onClick={() => cycleSize(id)}>
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M2 5h12M2 11h12" strokeLinecap="round" />
-                      <path d="M5 8H3M13 8h-2" strokeLinecap="round" />
-                    </svg>
+                    <Columns2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </TileBtn>
                 )}
                 <TileBtn label={expanded ? "restore" : "expand"} onClick={() => toggleExpand(id)}>
                   {expanded ? (
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                      <path d="M9 7l4-4M13 3v3M13 3h-3M7 9l-4 4M3 13v-3M3 13h3" />
-                    </svg>
+                    <Minimize2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   ) : (
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                      <path d="M3 7V3h4M13 9v4H9M3 3l4 4M13 13l-4-4" />
-                    </svg>
+                    <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   )}
                 </TileBtn>
                 {!expanded && (
-                  <TileBtn label="hide tile" onClick={() => remove(id)}>
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                      <path d="M4 4l8 8M12 4l-8 8" />
-                    </svg>
+                  <TileBtn label="Hide tile" onClick={() => remove(id)}>
+                    <X className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </TileBtn>
                 )}
               </div>

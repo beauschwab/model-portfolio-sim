@@ -1,0 +1,190 @@
+/* ============================================================
+   Aperture Risk design tokens — ported from the Aperture Risk
+   Design System (Claude Design project) tokens/*.css.
+   Reference these custom properties (or the Tailwind names mapped
+   onto them in tailwind.config.js); never hard-code hex in components.
+   ============================================================ */
+:root {
+  /* ---- Neutral grey scale (dark → light) ---- */
+  --gray-1000: #131417;
+  --gray-950:  #17191D;
+  --gray-900:  #1C1F23;
+  --gray-850:  #22252A;
+  --gray-800:  #2A2D33;
+  --gray-780:  #31343B;
+  --gray-750:  #353941;
+  --gray-700:  #3C4047;
+  --gray-600:  #474C54;
+  --gray-500:  #5C616A;
+  --gray-400:  #757A82;
+  --gray-300:  #939AA2;
+  --gray-200:  #AFB4BC;
+  --gray-100:  #CDD1D7;
+  --gray-50:   #E8EAED;
+  --gray-0:    #F6F7F8;
+
+  /* ---- Brand: deep golden yellow ---- */
+  --yellow-700: #A87A00;
+  --yellow-600: #C99400;
+  --yellow-500: #F2B300;
+  --yellow-400: #FFC629;
+  --yellow-300: #FFD75E;
+  --yellow-soft:   rgba(242, 179, 0, 0.14);
+  --yellow-softer: rgba(242, 179, 0, 0.08);
+  --yellow-glow:   rgba(242, 179, 0, 0.28);
+
+  /* ---- Finance semantics ---- */
+  --up-500:    #2ED389;
+  --up-soft:   rgba(46, 211, 137, 0.14);
+  --down-500:  #FF5C6C;
+  --down-soft: rgba(255, 92, 108, 0.14);
+
+  /* ---- Status ---- */
+  --warning-500: #F58A3C;
+  --warning-soft: rgba(245, 138, 60, 0.14);
+  --danger-500:  #F5454F;
+  --danger-soft: rgba(245, 69, 79, 0.14);
+  --info-500:    #5B9BD5;
+  --info-soft:   rgba(91, 155, 213, 0.14);
+  --ai-500:      #9B8CFF;
+  --ai-soft:     rgba(155, 140, 255, 0.14);
+
+  /* ---- Visualization hues ---- */
+  --sky-500:  #45B6F0;
+  --sky-400:  #6FC8F6;
+  --sky-600:  #2C93CC;
+  --sky-soft: rgba(69, 182, 240, 0.16);
+
+  /* ---- Semantic aliases ---- */
+  --bg-canvas:       var(--gray-950);
+  --bg-base:         var(--gray-900);
+  --surface-1:       var(--gray-850);
+  --surface-2:       var(--gray-800);
+  --surface-3:       var(--gray-780);
+  --surface-raised:  var(--gray-800);
+  --surface-active:  var(--gray-750);
+  --surface-overlay: #262A30;
+
+  --border-subtle:  #2B2E34;
+  --border-default: var(--gray-700);
+  --border-strong:  var(--gray-600);
+  --border-focus:   var(--yellow-500);
+
+  --text-primary:   var(--gray-50);
+  --text-heading:   var(--gray-0);
+  --text-secondary: var(--gray-300);
+  --text-tertiary:  var(--gray-400);
+  --text-disabled:  var(--gray-500);
+  --text-on-accent: #1A1400;
+  --text-link:      var(--yellow-400);
+
+  --accent:       var(--yellow-500);
+  --accent-hover: var(--yellow-400);
+  --accent-press: var(--yellow-600);
+  --accent-text:  var(--yellow-400);
+
+  --viz-1: var(--yellow-500);
+  --viz-2: var(--sky-500);
+  --viz-3: var(--ai-500);
+
+  /* ---- IBCS scenario roles ---- */
+  --ibcs-ac:      var(--sky-500);
+  --ibcs-py:      color-mix(in srgb, var(--sky-500) 32%, var(--surface-3));
+  --ibcs-fc:      var(--ai-500);
+  --ibcs-pl:      var(--sky-600);
+  --ibcs-line:    var(--sky-400);
+  --ibcs-marker:  var(--sky-600);
+  --ibcs-axis:    var(--gray-500);
+  --ibcs-var-pos: var(--up-500);
+  --ibcs-var-neg: var(--down-500);
+
+  --focus-ring: var(--yellow-glow);
+
+  /* ---- RGB channels for Tailwind opacity modifiers (bg-brand/15 …).
+         Keep in lockstep with the hex values above. ---- */
+  --rgb-canvas:    23 25 29;
+  --rgb-base:      28 31 35;
+  --rgb-surface-1: 34 37 42;
+  --rgb-surface-2: 42 45 51;
+  --rgb-surface-3: 49 52 59;
+  --rgb-active:    53 57 65;
+  --rgb-overlay:   38 42 48;
+  --rgb-border-subtle:  43 46 52;
+  --rgb-border-default: 60 64 71;
+  --rgb-border-strong:  71 76 84;
+  --rgb-heading:   246 247 248;
+  --rgb-primary:   232 234 237;
+  --rgb-secondary: 147 154 162;
+  --rgb-tertiary:  117 122 130;
+  --rgb-disabled:  92 97 106;
+  --rgb-on-accent: 26 20 0;
+  --rgb-accent:       242 179 0;
+  --rgb-accent-hover: 255 198 41;
+  --rgb-accent-press: 201 148 0;
+  --rgb-up:      46 211 137;
+  --rgb-down:    255 92 108;
+  --rgb-warning: 245 138 60;
+  --rgb-danger:  245 69 79;
+  --rgb-info:    91 155 213;
+  --rgb-ai:      155 140 255;
+  --rgb-sky:     69 182 240;
+
+  /* ---- Typography ---- */
+  /* Inter Variable is bundled (@fontsource-variable/inter, opsz axis); numerics use
+     Inter tabular figures, falling back to a sans face rather than a monospace one. */
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-sans);
+  --fontfeat-tabular: 'tnum' 1, 'cv01' 1, 'cv02' 1;
+  --text-2xs:  10px;
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-base: 13px;
+  --text-md:   14px;
+  --text-lg:   16px;
+  --text-xl:   20px;
+  --text-2xl:  26px;
+  --text-3xl:  34px;
+  --text-4xl:  46px;
+  --tracking-display: -0.028em;
+  --tracking-tight:   -0.014em;
+  --tracking-snug:    -0.006em;
+  --tracking-wide:    0.04em;
+  --tracking-caps:    0.09em;
+
+  /* ---- Spacing rhythm ---- */
+  --gutter: 16px;
+  --pad-cell: 12px;
+  --pad-panel: 24px;
+  --row-height: 28px;
+  --control-height: 30px;
+  --control-height-sm: 24px;
+  --control-height-lg: 38px;
+
+  /* ---- Radii (crisp, near-square) ---- */
+  --radius-0:  0px;
+  --radius-xs: 1px;
+  --radius-sm: 1px;
+  --radius-md: 1px;
+  --radius-lg: 2px;
+  --radius-full: 999px;
+
+  /* ---- Elevation ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.7);
+  --inset-hairline: inset 0 0 0 1px var(--border-subtle);
+  --inset-top-light: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --ring-focus: 0 0 0 3px var(--focus-ring);
+  --ring-danger: 0 0 0 3px var(--danger-soft);
+  --glow-accent: 0 0 0 1px var(--yellow-600), 0 2px 12px var(--yellow-glow);
+  --glow-ai: 0 0 0 1px rgba(155, 140, 255, 0.4), 0 2px 16px var(--ai-soft);
+
+  /* ---- Motion: restrained and fast ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 90ms;
+  --dur-base: 150ms;
+  --dur-slow: 240ms;
+}
