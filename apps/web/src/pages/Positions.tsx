@@ -45,21 +45,21 @@ const krdSplit = (p: Pos) => {
   return w.map(x => (x * p.oad * p.bal) / 1e4);
 };
 
-const Spark = ({ v, color = "#fcd535" }: { v: number[]; color?: string }) => {
+const Spark = ({ v, color = "var(--viz-1)" }: { v: number[]; color?: string }) => {
   const [lo, hi] = [Math.min(...v), Math.max(...v)];
   const pts = v.map((x, i) => `${(i / (v.length - 1)) * 64},${18 - ((x - lo) / Math.max(hi - lo, 1e-9)) * 14}`).join(" ");
   return <svg width="68" height="20"><polyline points={pts} fill="none" stroke={color} strokeWidth="1.25" /></svg>;
 };
 const Heat = ({ v, max, sign = 1 }: { v: number; max: number; sign?: number }) => (
-  <div className="num rounded px-1.5 py-0.5 text-right text-[11px]"
-    style={{ background: `rgba(${sign * v >= 0 ? "14,203,129" : "246,70,93"},${Math.min(0.85, Math.abs(v) / Math.max(max, 1e-9))})`, color: "#eaecef" }}>
+  <div className="num rounded px-1.5 py-0.5 text-right text-xs"
+    style={{ background: `color-mix(in srgb, var(${sign * v >= 0 ? "--up-500" : "--down-500"}) ${Math.round(Math.min(0.85, Math.abs(v) / Math.max(max, 1e-9)) * 100)}%, transparent)`, color: "var(--text-heading)" }}>
     {Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + "M" : (v / 1e3).toFixed(0) + "k"}
   </div>
 );
 const Trend = ({ now, was }: { now: number; was: number }) => {
   const d = now - was;
-  if (Math.abs(d) < Math.abs(was) * 1e-6) return null;
-  return <span className={`num ml-1 text-[10px] ${d > 0 ? "text-up" : "text-down"}`}>{d > 0 ? "▲" : "▼"}{fmt$(Math.abs(d))}</span>;
+  if (d === 0 || Math.abs(d) < Math.abs(was) * 1e-6) return null;
+  return <span className={`num ml-1 text-2xs ${d > 0 ? "text-up" : "text-down"}`}>{d > 0 ? "▲" : "▼"}{fmt$(Math.abs(d))}</span>;
 };
 
 /** Balance editor popover: slider 0–2× with before/after bars. */
@@ -69,18 +69,18 @@ function BalEdit({ p, onSet }: { p: Pos; onSet: (v: number) => void }) {
     <Popover width="15rem" trigger={
       <span className="num cursor-pointer underline decoration-dotted decoration-brand/60 hover:text-brand">{fmt$(p.bal)}</span>}>
       <div className="space-y-2">
-        <div className="text-[10px] uppercase tracking-wide text-paper-faint">Spot balance — balances into the cash/ST-funding plug</div>
-        <input type="range" min={0} max={2} step={0.05} value={m} className="w-full accent-[#fcd535]"
+        <div className="eyebrow">Spot balance — balances into the cash/ST-funding plug</div>
+        <input type="range" min={0} max={2} step={0.05} value={m} className="w-full accent-brand"
           onChange={e => { const x = Number(e.target.value); setM(x); onSet(p.bal0 * x); }} />
         <div className="flex items-end gap-2">
           {[["was", p.bal0], ["now", p.bal0 * m]].map(([l, v]) => (
             <div key={String(l)} className="flex-1">
               <div className="h-10 rounded-sm bg-surface-3"><div className="rounded-sm bg-brand/70" style={{ height: `${Math.min(100, (Number(v) / (2 * p.bal0)) * 100)}%`, marginTop: "auto" }} /></div>
-              <div className="num mt-1 text-[10px] text-paper-faint">{String(l)} {fmt$(Number(v))}</div>
+              <div className="num mt-1 text-2xs text-paper-faint">{String(l)} {fmt$(Number(v))}</div>
             </div>
           ))}
         </div>
-        <div className="num text-xs text-paper">{(m * 100).toFixed(0)}% of booked</div>
+        <div className="num text-sm text-paper">{(m * 100).toFixed(0)}% of booked</div>
       </div>
     </Popover>
   );
@@ -154,11 +154,11 @@ export default function Positions() {
 
   const renderCols = ({ a, p }: { a: ReturnType<typeof agg>; p?: Pos }) => view === "summary" ? (
     <>
-      <td className="num px-2 text-right text-xs">{(a.yld * 100).toFixed(2)}%</td>
-      <td className="num px-2 text-right text-xs">{a.oad.toFixed(2)}y
+      <td className="num px-2 text-right text-sm">{(a.yld * 100).toFixed(2)}%</td>
+      <td className="num px-2 text-right text-sm">{a.oad.toFixed(2)}y
         {p && <InfoPop width="14rem">Indicative OAD: heuristic by product (coupon-adjusted for MBS, term-scaled for schedule paper, segment table for NMDs). Engine KRDs from a Risk Desk run supersede this.</InfoPop>}</td>
       <td className="px-2"><Spark v={a.balQ} /></td>
-      <td className="px-2"><Spark v={a.niiQ} color="#2dbdb6" /></td>
+      <td className="px-2"><Spark v={a.niiQ} color="var(--viz-2)" /></td>
     </>
   ) : view === "fwd balance" ? (
     <>{a.balQ.map((v, i) => <td key={i} className="px-0.5"><Heat v={v} max={maxBal} /></td>)}</>
@@ -174,38 +174,38 @@ export default function Positions() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {([["Assets", totals.A], ["Liabilities", totals.L]] as const).map(([l, t]) => (
-          <div key={l} className="rounded-lg border border-line bg-surface-1 p-3">
-            <div className="text-[10px] uppercase tracking-wide text-paper-faint">{l}</div>
+          <div key={l} className="rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-3">
+            <div className="eyebrow">{l}</div>
             <div className="num mt-0.5 text-lg text-paper">{fmt$(t.bal)}<Trend now={t.bal} was={t.bal0} /></div>
-            <div className="num mt-0.5 text-[11px] text-paper-faint">{(t.yld * 100).toFixed(2)}% · {t.oad.toFixed(2)}y OAD</div>
+            <div className="num mt-0.5 text-xs text-paper-faint">{(t.yld * 100).toFixed(2)}% · {t.oad.toFixed(2)}y OAD</div>
           </div>
         ))}
-        <div className="rounded-lg border border-brand/50 bg-surface-1 p-3">
-          <div className="flex items-center text-[10px] uppercase tracking-wide text-brand">Cash / ST-funding plug
+        <div className="rounded-md border border-brand/40 bg-surface-1 p-3 shadow-inset-top">
+          <div className="eyebrow flex items-center">Cash / ST-funding plug
             <InfoPop width="14rem">Your edits balance here: grow assets and the plug turns to short-term funding (liability); shrink them and the book holds cash. Priced at the short rate either way — the carry consequence of every resize.</InfoPop></div>
-          <div className={`num mt-0.5 text-lg ${plug > 0 ? "text-down" : "text-up"}`}>{plug === 0 ? "—" : fmt$(Math.abs(plug))}</div>
-          <div className="text-[11px] text-paper-faint">{plug > 0 ? "ST funding raised" : plug < 0 ? "cash held" : "balanced as booked"}</div>
+          <div className="num mt-0.5 text-lg text-paper-heading">{plug === 0 ? "—" : fmt$(Math.abs(plug))}</div>
+          <div className="text-xs text-paper-faint">{plug > 0 ? "ST funding raised" : plug < 0 ? "cash held" : "balanced as booked"}</div>
         </div>
-        <div className="rounded-lg border border-line bg-surface-1 p-3">
-          <div className="text-[10px] uppercase tracking-wide text-paper-faint">View</div>
+        <div className="rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-3">
+          <div className="eyebrow">View</div>
           <div className="mt-2 flex gap-1 rounded-lg border border-line bg-surface-2 p-0.5">
             {VIEWS.map(v => (
               <button key={v} onClick={() => setView(v)}
-                className={`rounded-md px-2 py-1 text-[10px] font-medium capitalize ${v === view ? "bg-surface-3 text-brand" : "text-paper-faint hover:text-paper"}`}>{v}</button>
+                className={`rounded-sm px-2 py-1 text-2xs font-semibold capitalize ${v === view ? "bg-brand text-ink" : "text-paper-faint hover:text-paper"}`}>{v}</button>
             ))}
           </div>
         </div>
       </div>
 
       <Card>
-        <CardHeader title="Positions" sub="drill side → book → position; balances edit via slider popovers and auto-balance into the plug; figures are indicative — Risk Desk runs are authoritative"
-          right={<Badge tone="zinc">{pos.length} positions</Badge>} />
+        <CardHeader title="Positions" sub="Drill side → book → position; balances edit via slider popovers and auto-balance into the plug; figures are indicative — Risk Desk runs are authoritative"
+          right={<Badge tone="neutral">{pos.length} positions</Badge>} />
         <CardBody className="overflow-auto p-0">
-          <table className="w-full text-left text-xs tabular-nums">
-            <thead className="sticky top-0 bg-surface-2 text-paper-faint">
+          <table className="w-full text-left text-sm tabular-nums">
+            <thead className="sticky top-0 bg-surface-base text-2xs font-semibold uppercase tracking-wide text-paper-faint">
               <tr>
-                <th className="px-2.5 py-1.5">name</th>
-                <th className="px-2 py-1.5 text-right">balance</th>
+                <th className="px-2.5 py-1.5">Name</th>
+                <th className="px-2 py-1.5 text-right">Balance</th>
                 {view === "summary"
                   ? ["yield", "OAD", "fwd bal", "fwd nii"].map(h => <th key={h} className="px-2 py-1.5 text-right">{h}</th>)
                   : (view === "krd" ? PILLARS : QTRS.map(q => `Q${q}`)).map(h => <th key={String(h)} className="px-1 py-1.5 text-right">{String(h)}</th>)}
@@ -214,7 +214,7 @@ export default function Positions() {
             <tbody className="divide-y divide-line">
               {loading ? (
                 <tr><td colSpan={6} className="py-10">
-                  <div className="flex items-center justify-center gap-2 text-xs text-paper-faint"><Spinner /> loading positions…</div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-paper-faint"><Spinner /> loading positions…</div>
                 </td></tr>
               ) : (["Assets", "Liabilities"] as const).map(sideL => (
                 <Fragment key={sideL}>{renderSideRows({ label: sideL, books: groups[sideL], open, setOpen, agg, renderCols, setPos })}</Fragment>
@@ -234,7 +234,7 @@ export default function Positions() {
       <>
         <tr className="bg-surface-1 font-medium">
           <td className="cursor-pointer px-2.5 py-1.5 text-paper" onClick={() => setOpen({ ...open, [label]: !open[label] })}>
-            <span className="mr-1 text-brand">{open[label] ? "▾" : "▸"}</span>{label}
+            <span className="mr-1 text-paper-faint">{open[label] ? "▾" : "▸"}</span>{label}
           </td>
           <td className="num px-2 text-right text-paper">{fmt$(a.bal)}<Trend now={a.bal} was={a.bal0} /></td>
           {renderCols({ a })}
@@ -252,8 +252,8 @@ export default function Positions() {
         <>
           <tr className="hover:bg-surface-1">
             <td className="cursor-pointer px-2.5 py-1 pl-7 text-paper-dim" onClick={() => setOpen({ ...open, [bk]: !open[bk] })}>
-              <span className="mr-1 text-brand">{open[bk] ? "▾" : "▸"}</span>{b}
-              <span className="ml-2 text-[10px] text-paper-faint">{ps.length}</span>
+              <span className="mr-1 text-paper-faint">{open[bk] ? "▾" : "▸"}</span>{b}
+              <span className="ml-2 text-2xs text-paper-faint">{ps.length}</span>
             </td>
             <td className="num px-2 text-right">{fmt$(ab.bal)}<Trend now={ab.bal} was={ab.bal0} /></td>
             {renderCols({ a: ab })}

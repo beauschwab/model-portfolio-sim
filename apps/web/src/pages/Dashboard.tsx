@@ -87,12 +87,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-stretch divide-x divide-line overflow-hidden rounded-xl border border-line bg-surface-1">
+      <div className="flex flex-wrap items-stretch divide-x divide-line overflow-hidden rounded-md border border-line-strong bg-surface-1 shadow-inset-top">
         {Object.entries(books).map(([k, v]) => (
           <div key={k} className="min-w-[116px] flex-1 px-4 py-2.5">
-            <div className="text-[10px] uppercase tracking-wide text-paper-faint">{k}</div>
-            <div className="num text-base font-semibold text-paper">{fmt$(v.balance)}</div>
-            <div className="num text-[11px] text-paper-faint">{v.positions} pos</div>
+            <div className="eyebrow">{k}</div>
+            <div className="num text-lg font-semibold text-paper">{fmt$(v.balance)}</div>
+            <div className="num text-xs text-paper-faint">{v.positions} pos</div>
           </div>
         ))}
       </div>
@@ -101,11 +101,11 @@ export default function Dashboard() {
         <Button disabled={anyRunning} onClick={runAll}>
           {anyRunning ? <><Spinner /> running {elapsed.toFixed(0)}s</> : "Run all"}
         </Button>
-        <Button disabled={anyRunning} variant="ghost" onClick={() => run("risk")}>Risk</Button>
-        <Button disabled={anyRunning} variant="ghost" onClick={() => run("nii")}>NII</Button>
-        <Button disabled={anyRunning} variant="ghost" onClick={() => run("stress")}>9Q stress</Button>
+        <Button disabled={anyRunning} variant="secondary" onClick={() => run("risk")}>Risk</Button>
+        <Button disabled={anyRunning} variant="secondary" onClick={() => run("nii")}>NII</Button>
+        <Button disabled={anyRunning} variant="secondary" onClick={() => run("stress")}>9Q stress</Button>
         {totalDv01 !== null && (
-          <Badge tone={totalDv01 >= 0 ? "green" : "red"}>net dv01 {risk?.hedges ? "(incl. hedges) " : "(selected books) "}{fmt$(totalDv01)}/bp</Badge>
+          <Badge tone="neutral">net dv01 {risk?.hedges ? "(incl. hedges) " : "(selected books) "}{fmt$(totalDv01)}/bp</Badge>
         )}
       </div>
 
@@ -120,8 +120,8 @@ export default function Dashboard() {
           </CardBody>
         </Card>
         <Card>
-          <CardHeader title="NII forecast" sub="monthly net interest income, 27m horizon"
-            right={nii && <Badge tone="green">{fmt$(niiAnnualized)}/yr</Badge>} />
+          <CardHeader title="NII forecast" sub="Monthly net interest income, 27m horizon"
+            right={nii && <Badge tone="up">{fmt$(niiAnnualized)}/yr</Badge>} />
           <CardBody>
             {nii
               ? <NiiArea data={rowsOf(nii.monthly) as never} />
@@ -130,7 +130,7 @@ export default function Dashboard() {
           </CardBody>
         </Card>
         <Card className="xl:col-span-2">
-          <CardHeader title="9Q stress P&L — MBS book" sub="forward-starting parallel shocks, P&L vs base forward value" />
+          <CardHeader title="9Q stress P&L — MBS book" sub="Forward-starting parallel shocks, P&L vs base forward value" />
           <CardBody>
             {stress?.mbs
               ? <StressLines data={stressData as never} shocks={[-100, 100, 200, 300]} />

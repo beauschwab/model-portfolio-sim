@@ -57,12 +57,12 @@ export default function Treasury() {
   return <div className="space-y-3">
     <Card><CardHeader title="Capital & funds transfer pricing" sub="Explicit capital policy, eligible balances, and internal funding costs" />
       <CardBody>
-        <p className="mb-3 text-xs text-paper-faint">Supply eligible capital, scenario exposures and your bank’s effective requirements, or connect a completed simulation below. Missing requirements are labeled unconfigured. FTP is an internal management allocation; treasury offsets preserve consolidated profit. Rates are decimal fractions; amounts use the specified currency.</p>
+        <p className="mb-3 text-sm text-paper-faint">Supply eligible capital, scenario exposures and your bank’s effective requirements, or connect a completed simulation below. Missing requirements are labeled unconfigured. FTP is an internal management allocation; treasury offsets preserve consolidated profit. Rates are decimal fractions; amounts use the specified currency.</p>
         <div className="mb-3 flex flex-wrap gap-2">
-          <label className="text-xs">Input source <select aria-label="Treasury input source" disabled={busy} value={mode}
+          <label className="text-sm">Input source <select aria-label="Treasury input source" disabled={busy} value={mode}
             className="rounded border border-line bg-surface p-1" onChange={e=>{generation.current++;setMode(e.target.value as typeof mode);setResult({});setJob('');setNote('Load the source template before running.');}}>
             <option value="manual">Explicit inputs</option><option value="ledger">Completed ledger simulation</option><option value="cashflows">Captured cohort or loan cashflows</option></select></label>
-          {mode!=='manual' && <><label className="text-xs">Source job ID <input aria-label="Treasury source job ID" className="rounded border border-line bg-surface p-1" value={source} disabled={busy}
+          {mode!=='manual' && <><label className="text-sm">Source job ID <input aria-label="Treasury source job ID" className="rounded border border-line bg-surface p-1" value={source} disabled={busy}
             onChange={e=>{generation.current++;setSource(e.target.value);setResult({});setJob('');}} /></label>
             <Button disabled={busy||!source} onClick={async()=>{
               const token=++generation.current;setBusy(true);setError('');setResult({});setJob('');
@@ -73,15 +73,15 @@ export default function Treasury() {
         {mode==='manual' && <Button disabled={busy} onClick={async()=>{const token=++generation.current;setBusy(true);try{
           const data=await api.treasuryExample();if(token===generation.current){setInput(JSON.stringify(data.specification,null,2));setResult({});setJob('');setRevision(data.revision);setNote('Synthetic explicit-input example loaded.');}}
           catch(e){if(token===generation.current)setError(String(e));}finally{if(token===generation.current)setBusy(false);}}}>Load explicit example</Button>}
-        {note && <p className="mb-2 text-xs text-paper-faint">{note}</p>}
-        <label htmlFor="treasury-input" className="text-xs">Capital policy, scenario snapshots and FTP inputs</label>
-        <textarea id="treasury-input" className="mt-1 h-72 w-full rounded border border-line bg-surface p-2 font-mono text-xs" value={input} disabled={busy}
+        {note && <p className="mb-2 text-sm text-paper-faint">{note}</p>}
+        <label htmlFor="treasury-input" className="text-sm">Capital policy, scenario snapshots and FTP inputs</label>
+        <textarea id="treasury-input" className="mt-1 h-72 w-full rounded border border-line bg-surface p-2 font-mono text-sm" value={input} disabled={busy}
           onChange={e => { generation.current++; setInput(e.target.value); setResult({}); setJob(''); }} />
         <div className="mt-2 flex gap-2"><Button disabled={busy || revision === undefined || !durable} onClick={run}>{busy ? 'Calculating…' : 'Run capital & FTP report'}</Button>
           <Button disabled={busy} onClick={async () => { try { setRevision((await api.state()).revision); setError(''); } catch (e) { setError(String(e)); } }}>Refresh workspace revision</Button></div>
-        {!durable && <p className="text-xs text-paper-faint">Durable storage is required.</p>}
-        {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
-        {job && <p role="status" className="mt-2 text-xs">Report saved: {job}</p>}
+        {!durable && <p className="text-sm text-paper-faint">Durable storage is required.</p>}
+        {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+        {job && <p role="status" className="mt-2 text-sm">Report saved: {job}</p>}
       </CardBody></Card>
     {tables.map(([key, title]) => {
       const frame = result[key];
@@ -89,7 +89,7 @@ export default function Treasury() {
         <CardBody><DataTable rows={frame.rows.map(row => Object.fromEntries(frame.columns.map((col, i) => [col, row[i]])))} />
           <div className="mt-2 flex gap-2"><Button disabled={!frame.offset} onClick={() => page(key, Math.max(0, frame.offset-100))}>Previous</Button>
             <Button disabled={frame.offset+frame.rows.length>=frame.total} onClick={() => page(key, frame.offset+100)}>Next</Button>
-            <a className="text-xs underline" href={`/api/jobs/${job}/parquet?path=${encodeURIComponent(`/${key}`)}`}>Download Parquet</a></div>
+            <a className="text-sm underline" href={`/api/jobs/${job}/parquet?path=${encodeURIComponent(`/${key}`)}`}>Download Parquet</a></div>
         </CardBody></Card>;
     })}
   </div>;

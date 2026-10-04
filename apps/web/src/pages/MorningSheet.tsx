@@ -1,3 +1,4 @@
+import { LIMITS, headroom, isTight } from "../lib/limits";
 import { useEngineData } from "../lib/engine";
 /** The Morning Sheet — the strategist's entry point, typeset as a
  * decision memo: masthead with the engraved curve, the position in one
@@ -22,24 +23,24 @@ type Kpis = {
  * Brass marker sits at the limit; the bar is the room you have. */
 function Headroom({ label, value, limit, sense, unit, to }: {
   label: string; value: number; limit: number;
-  sense: "floor" | "ceiling"; unit: string; to: string;
+  sense: "floor" | "ceiling"; unit: "%" | "y"; to: string;
 }) {
-  const room = sense === "floor" ? value - limit : limit - value;
+  const room = headroom(value, { label, limit, sense, unit });
   const pct = Math.max(0, Math.min(1, room / Math.max(Math.abs(limit), 1e-9)));
-  const tight = room < 0.08 * Math.abs(limit);
+  const tight = isTight(value, { label, limit, sense, unit });
   return (
     <Link to={to} className="memo-rise group grid grid-cols-12 items-center gap-3 border-b border-line py-2.5 hover:bg-surface-1">
-      <div className="col-span-3 text-sm text-paper-dim group-hover:text-paper">{label}</div>
-      <div className="col-span-2 num text-right text-sm text-paper">{value.toFixed(unit === "y" ? 2 : 1)}{unit}</div>
-      <div className="col-span-2 num text-right text-xs text-paper-faint">{sense === "floor" ? "≥" : "≤"} {limit}{unit}</div>
+      <div className="col-span-3 text-md text-paper-dim group-hover:text-paper">{label}</div>
+      <div className="col-span-2 num text-right text-md text-paper">{value.toFixed(unit === "y" ? 2 : 1)}{unit}</div>
+      <div className="col-span-2 num text-right text-sm text-paper-faint">{sense === "floor" ? "≥" : "≤"} {limit}{unit}</div>
       <div className="col-span-4">
-        <div className="relative h-1.5 rounded-full bg-surface-3">
-          <div className={`absolute inset-y-0 left-0 rounded-full ${room < 0 ? "bg-down" : tight ? "bg-brand" : "bg-up"}`}
+        <div className="relative h-1.5 rounded-sm bg-surface-3">
+          <div className={`absolute inset-y-0 left-0 rounded-sm ${room < 0 ? "bg-down" : tight ? "bg-warning" : "bg-up"}`}
             style={{ width: `${pct * 100}%` }} />
           <div className="absolute inset-y-0 left-0 w-px bg-brand" />
         </div>
       </div>
-      <div className={`col-span-1 num text-right text-xs ${room < 0 ? "text-down" : tight ? "text-brand" : "text-up"}`}>
+      <div className={`col-span-1 num text-right text-sm ${room < 0 ? "text-down" : tight ? "text-warning" : "text-up"}`}>
         {room >= 0 ? "+" : ""}{room.toFixed(1)}
       </div>
     </Link>
@@ -82,21 +83,21 @@ export default function MorningSheet() {
       <header className="memo-rise border-b-2 border-paper-faint pb-4 pt-2">
         <div className="flex items-end justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-paper-faint">Treasury · balance sheet & rate risk</div>
+            <div className="eyebrow">Treasury · balance sheet & rate risk</div>
             <h1 className="font-display text-3xl font-medium text-paper" style={{ fontVariationSettings: '"opsz" 40' }}>
               The Morning Sheet
             </h1>
-            <div className="mt-1 text-xs text-paper-faint">{today} · 10y {mkt ? (mkt.swap_rates[6] * 100).toFixed(2) : "—"}% · 2s10s {mkt ? ((mkt.swap_rates[6] - mkt.swap_rates[1]) * 1e4).toFixed(0) : "—"}bp</div>
+            <div className="mt-1 text-sm text-paper-faint">{today} · 10y {mkt ? (mkt.swap_rates[6] * 100).toFixed(2) : "—"}% · 2s10s {mkt ? ((mkt.swap_rates[6] - mkt.swap_rates[1]) * 1e4).toFixed(0) : "—"}bp</div>
           </div>
-          <svg width="320" height="48" className="text-paper-dim" aria-label="par curve">
+          <svg width="320" height="48" className="text-paper-dim" aria-label="Par curve">
             <path d={curvePath} fill="none" stroke="currentColor" strokeWidth="1.25" />
-            <path d={curvePath} fill="none" stroke="#fcd535" strokeWidth="1.25" strokeDasharray="2 5" opacity="0.6" />
+            <path d={curvePath} fill="none" stroke="var(--accent)" strokeWidth="1.25" strokeDasharray="2 5" opacity="0.6" />
           </svg>
         </div>
       </header>
 
       {/* the position, in prose */}
-      <section className="memo-rise py-6" style={{ animationDelay: "80ms" }}>
+      <section className="memo-rise py-6">
         {k ? (
           <p className="font-display text-lg leading-relaxed text-paper" style={{ fontVariationSettings: '"opsz" 18' }}>
             The book holds <span className="num text-brand">{fmt$(k.eve.eve_$)}</span> of economic value of equity,
@@ -110,37 +111,37 @@ export default function MorningSheet() {
         ) : (
           <div className="flex items-center gap-4">
             <p className="font-display text-lg text-paper-dim">Pull this morning's position to begin.</p>
-            <Button disabled={busy} onClick={run}>{busy ? "computing…" : "Run the sheet"}</Button>
+            <Button disabled={busy} onClick={run}>{busy ? "Computing…" : "Run the sheet"}</Button>
           </div>
         )}
       </section>
 
       {/* the constraint ledger: headroom, not levels */}
       {k && (
-        <section style={{ animationDelay: "160ms" }} className="memo-rise">
+        <section className="memo-rise">
           <div className="flex items-baseline justify-between border-b border-paper-faint pb-1">
-            <h2 className="font-display text-sm font-medium uppercase tracking-[0.18em] text-paper-dim">Constraint ledger</h2>
-            <span className="flex items-center text-[10px] text-paper-faint">headroom to limit — brass mark is the line
+            <h2 className="eyebrow">Constraint ledger</h2>
+            <span className="flex items-center text-2xs text-paper-faint">headroom to limit — brass mark is the line
               <InfoPop width="15rem">Each row shows distance to its binding limit, not the ratio's level. Oxblood = breached, brass = inside 8% of the line, verdigris = comfortable. Click a row to open the tool that moves it.</InfoPop></span>
           </div>
-          <Headroom label="EVE sensitivity (+200bp)" value={Math.abs(d200)} limit={15} sense="ceiling" unit="%" to="/kpis" />
-          <Headroom label="Liquidity coverage" value={k.lcr.lcr_pct} limit={110} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="Stable funding" value={k.nsfr.nsfr_pct} limit={100} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="CET1, end of plan" value={k.capital.cet1_path[k.capital.cet1_path.length - 1].cet1_ratio_pct} limit={10} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="Duration gap" value={k.eve.duration_gap_y} limit={2.0} sense="ceiling" unit="y" to="/risk" />
+          <Headroom {...LIMITS.eve200} value={Math.abs(d200)} to="/kpis" />
+          <Headroom {...LIMITS.lcr} value={k.lcr.lcr_pct} to="/kpis" />
+          <Headroom {...LIMITS.nsfr} value={k.nsfr.nsfr_pct} to="/kpis" />
+          <Headroom {...LIMITS.cet1} value={k.capital.cet1_path[k.capital.cet1_path.length - 1].cet1_ratio_pct} to="/kpis" />
+          <Headroom {...LIMITS.durationGap} value={k.eve.duration_gap_y} to="/risk" />
         </section>
       )}
 
       {/* decisions queue */}
-      <section className="memo-rise grid gap-3 py-8 sm:grid-cols-3" style={{ animationDelay: "240ms" }}>
+      <section className="memo-rise grid gap-3 py-8 sm:grid-cols-3">
         {([
           ["/strategy", "Test a reinvestment", "Slide allocations against live constraints."],
           ["/optimizer", "Price the constraints", "Solve the plan; read the shadow prices."],
           ["/market", "Move the market", "Set a 9Q path and rerun the sheet."],
         ] as const).map(([to, t, s]) => (
           <Link key={to} to={to} className="group border-t-2 border-brand pt-3 hover:bg-surface-1">
-            <div className="font-display text-base text-paper group-hover:text-brand">{t}</div>
-            <div className="mt-1 text-xs text-paper-faint">{s}</div>
+            <div className="font-display text-lg text-paper group-hover:text-brand">{t}</div>
+            <div className="mt-1 text-sm text-paper-faint">{s}</div>
           </Link>
         ))}
       </section>
