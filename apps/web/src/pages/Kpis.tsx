@@ -1,12 +1,11 @@
 import { useEngineData } from "../lib/engine";
 /** Top-level KPI board: EVE & duration gap, LCR, NSFR, CET1 projection.
  * Weight tables are stylized (the calibration seam) — labels say so. */
-import { useState } from "react";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { chartAxis, chartGrid, chartTip, still } from "../components/charts";
 import { LIMITS, limitVariance } from "../lib/limits";
 import { api, awaitJob, fmt$ } from "../lib/api";
-import { Badge, Button, Card, CardBody, CardHeader, DataTable, Stat, InfoPop } from "../components/ui";
+import { Badge, Card, CardBody, CardHeader, DataTable, Stat, InfoPop } from "../components/ui";
 
 type Kpis = {
   eve: { eve_$: number; duration_gap_y: number; dur_assets_y: number; dur_liab_y: number;
@@ -21,24 +20,13 @@ type Kpis = {
 export default function KpisPage() {
   const engine = useEngineData();
   const k = engine.kpis;
-  const [busy, setBusy] = useState(false);
-
-  const run = async () => {
-    setBusy(true);
-    try {
-      const done = await engine.run("kpis");
-      if (done.status === "error") alert(done.detail);
-    } finally { setBusy(false); }
-  };
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <Button disabled={busy} onClick={run}>{busy ? "Running…" : "Compute KPIs"}</Button>
-        <span className="text-xs text-paper-faint">
-          Parallel dv01s by full revaluation · stylized 12 CFR 249 / NSFR / standardized-RWA weights (calibration seam)
-        </span>
-      </div>
+      <p className="text-xs text-paper-faint">
+        {k ? "Parallel dv01s by full revaluation · " : "No results yet. Use Run sheet in the top bar. "}
+        stylized 12 CFR 249 / NSFR / standardized-RWA weights (calibration seam)
+      </p>
 
       {k && (
         <>

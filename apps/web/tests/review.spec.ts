@@ -79,11 +79,11 @@ test("late strategy response cannot replace latest allocation", async ({ page })
   await expect(panel.getByText("$222.0M", { exact: true })).toBeVisible();
 });
 
-test("panel job updates global telemetry and shared KPIs", async ({ page }) => {
+test("top-bar run updates global telemetry and shared KPIs", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Open KPIs", exact: true }).click();
   const panel = page.getByRole("region", { name: "KPIs", exact: true });
-  await panel.getByRole("button", { name: "Compute KPIs", exact: true }).click();
+  await page.getByRole("button", { name: "Run sheet", exact: true }).click();
   await expect(page.getByTitle("Run the KPI sheet (⌘K for more)")).toBeDisabled();
   await expect(panel.getByText("EVE", { exact: true }).first()).toBeVisible({ timeout: 50_000 });
   await page.getByRole("button", { name: "Open Morning Sheet", exact: true }).click();

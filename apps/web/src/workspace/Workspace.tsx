@@ -4,7 +4,7 @@ import { DockviewReact, type DockviewApi, type DockviewReadyEvent, type Serializ
 import clsx from "clsx";
 import { Button, Popover } from "../components/ui";
 import { clearActiveLayout, deleteNamedLayout, loadActiveLayout, loadNamedLayouts, saveActiveLayout, saveNamedLayout, type NamedLayout } from "./layouts";
-import { DOCKVIEW_COMPONENTS, PANEL_BY_ID, PANEL_DEFS, type PanelId } from "./panels";
+import { DOCKVIEW_COMPONENTS, PANEL_BY_ID, PANEL_DEFS, RAIL_GROUPS, type PanelId } from "./panels";
 
 interface WorkspaceState {
   api: DockviewApi | null;
@@ -52,12 +52,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     dockApi.clear();
     addPanel(dockApi, "morning");
     addPanel(dockApi, "risk", { position: { referencePanel: "morning", direction: "within" } });
-    addPanel(dockApi, "market", { position: { referencePanel: "risk", direction: "right" } });
-    addPanel(dockApi, "positions", { position: { referencePanel: "risk", direction: "below" } });
-    addPanel(dockApi, "pipeline", { position: { referencePanel: "positions", direction: "within" }, inactive: true });
-    addPanel(dockApi, "kpis", { position: { referencePanel: "market", direction: "within" }, inactive: true });
-    addPanel(dockApi, "optimizer", { position: { referencePanel: "positions", direction: "within" }, inactive: true });
-    dockApi.getPanel("risk")?.api.setActive();
+    dockApi.getPanel("morning")?.api.setActive();
   }, [addPanel]);
 
   const openPanel = useCallback((id: PanelId) => {
@@ -156,7 +151,10 @@ export function ActivityRail() {
   const { activePanel, openPanel } = useWorkspace();
   return (
     <aside className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-[var(--gray-1000)] py-2.5" aria-label="Workspace panels">
-      {PANEL_DEFS.map(panel => (
+      {RAIL_GROUPS.map((group, gi) => (
+        <div key={group.id} className="flex w-full flex-col items-center gap-1">
+          <div className={clsx("mb-0.5 w-full border-t border-line pt-1.5 text-center text-2xs font-semibold uppercase tracking-normal text-paper-faint", gi === 0 && "border-t-0 pt-0")}>{group.label}</div>
+          {PANEL_DEFS.filter(panel => panel.group === group.id).map(panel => (
         <button
           key={panel.id}
           type="button"
@@ -174,6 +172,8 @@ export function ActivityRail() {
           <panel.icon aria-hidden className="h-[18px] w-[18px]" strokeWidth={1.5} />
           {activePanel === panel.id && <span className="absolute -left-[9px] top-[9px] bottom-[9px] w-0.5 bg-brand" />}
         </button>
+          ))}
+        </div>
       ))}
     </aside>
   );

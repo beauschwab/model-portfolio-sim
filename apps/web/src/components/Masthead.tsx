@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Command } from "lucide-react";
 import { useEngine } from "../lib/engine";
+import { useWorkspace } from "../workspace/Workspace";
 import { useReducedMotion, TweenNumber, compact } from "./motion";
 import { Heartbeat } from "./Heartbeat";
 import { Button, Input, InfoPop, Popover, Spinner } from "./ui";
@@ -16,7 +17,8 @@ import type { Scenario, Settings } from "../lib/api";
 export function Masthead() {
   const engine = useEngine();
   const reduced = useReducedMotion();
-  const { market, running, stage, pct, elapsed, samples, activeKind } = engine;
+  const { market, running, stage, pct, elapsed, samples, activeKind, kpisAt } = engine;
+  const { openPanel } = useWorkspace();
 
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
@@ -68,15 +70,16 @@ export function Masthead() {
           <div className="relative h-9 flex-1">
             <Heartbeat samples={samples} running={running} reduced={reduced} variant="rail" />
           </div>
-          <div className="shrink-0 text-right leading-tight">
+          <button type="button" onClick={() => openPanel("pipeline")} title="Open pipeline"
+            className="shrink-0 rounded-sm px-1 text-right leading-tight transition-colors duration-fast hover:bg-surface-2">
             <div className="num text-sm text-paper">
               {running ? <TweenNumber value={peSamples} format={compact} /> : peSamples ? compact(peSamples) : "—"}
               <span className="text-paper-faint"> path-evals</span>
             </div>
             <div className="num text-2xs text-paper-faint">
-              {running ? `${stage} · ${pct.toFixed(0)}%` : elapsed > 0 ? `${elapsed.toFixed(1)}s` : "Ready"}
+              {running ? `${stage} · ${pct.toFixed(0)}%` : kpisAt ? `Sheet as of ${kpisAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "No sheet yet"}
             </div>
-          </div>
+          </button>
         </div>
 
         {/* controls */}
