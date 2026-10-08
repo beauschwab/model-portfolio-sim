@@ -135,8 +135,8 @@ export default function MorningSheet() {
       {/* decisions queue */}
       <section className="memo-rise grid gap-3 py-8 sm:grid-cols-3">
         {([
-          ["strategy", "Test a reinvestment", "Slide allocations against live constraints."],
-          ["optimizer", "Price the constraints", "Solve the plan; read the shadow prices."],
+          ["decide", "Test a reinvestment", "Slide allocations against live constraints."],
+          ["decide", "Price the constraints", "Solve the plan; read the shadow prices."],
           ["market", "Move the market", "Set a 9Q path and rerun the sheet."],
         ] as const).map(([panel, t, s]) => (
           <button key={panel} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">

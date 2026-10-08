@@ -20,6 +20,16 @@ interface WorkspaceState {
 
 const Ctx = createContext<WorkspaceState | null>(null);
 
+/** Restore a saved layout only if every panel in it still exists. Layouts saved
+ * before panels were merged or removed fall back to the default instead of
+ * opening blank panels. */
+function restoreLayout(dockApi: DockviewApi, layout: SerializedDockview) {
+  dockApi.fromJSON(layout);
+  if (dockApi.panels.some(panel => !PANEL_BY_ID[panel.id as PanelId])) {
+    throw new Error("layout references retired panels");
+  }
+}
+
 export function useWorkspace() {
   const value = useContext(Ctx);
   if (!value) throw new Error("useWorkspace must be used within WorkspaceProvider");
@@ -73,10 +83,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const applyLayout = useCallback((layout: SerializedDockview) => {
     if (!api) return;
     suppressSave.current = true;
-    api.fromJSON(layout);
+    try { restoreLayout(api, layout); } catch { buildDefaultLayout(api); }
     saveActiveLayout(api.toJSON());
     suppressSave.current = false;
-  }, [api]);
+  }, [api, buildDefaultLayout]);
 
   const saveLayoutAs = useCallback((name: string) => {
     if (!api) return;
@@ -94,7 +104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const saved = loadActiveLayout();
     suppressSave.current = true;
     try {
-      if (saved) dockApi.fromJSON(saved);
+      if (saved) restoreLayout(dockApi, saved);
       else buildDefaultLayout(dockApi);
     } catch {
       buildDefaultLayout(dockApi);

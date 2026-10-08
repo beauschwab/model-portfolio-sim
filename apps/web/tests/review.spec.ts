@@ -13,14 +13,15 @@ function envelope(payload: unknown, frames: Uint8Array[] = []) {
 test("optimizer retains input focus and workspace restores", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   await page.goto("/");
-  await page.getByRole("button", { name: "Open Optimizer", exact: true }).click();
-  const floor = page.getByRole("region", { name: "Optimizer", exact: true }).getByRole("spinbutton").first();
+  await page.getByRole("button", { name: "Open Decide", exact: true }).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'Optimize', exact: true }).click();
+  const floor = page.getByRole("region", { name: "Decide", exact: true }).getByRole("spinbutton").first();
   await floor.fill("1");
   await floor.pressSequentially(".25", { delay: 100 });
   await expect(floor).toBeFocused();
   await expect(floor).toHaveValue("1.25");
   await page.reload();
-  await expect(page.getByRole("region", { name: "Optimizer", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Decide", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -69,9 +70,9 @@ test("late strategy response cannot replace latest allocation", async ({ page })
         lcr_pct: 150, nsfr_pct: 150, cet1_q9_pct: 12 } }), contentType: "application/octet-stream" }).catch(() => {});
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Open Strategy Lab", exact: true }).click();
+  await page.getByRole("button", { name: "Open Decide", exact: true }).click();
   await started;
-  const panel = page.getByRole("region", { name: "Strategy Lab", exact: true });
+  const panel = page.getByRole("region", { name: "Decide", exact: true });
   await panel.getByRole("textbox").first().fill("3000000000");
   await expect(panel.getByText("$222.0M", { exact: true })).toBeVisible();
   releaseOld();

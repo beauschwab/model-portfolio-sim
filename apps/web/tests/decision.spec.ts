@@ -8,8 +8,9 @@ test('real decision build, selective edit, template update, optimization and rep
   await request.put('/api/settings', { data: { ...original, n_paths: 32, n_paths_base: 32, n_threads: 2, horizon_months: 6 } });
   try {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Open Decision Lab', exact: true }).click();
-    const panel = page.getByRole('region', { name: 'Decision Lab', exact: true });
+    await page.getByRole('button', { name: 'Open Decide', exact: true }).click();
+    await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'Validate', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Decide', exact: true });
     await panel.getByLabel('Minimum LCR (%)', { exact: true }).fill('1');
     await panel.getByLabel('Minimum NSFR (%)', { exact: true }).fill('1');
     await panel.getByLabel('Minimum CET1 (%)', { exact: true }).fill('0.1');
@@ -57,8 +58,9 @@ test('decision panel suppresses a build result invalidated by saved inputs', asy
   });
   await page.route('**/api/decision/sessions/obsolete', r => r.fulfill({ json: { closed: true } }));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Decision Lab', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Decision Lab', exact: true });
+  await page.getByRole('button', { name: 'Open Decide', exact: true }).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'Validate', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Decide', exact: true });
   await panel.getByRole('button', { name: 'Build decision session', exact: true }).click();
   await started;
   await page.evaluate(() => window.dispatchEvent(new Event('engine:inputs-changed')));

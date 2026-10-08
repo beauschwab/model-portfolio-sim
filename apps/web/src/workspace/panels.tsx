@@ -1,6 +1,6 @@
 import { lazy, Suspense, Component, type ReactNode } from "react";
 import type { IDockviewPanelProps } from "dockview";
-import { Activity, BookOpen, ChartLine, FlaskConical, Gauge, GitBranch, Landmark, Layers, Settings2, ShieldAlert, SlidersHorizontal, Sunrise, Table2, Target, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, ChartLine, Compass, Gauge, Landmark, Layers, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
 import { Badge } from "../components/ui";
 const PipelineMonitor = lazy(() => import("../components/PipelineMonitor"));
 const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
@@ -9,14 +9,11 @@ const KpisPage = lazy(() => import("../pages/Kpis"));
 const Treasury = lazy(() => import("../pages/Treasury"));
 const MarketPage = lazy(() => import("../pages/Market"));
 const MorningSheet = lazy(() => import("../pages/MorningSheet"));
-const OptimizerPage = lazy(() => import("../pages/Optimizer"));
 const Positions = lazy(() => import("../pages/Positions"));
 const Cohorts = lazy(() => import("../pages/Cohorts"));
-const WhatIf = lazy(() => import("../pages/WhatIf"));
-const DecisionLab = lazy(() => import("../pages/DecisionLab"));
-const BalanceStress = lazy(() => import("../pages/BalanceStress"));
+const DecideWorkspace = lazy(() => import("../pages/Decide"));
+const StressWorkspace = lazy(() => import("../pages/Stress"));
 const SettingsPage = lazy(() => import("../pages/Settings"));
-const StrategyPage = lazy(() => import("../pages/Strategy"));
 
 export type PanelId =
   | "morning"
@@ -26,12 +23,9 @@ export type PanelId =
   | "treasury"
   | "positions"
   | "cohorts"
-  | "whatif"
-  | "decision"
-  | "balance-stress"
+  | "decide"
+  | "stress"
   | "market"
-  | "strategy"
-  | "optimizer"
   | "books"
   | "settings";
 
@@ -59,17 +53,14 @@ export interface WorkspacePanelDef {
 export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "morning", group: "home", title: "Morning Sheet", icon: Sunrise, subtitle: "ALCO-ready summary · constraints · run notes", component: () => <MorningSheet /> },
   { id: "pipeline", group: "system", title: "Pipeline", icon: Workflow, subtitle: "Live orchestration · scenario fan-out · path & calc telemetry", component: () => <PipelineMonitor /> },
+  { id: "stress", group: "monitor", title: "Stress", icon: ShieldAlert, subtitle: "9Q rate shocks · balance-sheet liquidity, credit and capital", component: () => <StressWorkspace /> },
   { id: "risk", group: "monitor", title: "Risk Desk", icon: Activity, subtitle: "KRD profile · NII forecast · 9Q stress P&L", component: () => <Dashboard /> },
   { id: "kpis", group: "monitor", title: "KPIs", icon: Gauge, subtitle: "EVE · LCR · NSFR · CET1", component: () => <KpisPage /> },
   { id: "treasury", group: "monitor", title: "Capital & FTP", icon: Landmark, subtitle: "Capital coverage · internal funding · profitability", component: () => <Treasury /> },
+  { id: "decide", group: "decide", title: "Decide", icon: Compass, subtitle: "Sandbox → optimize → validate · what-if", component: () => <DecideWorkspace /> },
   { id: "positions", group: "data", title: "Positions", icon: Table2, subtitle: "Side → book → position · indicative client-side derivations", component: () => <Positions /> },
   { id: "cohorts", group: "data", title: "Tape & Cohorts", icon: Layers, subtitle: "Loan tapes · behavioral cohorts · lineage · loan analytics", component: () => <Cohorts /> },
-  { id: "whatif", group: "decide", title: "Instrument What-if", icon: FlaskConical, subtitle: "Temporary assumptions · held calibration · incremental risk and earnings", component: () => <WhatIf /> },
-  { id: "decision", group: "decide", title: "Decision Lab", icon: GitBranch, subtitle: "Assumptions → selective rebuild → optimization → validated allocation", component: () => <DecisionLab /> },
-  { id: "balance-stress", group: "monitor", title: "Balance-sheet Stress", icon: ShieldAlert, subtitle: "Liquidity · credit · capital · entity constraints · policies", component: () => <BalanceStress /> },
   { id: "market", group: "data", title: "Market & Scenarios", icon: ChartLine, subtitle: "Par curve · 9Q scenario builder", component: () => <MarketPage /> },
-  { id: "strategy", group: "decide", title: "Strategy Lab", icon: SlidersHorizontal, subtitle: "Live allocation sandbox · sub-ms KPI recalc", component: () => <StrategyPage /> },
-  { id: "optimizer", group: "decide", title: "Optimizer", icon: Target, subtitle: "Robust balance-sheet LP · shadow prices", component: () => <OptimizerPage /> },
   { id: "books", group: "data", title: "Book Editor", icon: BookOpen, subtitle: "6 books · table view + JSON edit", component: () => <BalanceSheet /> },
   {
     id: "settings",
