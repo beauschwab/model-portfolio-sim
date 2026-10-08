@@ -292,3 +292,14 @@ export const fmt$ = (v: number) =>
   Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` :
   Math.abs(v) >= 1e3 ? `$${(v / 1e3).toFixed(0)}k` : `$${v.toFixed(0)}`;
 export const fmtBp = (v: number) => `${v.toFixed(1)}bp`;
+
+/** Readable text for a failed API call: the server's `detail` when it sent one. */
+export function errorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const body = message.replace(/^\d+\s*/, "");
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed.detail === "string") return parsed.detail;
+  } catch { /* not JSON: fall through */ }
+  return body;
+}

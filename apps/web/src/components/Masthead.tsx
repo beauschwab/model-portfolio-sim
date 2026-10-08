@@ -89,7 +89,8 @@ export function Masthead() {
             active={engine.active}
             onPick={engine.setActive}
           />
-          {engine.settings && <SettingsEditor settings={engine.settings} onSave={engine.setSettings} />}
+          {engine.settings && <SettingsEditor settings={engine.settings} onSave={engine.setSettings}
+            autoRecalc={engine.autoRecalc} onAutoRecalc={engine.setAutoRecalc} />}
           <Button disabled={running} onClick={() => engine.run("kpis")} title="Run the KPI sheet (⌘K for more)">
             {running ? <><Spinner className="h-3.5 w-3.5 text-ink" />Running… {elapsed > 0 ? `${elapsed.toFixed(0)}s` : ""}</> : "Run sheet"}
           </Button>
@@ -142,7 +143,9 @@ function ScenarioPicker({ scenarios, active, onPick }: {
 }
 
 /** Settings popover — collapsed trigger summarizes the run config. */
-function SettingsEditor({ settings, onSave }: { settings: Settings; onSave: (s: Settings) => void }) {
+function SettingsEditor({ settings, onSave, autoRecalc, onAutoRecalc }: {
+  settings: Settings; onSave: (s: Settings) => void; autoRecalc: boolean; onAutoRecalc: (on: boolean) => void;
+}) {
   const [s, setS] = useState<Settings>(settings);
   useEffect(() => setS(settings), [settings]);
   return (
@@ -170,6 +173,12 @@ function SettingsEditor({ settings, onSave }: { settings: Settings; onSave: (s: 
             onChange={e => setS({ ...s, shocks_bp: e.target.value.split(",").map(x => parseFloat(x)).filter(n => !isNaN(n)) })} />
         </div>
       </div>
+      <label className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-paper-dim">
+        <span>Recalculate downstream automatically
+          <span className="block text-2xs text-paper-faint">Edits to balances, assumptions or settings refresh the forecast and risk.</span>
+        </span>
+        <input type="checkbox" className="h-4 w-4 accent-brand" checked={autoRecalc} onChange={e => onAutoRecalc(e.target.checked)} />
+      </label>
       <Button className="mt-3 w-full justify-center" onClick={() => onSave(s)}>Save settings</Button>
     </Popover>
   );

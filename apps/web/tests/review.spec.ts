@@ -93,6 +93,7 @@ test("top-bar run updates global telemetry and shared KPIs", async ({ page }) =>
 });
 
 test("equal asset and liability sensitivities cancel on Risk Desk", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   await page.route("**/api/state", route => route.fulfill({ json: { revision: 0, library_ready: false, library_horizon: null } }));
   const job = { id: "signed-risk", kind: "risk", status: "done", revision: 0 };
   await page.route("**/api/run", route => route.fulfill({ json: job }));
@@ -105,6 +106,6 @@ test("equal asset and liability sensitivities cancel on Risk Desk", async ({ pag
   await page.goto("/");
   await page.getByRole("button", { name: "Open Risk Desk", exact: true }).click();
   const panel = page.getByRole("region", { name: "Risk Desk", exact: true });
-  await panel.getByRole("button", { name: "Risk", exact: true }).click();
+  await panel.getByRole("button", { name: "Refresh risk", exact: true }).click();
   await expect(panel.getByText("net dv01 (selected books) $0/bp", { exact: true })).toBeVisible();
 });

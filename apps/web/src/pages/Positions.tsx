@@ -5,9 +5,10 @@
  * (yield/OAD/sparkline), Fwd Balance, Fwd NII, and KRD heat. All
  * derived figures are INDICATIVE client-side approximations (each ⓘ
  * says so) — engine-grade numbers come from Risk Desk / NII runs. */
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { api, fmt$, rowsOf, type BookName, type Row } from "../lib/api";
-import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Popover, Spinner } from "../components/ui";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { api, errorText, fmt$, rowsOf, type BookName, type Row } from "../lib/api";
+import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Input, Popover, Spinner } from "../components/ui";
 
 type View = "summary" | "fwd balance" | "fwd nii" | "krd";
 const VIEWS: View[] = ["summary", "fwd balance", "fwd nii", "krd"];
@@ -15,7 +16,13 @@ const QTRS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PILLARS = ["2y", "5y", "10y", "30y"];
 const SHORT = 0.0365;
 
-type Pos = { id: string; bal: number; bal0: number; yld: number; oad: number; decay: number; book: string; side: 1 | -1 };
+type Pos = { id: string; bal: number; bal0: number; yld: number; oad: number; decay: number; book: string; side: 1 | -1; segment?: string };
+
+/** Each book's balance column, and the key that identifies a row in it. */
+const BAL_FIELD: Record<BookName, string> = { mbs: "current_face", loans: "face", debt: "face", deposits: "balance", cds: "balance", mm: "balance" };
+const rowKey = (book: string) => (book === "mbs" ? "cusip" : "id");
+const DEPOSIT_FIELDS: [string, string][] = [["base", "Monthly base decay"], ["amp", "Flight amplitude"], ["b", "Flight B"], ["g0", "Flight floor g0"]];
+const CD_FIELDS = ["Base annual withdrawal", "Amplitude", "B", "g0", "Annual cap"];
 
 function derive(book: string, r: Row): Omit<Pos, "book" | "side" | "bal0"> {
   const n = (k: string) => Number(r[k] ?? 0);
@@ -62,6 +69,69 @@ const Trend = ({ now, was }: { now: number; was: number }) => {
   return <span className={`num ml-1 text-2xs ${d > 0 ? "text-up" : "text-down"}`}>{d > 0 ? "▲" : "▼"}{fmt$(Math.abs(d))}</span>;
 };
 
+/** Product assumptions for a row's class. Edits apply to every position in that
+ * class; a single position cannot be overridden yet, because the engine has no
+ * per-position behavior input. Values save to the engine, which then recomputes. */
+function AssumptionEdit({ p, assumptions, onSaved }: { p: Pos; assumptions: Row | null; onSaved: () => void }) {
+  const [draft, setDraft] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const seg = p.segment ?? "";
+  const current: number[] = p.book === "deposits"
+    ? DEPOSIT_FIELDS.map(([k]) => Number(((assumptions?.deposit_segments as Record<string, Record<string, number>> | undefined)?.[seg] ?? {})[k] ?? NaN))
+    : p.book === "cds" ? ((assumptions?.cd_ew_params as number[] | undefined) ?? [])
+    : [];
+  const started = draft.length === current.length && draft.length > 0;
+  const values = started ? draft : current;
+
+  const save = async () => {
+    setError(null); setSaving(true);
+    try {
+      if (p.book === "deposits") {
+        const changed: Record<string, number> = {};
+        DEPOSIT_FIELDS.forEach(([k], i) => { if (values[i] !== current[i]) changed[k] = values[i]; });
+        if (Object.keys(changed).length) await api.putAssumptions({ deposit_segments: { [seg]: changed } });
+      } else if (p.book === "cds") {
+        if (values.some((v, i) => v !== current[i])) await api.putAssumptions({ cd_ew_params: values });
+      }
+      setDraft([]);
+      onSaved();
+    } catch (e) {
+      setError(errorText(e));
+    } finally { setSaving(false); }
+  };
+
+  const editable = p.book === "deposits" || p.book === "cds";
+  return (
+    <Popover width="17rem" trigger={
+      <span title="Product assumptions" className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm text-paper-faint hover:bg-surface-2 hover:text-paper">
+        <SlidersHorizontal aria-label="Product assumptions" className="h-3 w-3" strokeWidth={1.5} />
+      </span>}>
+      <div className="space-y-2">
+        <div className="eyebrow">{p.book === "deposits" ? `${seg} deposits` : p.book === "cds" ? "CD product" : p.book === "mbs" ? "MBS prepayment" : p.book.toUpperCase()}</div>
+        {p.book === "deposits" && <p className="text-xs text-paper-faint">Applies to every {seg} balance. A single account cannot be overridden yet.</p>}
+        {p.book === "cds" && <p className="text-xs text-paper-faint">Applies to all CD positions.</p>}
+        {p.book === "mbs" && <p className="text-xs text-paper-faint">Prepay vector is read-only here. Changing it needs an engine restart.</p>}
+        {!editable && p.book !== "mbs" && <p className="text-xs text-paper-faint">Rate and term are book fields. Edit them in Book Editor.</p>}
+        {!assumptions && editable && <div className="text-xs text-paper-faint">Loading…</div>}
+        {assumptions && editable && (p.book === "deposits" ? DEPOSIT_FIELDS : CD_FIELDS.map(l => [l, l] as [string, string])).map(([, label], i) => (
+          <label key={label} className="flex items-center gap-2">
+            <span className="w-32 text-xs text-paper-dim">{label}</span>
+            <Input type="number" step="any" min={0} value={Number.isFinite(values[i]) ? values[i] : ""}
+              onChange={e => { const next = [...values]; next[i] = Number(e.target.value); setDraft(next); }} />
+          </label>
+        ))}
+        {p.book === "mbs" && assumptions && (
+          <div className="num text-2xs text-paper-faint">{((assumptions.prepay as { names: string[]; vector: number[] } | undefined)?.names ?? []).map((n, i) =>
+            <div key={n} className="flex justify-between"><span>{n}</span><span>{Number((assumptions.prepay as { vector: number[] }).vector[i]).toPrecision(4)}</span></div>)}</div>
+        )}
+        {error && <div role="alert" className="text-xs text-danger">{error}</div>}
+        {editable && <Button size="sm" disabled={saving || !assumptions} onClick={save}>{saving ? "Saving…" : "Save assumptions"}</Button>}
+      </div>
+    </Popover>
+  );
+}
+
 /** Balance editor popover: slider 0–2× with before/after bars. */
 function BalEdit({ p, onSet }: { p: Pos; onSet: (v: number) => void }) {
   const [m, setM] = useState(p.bal / p.bal0);
@@ -90,6 +160,15 @@ export default function Positions() {
   const [pos, setPos] = useState<Pos[]>([]);
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const [assumptions, setAssumptions] = useState<Row | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /** Rows as stored in each book, so an edit writes the whole book back. */
+  const rawRows = useRef<Partial<Record<BookName, Row[]>>>({});
+  /** Balance each position had when first loaded this session. The plug and the
+   * trend read against it, so they keep meaning "since you started editing". */
+  const baseline = useRef(new Map<string, number>());
+  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const loadedOnce = useRef(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ Assets: true, Liabilities: true });
   const [view, setView] = useState<View>("summary");
 
@@ -100,23 +179,52 @@ export default function Positions() {
   }, []);
 
   useEffect(() => {
+    api.assumptions().then(setAssumptions).catch(() => setAssumptions(null));
+  }, [revision]);
+
+  useEffect(() => {
     let active = true;
-    setLoading(true);
+    // show the spinner only on first load: a refetch after an edit must not unmount
+    // the popover the user is still dragging
+    if (!loadedOnce.current) setLoading(true);
     (async () => {
       const names = ["mbs", "loans", "mm", "debt", "deposits", "cds"] as BookName[];
       const fetched = await Promise.all(names.map(b => api.book(b).then(rowsOf).catch(() => [] as Row[])));
       const out: Pos[] = [];
       names.forEach((b, bi) => {
+        rawRows.current[b] = fetched[bi];
         for (const r of fetched[bi]) {
           const side: 1 | -1 = b === "debt" || b === "deposits" || b === "cds" ? -1 : b === "mm" ? (String(r.side) === "asset" ? 1 : -1) : 1;
           const d = derive(b, r);
-          out.push({ ...d, bal0: d.bal, book: b, side });
+          const key = `${b}:${d.id}`;
+          if (!baseline.current.has(key)) baseline.current.set(key, d.bal);
+          out.push({ ...d, bal0: baseline.current.get(key)!, book: b, side, segment: b === "deposits" ? String(r.segment) : undefined });
         }
       });
-      if (active) { setPos(out); setLoading(false); }
+      if (active) { setPos(out); setLoading(false); loadedOnce.current = true; }
     })();
     return () => { active = false; };
   }, [revision]);
+
+  /** Write a balance edit back to its book after a short pause. The book write
+   * raises the inputs-changed event, so the engine recomputes everything
+   * downstream and this grid reloads. */
+  const commitBalance = (p: Pos, value: number) => {
+    const k = `${p.book}:${p.id}`;
+    clearTimeout(saveTimers.current.get(k));
+    saveTimers.current.set(k, setTimeout(async () => {
+      const key = rowKey(p.book), field = BAL_FIELD[p.book as BookName];
+      const rows = rawRows.current[p.book as BookName] ?? [];
+      const next = rows.map(r => (String(r[key]) === p.id ? { ...r, [field]: value } : r));
+      try {
+        setSaveError(null);
+        await api.putBook(p.book as BookName, next);
+      } catch (e) {
+        setSaveError(errorText(e));
+        setRevision(v => v + 1);   // reload the book so the grid shows what was saved, not the rejected value
+      }
+    }, 600));
+  };
 
   const plug = useMemo(() => {
     const a = pos.filter(p => p.side > 0).reduce((s, p) => s + p.bal, 0);
@@ -197,6 +305,7 @@ export default function Positions() {
         </div>
       </div>
 
+      {saveError && <div role="alert" className="text-sm text-danger">Could not save the balance: {saveError}</div>}
       <Card>
         <CardHeader title="Positions" sub="Drill side → book → position; balances edit via slider popovers and auto-balance into the plug; figures are indicative — Risk Desk runs are authoritative"
           right={<Badge tone="neutral">{pos.length} positions</Badge>} />
@@ -262,7 +371,10 @@ export default function Positions() {
             <tr key={p.id} className="hover:bg-surface-1" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 26px" }}>
               <td className="px-2.5 py-1 pl-12 text-paper-faint">{p.id}</td>
               <td className="px-2 text-right">
-                <BalEdit p={p} onSet={v => setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x))} />
+                <span className="inline-flex items-center justify-end gap-1">
+                  <BalEdit p={p} onSet={v => { setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x)); commitBalance(p, v); }} />
+                  <AssumptionEdit p={p} assumptions={assumptions} onSaved={() => setRevision(v => v)} />
+                </span>
               </td>
               {renderCols({ a: agg([p]), p })}
             </tr>

@@ -3,9 +3,10 @@
  * engine it is compared against. */
 import { useEffect, useMemo, useState } from "react";
 import { useEngineData } from "../lib/engine";
+import { Freshness } from "./Dashboard";
 import { rowsOf, type Job, type Table } from "../lib/api";
 import { StressLines } from "../components/charts";
-import { Button, Card, CardBody, CardHeader, ChartState, Spinner, Tabs } from "../components/ui";
+import { Badge, Button, Card, CardBody, CardHeader, ChartState, Spinner, Tabs } from "../components/ui";
 import BalanceStress from "./BalanceStress";
 
 type Row = Record<string, number | string>;
@@ -13,35 +14,15 @@ type RunState = "idle" | "running" | "done" | "error";
 
 function RateShocks() {
   const engine = useEngineData();
-  const [stress, setStress] = useState<Record<string, { agg: Table }> | null>(null);
-  const [state, setState] = useState<RunState>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState(0);
+  const stress = engine.results.stress?.value as Record<string, { agg: Table }> | undefined;
+  const pending = engine.pending.includes("stress");
+  const failed = engine.errors.stress;
+  const [requested, setRequested] = useState(false);
 
-  useEffect(() => { setStress(null); }, [engine.revision]);
-  useEffect(() => {
-    if (state !== "running") { setElapsed(0); return; }
-    const t0 = Date.now();
-    const id = setInterval(() => setElapsed((Date.now() - t0) / 1000), 250);
-    return () => clearInterval(id);
-  }, [state]);
-
-  const run = async () => {
-    setState("running"); setError(null);
-    try {
-      const done: Job = await engine.run("stress", { books: ["mbs", "deposits"] });
-      if (done.status === "done") {
-        setStress(done.result as never);
-        setState("done");
-      } else {
-        setError(done.detail ?? "engine returned no result");
-        setState("error");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setState("error");
-    }
-  };
+  // The 9Q stress is heavy, so it runs when asked and then follows input changes
+  // like the other downstream results.
+  const run = () => { setRequested(true); engine.request("stress", ["mbs", "deposits"]); };
+  useEffect(() => { if (stress || pending) setRequested(true); }, [stress, pending]);
 
   const data = useMemo(() => stress?.mbs
     ? Object.values(
@@ -53,18 +34,24 @@ function RateShocks() {
         }, {}))
     : [], [stress]);
 
+  const stale = engine.isStale("stress") && !!stress;
   return (
     <div className="space-y-3">
-      <Button disabled={state === "running"} onClick={run}>
-        {state === "running" ? <><Spinner /> running {elapsed.toFixed(0)}s</> : "Run 9Q stress"}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button disabled={pending} onClick={run}>
+          {pending ? <><Spinner /> Updating</> : stress ? "Refresh 9Q stress" : "Run 9Q stress"}
+        </Button>
+        {stale && !engine.autoRecalc && <Badge tone="warning">Out of date</Badge>}
+      </div>
       <Card>
-        <CardHeader title="9Q stress P&L — MBS book" sub="Forward-starting parallel shocks, P&L vs base forward value" />
-        <CardBody>
+        <CardHeader title="9Q stress P&L — MBS book" sub="Forward-starting parallel shocks, P&L vs base forward value"
+          right={<Freshness kind="stress" />} />
+        <CardBody className={stale ? "opacity-60 transition-opacity duration-base" : ""}>
           {stress?.mbs
             ? <StressLines data={data as never} shocks={[-100, 100, 200, 300]} />
-            : <ChartState kind={state === "running" ? "loading" : state === "error" ? "error" : "empty"}
-                hint="Run 9Q stress to populate" elapsed={elapsed} error={error} onRetry={run} />}
+            : <ChartState kind={pending ? "loading" : failed ? "error" : "empty"}
+                hint={requested ? "Stress populates when the run finishes." : "Run 9Q stress to populate this chart."}
+                error={failed} onRetry={run} />}
         </CardBody>
       </Card>
     </div>

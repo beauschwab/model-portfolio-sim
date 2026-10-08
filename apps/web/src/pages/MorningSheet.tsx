@@ -7,8 +7,9 @@ import { useEngineData } from "../lib/engine";
  * model), and a queue of next actions. One orchestrated load reveal;
  * reduced motion respected. */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmt$, type Market } from "../lib/api";
-import { Button, InfoPop } from "../components/ui";
+import { api, fmt$, rowsOf, type Market, type Table } from "../lib/api";
+import { Badge, Button, InfoPop, Stat } from "../components/ui";
+import { Freshness } from "./Dashboard";
 import { useWorkspace } from "../workspace/Workspace";
 import type { PanelId } from "../workspace/panels";
 
@@ -53,18 +54,15 @@ export default function MorningSheet() {
   const engine = useEngineData();
   const [mkt, setMkt] = useState<Market | null>(null);
   const k = engine.kpis;
-  const [busy, setBusy] = useState(false);
+  const nii = engine.results.nii?.value as { summary: Table } | undefined;
+  const niiAnnual = nii ? (rowsOf(nii.summary).find(r => r.metric === "nii_annualized_$")?.value as number | undefined) : undefined;
+  const kpisPending = engine.pending.includes("kpis");
+  const stale = engine.isStale("kpis") && !!k;
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
 
   useEffect(() => { api.market().then(setMkt); }, []);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const done = await engine.run("kpis");
-      if (done.status === "error") alert(done.detail);
-    } finally { setBusy(false); }
-  };
+  const run = () => engine.request("kpis");
 
   // the engraved curve: market pillars as a single inked stroke
   const curvePath = useMemo(() => {
@@ -96,6 +94,25 @@ export default function MorningSheet() {
         </div>
       </header>
 
+      {/* current state: the headline numbers, kept current by the engine */}
+      {k && (
+        <section className={`memo-rise grid grid-cols-2 gap-3 pt-5 lg:grid-cols-4 ${stale ? "opacity-60 transition-opacity duration-base" : ""}`}>
+          <Stat label="EVE" value={fmt$(k.eve.eve_$)} detail={`Net dv01 ${fmt$(k.eve.dv01_net_$)}/bp`} />
+          <Stat label="NII, annualized" value={niiAnnual != null ? fmt$(niiAnnual) : "—"} detail={niiAnnual != null ? "27-month forecast" : "Forecast pending"} />
+          <Stat label="Duration gap" value={`${k.eve.duration_gap_y.toFixed(2)}y`} detail={`A ${k.eve.dur_assets_y.toFixed(2)}y · L ${k.eve.dur_liab_y.toFixed(2)}y`} />
+          <div className="flex flex-col justify-between rounded-md border border-line-strong bg-surface-1 px-3.5 py-3 shadow-inset-top">
+            <div className="eyebrow">Status</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Freshness kind="kpis" />
+              {!kpisPending && !stale && <Badge tone="up" dot>Current</Badge>}
+            </div>
+            <div className="num mt-1 text-xs text-paper-faint">
+              {engine.autoRecalc ? "Updates when assumptions change" : "Auto-update is off"}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* the position, in prose */}
       <section className="memo-rise py-6">
         {k ? (
@@ -109,9 +126,16 @@ export default function MorningSheet() {
               : " — inside the 15% line; the hedge overlay is doing its job."}
           </p>
         ) : (
-          <div className="flex items-center gap-4">
-            <p className="font-display text-lg text-paper-dim">Pull this morning's position to begin.</p>
-            <Button disabled={busy} onClick={run}>{busy ? "Computing…" : "Run the sheet"}</Button>
+          <div className="space-y-2">
+            <div className="flex items-center gap-4">
+              <p className="font-display text-lg text-paper-dim">
+                {kpisPending ? "Computing this morning's position…" : "Pull this morning's position to begin."}
+              </p>
+              {!kpisPending && <Button onClick={run}>{engine.errors.kpis ? "Try again" : "Run the sheet"}</Button>}
+            </div>
+            {engine.errors.kpis && (
+              <p role="alert" className="text-sm text-danger">The sheet did not compute: {engine.errors.kpis}</p>
+            )}
           </div>
         )}
       </section>

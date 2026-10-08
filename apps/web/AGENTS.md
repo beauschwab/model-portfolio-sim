@@ -14,3 +14,15 @@ before changing UI. Use the token classes and CSS variables from
 `src/styles/aperture.css` (never hard-coded hex), the primitives in
 `src/components/ui.tsx`, the chart theme in `src/components/charts.tsx`, and Lucide icons.
 Green/red signal direction only; KPI deltas need an explicit reference.
+
+## Downstream results (live recalculation)
+
+Panels read downstream results (KPIs, risk, NII, stress) from `lib/engine.tsx`, never
+from their own run state. Each result carries the input revision it was computed at. An
+input write (settings, assumptions, books, market, scenarios) bumps the revision, marks
+results stale and, with auto-recalculation on, queues the stale ones after a quiet period.
+A failed result is not retried until the inputs change again. New panels that show a
+downstream figure should call `useEngineData().results`, `isStale` and `pending`, and
+should not add their own run button for a result the engine already keeps fresh.
+Balance edits write back to the book, and the grid reloads only when the book changes
+underneath it; it never shows a spinner for a background refresh.
