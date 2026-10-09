@@ -380,5 +380,15 @@ def test_invalid_assumption_patch_is_atomic(client):
     assert store.ASSUMPTIONS == before
 
 
+def test_deposit_flight_amplitude_is_a_multiplier_not_a_rate(client):
+    # the segment defaults run from 1.5 to 4.0, and the native deck only requires amp >= 0
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"amp": 4.5}}}).status_code == 200
+    assert store.ASSUMPTIONS["deposit_segments"]["MMDA"]["amp"] == 4.5
+    before = store.snapshot()["assumptions"]
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"amp": -0.1}}}).status_code == 422
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"base": 1.5}}}).status_code == 422
+    assert store.ASSUMPTIONS == before
+
+
 def test_nonfinite_skeleton_is_valid_json():
     assert skeleton(store.to_arrow_envelope({"x": float("nan")})) == {"x": None}

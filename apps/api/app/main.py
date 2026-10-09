@@ -374,7 +374,8 @@ def put_assumptions(p: AssumptionPatch):
             for seg, vals in p.deposit_segments.items():
                 if seg not in updated["deposit_segments"] or set(vals) - {"base", "amp", "b", "g0"}:
                     raise HTTPException(422, "unknown deposit segment or parameter")
-                if any(v < 0 for v in vals.values()) or any(vals.get(k, 0) > 1 for k in ("base", "amp", "g0")):
+                # base and g0 are rates; amp multiplies the flight term (defaults 1.5-4.0), so it is not capped at 1
+                if any(v < 0 for v in vals.values()) or any(vals.get(k, 0) > 1 for k in ("base", "g0")):
                     raise HTTPException(422, "deposit parameters are outside their supported domain")
                 updated["deposit_segments"][seg].update(vals)
                 applied.append(f"deposit:{seg}")

@@ -1,0 +1,60 @@
+import { test, expect, type Page } from '@playwright/test';
+
+/** Live positions grid against the real API and native product engine.
+ * Each test restores the books it changes, because the test API is shared. */
+
+async function openBook(page: Page, book: string) {
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open Positions', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Positions', exact: true });
+  await panel.locator('td', { hasText: book }).first().click();
+  return panel;
+}
+
+test('a deposit account override saves to that row and clears back to the segment', async ({ page }) => {
+  const panel = await openBook(page, 'deposits');
+  const writes: Record<string, unknown>[][] = [];
+  page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/api/books/deposits')) writes.push(JSON.parse(r.postData() ?? '[]')); });
+
+  await panel.getByLabel('Product assumptions').first().click();
+  const field = page.getByLabel('Monthly base decay override for NIB0000', { exact: true });
+  await expect(field).toHaveValue('');
+  await field.fill('0.031');
+  await page.getByRole('button', { name: 'Save account override', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  const saved = writes[0].find(r => r.id === 'NIB0000')!;
+  expect(saved.attrition_base).toBe(0.031);
+  expect(writes[0].filter(r => r.attrition_base != null)).toHaveLength(1);
+
+  // reopen after the grid reloads: the override is read back from the book
+  await page.keyboard.press('Escape');
+  await page.mouse.click(5, 5);
+  await panel.getByLabel('Product assumptions').first().click();
+  await expect(page.getByLabel('Monthly base decay override for NIB0000', { exact: true })).toHaveValue('0.031');
+
+  await page.getByRole('button', { name: 'Clear override', exact: true }).click();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(writes[1].find(r => r.id === 'NIB0000')!.attrition_base).toBeNull();
+});
+
+test('a balance edit is funded by a saved money-market plug, and undoing it removes the plug', async ({ page }) => {
+  const panel = await openBook(page, 'mbs');
+  const mmWrites: Record<string, unknown>[][] = [];
+  page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/api/books/mm')) mmWrites.push(JSON.parse(r.postData() ?? '[]')); });
+
+  await panel.locator('span.cursor-pointer.underline').first().click();
+  const slider = page.getByRole('slider');
+  await slider.fill('1.1');
+  await expect.poll(() => mmWrites.length, { timeout: 10_000 }).toBe(1);
+  const plug = mmWrites[0].find(r => r.id === 'PLUG_ST_FUNDING');
+  expect(plug?.side).toBe('liability');
+  expect(plug?.spread_bp).toBe(0);
+  expect(Number(plug?.balance)).toBeGreaterThan(0);
+  await expect(panel.getByText('ST funding raised', { exact: true })).toBeVisible();
+
+  await slider.fill('1');
+  await expect.poll(() => mmWrites.length, { timeout: 10_000 }).toBe(2);
+  expect(mmWrites[1].some(r => String(r.id).startsWith('PLUG_'))).toBe(false);
+  await expect(panel.getByText('balanced as booked', { exact: true })).toBeVisible();
+});

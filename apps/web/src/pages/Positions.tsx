@@ -23,6 +23,13 @@ const BAL_FIELD: Record<BookName, string> = { mbs: "current_face", loans: "face"
 const rowKey = (book: string) => (book === "mbs" ? "cusip" : "id");
 const DEPOSIT_FIELDS: [string, string][] = [["base", "Monthly base decay"], ["amp", "Flight amplitude"], ["b", "Flight B"], ["g0", "Flight floor g0"]];
 const CD_FIELDS = ["Base annual withdrawal", "Amplitude", "B", "g0", "Annual cap"];
+/** Per-account deposit overrides the native deck reads; each falls back to the
+ * segment value (base, amp, b, g0) when null. */
+const ACCOUNT_FIELDS = ["attrition_base", "attrition_amp", "attrition_slope", "attrition_gap"] as const;
+type AccountOverride = Partial<Record<(typeof ACCOUNT_FIELDS)[number], number | null>>;
+/** Funding plug rows in the money-market book: short-rate floaters at spread 0. */
+const PLUG_FUNDING = "PLUG_ST_FUNDING", PLUG_CASH = "PLUG_CASH";
+const isPlug = (id: string) => id === PLUG_FUNDING || id === PLUG_CASH;
 
 function derive(book: string, r: Row): Omit<Pos, "book" | "side" | "bal0"> {
   const n = (k: string) => Number(r[k] ?? 0);
@@ -72,10 +79,25 @@ const Trend = ({ now, was }: { now: number; was: number }) => {
 /** Product assumptions for a row's class. Edits apply to every position in that
  * class; a single position cannot be overridden yet, because the engine has no
  * per-position behavior input. Values save to the engine, which then recomputes. */
-function AssumptionEdit({ p, assumptions, onSaved }: { p: Pos; assumptions: Row | null; onSaved: () => void }) {
+function AssumptionEdit({ p, assumptions, row, onSaved, onSaveAccount }: {
+  p: Pos; assumptions: Row | null; row?: Row; onSaved: () => void;
+  onSaveAccount: (p: Pos, override: AccountOverride) => Promise<void>;
+}) {
   const [draft, setDraft] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const accountSaved: (number | null)[] = ACCOUNT_FIELDS.map(k => (row?.[k] == null ? null : Number(row[k])));
+  const [accountDraft, setAccountDraft] = useState<(number | null)[] | null>(null);
+  const account = accountDraft ?? accountSaved;
+  const saveAccount = async (values: (number | null)[]) => {
+    setError(null); setSaving(true);
+    try {
+      await onSaveAccount(p, Object.fromEntries(ACCOUNT_FIELDS.map((k, i) => [k, values[i]])) as AccountOverride);
+      setAccountDraft(null);
+    } catch (e) {
+      setError(errorText(e));
+    } finally { setSaving(false); }
+  };
   const seg = p.segment ?? "";
   const current: number[] = p.book === "deposits"
     ? DEPOSIT_FIELDS.map(([k]) => Number(((assumptions?.deposit_segments as Record<string, Record<string, number>> | undefined)?.[seg] ?? {})[k] ?? NaN))
@@ -109,7 +131,7 @@ function AssumptionEdit({ p, assumptions, onSaved }: { p: Pos; assumptions: Row 
       </span>}>
       <div className="space-y-2">
         <div className="eyebrow">{p.book === "deposits" ? `${seg} deposits` : p.book === "cds" ? "CD product" : p.book === "mbs" ? "MBS prepayment" : p.book.toUpperCase()}</div>
-        {p.book === "deposits" && <p className="text-xs text-paper-faint">Applies to every {seg} balance. A single account cannot be overridden yet.</p>}
+        {p.book === "deposits" && <p className="text-xs text-paper-faint">Segment values apply to every {seg} account unless the account overrides them below.</p>}
         {p.book === "cds" && <p className="text-xs text-paper-faint">Applies to all CD positions.</p>}
         {p.book === "mbs" && <p className="text-xs text-paper-faint">Prepay vector is read-only here. Changing it needs an engine restart.</p>}
         {!editable && p.book !== "mbs" && <p className="text-xs text-paper-faint">Rate and term are book fields. Edit them in Book Editor.</p>}
@@ -125,8 +147,29 @@ function AssumptionEdit({ p, assumptions, onSaved }: { p: Pos; assumptions: Row 
           <div className="num text-2xs text-paper-faint">{((assumptions.prepay as { names: string[]; vector: number[] } | undefined)?.names ?? []).map((n, i) =>
             <div key={n} className="flex justify-between"><span>{n}</span><span>{Number((assumptions.prepay as { vector: number[] }).vector[i]).toPrecision(4)}</span></div>)}</div>
         )}
+        {editable && <Button size="sm" disabled={saving || !assumptions} onClick={save}>{saving ? "Saving…" : p.book === "deposits" ? `Save ${seg} segment` : "Save assumptions"}</Button>}
+        {p.book === "deposits" && assumptions && (
+          <div className="space-y-2 border-t border-line pt-2">
+            <div className="eyebrow">This account · {p.id}</div>
+            <p className="text-xs text-paper-faint">Leave a field empty to inherit the segment value shown.</p>
+            {ACCOUNT_FIELDS.map((k, i) => (
+              <label key={k} className="flex items-center gap-2">
+                <span className="w-32 text-xs text-paper-dim">{DEPOSIT_FIELDS[i][1]}</span>
+                <Input type="number" step="any" min={0} placeholder={Number.isFinite(current[i]) ? String(current[i]) : ""}
+                  aria-label={`${DEPOSIT_FIELDS[i][1]} override for ${p.id}`}
+                  value={account[i] ?? ""}
+                  onChange={e => { const next = [...account]; next[i] = e.target.value === "" ? null : Number(e.target.value); setAccountDraft(next); }} />
+              </label>
+            ))}
+            <div className="flex gap-2">
+              <Button size="sm" disabled={saving || accountDraft === null} onClick={() => saveAccount(account)}>Save account override</Button>
+              {accountSaved.some(v => v !== null) && (
+                <Button size="sm" variant="ghost" disabled={saving} onClick={() => saveAccount(ACCOUNT_FIELDS.map(() => null))}>Clear override</Button>
+              )}
+            </div>
+          </div>
+        )}
         {error && <div role="alert" className="text-xs text-danger">{error}</div>}
-        {editable && <Button size="sm" disabled={saving || !assumptions} onClick={save}>{saving ? "Saving…" : "Save assumptions"}</Button>}
       </div>
     </Popover>
   );
@@ -168,6 +211,8 @@ export default function Positions() {
    * trend read against it, so they keep meaning "since you started editing". */
   const baseline = useRef(new Map<string, number>());
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  /** Book writes run one at a time, so two quick edits cannot overwrite each other's plug. */
+  const writeChain = useRef<Promise<unknown>>(Promise.resolve());
   const loadedOnce = useRef(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ Assets: true, Liabilities: true });
   const [view, setView] = useState<View>("summary");
@@ -206,33 +251,75 @@ export default function Positions() {
     return () => { active = false; };
   }, [revision]);
 
-  /** Write a balance edit back to its book after a short pause. The book write
-   * raises the inputs-changed event, so the engine recomputes everything
-   * downstream and this grid reloads. */
+  /** Market value of a row: balance-type field times price (money-market rows carry no price). */
+  const mv = (book: BookName, r: Row, balance?: number) =>
+    (balance ?? Number(r[BAL_FIELD[book]] ?? 0)) * Number(r.price ?? 100) / 100;
+
+  /** Money-market rows with the funding plug moved by `delta` (positive = more
+   * assets to fund). The plug is one row at spread 0, so it is priced at the short
+   * rate: short-term funding when net positive, cash when net negative. */
+  const withPlug = (mm: Row[], delta: number): Row[] => {
+    const prior = mm.reduce((n, r) => n + (r.id === PLUG_FUNDING ? Number(r.balance) : r.id === PLUG_CASH ? -Number(r.balance) : 0), 0);
+    const net = Math.round((prior + delta) * 100) / 100;
+    const rest = mm.filter(r => !isPlug(String(r.id)));
+    if (net > 0) rest.push({ id: PLUG_FUNDING, balance: net, side: "liability", spread_bp: 0, category: "Funding plug" });
+    if (net < 0) rest.push({ id: PLUG_CASH, balance: -net, side: "asset", spread_bp: 0, category: "Funding plug" });
+    return rest;
+  };
+
+  /** Serialize a book write and keep the local copy in step, so the next edit
+   * computes its plug from what was actually saved. */
+  const write = (book: BookName, rows: Row[]) => {
+    const task = writeChain.current.then(async () => {
+      await api.putBook(book, rows);
+      rawRows.current[book] = rows;
+    });
+    writeChain.current = task.catch(() => {});
+    return task;
+  };
+
+  /** Write a balance edit back to its book after a short pause, then move the
+   * funding plug by the market-value change so assets less liabilities is
+   * unchanged. Each write raises the inputs-changed event; the engine
+   * recomputes once the writes go quiet, and this grid reloads. */
   const commitBalance = (p: Pos, value: number) => {
     const k = `${p.book}:${p.id}`;
     clearTimeout(saveTimers.current.get(k));
-    saveTimers.current.set(k, setTimeout(async () => {
-      const key = rowKey(p.book), field = BAL_FIELD[p.book as BookName];
-      const rows = rawRows.current[p.book as BookName] ?? [];
-      const next = rows.map(r => (String(r[key]) === p.id ? { ...r, [field]: value } : r));
-      try {
-        setSaveError(null);
-        await api.putBook(p.book as BookName, next);
-      } catch (e) {
-        setSaveError(errorText(e));
-        setRevision(v => v + 1);   // reload the book so the grid shows what was saved, not the rejected value
-      }
+    saveTimers.current.set(k, setTimeout(() => {
+      const book = p.book as BookName;
+      const key = rowKey(book), field = BAL_FIELD[book];
+      void writeChain.current.then(async () => {
+        const rows = rawRows.current[book] ?? [];
+        const target = rows.find(r => String(r[key]) === p.id);
+        if (!target) return;
+        const delta = (mv(book, target, value) - mv(book, target)) * p.side;
+        const next = rows.map(r => (r === target ? { ...r, [field]: value } : r));
+        try {
+          setSaveError(null);
+          if (book === "mm") {
+            await write("mm", withPlug(next, delta));
+          } else {
+            await write(book, next);
+            await write("mm", withPlug(rawRows.current.mm ?? [], delta));
+          }
+        } catch (e) {
+          setSaveError(errorText(e));
+          setRevision(v => v + 1);   // reload so the grid shows what was saved, not the rejected value
+        }
+      });
     }, 600));
   };
 
-  const plug = useMemo(() => {
-    const a = pos.filter(p => p.side > 0).reduce((s, p) => s + p.bal, 0);
-    const l = pos.filter(p => p.side < 0).reduce((s, p) => s + p.bal, 0);
-    const a0 = pos.filter(p => p.side > 0).reduce((s, p) => s + p.bal0, 0);
-    const l0 = pos.filter(p => p.side < 0).reduce((s, p) => s + p.bal0, 0);
-    return (a - l) - (a0 - l0);          // >0 needs ST funding; <0 holds cash
-  }, [pos]);
+  /** Save (or clear, with nulls) one deposit account's behaviour override. */
+  const saveAccountOverride = async (p: Pos, override: AccountOverride) => {
+    const rows = rawRows.current.deposits ?? [];
+    const next = rows.map(r => (String(r.id) === p.id ? { ...r, ...override } : r));
+    await write("deposits", next);
+  };
+
+  /** The saved funding plug: >0 is short-term funding raised, <0 is cash held. */
+  const plug = useMemo(() => pos.reduce((n, p) =>
+    n + (p.id === PLUG_FUNDING ? p.bal : p.id === PLUG_CASH ? -p.bal : 0), 0), [pos]);
 
   const groups = useMemo(() => {
     const g: Record<string, Record<string, Pos[]>> = { Assets: {}, Liabilities: {} };
@@ -290,7 +377,7 @@ export default function Positions() {
         ))}
         <div className="rounded-md border border-brand/40 bg-surface-1 p-3 shadow-inset-top">
           <div className="eyebrow flex items-center">Cash / ST-funding plug
-            <InfoPop width="14rem">Your edits balance here: grow assets and the plug turns to short-term funding (liability); shrink them and the book holds cash. Priced at the short rate either way — the carry consequence of every resize.</InfoPop></div>
+            <InfoPop width="14rem">Balance edits are funded here and saved as a money-market row at spread 0, so the engine sees a balanced sheet: grow assets and the plug is short-term funding (liability); shrink them and the book holds cash. Priced at the short rate either way — the carry consequence of every resize.</InfoPop></div>
           <div className="num mt-0.5 text-lg text-paper-heading">{plug === 0 ? "—" : fmt$(Math.abs(plug))}</div>
           <div className="text-xs text-paper-faint">{plug > 0 ? "ST funding raised" : plug < 0 ? "cash held" : "balanced as booked"}</div>
         </div>
@@ -372,8 +459,10 @@ export default function Positions() {
               <td className="px-2.5 py-1 pl-12 text-paper-faint">{p.id}</td>
               <td className="px-2 text-right">
                 <span className="inline-flex items-center justify-end gap-1">
-                  <BalEdit p={p} onSet={v => { setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x)); commitBalance(p, v); }} />
-                  <AssumptionEdit p={p} assumptions={assumptions} onSaved={() => setRevision(v => v)} />
+                  {isPlug(p.id) ? <span className="num">{fmt$(p.bal)}</span> : <BalEdit p={p} onSet={v => { setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x)); commitBalance(p, v); }} />}
+                  {!isPlug(p.id) && <AssumptionEdit p={p} assumptions={assumptions} onSaved={() => setRevision(v => v)}
+                    row={rawRows.current[p.book as BookName]?.find(r => String(r[rowKey(p.book)]) === p.id)}
+                    onSaveAccount={saveAccountOverride} />}
                 </span>
               </td>
               {renderCols({ a: agg([p]), p })}
