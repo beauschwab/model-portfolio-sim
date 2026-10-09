@@ -3,7 +3,7 @@
  * green/red only for direction, Inter tabular figures for numbers. */
 import clsx from "clsx";
 import { ChevronRight, Info } from "lucide-react";
-import { useEffect as _ue, useRef as _ur, useState as _us, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from "react";
+import { useEffect as _ue, useRef as _ur, useState as _us, type KeyboardEvent, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from "react";
 
 /** Panel: the standard surface — surface-1, 1px default border, top inset highlight, no shadow at rest. */
 export const Card = ({ className, children }: { className?: string; children: ReactNode }) => (
@@ -191,19 +191,41 @@ export function DataTable({ rows, cols, maxH = "28rem" }:
   );
 }
 
-/** Tabs: Aperture segmented control for compact inline view switching. */
-export const Tabs = ({ tabs, active, onChange }:
-  { tabs: string[]; active: string; onChange: (t: string) => void }) => (
-  <div role="tablist" className="inline-flex gap-0.5 rounded-sm border border-line-strong bg-surface-base p-0.5">
-    {tabs.map(t => (
-      <button key={t} type="button" role="tab" aria-selected={t === active} onClick={() => onChange(t)}
-        className={clsx("rounded-sm px-2.5 py-1 text-sm font-semibold transition-colors duration-fast",
-          t === active ? "bg-brand text-ink" : "text-paper-dim hover:text-paper")}>
-        {t}
-      </button>
-    ))}
-  </div>
-);
+const tabSlug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+/** Props for the panel a tab reveals, when `Tabs` is given the same `id`. */
+export const tabPanelProps = (id: string, tab: string, active: string) => ({
+  role: "tabpanel" as const, id: `${id}-panel-${tabSlug(tab)}`,
+  "aria-labelledby": `${id}-tab-${tabSlug(tab)}`, hidden: tab !== active,
+});
+
+/** Tabs: Aperture segmented control for compact inline view switching. With an
+ * `id`, each tab controls the panel rendered with `tabPanelProps(id, …)`. Arrow
+ * keys, Home and End move between tabs; only the selected tab is in tab order. */
+export const Tabs = ({ tabs, active, onChange, id }:
+  { tabs: string[]; active: string; onChange: (t: string) => void; id?: string }) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = tabs.indexOf(active);
+    const next = e.key === "ArrowRight" ? (i + 1) % tabs.length : e.key === "ArrowLeft" ? (i - 1 + tabs.length) % tabs.length
+      : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    onChange(tabs[next]);
+    (e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next])?.focus();
+  };
+  return (
+    <div role="tablist" onKeyDown={onKeyDown} className="inline-flex gap-0.5 rounded-sm border border-line-strong bg-surface-base p-0.5">
+      {tabs.map(t => (
+        <button key={t} type="button" role="tab" aria-selected={t === active} tabIndex={t === active ? 0 : -1}
+          id={id ? `${id}-tab-${tabSlug(t)}` : undefined} aria-controls={id ? `${id}-panel-${tabSlug(t)}` : undefined}
+          onClick={() => onChange(t)}
+          className={clsx("rounded-sm px-2.5 py-1 text-sm font-semibold transition-colors duration-fast",
+            t === active ? "bg-brand text-ink" : "text-paper-dim hover:text-paper")}>
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 /** Popover: overlay surface with a subtle blur and tight dark shadow; outside-click dismiss. */
 export function Popover({ trigger, children, width = "16rem" }:

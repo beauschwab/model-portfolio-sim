@@ -8,7 +8,7 @@ import { useEngineData } from "../lib/engine";
  * reduced motion respected. */
 import { useEffect, useMemo, useState } from "react";
 import { api, fmt$, rowsOf, type Market, type Table } from "../lib/api";
-import { Badge, Button, InfoPop, Stat } from "../components/ui";
+import { Badge, InfoPop, Stat } from "../components/ui";
 import { Freshness } from "./Dashboard";
 import { useWorkspace } from "../workspace/Workspace";
 import type { PanelId } from "../workspace/panels";
@@ -62,7 +62,6 @@ export default function MorningSheet() {
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
 
   useEffect(() => { api.market().then(setMkt); }, []);
-  const run = () => engine.request("kpis");
 
   // the engraved curve: market pillars as a single inked stroke
   const curvePath = useMemo(() => {
@@ -127,12 +126,9 @@ export default function MorningSheet() {
           </p>
         ) : (
           <div className="space-y-2">
-            <div className="flex items-center gap-4">
-              <p className="font-display text-lg text-paper-dim">
-                {kpisPending ? "Computing this morning's position…" : "Pull this morning's position to begin."}
-              </p>
-              {!kpisPending && <Button onClick={run}>{engine.errors.kpis ? "Try again" : "Run the sheet"}</Button>}
-            </div>
+            <p className="font-display text-lg text-paper-dim">
+              {kpisPending ? "Computing this morning's position…" : "Pull this morning's position with Run sheet in the command bar."}
+            </p>
             {engine.errors.kpis && (
               <p role="alert" className="text-sm text-danger">The sheet did not compute: {engine.errors.kpis}</p>
             )}
@@ -163,7 +159,7 @@ export default function MorningSheet() {
           ["decide", "Price the constraints", "Solve the plan; read the shadow prices."],
           ["market", "Move the market", "Set a 9Q path and rerun the sheet."],
         ] as const).map(([panel, t, s]) => (
-          <button key={panel} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">
+          <button key={t} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">
             <div className="font-display text-lg text-paper group-hover:text-brand">{t}</div>
             <div className="mt-1 text-sm text-paper-faint">{s}</div>
           </button>

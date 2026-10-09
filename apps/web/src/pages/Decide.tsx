@@ -3,7 +3,7 @@
  * with what-if alongside. Each step mounts on first visit and then stays
  * mounted, so a built session or an optimizer result survives switching steps. */
 import { useState } from "react";
-import { Tabs } from "../components/ui";
+import { Tabs, tabPanelProps } from "../components/ui";
 import StrategySandbox from "./Strategy";
 import Optimize from "./Optimizer";
 import Validate from "./DecisionLab";
@@ -25,9 +25,9 @@ export default function Decide() {
   };
   return (
     <div className="space-y-3">
-      <Tabs tabs={STEPS.map(s => s.id)} active={active} onChange={choose} />
-      {STEPS.map(({ id, Step }) => visited.has(id) && (
-        <div key={id} hidden={active !== id}><Step /></div>
+      <Tabs id="decide" tabs={STEPS.map(s => s.id)} active={active} onChange={choose} />
+      {STEPS.map(({ id, Step }) => (
+        <div key={id} {...tabPanelProps("decide", id, active)}>{visited.has(id) && <Step />}</div>
       ))}
     </div>
   );
