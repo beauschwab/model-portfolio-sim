@@ -8,6 +8,8 @@ from __future__ import annotations
 import copy
 from contextvars import ContextVar
 import hashlib
+import heapq
+import itertools
 import io
 import json
 import struct
@@ -24,6 +26,11 @@ from .schemas import MarketScenario, RiskSettings
 
 _LOCK = threading.RLock()
 _POOL = ThreadPoolExecutor(max_workers=1)   # numba kernels saturate cores
+# Queued jobs waiting for the single worker, as a heap of (rank, sequence, id, run).
+# Background refreshes rank behind requests a person is waiting on.
+_PENDING: list = []
+_SEQ = itertools.count()
+PRIORITIES = ("interactive", "background")
 _CUR_JID: str | None = None                 # job on the single worker thread
 KRD_PILLARS = 10                             # curve pillars bumped for key-rate durations
 
@@ -536,13 +543,17 @@ def compute_run_plan(kind: str, books: list[str], state=None) -> dict:
     }
 
 
-def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
+def submit(kind: str, fn, *args, plan: dict | None = None, state=None, priority: str = "interactive") -> str:
+    """Queue `fn` on the single compute worker. `priority="background"` marks an
+    automatic refresh: it waits behind every queued interactive job."""
+    if priority not in PRIORITIES:
+        raise ValueError(f"unknown priority {priority}")
     state = state or snapshot()
     state['settings'].require_production_backend()
     args = copy.deepcopy(args)
     from . import persistence
     if persistence.REPO is not None:
-        return persistence.submit(kind, fn, args, plan, state)
+        return persistence.submit(kind, fn, args, plan, state, priority=priority)
     with _LOCK:
         prune_jobs()
         if sum(j["status"] in ("queued", "running") for j in JOBS.values()) >= MAX_QUEUE:
@@ -551,16 +562,19 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
         JOBS[jid] = {"id": jid, "kind": kind, "status": "queued", "revision": state['revision'],
                     "market_provenance": copy.deepcopy(state["market"].get("provenance", {})),
                      "detail": None, "result": None,
-                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {},
+                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {}, "priority": priority,
                                   "stats": {}, "elapsed_s": 0.0, "log": [], "nodes": []}}
 
     def run():
         global _CUR_JID
+        with _LOCK:
+            if JOBS.get(jid, {}).get("status") != "queued":   # cancelled while queued
+                return
+            JOBS[jid]["status"] = "running"
         from portfolio_risk.core.runtime import RunConfig, run_context
         import numba
         _CUR_JID = jid
         token = _RUN_STATE.set(state)
-        JOBS[jid]["status"] = "running"
         JOBS[jid]["_t0"] = time.perf_counter()
         report(stage="starting", pct=1.0, log=f"{kind} run started")
         try:
@@ -575,12 +589,16 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
             if len(encoded) > MAX_RESULT_BYTES:
                 raise RuntimeError("result exceeds the retention byte limit; reduce book size")
             with _LOCK:
+                if JOBS[jid].get("_cancelled"):
+                    return
                 JOBS[jid]["result"] = encoded
                 JOBS[jid]["status"] = "done"
                 JOBS[jid]["finished_at"] = time.time()
             report(stage="done", pct=100.0, log="run complete")
         except Exception as e:
             with _LOCK:
+                if JOBS[jid].get("_cancelled"):
+                    return
                 JOBS[jid]["status"] = "error"
                 JOBS[jid]["finished_at"] = time.time()
                 JOBS[jid]["detail"] = f"{type(e).__name__}: {e}"
@@ -593,8 +611,33 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
             _RUN_STATE.reset(token)
             _CUR_JID = None
 
-    _POOL.submit(run)
+    with _LOCK:
+        heapq.heappush(_PENDING, (PRIORITIES.index(priority), next(_SEQ), jid, run))
+    _POOL.submit(_run_next)
     return jid
+
+
+def _run_next() -> None:
+    """One pool task per queued job; each runs the best job waiting at that moment."""
+    with _LOCK:
+        if not _PENDING:
+            return
+        run = heapq.heappop(_PENDING)[-1]
+    run()
+
+
+def cancel_job(jid: str) -> bool:
+    """Cancel a queued in-memory job. A running kernel is not interruptible; its
+    result is discarded instead, so a cancelled job never reports done."""
+    with _LOCK:
+        job = JOBS.get(jid)
+        if job is None:
+            raise KeyError(jid)
+        if job["status"] not in ("queued", "running"):
+            return False
+        job["status"], job["detail"], job["finished_at"] = "error", "cancelled", time.time()
+        job["_cancelled"] = True
+        return True
 
 
 # ---- engine adapters (each returns JSON-able frames) -------------------------

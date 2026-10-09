@@ -17,11 +17,11 @@ test('a deposit account override saves to that row and clears back to the segmen
   const writes: Record<string, unknown>[][] = [];
   page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/api/books/deposits')) writes.push(JSON.parse(r.postData() ?? '[]')); });
 
-  await panel.getByLabel('Product assumptions').first().click();
+  await panel.getByLabel('Assumptions for ').first().click();
   const field = page.getByLabel('Monthly base decay override for NIB0000', { exact: true });
   await expect(field).toHaveValue('');
   await field.fill('0.031');
-  await page.getByRole('button', { name: 'Save account override', exact: true }).click();
+  await page.getByRole('button', { name: 'Save position', exact: true }).click();
   await expect.poll(() => writes.length).toBe(1);
   const saved = writes[0].find(r => r.id === 'NIB0000')!;
   expect(saved.attrition_base).toBe(0.031);
@@ -30,12 +30,35 @@ test('a deposit account override saves to that row and clears back to the segmen
   // reopen after the grid reloads: the override is read back from the book
   await page.keyboard.press('Escape');
   await page.mouse.click(5, 5);
-  await panel.getByLabel('Product assumptions').first().click();
+  await panel.getByLabel('Assumptions for ').first().click();
   await expect(page.getByLabel('Monthly base decay override for NIB0000', { exact: true })).toHaveValue('0.031');
 
-  await page.getByRole('button', { name: 'Clear override', exact: true }).click();
+  await page.getByRole('button', { name: 'Clear overrides', exact: true }).click();
   await expect.poll(() => writes.length).toBe(2);
   expect(writes[1].find(r => r.id === 'NIB0000')!.attrition_base).toBeNull();
+});
+
+test('a CD withdrawal multiplier saves to that position and adds the column at its default', async ({ page, request }) => {
+  const panel = await openBook(page, 'cds');
+  const writes: Record<string, unknown>[][] = [];
+  page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/api/books/cds')) writes.push(JSON.parse(r.postData() ?? '[]')); });
+  try {
+    await panel.getByLabel('Assumptions for ').first().click();
+    const field = page.getByLabel(/^Withdrawal multiplier for /);
+    await expect(field).toHaveValue('1');
+    const id = (await field.getAttribute('aria-label'))!.replace('Withdrawal multiplier for ', '');
+    await field.fill('2.5');
+    await page.getByRole('button', { name: 'Save position', exact: true }).click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].find(r => r.id === id)!.ew_mult).toBe(2.5);
+    expect(writes[0].filter(r => r.id !== id).every(r => r.ew_mult === 1)).toBe(true);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  } finally {
+    if (writes.length) {
+      const rows = writes[0].map(({ ew_mult: _drop, ...r }) => r);
+      expect((await request.put('/api/books/cds', { data: rows })).ok()).toBeTruthy();
+    }
+  }
 });
 
 test('a balance edit is funded by a saved money-market plug, and undoing it removes the plug', async ({ page }) => {

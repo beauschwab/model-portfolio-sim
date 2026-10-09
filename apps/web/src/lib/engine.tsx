@@ -9,8 +9,8 @@
  * so an edit made in one grid updates the headline on another screen without
  * navigation.
  *
- * Runs go through one single-flight queue (kernels saturate cores), and a
- * finished job is only kept if its inputs did not change while it ran. */
+ * Runs go through one single-flight queue (kernels saturate cores) in two
+ * lanes: anything a person asks for starts before a waiting automatic refresh. */
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
@@ -44,7 +44,9 @@ export type Kpis = {
   };
 };
 
-type RunOpts = { optimize?: unknown; pricing?: PricingOptions; onTick?: (job: Job) => void; scenario?: string; books?: BookName[] };
+type RunOpts = { optimize?: unknown; pricing?: PricingOptions; onTick?: (job: Job) => void; scenario?: string; books?: BookName[];
+  /** "background" for automatic refreshes: they wait behind anything a person asked for. */
+  priority?: "interactive" | "background" };
 
 /** How long inputs must be quiet before stale results recompute. Slider drags
  * and multi-field edits therefore cost one run, not one per keystroke. */
@@ -137,7 +139,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const entriesRef = useRef(entries);
   /** Input fingerprints by revision, from `/state`; bounded. */
   const fingerprints = useRef(new Map<number, InputNodes>());
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  /** Runs waiting for the single-flight slot. Interactive runs start before any
+   * waiting background refresh; the server ranks its queue the same way. */
+  const lanes = useRef<{ interactive: (() => Promise<unknown>)[]; background: (() => Promise<unknown>)[] }>({ interactive: [], background: [] });
+  const busy = useRef(false);
   const pendingRuns = useRef(new Map<string, Promise<Job>>());
   /** Downstream results to keep fresh, with the books each was requested for. */
   const wanted = useRef(new Map<ResultKind, BookName[] | undefined>(DEFAULT_WANTED.map(k => [k, undefined])));
@@ -189,7 +194,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     const t0 = performance.now();
     const clock = setInterval(() => setElapsed((performance.now() - t0) / 1000), 100);
     try {
-      const j = kind === "optimize" ? await api.optimize(opts?.optimize) : await api.run(kind, opts?.scenario, opts?.books, opts?.pricing);
+      const j = kind === "optimize" ? await api.optimize(opts?.optimize) : await api.run(kind, opts?.scenario, opts?.books, opts?.pricing, opts?.priority);
       const downstreamKind = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize
         ? kind as ResultKind : null;
       inflightJob.current = { id: j.id, kind: downstreamKind, books: opts?.books, revision: j.revision };
@@ -252,6 +257,14 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshState]);
 
+  const pump = useCallback(() => {
+    if (busy.current) return;
+    const next = lanes.current.interactive.shift() ?? lanes.current.background.shift();
+    if (!next) return;
+    busy.current = true;
+    void next().catch(() => {}).finally(() => { busy.current = false; pump(); });
+  }, []);
+
   const enqueue = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
     const isDownstream = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize;
     const key = JSON.stringify([revisionRef.current, kind, opts?.scenario, opts?.books, opts?.optimize, opts?.pricing]);
@@ -259,15 +272,17 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     if (existing) return existing;
     if (isDownstream) setPending(p => (p.includes(kind as ResultKind) ? p : [...p, kind as ResultKind]));
     setRunning(true);
-    const task = queue.current.then(() => execute(kind, opts)).finally(() => {
+    const task = new Promise<Job>((resolve, reject) => {
+      lanes.current[opts?.priority ?? "interactive"].push(() => execute(kind, opts).then(resolve, reject));
+      pump();
+    }).finally(() => {
       pendingRuns.current.delete(key);
       if (isDownstream) setPending(p => p.filter(k => k !== kind));
       if (!pendingRuns.current.size) setRunning(false);
     });
     pendingRuns.current.set(key, task);
-    queue.current = task.catch(() => {});
     return task;
-  }, [execute]);
+  }, [execute, pump]);
 
   /** Run on request; a downstream result run this way is then kept fresh. */
   const run = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
@@ -291,11 +306,11 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       if (kind === "risk") {
         // the hedge book is valued only in a run over every book
         const scope = stale.includes("risk:hedges") ? books : stale.map(n => n.split(":")[1] as BookName);
-        void enqueue("risk", { books: scope });
+        void enqueue("risk", { books: scope, priority: "background" });
       } else if (kind === "stress") {
-        void enqueue("stress", { books: stale.map(n => n.split(":")[1] as BookName) });
+        void enqueue("stress", { books: stale.map(n => n.split(":")[1] as BookName), priority: "background" });
       } else {
-        void enqueue(kind);
+        void enqueue(kind, { priority: "background" });
       }
     }
   }, [enqueue, isCurrent]);

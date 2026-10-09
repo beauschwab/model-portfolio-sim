@@ -414,3 +414,44 @@ def test_state_fingerprints_change_only_for_the_edited_input(client):
     assert {k for k in after if after[k] != final.get(k)} == {"settings"}
     # an unchanged snapshot hashes the same on every call
     assert nodes() == final
+
+
+def test_background_refresh_waits_behind_interactive_jobs(client):
+    """Automatic downstream refreshes must not delay a request a person is waiting on."""
+    gate, order = threading.Event(), []
+    def block():
+        gate.wait(10)
+        return {}
+    def mark(name):
+        order.append(name)
+        return {}
+    first = store.submit("kpis", block)
+    background = store.submit("risk", mark, "background", priority="background")
+    interactive = store.submit("pricing", mark, "interactive")
+    gate.set()
+    for jid in (first, background, interactive):
+        assert finished(jid)["status"] == "done"
+    assert order == ["interactive", "background"]
+    with pytest.raises(ValueError):
+        store.submit("kpis", block, priority="urgent")
+
+
+def test_memory_jobs_cancel_while_queued(client):
+    gate, ran = threading.Event(), []
+    def block():
+        gate.wait(10)
+        return {}
+    first = store.submit("kpis", block)
+    queued = store.submit("risk", lambda: ran.append(1) or {}, priority="background")
+    assert client.delete(f"/jobs/{queued}").json() == {"cancelled": True}
+    gate.set()
+    assert finished(first)["status"] == "done"
+    job = finished(queued)
+    assert job["status"] == "error" and job["detail"] == "cancelled"
+    assert ran == []
+    assert client.delete(f"/jobs/{queued}").json() == {"cancelled": False}
+    assert client.delete("/jobs/unknown").status_code == 404
+
+
+def test_run_request_accepts_only_known_priorities(client):
+    assert client.post("/run", json={"kind": "kpis", "priority": "urgent"}).status_code == 422

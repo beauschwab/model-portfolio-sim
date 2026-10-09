@@ -95,13 +95,13 @@ test('the graph recomputes only the results whose inputs changed', async ({ page
     'assumptions:cds': 'k', scenarios: 'sc', cohorts: 'co',
     ...Object.fromEntries(['mbs', 'loans', 'debt', 'deposits', 'cds', 'mm'].map(b => [`books:${b}`, b])),
   };
-  const runs: { kind: string; books?: string[] }[] = [];
+  const runs: { kind: string; books?: string[]; priority?: string }[] = [];
   const jobs = new Map<string, { kind: string; books?: string[]; revision: number }>();
   await page.route('**/api/state', route => route.fulfill({
     json: { revision, library_ready: false, library_horizon: null, inputs: { revision, nodes: { ...nodes } } } }));
   await page.route('**/api/run', async route => {
     const body = JSON.parse(route.request().postData() ?? '{}');
-    runs.push({ kind: body.kind, books: body.books ?? undefined });
+    runs.push({ kind: body.kind, books: body.books ?? undefined, priority: body.priority });
     const id = `g-${runs.length}`;
     jobs.set(id, { kind: body.kind, books: body.books ?? undefined, revision });
     await route.fulfill({ json: { id, revision, kind: body.kind, status: 'queued' } });
@@ -133,6 +133,8 @@ test('the graph recomputes only the results whose inputs changed', async ({ page
   await page.goto('/');
   await expect.poll(() => runs.map(r => r.kind).sort().join(','), { timeout: 15_000 }).toBe('kpis,nii,risk');
   expect(runs.find(r => r.kind === 'risk')!.books).toBeUndefined();   // first risk run covers every book and the hedges
+  // automatic refreshes queue behind anything a person asks for
+  expect(runs.every(r => r.priority === 'background')).toBe(true);
 
   // a scenario edit feeds no base result: nothing recomputes
   revision = 2; nodes.scenarios = 'sc2';

@@ -240,8 +240,8 @@ export const api = {
   scenarios: () => j<Record<string, Scenario>>("/scenarios"),
   putScenario: (s: Scenario) => j(`/scenarios/${s.name}`, { method: "PUT", body: JSON.stringify(s) }),
   pricingAssumptions: () => j<{ fields: Record<string, Record<string, [number, number]>>; defaults: Record<string, number> }>("/pricing/assumptions"),
-  run: (kind: string, scenario?: string, books?: BookName[], pricing?: PricingOptions) =>
-    j<Job>("/run", { method: "POST", body: JSON.stringify({ kind, scenario, books, ...pricing }) }),
+  run: (kind: string, scenario?: string, books?: BookName[], pricing?: PricingOptions, priority?: "interactive" | "background") =>
+    j<Job>("/run", { method: "POST", body: JSON.stringify({ kind, scenario, books, ...pricing, priority }) }),
   job: (id: string) => j<Job>(`/jobs/${id}`),
   jobResult: (id: string) => jArrow(`/jobs/${id}/result`),
   strategyEval: (alloc: unknown, signal?: AbortSignal) => jArrow("/strategy/eval", {

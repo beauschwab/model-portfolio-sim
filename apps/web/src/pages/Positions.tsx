@@ -1,6 +1,7 @@
 /** Positions — the hierarchical balance sheet. Side → book → position
  * drill-down; spot balances edit via slider popovers and AUTO-BALANCE
  * into a brass "Cash & ST funding" plug on the opposite side; a
+ * slider icon opens product- and position-level assumptions; a
  * segmented control swaps the right-hand column group between Summary
  * (yield/OAD/sparkline), Fwd Balance, Fwd NII, and KRD heat. All
  * derived figures are INDICATIVE client-side approximations (each ⓘ
@@ -23,10 +24,26 @@ const BAL_FIELD: Record<BookName, string> = { mbs: "current_face", loans: "face"
 const rowKey = (book: string) => (book === "mbs" ? "cusip" : "id");
 const DEPOSIT_FIELDS: [string, string][] = [["base", "Monthly base decay"], ["amp", "Flight amplitude"], ["b", "Flight B"], ["g0", "Flight floor g0"]];
 const CD_FIELDS = ["Base annual withdrawal", "Amplitude", "B", "g0", "Annual cap"];
-/** Per-account deposit overrides the native deck reads; each falls back to the
- * segment value (base, amp, b, g0) when null. */
-const ACCOUNT_FIELDS = ["attrition_base", "attrition_amp", "attrition_slope", "attrition_gap"] as const;
-type AccountOverride = Partial<Record<(typeof ACCOUNT_FIELDS)[number], number | null>>;
+/** A per-position input the native deck reads from the book row.
+ * `segment` names the deposit segment parameter a null value inherits; `fallback`
+ * is the value rows without the column take when the column is first added. */
+type PositionField = { key: string; label: string; min?: number; segment?: string; fallback?: number };
+const PRICE: PositionField = { key: "price", label: "Price (per 100)", min: 0 };
+/** Position-level inputs by book. Product-level assumptions (deposit segments, the
+ * CD withdrawal curve, the MBS prepay model) sit above these in the popover. */
+const POSITION_FIELDS: Record<BookName, PositionField[]> = {
+  mbs: [PRICE],
+  loans: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
+  debt: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
+  cds: [PRICE, { key: "rate", label: "Rate" }, { key: "penalty_months", label: "Penalty months", min: 0 },
+    { key: "ew_mult", label: "Withdrawal multiplier", min: 0, fallback: 1 }],
+  deposits: [PRICE, { key: "rate_paid", label: "Rate paid" }, { key: "svc_cost", label: "Servicing cost", min: 0 },
+    ...DEPOSIT_FIELDS.map(([segment, label], i) => ({
+      key: ["attrition_base", "attrition_amp", "attrition_slope", "attrition_gap"][i], label, segment, min: segment === "g0" ? undefined : 0,
+    }))],
+  mm: [{ key: "spread_bp", label: "Spread (bp)" }],
+};
+type PositionEdit = Record<string, number | null>;
 /** Funding plug rows in the money-market book: short-rate floaters at spread 0. */
 const PLUG_FUNDING = "PLUG_ST_FUNDING", PLUG_CASH = "PLUG_CASH";
 const isPlug = (id: string) => id === PLUG_FUNDING || id === PLUG_CASH;
@@ -76,31 +93,36 @@ const Trend = ({ now, was }: { now: number; was: number }) => {
   return <span className={`num ml-1 text-2xs ${d > 0 ? "text-up" : "text-down"}`}>{d > 0 ? "▲" : "▼"}{fmt$(Math.abs(d))}</span>;
 };
 
-/** Product assumptions for a row's class. Edits apply to every position in that
- * class; a single position cannot be overridden yet, because the engine has no
- * per-position behavior input. Values save to the engine, which then recomputes. */
-function AssumptionEdit({ p, assumptions, row, onSaved, onSaveAccount }: {
+/** Assumptions for one position, at two levels: the product level its class shares
+ * (deposit segment, CD withdrawal curve, MBS prepay vector) and the position's own
+ * row fields (price, rate, terms, and deposit behaviour overrides that inherit the
+ * segment when empty). Saves go to the engine, which then recomputes downstream. */
+function AssumptionEdit({ p, assumptions, row, onSaved, onSavePosition }: {
   p: Pos; assumptions: Row | null; row?: Row; onSaved: () => void;
-  onSaveAccount: (p: Pos, override: AccountOverride) => Promise<void>;
+  onSavePosition: (p: Pos, edit: PositionEdit, fields: PositionField[]) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const accountSaved: (number | null)[] = ACCOUNT_FIELDS.map(k => (row?.[k] == null ? null : Number(row[k])));
-  const [accountDraft, setAccountDraft] = useState<(number | null)[] | null>(null);
-  const account = accountDraft ?? accountSaved;
-  const saveAccount = async (values: (number | null)[]) => {
+  const fields = POSITION_FIELDS[p.book as BookName] ?? [];
+  const posSaved: (number | null)[] = fields.map(f => (row?.[f.key] == null ? (f.segment ? null : f.fallback ?? null) : Number(row[f.key])));
+  const [posDraft, setPosDraft] = useState<(number | null)[] | null>(null);
+  const position = posDraft ?? posSaved;
+  const savePosition = async (values: (number | null)[]) => {
     setError(null); setSaving(true);
     try {
-      await onSaveAccount(p, Object.fromEntries(ACCOUNT_FIELDS.map((k, i) => [k, values[i]])) as AccountOverride);
-      setAccountDraft(null);
+      const edit: PositionEdit = {};
+      fields.forEach((f, i) => { if (values[i] !== posSaved[i]) edit[f.key] = values[i]; });
+      if (Object.keys(edit).length) await onSavePosition(p, edit, fields);
+      setPosDraft(null);
     } catch (e) {
       setError(errorText(e));
     } finally { setSaving(false); }
   };
   const seg = p.segment ?? "";
+  const segmentValues = (assumptions?.deposit_segments as Record<string, Record<string, number>> | undefined)?.[seg] ?? {};
   const current: number[] = p.book === "deposits"
-    ? DEPOSIT_FIELDS.map(([k]) => Number(((assumptions?.deposit_segments as Record<string, Record<string, number>> | undefined)?.[seg] ?? {})[k] ?? NaN))
+    ? DEPOSIT_FIELDS.map(([k]) => Number(segmentValues[k] ?? NaN))
     : p.book === "cds" ? ((assumptions?.cd_ew_params as number[] | undefined) ?? [])
     : [];
   const started = draft.length === current.length && draft.length > 0;
@@ -124,47 +146,56 @@ function AssumptionEdit({ p, assumptions, row, onSaved, onSaveAccount }: {
   };
 
   const editable = p.book === "deposits" || p.book === "cds";
+  const overridden = fields.some((f, i) => f.segment && posSaved[i] !== null);
   return (
-    <Popover width="17rem" trigger={
-      <span title="Product assumptions" className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm text-paper-faint hover:bg-surface-2 hover:text-paper">
-        <SlidersHorizontal aria-label="Product assumptions" className="h-3 w-3" strokeWidth={1.5} />
+    <Popover width="18rem" trigger={
+      <span title="Assumptions" className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-sm text-paper-faint hover:bg-surface-2 hover:text-paper">
+        <SlidersHorizontal aria-label={`Assumptions for ${p.id}`} className="h-3 w-3" strokeWidth={1.5} />
       </span>}>
       <div className="space-y-2">
-        <div className="eyebrow">{p.book === "deposits" ? `${seg} deposits` : p.book === "cds" ? "CD product" : p.book === "mbs" ? "MBS prepayment" : p.book.toUpperCase()}</div>
-        {p.book === "deposits" && <p className="text-xs text-paper-faint">Segment values apply to every {seg} account unless the account overrides them below.</p>}
-        {p.book === "cds" && <p className="text-xs text-paper-faint">Applies to all CD positions.</p>}
-        {p.book === "mbs" && <p className="text-xs text-paper-faint">Prepay vector is read-only here. Changing it needs an engine restart.</p>}
-        {!editable && p.book !== "mbs" && <p className="text-xs text-paper-faint">Rate and term are book fields. Edit them in Book Editor.</p>}
-        {!assumptions && editable && <div className="text-xs text-paper-faint">Loading…</div>}
-        {assumptions && editable && (p.book === "deposits" ? DEPOSIT_FIELDS : CD_FIELDS.map(l => [l, l] as [string, string])).map(([, label], i) => (
-          <label key={label} className="flex items-center gap-2">
-            <span className="w-32 text-xs text-paper-dim">{label}</span>
-            <Input type="number" step="any" min={0} value={Number.isFinite(values[i]) ? values[i] : ""}
-              onChange={e => { const next = [...values]; next[i] = Number(e.target.value); setDraft(next); }} />
-          </label>
-        ))}
-        {p.book === "mbs" && assumptions && (
-          <div className="num text-2xs text-paper-faint">{((assumptions.prepay as { names: string[]; vector: number[] } | undefined)?.names ?? []).map((n, i) =>
-            <div key={n} className="flex justify-between"><span>{n}</span><span>{Number((assumptions.prepay as { vector: number[] }).vector[i]).toPrecision(4)}</span></div>)}</div>
-        )}
-        {editable && <Button size="sm" disabled={saving || !assumptions} onClick={save}>{saving ? "Saving…" : p.book === "deposits" ? `Save ${seg} segment` : "Save assumptions"}</Button>}
-        {p.book === "deposits" && assumptions && (
-          <div className="space-y-2 border-t border-line pt-2">
-            <div className="eyebrow">This account · {p.id}</div>
-            <p className="text-xs text-paper-faint">Leave a field empty to inherit the segment value shown.</p>
-            {ACCOUNT_FIELDS.map((k, i) => (
-              <label key={k} className="flex items-center gap-2">
-                <span className="w-32 text-xs text-paper-dim">{DEPOSIT_FIELDS[i][1]}</span>
-                <Input type="number" step="any" min={0} placeholder={Number.isFinite(current[i]) ? String(current[i]) : ""}
-                  aria-label={`${DEPOSIT_FIELDS[i][1]} override for ${p.id}`}
-                  value={account[i] ?? ""}
-                  onChange={e => { const next = [...account]; next[i] = e.target.value === "" ? null : Number(e.target.value); setAccountDraft(next); }} />
+        {p.book !== "mm" && <>
+          <div className="eyebrow">{p.book === "deposits" ? `${seg} segment` : p.book === "cds" ? "CD product" : p.book === "mbs" ? "MBS prepayment" : `${p.book} product`}</div>
+          {p.book === "deposits" && <p className="text-xs text-paper-faint">Applies to every {seg} account that does not override it below.</p>}
+          {p.book === "cds" && <p className="text-xs text-paper-faint">Withdrawal curve for every CD. Each CD scales it with its multiplier below.</p>}
+          {p.book === "mbs" && <p className="text-xs text-paper-faint">The prepay model is shared by every pool and is read-only here: changing it needs an engine restart.</p>}
+          {(p.book === "loans" || p.book === "debt") && <p className="text-xs text-paper-faint">No behavioural model: cash flows follow the contract schedule and calls.</p>}
+          {!assumptions && editable && <div className="text-xs text-paper-faint">Loading…</div>}
+          {assumptions && editable && (p.book === "deposits" ? DEPOSIT_FIELDS : CD_FIELDS.map(l => [l, l] as [string, string])).map(([, label], i) => (
+            <label key={label} className="flex items-center gap-2">
+              <span className="w-32 text-xs text-paper-dim">{label}</span>
+              <Input type="number" step="any" min={0} value={Number.isFinite(values[i]) ? values[i] : ""}
+                onChange={e => { const next = [...values]; next[i] = Number(e.target.value); setDraft(next); }} />
+            </label>
+          ))}
+          {p.book === "mbs" && assumptions && (
+            <div className="num text-2xs text-paper-faint">{((assumptions.prepay as { names: string[]; vector: number[] } | undefined)?.names ?? []).map((n, i) =>
+              <div key={n} className="flex justify-between"><span>{n}</span><span>{Number((assumptions.prepay as { vector: number[] }).vector[i]).toPrecision(4)}</span></div>)}</div>
+          )}
+          {editable && <Button size="sm" disabled={saving || !assumptions || !started} onClick={save}>{p.book === "deposits" ? `Save ${seg} segment` : "Save CD product"}</Button>}
+        </>}
+        {fields.length > 0 && (
+          <div className={`space-y-2 ${p.book !== "mm" ? "border-t border-line pt-2" : ""}`}>
+            <div className="eyebrow">This position · {p.id}</div>
+            {p.book === "deposits" && <p className="text-xs text-paper-faint">Leave a behaviour field empty to inherit the segment value shown.</p>}
+            {fields.map((f, i) => (
+              <label key={f.key} className="flex items-center gap-2">
+                <span className="w-32 text-xs text-paper-dim">{f.label}</span>
+                <Input type="number" step="any" min={f.min}
+                  placeholder={f.segment && Number.isFinite(segmentValues[f.segment]) ? String(segmentValues[f.segment]) : ""}
+                  aria-label={`${f.label} ${f.segment ? "override " : ""}for ${p.id}`}
+                  value={position[i] ?? ""}
+                  onChange={e => {
+                    const next = [...position];
+                    next[i] = e.target.value === "" ? (f.segment ? null : posSaved[i]) : Number(e.target.value);
+                    setPosDraft(next);
+                  }} />
               </label>
             ))}
             <div className="flex gap-2">
-              <Button size="sm" disabled={saving || accountDraft === null} onClick={() => saveAccount(account)}>Save account override</Button>
-              {accountSaved.some(v => v !== null) && (
-                <Button size="sm" variant="ghost" disabled={saving} onClick={() => saveAccount(ACCOUNT_FIELDS.map(() => null))}>Clear override</Button>
+              <Button size="sm" disabled={saving || posDraft === null} onClick={() => savePosition(position)}>Save position</Button>
+              {overridden && (
+                <Button size="sm" variant="ghost" disabled={saving}
+                  onClick={() => savePosition(fields.map((f, i) => (f.segment ? null : posSaved[i])))}>Clear overrides</Button>
               )}
             </div>
           </div>
@@ -310,11 +341,17 @@ export default function Positions() {
     }, 600));
   };
 
-  /** Save (or clear, with nulls) one deposit account's behaviour override. */
-  const saveAccountOverride = async (p: Pos, override: AccountOverride) => {
-    const rows = rawRows.current.deposits ?? [];
-    const next = rows.map(r => (String(r.id) === p.id ? { ...r, ...override } : r));
-    await write("deposits", next);
+  /** Save one position's row fields (null clears a deposit behaviour override). A
+   * column new to the book is added to every row, at its fallback or empty. */
+  const savePosition = async (p: Pos, edit: PositionEdit, fields: PositionField[]) => {
+    const book = p.book as BookName, key = rowKey(book);
+    const rows = rawRows.current[book] ?? [];
+    const defaults = Object.fromEntries(fields.filter(f => f.key in edit).map(f => [f.key, f.fallback ?? null]));
+    const next = rows.map(r => {
+      const filled = { ...defaults, ...r };
+      return String(r[key]) === p.id ? { ...filled, ...edit } : filled;
+    });
+    await write(book, next);
   };
 
   /** The saved funding plug: >0 is short-term funding raised, <0 is cash held. */
@@ -462,7 +499,7 @@ export default function Positions() {
                   {isPlug(p.id) ? <span className="num">{fmt$(p.bal)}</span> : <BalEdit p={p} onSet={v => { setPos((xs: Pos[]) => xs.map(x => x.id === p.id && x.book === p.book ? { ...x, bal: v } : x)); commitBalance(p, v); }} />}
                   {!isPlug(p.id) && <AssumptionEdit p={p} assumptions={assumptions} onSaved={() => setRevision(v => v)}
                     row={rawRows.current[p.book as BookName]?.find(r => String(r[rowKey(p.book)]) === p.id)}
-                    onSaveAccount={saveAccountOverride} />}
+                    onSavePosition={savePosition} />}
                 </span>
               </td>
               {renderCols({ a: agg([p]), p })}

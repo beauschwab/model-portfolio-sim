@@ -449,23 +449,23 @@ def run(req: RunRequest) -> JobStatus:
             raise HTTPException(422, "interactive library must use the base market; use optimizer for robust scenarios")
         if req.kind == "nii":
             jid = store.submit("scenario_nii", store.run_scenario_grid, sc,
-                               plan=store.compute_run_plan("scenario_nii", books, state), state=state)
+                               plan=store.compute_run_plan("scenario_nii", books, state), state=state, priority=req.priority)
             return JobStatus(**store.job_status(jid))
         sr, vp, spr = store.apply_scenario(sc, 0, state)
     if req.kind in ("pricing", "whatif"):
         options = dict(compare=req.kind == 'whatif', backend=req.backend, include_analytics=req.include_analytics,
                        assumption_overrides=req.assumption_overrides, calibration_mode=req.calibration_mode)
         jid = store.submit(req.kind, store.run_pricing, books, sr, vp, spr,
-                           req.spread_overrides_bp, options, plan=plan, state=state)
+                           req.spread_overrides_bp, options, plan=plan, state=state, priority=req.priority)
     elif req.kind == "risk":
-        jid = store.submit("risk", store.run_risk_all, books, sr, vp, spr, bool(req.scenario), plan=plan, state=state)
+        jid = store.submit("risk", store.run_risk_all, books, sr, vp, spr, bool(req.scenario), plan=plan, state=state, priority=req.priority)
     elif req.kind in ("stress", "deposit_stress"):
-        jid = store.submit("stress", store.run_stress_all, books, sr, vp, bool(req.scenario), spr, plan=plan, state=state)
+        jid = store.submit("stress", store.run_stress_all, books, sr, vp, bool(req.scenario), spr, plan=plan, state=state, priority=req.priority)
     elif req.kind == "kpis":
-        jid = store.submit("kpis", store.run_kpis_scenario, sr, vp, bool(req.scenario), spr, plan=plan, state=state)
+        jid = store.submit("kpis", store.run_kpis_scenario, sr, vp, bool(req.scenario), spr, plan=plan, state=state, priority=req.priority)
     else:
         runner = {"nii": store.run_nii, "unitlib": store.build_unitlib_job, "strategy": store.run_strategy_job}[req.kind]
-        jid = store.submit(req.kind, runner, sr, vp, plan=plan, state=state)
+        jid = store.submit(req.kind, runner, sr, vp, plan=plan, state=state, priority=req.priority)
     return JobStatus(**store.job_status(jid))
 
 
@@ -611,9 +611,9 @@ def run_manifest(jid: str):
 
 @app.delete('/jobs/{jid}')
 def cancel_job(jid: str):
-    if persistence.REPO is None:
-        raise HTTPException(409, 'Durable storage is disabled')
     try:
+        if persistence.REPO is None:
+            return {'cancelled': store.cancel_job(jid)}
         return {'cancelled': persistence.REPO.cancel(jid)}
     except KeyError:
         raise HTTPException(404, 'Unknown job')
