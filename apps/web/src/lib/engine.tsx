@@ -17,10 +17,18 @@ import {
 } from "react";
 import { api, type BookName, type Job, type Market, type PipelineNode, type RunPlan, type Scenario, type Settings, type PricingOptions } from "./api";
 import type { Sample } from "../components/Heartbeat";
+import { changedInputs, dependsOn, nodesFor, type InputNodes, type ResultKind } from "./graph";
+export type { ResultKind } from "./graph";
 
 export type RunLog = { t: number; msg: string };
-export type ResultKind = "kpis" | "risk" | "nii" | "stress";
 export type Result<T = unknown> = { value: T; revision: number; at: Date };
+/** One result node of the recalculation graph, for display. */
+export type GraphNode = {
+  node: string; inputs: string[]; at: Date | null;
+  status: "current" | "stale" | "updating" | "failed" | "missing";
+  /** inputs that changed since this node was computed; null when unknown */
+  changed: string[] | null;
+};
 
 export type Kpis = {
   eve: {
@@ -61,6 +69,8 @@ interface EngineState {
   kpis: Kpis | null;
   kpisAt: Date | null;
   isStale: (kind: ResultKind) => boolean;
+  /** Result nodes the engine keeps fresh, with their inputs and status. */
+  graph: GraphNode[];
   pending: ResultKind[];
   /** Last failure for each downstream result; cleared when it succeeds. */
   errors: Partial<Record<ResultKind, string>>;
@@ -88,7 +98,7 @@ interface EngineState {
 }
 
 const Ctx = createContext<EngineState | null>(null);
-type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
+type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "graph" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
 const DataCtx = createContext<EngineData | null>(null);
 
 function readAutoRecalc(): boolean {
@@ -100,7 +110,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [settings, setSettingsState] = useState<Settings | null>(null);
   const [scenarios, setScenarios] = useState<Record<string, Scenario>>({});
   const [active, setActive] = useState("base");
-  const [results, setResults] = useState<Partial<Record<ResultKind, Result>>>({});
+  /** Results per graph node: kpis, nii, risk:<book>, risk:hedges, stress:<book>. */
+  const [entries, setEntries] = useState<Record<string, Result>>({});
+  /** Bumped when new input fingerprints arrive, so staleness re-evaluates. */
+  const [fpTick, setFpTick] = useState(0);
   const [pending, setPending] = useState<ResultKind[]>([]);
   const [errors, setErrors] = useState<Partial<Record<ResultKind, string>>>({});
   const [autoRecalc, setAutoRecalcState] = useState<boolean>(readAutoRecalc);
@@ -121,30 +134,46 @@ export function EngineProvider({ children }: { children: ReactNode }) {
 
   const revisionRef = useRef(0);
   const autoRef = useRef(autoRecalc);
-  const resultsRef = useRef(results);
-  resultsRef.current = results;
+  const entriesRef = useRef(entries);
+  /** Input fingerprints by revision, from `/state`; bounded. */
+  const fingerprints = useRef(new Map<number, InputNodes>());
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pendingRuns = useRef(new Map<string, Promise<Job>>());
   /** Downstream results to keep fresh, with the books each was requested for. */
   const wanted = useRef(new Map<ResultKind, BookName[] | undefined>(DEFAULT_WANTED.map(k => [k, undefined])));
   /** Revision at which a result last failed; a failed result is not retried until inputs change. */
   const failedAt = useRef(new Map<ResultKind, number>());
-  const inflightJob = useRef<string | null>(null);
+  const inflightJob = useRef<{ id: string; kind: ResultKind | null; books?: BookName[]; revision: number } | null>(null);
   const quietTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** True when a node computed at `rev` still answers the current inputs: either
+   * nothing moved, or none of the inputs it depends on hash differently. */
+  const isCurrent = useCallback((node: string, rev: number) => {
+    if (rev === revisionRef.current) return true;
+    const moved = changedInputs(node, fingerprints.current.get(rev), fingerprints.current.get(revisionRef.current));
+    return moved !== null && moved.length === 0;
+  }, []);
 
   const refreshState = useCallback(async () => {
     const state = await api.state();
     const changed = state.revision !== revisionRef.current;
+    if (state.inputs) {
+      fingerprints.current.set(state.inputs.revision, state.inputs.nodes);
+      while (fingerprints.current.size > 64) fingerprints.current.delete(fingerprints.current.keys().next().value!);
+      setFpTick(t => t + 1);
+    }
     revisionRef.current = state.revision;
     setRevision(state.revision);
     setLibraryReady(state.library_ready);
     setLibraryHorizon(state.library_horizon ?? 27);
-    if (changed && inflightJob.current) {
-      // the running job answers an older revision; stop it rather than wait
-      void api.cancelJob(inflightJob.current).catch(() => {});
+    const inflight = inflightJob.current;
+    if (changed && inflight) {
+      // stop the running job only if an input it depends on moved; otherwise its answer still holds
+      const affected = !inflight.kind || nodesFor(inflight.kind, inflight.books).some(n => !isCurrent(n, inflight.revision));
+      if (affected) void api.cancelJob(inflight.id).catch(() => {});
     }
     return state;
-  }, []);
+  }, [isCurrent]);
 
   const refreshMarket = useCallback(() => { api.market().then(setMarket).catch(() => {}); }, []);
   const refreshScenarios = useCallback(() => {
@@ -161,7 +190,9 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     const clock = setInterval(() => setElapsed((performance.now() - t0) / 1000), 100);
     try {
       const j = kind === "optimize" ? await api.optimize(opts?.optimize) : await api.run(kind, opts?.scenario, opts?.books, opts?.pricing);
-      inflightJob.current = j.id;
+      const downstreamKind = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize
+        ? kind as ResultKind : null;
+      inflightJob.current = { id: j.id, kind: downstreamKind, books: opts?.books, revision: j.revision };
       let done = await pollWithTelemetry(j.id, job => {
         opts?.onTick?.(job);
         const p = job.progress ?? {};
@@ -182,23 +213,32 @@ export function EngineProvider({ children }: { children: ReactNode }) {
         }
       }, kind === "whatif" ? 75 : 300);
       inflightJob.current = null;
-      const fresh = await refreshState();
-      if (done.status === "done" && done.revision !== fresh.revision) {
-        // inputs changed while this ran: its answer is stale, and the debounced refresh will rerun it
-        done = { ...done, status: "error", detail: "Inputs changed during this run." };
-      } else if (done.status === "error" && done.revision === fresh.revision) {
-        if (RESULT_KINDS.includes(kind as ResultKind)) failedAt.current.set(kind as ResultKind, fresh.revision);
-      }
-      const isDownstream = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize;
+      await refreshState();
+      // A finished result is kept at the revision it ran on; the graph decides
+      // whether later input changes reach it.
+      const isDownstream = downstreamKind !== null;
       if (done.status === "done") {
         setStage("done"); setPct(100);
         if (isDownstream) {
-          setResults(prev => ({ ...prev, [kind]: { value: done.result, revision: done.revision, at: new Date() } }));
+          const at = new Date();
+          const next = { ...entriesRef.current };
+          if (kind === "risk" || kind === "stress") {
+            for (const [part, value] of Object.entries((done.result ?? {}) as Record<string, unknown>)) {
+              next[`${kind}:${part}`] = { value, revision: done.revision, at };
+            }
+          } else {
+            next[kind] = { value: done.result, revision: done.revision, at };
+          }
+          entriesRef.current = next;
+          setEntries(next);
+          failedAt.current.delete(kind as ResultKind);
           setErrors(prev => ({ ...prev, [kind]: undefined }));
         }
       } else {
         setStage("error");
-        if (isDownstream && done.revision === fresh.revision) {
+        const cancelledForNewInputs = isDownstream && done.revision !== revisionRef.current;
+        if (isDownstream && !cancelledForNewInputs) {
+          failedAt.current.set(kind as ResultKind, done.revision);
           setErrors(prev => ({ ...prev, [kind]: done.detail ?? "The engine returned no result." }));
         }
       }
@@ -212,9 +252,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshState]);
 
-  const run = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
+  const enqueue = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
     const isDownstream = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize;
-    if (isDownstream) wanted.current.set(kind as ResultKind, opts?.books);
     const key = JSON.stringify([revisionRef.current, kind, opts?.scenario, opts?.books, opts?.optimize, opts?.pricing]);
     const existing = pendingRuns.current.get(key);
     if (existing) return existing;
@@ -230,15 +269,36 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     return task;
   }, [execute]);
 
-  /** Queue every wanted result that is missing or computed at an older revision. */
+  /** Run on request; a downstream result run this way is then kept fresh. */
+  const run = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
+    const isDownstream = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize;
+    if (isDownstream) wanted.current.set(kind as ResultKind, opts?.books);
+    return enqueue(kind, opts);
+  }, [enqueue]);
+
+  /** Recompute only the result nodes whose inputs moved, in graph order: per-book
+   * risk and stress for the books that changed, whole runs for KPIs and NII. A
+   * result that failed is retried only once its inputs change again. */
   const refreshStale = useCallback(() => {
     for (const [kind, books] of wanted.current) {
-      const current = resultsRef.current[kind];
-      if (current && current.revision === revisionRef.current) continue;
-      if (failedAt.current.get(kind) === revisionRef.current) continue;
-      void run(kind, { books });
+      const stale = nodesFor(kind, books).filter(n => {
+        const e = entriesRef.current[n];
+        return !e || !isCurrent(n, e.revision);
+      });
+      if (!stale.length) continue;
+      const failed = failedAt.current.get(kind);
+      if (failed !== undefined && stale.every(n => isCurrent(n, failed))) continue;
+      if (kind === "risk") {
+        // the hedge book is valued only in a run over every book
+        const scope = stale.includes("risk:hedges") ? books : stale.map(n => n.split(":")[1] as BookName);
+        void enqueue("risk", { books: scope });
+      } else if (kind === "stress") {
+        void enqueue("stress", { books: stale.map(n => n.split(":")[1] as BookName) });
+      } else {
+        void enqueue(kind);
+      }
     }
-  }, [run]);
+  }, [enqueue, isCurrent]);
 
   const scheduleRefresh = useCallback((ms: number) => {
     if (quietTimer.current) clearTimeout(quietTimer.current);
@@ -250,8 +310,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
 
   const request = useCallback((kind: ResultKind, books?: BookName[]) => {
     wanted.current.set(kind, books);
-    void run(kind, { books });
-  }, [run]);
+    void enqueue(kind, { books });
+  }, [enqueue]);
 
   const setAutoRecalc = useCallback((on: boolean) => {
     autoRef.current = on;
@@ -285,25 +345,60 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshMarket, refreshScenarios, refreshState, scheduleRefresh]);
 
+  /** Per-kind view for panels: risk and stress assemble their per-book nodes. */
+  const results = useMemo(() => {
+    const view: Partial<Record<ResultKind, Result>> = {};
+    for (const kind of ["kpis", "nii"] as const) if (entries[kind]) view[kind] = entries[kind];
+    for (const kind of ["risk", "stress"] as const) {
+      const parts = Object.entries(entries).filter(([k]) => k.startsWith(`${kind}:`));
+      if (!parts.length) continue;
+      view[kind] = {
+        value: Object.fromEntries(parts.map(([k, e]) => [k.slice(kind.length + 1), e.value])),
+        revision: Math.min(...parts.map(([, e]) => e.revision)),
+        at: new Date(Math.max(...parts.map(([, e]) => e.at.getTime()))),
+      };
+    }
+    return view;
+  }, [entries]);
+
+  const nodesOf = useCallback((kind: ResultKind) => wanted.current.has(kind)
+    ? nodesFor(kind, wanted.current.get(kind))
+    : Object.keys(entries).filter(k => k === kind || k.startsWith(`${kind}:`)), [entries]);
+
   const isStale = useCallback((kind: ResultKind) => {
-    const r = results[kind];
-    return !r || r.revision !== revision;
-  }, [results, revision]);
+    const nodes = nodesOf(kind);
+    return !nodes.length || nodes.some(n => !entries[n] || !isCurrent(n, entries[n].revision));
+    // revision and fpTick change what isCurrent sees
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, nodesOf, isCurrent, revision, fpTick]);
+
+  const graph = useMemo<GraphNode[]>(() => {
+    const now = fingerprints.current.get(revision);
+    return [...wanted.current].flatMap(([kind, books]) => nodesFor(kind, books).map(node => {
+      const e = entries[node];
+      const current = !!e && isCurrent(node, e.revision);
+      const status: GraphNode["status"] = pending.includes(kind) && !current ? "updating"
+        : errors[kind] && !current ? "failed" : !e ? "missing" : current ? "current" : "stale";
+      return { node, inputs: dependsOn(node), at: e?.at ?? null, status,
+        changed: e ? changedInputs(node, fingerprints.current.get(e.revision), now) : null };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, pending, errors, revision, fpTick, isCurrent]);
 
   const kpis = (results.kpis?.value as Kpis | undefined) ?? null;
   const kpisAt = results.kpis?.at ?? null;
 
   const data = useMemo<EngineData>(() => ({ market, settings, scenarios, active, revision,
     libraryReady, libraryHorizon, running, setActive, setSettings, refreshMarket, refreshScenarios, run,
-    results, kpis, isStale, pending, errors, autoRecalc, setAutoRecalc, request }),
+    results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request }),
     [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, running,
-      setSettings, refreshMarket, refreshScenarios, run, results, kpis, isStale, pending, errors, autoRecalc, setAutoRecalc, request]);
+      setSettings, refreshMarket, refreshScenarios, run, results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request]);
   const value = useMemo<EngineState>(() => ({
     market, settings, scenarios, active, revision, libraryReady, libraryHorizon,
-    results, kpis, kpisAt, isStale, pending, errors, autoRecalc, setAutoRecalc,
+    results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
     running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run, request,
-  }), [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, results, kpis, kpisAt, isStale, pending, errors, autoRecalc, setAutoRecalc,
+  }), [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
        running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run, request]);
 
   return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;

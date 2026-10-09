@@ -18,10 +18,15 @@ Green/red signal direction only; KPI deltas need an explicit reference.
 ## Downstream results (live recalculation)
 
 Panels read downstream results (KPIs, risk, NII, stress) from `lib/engine.tsx`, never
-from their own run state. Each result carries the input revision it was computed at. An
-input write (settings, assumptions, books, market, scenarios) bumps the revision, marks
-results stale and, with auto-recalculation on, queues the stale ones after a quiet period.
-A failed result is not retried until the inputs change again. New panels that show a
+from their own run state. Recalculation is a dependency graph (`lib/graph.ts`): `/state`
+serves a content fingerprint per input node (each book, market, settings, product
+assumptions, scenarios, cohorts, context), and each result node (KPIs, NII, risk and
+stress per book) is current while the fingerprints of its inputs match those it was
+computed at. With auto-recalculation on, only stale nodes are queued after a quiet period,
+so a deposits edit reruns deposit risk, KPIs and NII but not MBS risk. Edges must stay
+conservative and mirror what each `run_*` adapter in `apps/api/app/store.py` reads; when
+an adapter starts reading a new input, add the edge. A failed result is not retried until
+one of its inputs changes again. New panels that show a
 downstream figure should call `useEngineData().results`, `isStale` and `pending`, and
 should not add their own run button for a result the engine already keeps fresh.
 Balance edits write back to the book, and the grid reloads only when the book changes

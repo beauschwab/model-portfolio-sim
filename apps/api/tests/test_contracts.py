@@ -392,3 +392,25 @@ def test_deposit_flight_amplitude_is_a_multiplier_not_a_rate(client):
 
 def test_nonfinite_skeleton_is_valid_json():
     assert skeleton(store.to_arrow_envelope({"x": float("nan")})) == {"x": None}
+
+
+def test_state_fingerprints_change_only_for_the_edited_input(client):
+    """The client's recalculation graph diffs these per input node, so an edit must
+    move exactly the node it touched and leave the others alone."""
+    def nodes():
+        body = client.get("/state").json()
+        assert body["inputs"]["revision"] == body["revision"]
+        return body["inputs"]["nodes"]
+    before = nodes()
+    assert {"market", "settings", "assumptions:deposits", "assumptions:cds", "scenarios", "context"} <= before.keys()
+
+    assert client.put("/assumptions", json={"deposit_segments": {"DDA": {"base": 0.02}}}).status_code == 200
+    after = nodes()
+    assert {k for k in before if before[k] != after.get(k)} == {"assumptions:deposits"}
+
+    settings = client.get("/settings").json()
+    assert client.put("/settings", json={**settings, "seed": settings["seed"] + 1}).status_code == 200
+    final = nodes()
+    assert {k for k in after if after[k] != final.get(k)} == {"settings"}
+    # an unchanged snapshot hashes the same on every call
+    assert nodes() == final

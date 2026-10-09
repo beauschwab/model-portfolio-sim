@@ -197,7 +197,9 @@ export const api = {
   updateDecision: (id: string, request: unknown) => j<Job>(`/decision/sessions/${id}/update`, { method: 'POST', body: JSON.stringify(request) }),
   evaluateDecision: (id: string, request: unknown) => j<DecisionEvaluation>(`/decision/sessions/${id}/eval`, { method: 'POST', body: JSON.stringify(request) }),
   closeDecision: (id: string) => j(`/decision/sessions/${id}`, { method: 'DELETE' }),
-  state: () => j<{ revision: number; library_ready: boolean; library_horizon: number | null }>("/state"),
+  /** `inputs`: content hash per input node at `inputs.revision` (absent on older servers). */
+  state: () => j<{ revision: number; library_ready: boolean; library_horizon: number | null;
+    inputs?: { revision: number; nodes: Record<string, string> } }>("/state"),
   optimize: (options: unknown) => j<Job>("/optimize", { method: "POST", body: JSON.stringify(options) }),
   books: () => j<Record<string, { positions: number; balance: number }>>("/books"),
   book: (n: BookName) => jArrow(`/books/${n}`) as Promise<Table>,

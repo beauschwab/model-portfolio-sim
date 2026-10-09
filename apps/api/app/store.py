@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 from contextvars import ContextVar
+import hashlib
 import io
 import json
 import struct
@@ -77,6 +78,81 @@ def snapshot():
 
 def current_state():
     return _RUN_STATE.get() or snapshot()
+
+
+# ---- input fingerprints: the leaves of the client's recalculation graph ----------
+# Each node is a content hash of one slice of the committed snapshot, so every API
+# replica and the worker agree on what changed between two revisions without any
+# extra bookkeeping. A result depends on a set of nodes; when none of them changed,
+# the result is still current even though the revision moved.
+_FINGERPRINTS: dict = {"revision": None, "inputs": {}}
+# snapshot keys that only the cohort workflow reads; no base result depends on them
+_COHORT_KEYS = ("tapes", "cohort_publications")
+_NODE_KEYS = ("books", "market", "settings", "assumptions", "scenarios", "revision") + _COHORT_KEYS
+
+
+def _digest(value, h) -> None:
+    """Feed a canonical encoding of a snapshot value into hash ``h``."""
+    if isinstance(value, pl.DataFrame):
+        h.update(b"F" + repr(value.schema).encode())
+        plain = [c for c, t in value.schema.items() if t != pl.Object]
+        if plain:
+            buf = io.BytesIO()
+            value.select(plain).rechunk().write_ipc(buf, compression="uncompressed")
+            h.update(hashlib.sha256(buf.getvalue()).digest())
+        for c in (c for c, t in value.schema.items() if t == pl.Object):
+            h.update(c.encode())
+            for item in value[c].to_list():
+                _digest(item, h)
+    elif isinstance(value, np.ndarray):
+        h.update(b"A" + str(value.dtype).encode() + str(value.shape).encode() + np.ascontiguousarray(value).tobytes())
+    elif isinstance(value, dict):
+        h.update(b"D")
+        for k in sorted(value, key=repr):
+            h.update(repr(k).encode())
+            _digest(value[k], h)
+    elif isinstance(value, (list, tuple)):
+        h.update(b"L%d" % len(value))
+        for item in value:
+            _digest(item, h)
+    elif hasattr(value, "model_dump"):
+        _digest(value.model_dump(), h)
+    else:
+        h.update(repr(value).encode())
+    h.update(b";")
+
+
+def _fingerprint(value) -> str:
+    h = hashlib.sha256()
+    _digest(value, h)
+    return h.hexdigest()[:16]
+
+
+def input_fingerprints(state=None) -> dict:
+    """``{"revision": r, "nodes": {...}}``: a content hash per input node of the
+    snapshot at revision ``r``, memoised by revision. The revision travels with the
+    hashes so a caller never files them under a revision they were not computed at.
+
+    Nodes: ``books:<name>``, ``market``, ``settings``, ``assumptions:deposits``,
+    ``assumptions:cds``, ``assumptions:other``, ``scenarios``, ``cohorts`` and
+    ``context`` (every other snapshot key, so an input added later is covered)."""
+    state = state or snapshot()
+    with _LOCK:
+        if _FINGERPRINTS["revision"] == state["revision"]:
+            return {"revision": state["revision"], "nodes": dict(_FINGERPRINTS["inputs"])}
+    assumptions = state["assumptions"]
+    nodes = {f"books:{name}": _fingerprint(frame) for name, frame in state["books"].items()}
+    nodes["market"] = _fingerprint(state["market"])
+    nodes["settings"] = _fingerprint(state["settings"])
+    nodes["assumptions:deposits"] = _fingerprint(assumptions.get("deposit_segments"))
+    nodes["assumptions:cds"] = _fingerprint(assumptions.get("cd_ew_params"))
+    nodes["assumptions:other"] = _fingerprint({k: v for k, v in assumptions.items() if k not in ("deposit_segments", "cd_ew_params")})
+    nodes["scenarios"] = _fingerprint(state["scenarios"])
+    nodes["cohorts"] = _fingerprint({k: state.get(k) for k in _COHORT_KEYS})
+    nodes["context"] = _fingerprint({k: v for k, v in state.items() if k not in _NODE_KEYS and not k.startswith("_")})
+    with _LOCK:
+        _FINGERPRINTS.update(revision=state["revision"], inputs=nodes)
+    return {"revision": state["revision"], "nodes": dict(nodes)}
 
 
 def changed():
