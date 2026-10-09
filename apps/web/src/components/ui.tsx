@@ -3,7 +3,8 @@
  * green/red only for direction, Inter tabular figures for numbers. */
 import clsx from "clsx";
 import { ChevronRight, Info } from "lucide-react";
-import { useEffect as _ue, useRef as _ur, useState as _us, type KeyboardEvent, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from "react";
+import { createPortal } from "react-dom";
+import { useEffect as _ue, useLayoutEffect as _ule, useRef as _ur, useState as _us, type KeyboardEvent, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from "react";
 
 /** Panel: the standard surface — surface-1, 1px default border, top inset highlight, no shadow at rest. */
 export const Card = ({ className, children }: { className?: string; children: ReactNode }) => (
@@ -227,30 +228,64 @@ export const Tabs = ({ tabs, active, onChange, id }:
   );
 };
 
-/** Popover: overlay surface with a subtle blur and tight dark shadow; outside-click dismiss. */
+/** Popover: overlay surface with a subtle blur and tight dark shadow. The panel
+ * renders in a portal with fixed positioning, so scrolling containers (grids,
+ * dock panels) cannot clip it; it flips above the trigger and clamps to the
+ * viewport when space runs out. Outside-click and Escape dismiss it. */
 export function Popover({ trigger, children, width = "16rem" }:
   { trigger: ReactNode; children: ReactNode; width?: string }) {
   const [open, setOpen] = _us(false);
+  const [pos, setPos] = _us<{ left: number; top: number } | null>(null);
   const ref = _ur<HTMLDivElement>(null);
+  const panel = _ur<HTMLDivElement>(null);
+  const place = () => {
+    const anchor = ref.current?.getBoundingClientRect(), box = panel.current?.getBoundingClientRect();
+    if (!anchor) return;
+    const w = box?.width ?? 0, h = box?.height ?? 0, gap = 6, margin = 8;
+    const below = anchor.bottom + gap, above = anchor.top - gap - h;
+    const top = below + h > window.innerHeight - margin && above >= margin ? above : Math.max(margin, Math.min(below, window.innerHeight - margin - h));
+    const left = Math.max(margin, Math.min(anchor.left, window.innerWidth - margin - w));
+    const next = { left: Math.round(left), top: Math.round(top) };
+    setPos(p => (p && p.left === next.left && p.top === next.top ? p : next));
+  };
+  _ule(() => {
+    if (!open) { setPos(null); return; }
+    place();
+    // re-place when the content changes size (loading text, validation errors)
+    const observer = new ResizeObserver(() => place());
+    if (panel.current) observer.observe(panel.current);
+    return () => observer.disconnect();
+  }, [open]);
   _ue(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const outside = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !panel.current?.contains(t)) setOpen(false);
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    const key = (e: globalThis.KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const reflow = () => place();
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("keydown", key);
+    window.addEventListener("resize", reflow);
+    window.addEventListener("scroll", reflow, true);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("keydown", key);
+      window.removeEventListener("resize", reflow);
+      window.removeEventListener("scroll", reflow, true);
+    };
   }, [open]);
   return (
     <div ref={ref} className="relative inline-flex">
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="inline-flex items-center">
         {trigger}
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 rounded-lg border border-line-strong bg-surface-overlay/95 p-3 text-sm leading-relaxed text-paper-dim shadow-md backdrop-blur"
-          style={{ width }}>
+      {open && createPortal(
+        <div ref={panel}
+          className="fixed z-50 max-h-[calc(100vh-16px)] overflow-auto rounded-lg border border-line-strong bg-surface-overlay/95 p-3 text-sm leading-relaxed text-paper-dim shadow-md backdrop-blur"
+          style={{ width, left: pos?.left ?? 0, top: pos?.top ?? 0, visibility: pos ? "visible" : "hidden" }}>
           {children}
-        </div>
-      )}
+        </div>, document.body)}
     </div>
   );
 }

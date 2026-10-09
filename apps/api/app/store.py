@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import copy
 from contextvars import ContextVar
+import hashlib
+import heapq
+import itertools
 import io
 import json
 import struct
@@ -23,6 +26,11 @@ from .schemas import MarketScenario, RiskSettings
 
 _LOCK = threading.RLock()
 _POOL = ThreadPoolExecutor(max_workers=1)   # numba kernels saturate cores
+# Queued jobs waiting for the single worker, as a heap of (rank, sequence, id, run).
+# Background refreshes rank behind requests a person is waiting on.
+_PENDING: list = []
+_SEQ = itertools.count()
+PRIORITIES = ("interactive", "background")
 _CUR_JID: str | None = None                 # job on the single worker thread
 KRD_PILLARS = 10                             # curve pillars bumped for key-rate durations
 
@@ -77,6 +85,93 @@ def snapshot():
 
 def current_state():
     return _RUN_STATE.get() or snapshot()
+
+
+# ---- input fingerprints: the leaves of the client's recalculation graph ----------
+# Each node is a content hash of one slice of the committed snapshot, so every API
+# replica and the worker agree on what changed between two revisions without any
+# extra bookkeeping. A result depends on a set of nodes; when none of them changed,
+# the result is still current even though the revision moved.
+_FINGERPRINTS: dict = {"revision": None, "inputs": {}}
+# snapshot keys that only the cohort workflow reads; no base result depends on them
+_COHORT_KEYS = ("tapes", "cohort_publications")
+_NODE_KEYS = ("books", "market", "settings", "assumptions", "scenarios", "revision") + _COHORT_KEYS
+
+
+def _digest(value, h) -> None:
+    """Feed a canonical encoding of a snapshot value into hash ``h``."""
+    if isinstance(value, pl.DataFrame):
+        h.update(b"F" + repr(value.schema).encode())
+        plain = [c for c, t in value.schema.items() if t != pl.Object]
+        if plain:
+            buf = io.BytesIO()
+            value.select(plain).rechunk().write_ipc(buf, compression="uncompressed")
+            h.update(hashlib.sha256(buf.getvalue()).digest())
+        for c in (c for c, t in value.schema.items() if t == pl.Object):
+            h.update(c.encode())
+            for item in value[c].to_list():
+                _digest(item, h)
+    elif isinstance(value, np.ndarray):
+        h.update(b"A" + str(value.dtype).encode() + str(value.shape).encode() + np.ascontiguousarray(value).tobytes())
+    elif isinstance(value, dict):
+        h.update(b"D")
+        for k in sorted(value, key=repr):
+            h.update(repr(k).encode())
+            _digest(value[k], h)
+    elif isinstance(value, (list, tuple)):
+        h.update(b"L%d" % len(value))
+        for item in value:
+            _digest(item, h)
+    elif hasattr(value, "model_dump"):
+        _digest(value.model_dump(), h)
+    else:
+        h.update(repr(value).encode())
+    h.update(b";")
+
+
+def _fingerprint(value) -> str:
+    h = hashlib.sha256()
+    _digest(value, h)
+    return h.hexdigest()[:16]
+
+
+def input_fingerprints(state=None) -> dict:
+    """``{"revision": r, "nodes": {...}}``: a content hash per input node of the
+    snapshot at revision ``r``, memoised by revision. The revision travels with the
+    hashes so a caller never files them under a revision they were not computed at.
+
+    Nodes: ``books:<name>``, ``market``, ``settings``, ``assumptions:deposits``,
+    ``assumptions:cds``, ``assumptions:other``, ``scenarios``, ``cohorts`` and
+    ``context`` (every other snapshot key, so an input added later is covered)."""
+    state = state or snapshot()
+    with _LOCK:
+        if _FINGERPRINTS["revision"] == state["revision"]:
+            return {"revision": state["revision"], "nodes": dict(_FINGERPRINTS["inputs"])}
+    assumptions = state["assumptions"]
+    nodes = {f"books:{name}": _fingerprint(frame) for name, frame in state["books"].items()}
+    nodes["market"] = _fingerprint(state["market"])
+    nodes["settings"] = _fingerprint(state["settings"])
+    nodes["assumptions:deposits"] = _fingerprint(assumptions.get("deposit_segments"))
+    nodes["assumptions:cds"] = _fingerprint(assumptions.get("cd_ew_params"))
+    nodes["assumptions:other"] = _fingerprint({k: v for k, v in assumptions.items() if k not in ("deposit_segments", "cd_ew_params")})
+    nodes["scenarios"] = _fingerprint(state["scenarios"])
+    nodes["cohorts"] = _fingerprint({k: state.get(k) for k in _COHORT_KEYS})
+    nodes["context"] = _fingerprint({k: v for k, v in state.items() if k not in _NODE_KEYS and not k.startswith("_")})
+    with _LOCK:
+        _FINGERPRINTS.update(revision=state["revision"], inputs=nodes)
+    return {"revision": state["revision"], "nodes": dict(nodes)}
+
+
+def state_summary() -> dict:
+    """`/state` body: the revision, its input fingerprints and the library flags,
+    all from one snapshot, so the revision and the fingerprints always match."""
+    state = snapshot()
+    inputs = input_fingerprints(state)
+    with _LOCK:
+        current = STATE_META["revision"] == state["revision"]
+        library = CACHE.get("library", {}) if current else {}
+        return {"revision": state["revision"], "inputs": inputs,
+                "library_ready": bool(CACHE) and current, "library_horizon": library.get("horizon")}
 
 
 def changed():
@@ -460,13 +555,17 @@ def compute_run_plan(kind: str, books: list[str], state=None) -> dict:
     }
 
 
-def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
+def submit(kind: str, fn, *args, plan: dict | None = None, state=None, priority: str = "interactive") -> str:
+    """Queue `fn` on the single compute worker. `priority="background"` marks an
+    automatic refresh: it waits behind every queued interactive job."""
+    if priority not in PRIORITIES:
+        raise ValueError(f"unknown priority {priority}")
     state = state or snapshot()
     state['settings'].require_production_backend()
     args = copy.deepcopy(args)
     from . import persistence
     if persistence.REPO is not None:
-        return persistence.submit(kind, fn, args, plan, state)
+        return persistence.submit(kind, fn, args, plan, state, priority=priority)
     with _LOCK:
         prune_jobs()
         if sum(j["status"] in ("queued", "running") for j in JOBS.values()) >= MAX_QUEUE:
@@ -475,16 +574,19 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
         JOBS[jid] = {"id": jid, "kind": kind, "status": "queued", "revision": state['revision'],
                     "market_provenance": copy.deepcopy(state["market"].get("provenance", {})),
                      "detail": None, "result": None,
-                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {},
+                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {}, "priority": priority,
                                   "stats": {}, "elapsed_s": 0.0, "log": [], "nodes": []}}
 
     def run():
         global _CUR_JID
+        with _LOCK:
+            if JOBS.get(jid, {}).get("status") != "queued":   # cancelled while queued
+                return
+            JOBS[jid]["status"] = "running"
         from portfolio_risk.core.runtime import RunConfig, run_context
         import numba
         _CUR_JID = jid
         token = _RUN_STATE.set(state)
-        JOBS[jid]["status"] = "running"
         JOBS[jid]["_t0"] = time.perf_counter()
         report(stage="starting", pct=1.0, log=f"{kind} run started")
         try:
@@ -499,12 +601,16 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
             if len(encoded) > MAX_RESULT_BYTES:
                 raise RuntimeError("result exceeds the retention byte limit; reduce book size")
             with _LOCK:
+                if JOBS[jid].get("_cancelled"):
+                    return
                 JOBS[jid]["result"] = encoded
                 JOBS[jid]["status"] = "done"
                 JOBS[jid]["finished_at"] = time.time()
             report(stage="done", pct=100.0, log="run complete")
         except Exception as e:
             with _LOCK:
+                if JOBS[jid].get("_cancelled"):
+                    return
                 JOBS[jid]["status"] = "error"
                 JOBS[jid]["finished_at"] = time.time()
                 JOBS[jid]["detail"] = f"{type(e).__name__}: {e}"
@@ -517,8 +623,33 @@ def submit(kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
             _RUN_STATE.reset(token)
             _CUR_JID = None
 
-    _POOL.submit(run)
+    with _LOCK:
+        heapq.heappush(_PENDING, (PRIORITIES.index(priority), next(_SEQ), jid, run))
+    _POOL.submit(_run_next)
     return jid
+
+
+def _run_next() -> None:
+    """One pool task per queued job; each runs the best job waiting at that moment."""
+    with _LOCK:
+        if not _PENDING:
+            return
+        run = heapq.heappop(_PENDING)[-1]
+    run()
+
+
+def cancel_job(jid: str) -> bool:
+    """Cancel a queued in-memory job. A running kernel is not interruptible; its
+    result is discarded instead, so a cancelled job never reports done."""
+    with _LOCK:
+        job = JOBS.get(jid)
+        if job is None:
+            raise KeyError(jid)
+        if job["status"] not in ("queued", "running"):
+            return False
+        job["status"], job["detail"], job["finished_at"] = "error", "cancelled", time.time()
+        job["_cancelled"] = True
+        return True
 
 
 # ---- engine adapters (each returns JSON-able frames) -------------------------

@@ -159,9 +159,10 @@ def resolve(name):
     return fn
 
 
-def submit(kind, fn, args, plan, state):
+def submit(kind, fn, args, plan, state, priority="interactive"):
     request = CODEC.dump({"operation": operation(fn), "args": args, "state": state, "identity": identity()})
-    progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
+    progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "priority": priority,
+                "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
     from . import store
     return REPO.enqueue(kind, state["revision"], request, progress,
                         key=IDEMPOTENCY_KEY.get(), max_queue=store.MAX_QUEUE)

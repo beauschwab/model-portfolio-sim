@@ -197,7 +197,9 @@ export const api = {
   updateDecision: (id: string, request: unknown) => j<Job>(`/decision/sessions/${id}/update`, { method: 'POST', body: JSON.stringify(request) }),
   evaluateDecision: (id: string, request: unknown) => j<DecisionEvaluation>(`/decision/sessions/${id}/eval`, { method: 'POST', body: JSON.stringify(request) }),
   closeDecision: (id: string) => j(`/decision/sessions/${id}`, { method: 'DELETE' }),
-  state: () => j<{ revision: number; library_ready: boolean; library_horizon: number | null }>("/state"),
+  /** `inputs`: content hash per input node at `inputs.revision` (absent on older servers). */
+  state: () => j<{ revision: number; library_ready: boolean; library_horizon: number | null;
+    inputs?: { revision: number; nodes: Record<string, string> } }>("/state"),
   optimize: (options: unknown) => j<Job>("/optimize", { method: "POST", body: JSON.stringify(options) }),
   books: () => j<Record<string, { positions: number; balance: number }>>("/books"),
   book: (n: BookName) => jArrow(`/books/${n}`) as Promise<Table>,
@@ -238,8 +240,8 @@ export const api = {
   scenarios: () => j<Record<string, Scenario>>("/scenarios"),
   putScenario: (s: Scenario) => j(`/scenarios/${s.name}`, { method: "PUT", body: JSON.stringify(s) }),
   pricingAssumptions: () => j<{ fields: Record<string, Record<string, [number, number]>>; defaults: Record<string, number> }>("/pricing/assumptions"),
-  run: (kind: string, scenario?: string, books?: BookName[], pricing?: PricingOptions) =>
-    j<Job>("/run", { method: "POST", body: JSON.stringify({ kind, scenario, books, ...pricing }) }),
+  run: (kind: string, scenario?: string, books?: BookName[], pricing?: PricingOptions, priority?: "interactive" | "background") =>
+    j<Job>("/run", { method: "POST", body: JSON.stringify({ kind, scenario, books, ...pricing, priority }) }),
   job: (id: string) => j<Job>(`/jobs/${id}`),
   jobResult: (id: string) => jArrow(`/jobs/${id}/result`),
   strategyEval: (alloc: unknown, signal?: AbortSignal) => jArrow("/strategy/eval", {
@@ -292,3 +294,14 @@ export const fmt$ = (v: number) =>
   Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` :
   Math.abs(v) >= 1e3 ? `$${(v / 1e3).toFixed(0)}k` : `$${v.toFixed(0)}`;
 export const fmtBp = (v: number) => `${v.toFixed(1)}bp`;
+
+/** Readable text for a failed API call: the server's `detail` when it sent one. */
+export function errorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const body = message.replace(/^\d+\s*/, "");
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed.detail === "string") return parsed.detail;
+  } catch { /* not JSON: fall through */ }
+  return body;
+}

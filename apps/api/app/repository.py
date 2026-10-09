@@ -227,11 +227,14 @@ class Repository:
             # cannot publish even if its process eventually resumes.
             conn.execute(jobs.update().where(self.scoped(jobs), jobs.c.status == "running", jobs.c.owner != owner)
                          .values(status="queued", owner=None, token=None))
-            row = conn.execute(sa.select(jobs).where(self.scoped(jobs), jobs.c.status == "queued")
-                               .order_by(jobs.c.created_at, jobs.c.id).limit(1)).mappings().first()
-            if not row:
+            # Oldest interactive job first; background refreshes wait behind all of
+            # them. The queue is bounded (MAX_QUEUE), so ranking in Python is cheap.
+            queued = conn.execute(sa.select(jobs.c.id, jobs.c.progress).where(self.scoped(jobs), jobs.c.status == "queued")
+                                  .order_by(jobs.c.created_at, jobs.c.id)).mappings().all()
+            if not queued:
                 return None
-            row = dict(row)
+            pick = min(queued, key=lambda r: (r["progress"] or {}).get("priority") == "background")
+            row = dict(conn.execute(sa.select(jobs).where(self.scoped(jobs), jobs.c.id == pick["id"])).mappings().one())
             if row["attempt"] >= 3:
                 conn.execute(jobs.update().where(self.scoped(jobs), jobs.c.id == row["id"])
                     .values(status="error", detail="worker interrupted three attempts", finished_at=time.time()))

@@ -11,7 +11,7 @@ import { Check, X } from "lucide-react";
 import { useMemo } from "react";
 import clsx from "clsx";
 import type { NodeKind, NodeStatus, PipelineNode } from "../lib/api";
-import { useEngine } from "../lib/engine";
+import { useEngine, useEngineData, type GraphNode } from "../lib/engine";
 import { Card, CardBody, CardHeader, ChartState, Badge } from "./ui";
 import { Heartbeat } from "./Heartbeat";
 import { TweenNumber, compact, full, useReducedMotion } from "./motion";
@@ -111,6 +111,59 @@ function CounterCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+const NODE_LABEL = (node: string) => {
+  const [kind, part] = node.split(":");
+  const name = { kpis: "KPIs", nii: "NII forecast", risk: "Risk", stress: "9Q stress" }[kind] ?? kind;
+  return part ? `${name} · ${part}` : name;
+};
+const INPUT_LABEL = (input: string) => {
+  const [kind, part] = input.split(":");
+  if (kind === "books") return `${part} book`;
+  if (kind === "assumptions") return part === "other" ? "other assumptions" : `${part === "cds" ? "CD" : "deposit"} assumptions`;
+  if (kind === "context") return "context (equity, hedges, histories)";
+  return kind;
+};
+const STATUS_TONE: Record<GraphNode["status"], "up" | "warning" | "accent" | "danger" | "neutral"> = {
+  current: "up", stale: "warning", updating: "accent", failed: "danger", missing: "neutral",
+};
+
+/** The recalculation graph: each result the engine keeps fresh, what it depends
+ * on, and which of those inputs moved since it was computed. Only nodes whose
+ * inputs moved are recomputed. */
+function RecalcGraph() {
+  const { graph, autoRecalc } = useEngineData();
+  return (
+    <Card>
+      <CardHeader title="Recalculation graph"
+        sub={autoRecalc ? "An edit recomputes only the results that depend on it" : "Auto-recalculation is off; stale results wait for a refresh"} />
+      <CardBody className="p-0">
+        <table className="w-full border-collapse text-left text-sm" aria-label="Recalculation graph">
+          <thead className="bg-surface-base">
+            <tr>{["Result", "Status", "Changed inputs", "Depends on", "Computed"].map(h =>
+              <th key={h} className="h-row border-b border-line-strong px-3 text-2xs font-semibold uppercase tracking-wide text-paper-faint">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {graph.map(n => (
+              <tr key={n.node} className="h-row border-b border-line align-top">
+                <td className="whitespace-nowrap px-3 py-1.5 text-paper">{NODE_LABEL(n.node)}</td>
+                <td className="px-3 py-1.5"><Badge tone={STATUS_TONE[n.status]} dot={n.status === "updating"}>{n.status}</Badge></td>
+                <td className="px-3 py-1.5 text-xs text-paper-dim">
+                  {n.status === "current" || n.status === "missing" ? "—"
+                    : n.changed === null ? "unknown (treated as changed)" : n.changed.map(INPUT_LABEL).join(", ") || "—"}
+                </td>
+                <td className="px-3 py-1.5 text-xs text-paper-faint">{n.inputs.map(INPUT_LABEL).join(" · ")}</td>
+                <td className="num whitespace-nowrap px-3 py-1.5 text-xs text-paper-faint">
+                  {n.at ? n.at.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardBody>
+    </Card>
+  );
+}
+
 export default function PipelineMonitor() {
   const { running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log } = useEngine();
   const reduced = useReducedMotion();
@@ -157,6 +210,7 @@ export default function PipelineMonitor() {
         </CardBody>
       </Card>
 
+      <RecalcGraph />
       <Card>
         <CardHeader title="Pipeline tree" sub="Live parallel execution · status per step" />
         <CardBody>

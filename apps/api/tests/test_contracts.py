@@ -380,5 +380,99 @@ def test_invalid_assumption_patch_is_atomic(client):
     assert store.ASSUMPTIONS == before
 
 
+def test_deposit_flight_amplitude_is_a_multiplier_not_a_rate(client):
+    # the segment defaults run from 1.5 to 4.0, and the native deck only requires amp >= 0
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"amp": 4.5}}}).status_code == 200
+    assert store.ASSUMPTIONS["deposit_segments"]["MMDA"]["amp"] == 4.5
+    before = store.snapshot()["assumptions"]
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"amp": -0.1}}}).status_code == 422
+    assert client.put("/assumptions", json={"deposit_segments": {"MMDA": {"base": 1.5}}}).status_code == 422
+    assert store.ASSUMPTIONS == before
+
+
 def test_nonfinite_skeleton_is_valid_json():
     assert skeleton(store.to_arrow_envelope({"x": float("nan")})) == {"x": None}
+
+
+def test_state_fingerprints_change_only_for_the_edited_input(client):
+    """The client's recalculation graph diffs these per input node, so an edit must
+    move exactly the node it touched and leave the others alone."""
+    def nodes():
+        body = client.get("/state").json()
+        assert body["inputs"]["revision"] == body["revision"]
+        return body["inputs"]["nodes"]
+    before = nodes()
+    assert {"market", "settings", "assumptions:deposits", "assumptions:cds", "scenarios", "context"} <= before.keys()
+
+    assert client.put("/assumptions", json={"deposit_segments": {"DDA": {"base": 0.02}}}).status_code == 200
+    after = nodes()
+    assert {k for k in before if before[k] != after.get(k)} == {"assumptions:deposits"}
+
+    settings = client.get("/settings").json()
+    assert client.put("/settings", json={**settings, "seed": settings["seed"] + 1}).status_code == 200
+    final = nodes()
+    assert {k for k in after if after[k] != final.get(k)} == {"settings"}
+    # an unchanged snapshot hashes the same on every call
+    assert nodes() == final
+
+
+def test_background_refresh_waits_behind_interactive_jobs(client):
+    """Automatic downstream refreshes must not delay a request a person is waiting on."""
+    gate, order = threading.Event(), []
+    def block():
+        gate.wait(10)
+        return {}
+    def mark(name):
+        order.append(name)
+        return {}
+    first = store.submit("kpis", block)
+    background = store.submit("risk", mark, "background", priority="background")
+    interactive = store.submit("pricing", mark, "interactive")
+    gate.set()
+    for jid in (first, background, interactive):
+        assert finished(jid)["status"] == "done"
+    assert order == ["interactive", "background"]
+    with pytest.raises(ValueError):
+        store.submit("kpis", block, priority="urgent")
+
+
+def test_memory_jobs_cancel_while_queued(client):
+    gate, ran = threading.Event(), []
+    def block():
+        gate.wait(10)
+        return {}
+    first = store.submit("kpis", block)
+    queued = store.submit("risk", lambda: ran.append(1) or {}, priority="background")
+    assert client.delete(f"/jobs/{queued}").json() == {"cancelled": True}
+    gate.set()
+    assert finished(first)["status"] == "done"
+    job = finished(queued)
+    assert job["status"] == "error" and job["detail"] == "cancelled"
+    assert ran == []
+    assert client.delete(f"/jobs/{queued}").json() == {"cancelled": False}
+    assert client.delete("/jobs/unknown").status_code == 404
+
+
+def test_run_request_accepts_only_known_priorities(client):
+    assert client.post("/run", json={"kind": "kpis", "priority": "urgent"}).status_code == 422
+
+
+def test_state_revision_and_fingerprints_come_from_one_snapshot(client):
+    """Edits landing while /state is served must never pair one revision's number
+    with another revision's fingerprints."""
+    settings = client.get("/settings").json()
+    stop = threading.Event()
+    def edit():
+        seed = settings["seed"]
+        while not stop.is_set():
+            seed += 1
+            client.put("/settings", json={**settings, "seed": seed})
+    writer = threading.Thread(target=edit)
+    writer.start()
+    try:
+        for _ in range(40):
+            body = client.get("/state").json()
+            assert body["inputs"]["revision"] == body["revision"]
+    finally:
+        stop.set()
+        writer.join()

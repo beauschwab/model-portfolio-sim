@@ -34,6 +34,8 @@ test('real instrument what-if preserves saved book and exposes risk and recalibr
 });
 
 test('obsolete what-if response is hidden and latest inputs determine results', async ({ page }) => {
+  // counts only what-if requests; automatic downstream recalculation is covered by downstream.spec
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   let started!: () => void, release!: () => void;
   const first = new Promise<void>(r => { started=r; }); const gate = new Promise<void>(r => { release=r; });
   let count=0;

@@ -79,7 +79,7 @@ export function WorkspaceCommandPalette() {
         label,
         hint,
         group: "Run",
-        disabled: engine.running,
+        disabled: engine.busy,
         run: () => {
           close();
           void engine.run(kind, kind === "stress" ? { books: ["mbs", "deposits"] } : undefined);

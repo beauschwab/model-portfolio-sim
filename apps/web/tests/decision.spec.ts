@@ -6,6 +6,7 @@ test('real decision build, selective edit, template update, optimization and rep
   const original = await (await request.get('/api/settings')).json();
   const savedBook = await (await request.get('/api/books/loans')).body();
   await request.put('/api/settings', { data: { ...original, n_paths: 32, n_paths_base: 32, n_threads: 2, horizon_months: 6 } });
+  // a background refresh already running when an update is applied finishes first
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Open Decide', exact: true }).click();
@@ -22,16 +23,16 @@ test('real decision build, selective edit, template update, optimization and rep
     await expect(panel.getByText('Independent Python allocation replay passed', { exact: true })).toBeVisible();
     await panel.getByLabel('New asset cap ($m)', { exact: true }).fill('5');
     await panel.getByRole('button', { name: 'Apply and optimize', exact: true }).click();
-    await expect(panel.getByText('Version 2 · 375 instruments', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Version 2 · 375 instruments', { exact: true })).toBeVisible({ timeout: 30_000 });
     await panel.getByLabel('Include instrument edit', { exact: true }).check();
     await panel.getByLabel('Decision assumption value', { exact: true }).fill('0.065');
     await panel.getByRole('button', { name: 'Apply and optimize', exact: true }).click();
-    await expect(panel.getByText('Version 3 · 375 instruments', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Version 3 · 375 instruments', { exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(panel.getByText(/Changed instruments: loans:/)).toBeVisible();
     await panel.getByLabel('Include instrument edit', { exact: true }).uncheck();
     await panel.getByLabel('Include template edit', { exact: true }).check();
     await panel.getByRole('button', { name: 'Apply and optimize', exact: true }).click();
-    await expect(panel.getByText('Version 4 · 375 instruments', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Version 4 · 375 instruments', { exact: true })).toBeVisible({ timeout: 30_000 });
     await panel.getByLabel('Allocation scale (%)', { exact: true }).fill('50');
     await panel.getByRole('button', { name: 'Replay allocation', exact: true }).click();
     await expect(panel.getByText('Manual allocation replay', { exact: true })).toBeVisible();

@@ -31,12 +31,13 @@ test("balance popover survives repeated slider changes", async ({ page }) => {
   const panel = page.getByRole("region", { name: "Positions", exact: true });
   await panel.getByRole("cell", { name: /▸mbs/ }).click();
   await panel.locator("tbody tr").filter({ has: page.locator("button span.num") }).first().locator("button").first().click();
-  const slider = panel.getByRole("slider");
+  // popovers render in a portal, outside the scrolling panel
+  const slider = page.getByRole("slider");
   await slider.focus();
   await slider.press("ArrowRight"); await slider.press("ArrowRight");
   await expect(slider).toHaveValue("1.1");
   await expect(slider).toBeFocused();
-  await expect(panel.getByText("110% of booked", { exact: true })).toBeVisible();
+  await expect(page.getByText("110% of booked", { exact: true })).toBeVisible();
 });
 
 test("table bounds rows and unchanged JSON book saves", async ({ page }) => {
@@ -93,6 +94,7 @@ test("top-bar run updates global telemetry and shared KPIs", async ({ page }) =>
 });
 
 test("equal asset and liability sensitivities cancel on Risk Desk", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   await page.route("**/api/state", route => route.fulfill({ json: { revision: 0, library_ready: false, library_horizon: null } }));
   const job = { id: "signed-risk", kind: "risk", status: "done", revision: 0 };
   await page.route("**/api/run", route => route.fulfill({ json: job }));
@@ -105,6 +107,6 @@ test("equal asset and liability sensitivities cancel on Risk Desk", async ({ pag
   await page.goto("/");
   await page.getByRole("button", { name: "Open Risk Desk", exact: true }).click();
   const panel = page.getByRole("region", { name: "Risk Desk", exact: true });
-  await panel.getByRole("button", { name: "Risk", exact: true }).click();
+  await panel.getByRole("button", { name: "Refresh risk", exact: true }).click();
   await expect(panel.getByText("net dv01 (selected books) $0/bp", { exact: true })).toBeVisible();
 });

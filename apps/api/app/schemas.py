@@ -134,6 +134,9 @@ class RunRequest(BaseModel):
     include_analytics: bool = False
     backend: Literal['rust'] = 'rust'
     expected_revision: int | None = Field(None, ge=0)
+    # "background" marks an automatic downstream refresh; it waits behind
+    # every queued request a person is waiting on.
+    priority: Literal['interactive', 'background'] = 'interactive'
 
     @model_validator(mode="after")
     def pricing_overrides(self):
