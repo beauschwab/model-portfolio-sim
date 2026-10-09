@@ -40,6 +40,8 @@ interface EngineState {
   scenarios: Record<string, Scenario>;
   active: string;
   kpis: Kpis | null;
+  /** When `kpis` was computed; cleared with it when inputs change. */
+  kpisAt: Date | null;
   revision: number;
   libraryReady: boolean;
   libraryHorizon: number;
@@ -72,6 +74,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [scenarios, setScenarios] = useState<Record<string, Scenario>>({});
   const [active, setActive] = useState("base");
   const [kpis, setKpis] = useState<Kpis | null>(null);
+  const [kpisAt, setKpisAt] = useState<Date | null>(null);
 
   const [running, setRunning] = useState(false);
   const [activeKind, setActiveKind] = useState<string | null>(null);
@@ -91,7 +94,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const pending = useRef(new Map<string, Promise<Job>>());
   const refreshState = useCallback(async () => {
     const state = await api.state();
-    if (state.revision !== revisionRef.current) setKpis(null);
+    if (state.revision !== revisionRef.current) { setKpis(null); setKpisAt(null); }
     revisionRef.current = state.revision;
     setRevision(state.revision);
     setLibraryReady(state.library_ready);
@@ -156,7 +159,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       }
       if (done.status === "done") {
         setStage("done"); setPct(100);
-        if (kind === "kpis") setKpis(done.result as Kpis);
+        if (kind === "kpis") { setKpis(done.result as Kpis); setKpisAt(new Date()); }
       } else {
         setStage("error");
       }
@@ -189,10 +192,10 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running,
       setSettings, refreshMarket, refreshScenarios, run]);
   const value = useMemo<EngineState>(() => ({
-    market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon,
+    market, settings, scenarios, active, kpis, kpisAt, revision, libraryReady, libraryHorizon,
     running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run,
-  }), [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running, activeKind, stage, pct, elapsed, samples,
+  }), [market, settings, scenarios, active, kpis, kpisAt, revision, libraryReady, libraryHorizon, running, activeKind, stage, pct, elapsed, samples,
        nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run]);
 
   return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;

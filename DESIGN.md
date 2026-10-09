@@ -113,6 +113,7 @@ tables. Icons inherit `currentColor` and sit at `paper-faint` until hovered or a
 
 ## Shell
 
-Aperture AppShell pattern: a 56px icon rail on `--gray-1000` (active item: yellow-soft fill
-plus a 2px yellow edge rail), a 48px command bar (identity mark, market read-out, engine
+Aperture AppShell pattern: a 56px icon rail on `--gray-1000` in four labelled sections (Home,
+Monitor, Decide, Data; active item: yellow-soft fill plus a 2px yellow edge rail). The pipeline
+opens from the run-status readout in the command bar, not the rail. A 48px command bar (identity mark, market read-out, engine
 status, scenario/settings popovers, primary "Run sheet", ⌘K), and dock panels on the canvas.

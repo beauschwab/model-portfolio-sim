@@ -4,8 +4,9 @@ test('balance stress runs real engine and explains scenarios and local breaches'
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('button', { name: 'Open Stress', exact: true }).click();
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
   await expect(panel.getByRole('button', { name: 'Run balance-sheet stress', exact: true })).toBeEnabled();
   await panel.getByRole('button', { name: 'Run balance-sheet stress', exact: true }).click();
   await expect(panel.getByRole('table', { name: 'comparison', exact: true })).toBeVisible({ timeout: 40_000 });
@@ -31,8 +32,9 @@ test('balance stress runs real engine and explains scenarios and local breaches'
 
 test('saved-book mapping lists required fields without guessing legal classifications', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('button', { name: 'Open Stress', exact: true }).click();
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
   await panel.getByRole('button', { name: 'Load saved-book mapping', exact: true }).click();
   await expect(panel.getByText(/Complete every null mapping/)).toBeVisible();
   await panel.getByText('Edit stress specification (JSON)', { exact: true }).click();
@@ -44,8 +46,9 @@ test('saved-book mapping lists required fields without guessing legal classifica
 
 test('editing a completed specification hides obsolete results', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('button', { name: 'Open Stress', exact: true }).click();
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
   await panel.getByRole('button', { name: 'Run balance-sheet stress', exact: true }).click();
   await expect(panel.getByRole('table', { name: 'comparison', exact: true })).toBeVisible({ timeout: 40_000 });
   await panel.getByText('Edit stress specification (JSON)', { exact: true }).click();
@@ -59,8 +62,9 @@ test('editing a completed specification hides obsolete results', async ({ page }
 test('invalid specification is rejected and narrow editor stays usable', async ({ page }) => {
   await page.setViewportSize({ width: 850, height: 950 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('button', { name: 'Open Stress', exact: true }).click();
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
   await panel.getByText('Edit stress specification (JSON)', { exact: true }).click();
   const editor = panel.getByLabel('Accounts, cohorts, policies, scenarios and reverse-stress severities');
   await expect(editor).not.toHaveValue('');

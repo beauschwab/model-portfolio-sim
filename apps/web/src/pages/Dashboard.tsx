@@ -1,12 +1,12 @@
 import { useEngineData } from "../lib/engine";
-/** Trader dashboard: book stats, KRD profile, NII forecast, 9Q stress. */
+/** Risk Desk: book stats, KRD profile and NII forecast. Rate stress lives in Stress. */
 import { useEffect, useMemo, useState } from "react";
 import { api, awaitJob, colOf, fmt$, rowsOf, type BookName, type Job, type Table } from "../lib/api";
-import { KrdBar, NiiArea, StressLines } from "../components/charts";
+import { KrdBar, NiiArea } from "../components/charts";
 import { Badge, Button, Card, CardBody, CardHeader, ChartState, Spinner } from "../components/ui";
 
 type Row = Record<string, number | string>;
-type Kind = "risk" | "nii" | "stress";
+type Kind = "risk" | "nii";
 type RunState = "idle" | "running" | "done" | "error";
 const bookSign = (book: string) => ["debt", "deposits", "cds"].includes(book) ? -1 : 1;
 const TENORS = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30];
@@ -16,14 +16,13 @@ export default function Dashboard() {
   const [books, setBooks] = useState<Record<string, { positions: number; balance: number }>>({});
   const [risk, setRisk] = useState<Record<string, Table> | null>(null);
   const [nii, setNii] = useState<{ monthly: Table; summary: Table } | null>(null);
-  const [stress, setStress] = useState<Record<string, { agg: Table }> | null>(null);
-  const [status, setStatus] = useState<Record<Kind, RunState>>({ risk: "idle", nii: "idle", stress: "idle" });
-  const [errors, setErrors] = useState<Record<Kind, string | null>>({ risk: null, nii: null, stress: null });
+  const [status, setStatus] = useState<Record<Kind, RunState>>({ risk: "idle", nii: "idle" });
+  const [errors, setErrors] = useState<Record<Kind, string | null>>({ risk: null, nii: null });
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     api.books().then(setBooks).catch(() => {});
-    setRisk(null); setNii(null); setStress(null);
+    setRisk(null); setNii(null);
   }, [engine.revision]);
 
   const anyRunning = Object.values(status).some(s => s === "running");
@@ -34,14 +33,13 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [anyRunning]);
 
-  const SETTERS: Record<Kind, (r: never) => void> = { risk: setRisk as never, nii: setNii as never, stress: setStress as never };
-  const ARGS: Record<Kind, BookName[] | undefined> = { risk: undefined, nii: undefined, stress: ["mbs", "deposits"] };
+  const SETTERS: Record<Kind, (r: never) => void> = { risk: setRisk as never, nii: setNii as never };
 
   const run = async (kind: Kind) => {
     setStatus(s => ({ ...s, [kind]: "running" }));
     setErrors(e => ({ ...e, [kind]: null }));
     try {
-      const done: Job = await engine.run(kind, { books: ARGS[kind] });
+      const done: Job = await engine.run(kind);
       if (done.status === "done") {
         SETTERS[kind](done.result as never);
         setStatus(s => ({ ...s, [kind]: "done" }));
@@ -55,7 +53,7 @@ export default function Dashboard() {
     }
   };
 
-  const runAll = () => { void Promise.all([run("risk"), run("nii"), run("stress")]); };
+  const runAll = () => { void Promise.all([run("risk"), run("nii")]); };
 
   // columnar aggregation straight off the Arrow tables
   const krdData = useMemo(() => risk
@@ -66,16 +64,6 @@ export default function Dashboard() {
         return row;
       })
     : [], [risk]);
-
-  const stressData = useMemo(() => stress?.mbs
-    ? Object.values(
-        rowsOf(stress.mbs.agg).reduce((acc: Record<number, Row>, r) => {
-          const h = r.horizon_m as number;
-          acc[h] ??= { horizon_m: h };
-          acc[h][String(r.shock_bp)] = (r["pnl_$"] ?? r["eve_pnl_$"]) as number;
-          return acc;
-        }, {}))
-    : [], [stress]);
 
   const totalDv01 = useMemo(() => risk
     ? Object.entries(risk).reduce((a, [book, table]) => a + bookSign(book) * colOf(table, "dv01").reduce((s, x) => s + (x ?? 0), 0), 0)
@@ -103,7 +91,6 @@ export default function Dashboard() {
         </Button>
         <Button disabled={anyRunning} variant="secondary" onClick={() => run("risk")}>Risk</Button>
         <Button disabled={anyRunning} variant="secondary" onClick={() => run("nii")}>NII</Button>
-        <Button disabled={anyRunning} variant="secondary" onClick={() => run("stress")}>9Q stress</Button>
         {totalDv01 !== null && (
           <Badge tone="neutral">net dv01 {risk?.hedges ? "(incl. hedges) " : "(selected books) "}{fmt$(totalDv01)}/bp</Badge>
         )}
@@ -127,15 +114,6 @@ export default function Dashboard() {
               ? <NiiArea data={rowsOf(nii.monthly) as never} />
               : <ChartState kind={status.nii === "running" ? "loading" : status.nii === "error" ? "error" : "empty"}
                   hint="Run NII to populate" elapsed={elapsed} error={errors.nii} onRetry={() => run("nii")} />}
-          </CardBody>
-        </Card>
-        <Card className="xl:col-span-2">
-          <CardHeader title="9Q stress P&L — MBS book" sub="Forward-starting parallel shocks, P&L vs base forward value" />
-          <CardBody>
-            {stress?.mbs
-              ? <StressLines data={stressData as never} shocks={[-100, 100, 200, 300]} />
-              : <ChartState kind={status.stress === "running" ? "loading" : status.stress === "error" ? "error" : "empty"}
-                  hint="Run 9Q stress to populate" elapsed={elapsed} error={errors.stress} onRetry={() => run("stress")} />}
           </CardBody>
         </Card>
       </div>
