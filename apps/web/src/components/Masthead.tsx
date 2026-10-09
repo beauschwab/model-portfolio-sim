@@ -91,8 +91,8 @@ export function Masthead() {
           />
           {engine.settings && <SettingsEditor settings={engine.settings} onSave={engine.setSettings}
             autoRecalc={engine.autoRecalc} onAutoRecalc={engine.setAutoRecalc} />}
-          <Button disabled={running} onClick={() => engine.run("kpis")} title="Run the KPI sheet (⌘K for more)">
-            {running ? <><Spinner className="h-3.5 w-3.5 text-ink" />Running… {elapsed > 0 ? `${elapsed.toFixed(0)}s` : ""}</> : "Run sheet"}
+          <Button disabled={engine.busy} onClick={() => engine.run("kpis")} title="Run the KPI sheet (⌘K for more)">
+            {engine.busy ? <><Spinner className="h-3.5 w-3.5 text-ink" />Running… {elapsed > 0 ? `${elapsed.toFixed(0)}s` : ""}</> : "Run sheet"}
           </Button>
           <button
             type="button"

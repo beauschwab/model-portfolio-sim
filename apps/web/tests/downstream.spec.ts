@@ -116,7 +116,8 @@ test('the graph recomputes only the results whose inputs changed', async ({ page
     const octet = 'application/octet-stream';
     if (job.kind === 'risk') {
       const frame = tableToIPC(tableFromArrays({ dv01: [1], krd01_1y: [1] }));
-      const books = job.books ?? ['mbs', 'loans', 'debt', 'deposits', 'cds'];
+      // the server omits empty books: cds never comes back, and must still count as computed
+      const books = (job.books ?? ['mbs', 'loans', 'debt', 'deposits', 'cds']).filter(b => b !== 'cds');
       const payload: Record<string, unknown> = Object.fromEntries(books.map(b => [b, { __arrow__: 0 }]));
       if (!job.books) payload.hedges = { __arrow__: 0 };
       return route.fulfill({ body: envelope(payload, [frame]), contentType: octet });
@@ -154,4 +155,20 @@ test('the graph recomputes only the results whose inputs changed', async ({ page
   const graph = page.getByRole('table', { name: 'Recalculation graph' });
   await expect(graph.getByRole('row', { name: /Risk · deposits/ })).toContainText('current');
   await expect(graph.getByRole('row', { name: /Risk · hedges/ })).toContainText('current');
+});
+
+test('background refreshes leave the run controls usable; a run a person asks for disables them', async ({ page }) => {
+  // every job stays running, so the automatic refreshes queued on load never finish
+  await page.route('**/api/state', route => route.fulfill({ json: { revision: 1, library_ready: false, library_horizon: null } }));
+  await page.route('**/api/run', async route => {
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    await route.fulfill({ json: { id: `bg-${body.kind}`, revision: 1, kind: body.kind, status: 'running' } });
+  });
+  await page.route(/\/api\/jobs\/bg-\w+$/, route => route.fulfill({ json: { id: 'bg', revision: 1, kind: 'kpis', status: 'running' } }));
+  await page.goto('/');
+  const runSheet = page.getByTitle('Run the KPI sheet (⌘K for more)');
+  await expect(page.getByText('kpis', { exact: true }).first()).toBeVisible();   // a refresh is running
+  await expect(runSheet).toBeEnabled();
+  await runSheet.click();
+  await expect(runSheet).toBeDisabled();
 });

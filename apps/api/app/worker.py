@@ -241,10 +241,7 @@ async def invalid(_request, exc):
 
 @app.get('/state')
 def state():
-    inputs = store.input_fingerprints()
-    with store._LOCK:
-        return {'revision': store.STATE_META['revision'], 'worker_ready': True, 'inputs': inputs,
-                'library_ready': bool(store.CACHE), 'library_horizon': store.CACHE.get('library', {}).get('horizon')}
+    return store.state_summary() | {'worker_ready': True}
 
 
 @app.post('/strategy/eval')

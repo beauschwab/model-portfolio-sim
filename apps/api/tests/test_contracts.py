@@ -455,3 +455,24 @@ def test_memory_jobs_cancel_while_queued(client):
 
 def test_run_request_accepts_only_known_priorities(client):
     assert client.post("/run", json={"kind": "kpis", "priority": "urgent"}).status_code == 422
+
+
+def test_state_revision_and_fingerprints_come_from_one_snapshot(client):
+    """Edits landing while /state is served must never pair one revision's number
+    with another revision's fingerprints."""
+    settings = client.get("/settings").json()
+    stop = threading.Event()
+    def edit():
+        seed = settings["seed"]
+        while not stop.is_set():
+            seed += 1
+            client.put("/settings", json={**settings, "seed": seed})
+    writer = threading.Thread(target=edit)
+    writer.start()
+    try:
+        for _ in range(40):
+            body = client.get("/state").json()
+            assert body["inputs"]["revision"] == body["revision"]
+    finally:
+        stop.set()
+        writer.join()

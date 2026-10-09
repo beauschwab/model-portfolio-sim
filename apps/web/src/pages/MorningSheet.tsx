@@ -57,7 +57,9 @@ export default function MorningSheet() {
   const nii = engine.results.nii?.value as { summary: Table } | undefined;
   const niiAnnual = nii ? (rowsOf(nii.summary).find(r => r.metric === "nii_annualized_$")?.value as number | undefined) : undefined;
   const kpisPending = engine.pending.includes("kpis");
+  const niiPending = engine.pending.includes("nii");
   const stale = engine.isStale("kpis") && !!k;
+  const niiStale = engine.isStale("nii") && !!nii;
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
 
@@ -97,13 +99,18 @@ export default function MorningSheet() {
       {k && (
         <section className={`memo-rise grid grid-cols-2 gap-3 pt-5 lg:grid-cols-4 ${stale ? "opacity-60 transition-opacity duration-base" : ""}`}>
           <Stat label="EVE" value={fmt$(k.eve.eve_$)} detail={`Net dv01 ${fmt$(k.eve.dv01_net_$)}/bp`} />
-          <Stat label="NII, annualized" value={niiAnnual != null ? fmt$(niiAnnual) : "—"} detail={niiAnnual != null ? "27-month forecast" : "Forecast pending"} />
+          <div className={niiStale && !stale ? "opacity-60 transition-opacity duration-base" : ""}>
+            <Stat label="NII, annualized" value={niiAnnual != null ? fmt$(niiAnnual) : "—"} detail={niiAnnual != null ? "27-month forecast" : "Forecast pending"} />
+          </div>
           <Stat label="Duration gap" value={`${k.eve.duration_gap_y.toFixed(2)}y`} detail={`A ${k.eve.dur_assets_y.toFixed(2)}y · L ${k.eve.dur_liab_y.toFixed(2)}y`} />
           <div className="flex flex-col justify-between rounded-md border border-line-strong bg-surface-1 px-3.5 py-3 shadow-inset-top">
             <div className="eyebrow">Status</div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <Freshness kind="kpis" />
-              {!kpisPending && !stale && <Badge tone="up" dot>Current</Badge>}
+              {!kpisPending && !stale && (niiPending || niiStale || engine.errors.nii)
+                ? <span className="text-xs text-paper-faint">NII</span> : null}
+              {!kpisPending && !stale && <Freshness kind="nii" />}
+              {!kpisPending && !stale && !niiPending && !niiStale && !engine.errors.nii && <Badge tone="up" dot>Current</Badge>}
             </div>
             <div className="num mt-1 text-xs text-paper-faint">
               {engine.autoRecalc ? "Updates when assumptions change" : "Auto-update is off"}

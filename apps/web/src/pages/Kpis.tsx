@@ -6,6 +6,7 @@ import { chartAxis, chartGrid, chartTip, still } from "../components/charts";
 import { LIMITS, limitVariance } from "../lib/limits";
 import { api, awaitJob, fmt$ } from "../lib/api";
 import { Badge, Card, CardBody, CardHeader, DataTable, Stat, InfoPop } from "../components/ui";
+import { Freshness } from "./Dashboard";
 
 type Kpis = {
   eve: { eve_$: number; duration_gap_y: number; dur_assets_y: number; dur_liab_y: number;
@@ -20,16 +21,21 @@ type Kpis = {
 export default function KpisPage() {
   const engine = useEngineData();
   const k = engine.kpis;
+  const stale = engine.isStale("kpis") && !!k;
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-paper-faint">
-        {k ? "Parallel dv01s by full revaluation · " : "No results yet. Use Run sheet in the top bar. "}
-        stylized 12 CFR 249 / NSFR / standardized-RWA weights (calibration seam)
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs text-paper-faint">
+          {k ? "Parallel dv01s by full revaluation · " : "No results yet. Use Run sheet in the top bar. "}
+          stylized 12 CFR 249 / NSFR / standardized-RWA weights (calibration seam)
+        </p>
+        <Freshness kind="kpis" />
+      </div>
+      {engine.errors.kpis && <p role="alert" className="text-sm text-danger">The sheet did not compute: {engine.errors.kpis}</p>}
 
       {k && (
-        <>
+        <div className={`space-y-3 ${stale ? "opacity-60 transition-opacity duration-base" : ""}`}>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
             <Stat label="EVE" value={fmt$(k.eve.eve_$)} detail={`Net dv01 ${fmt$(k.eve.dv01_net_$)}/bp`} />
             <Stat label="Duration gap" value={`${k.eve.duration_gap_y.toFixed(2)}y`}
@@ -74,7 +80,7 @@ export default function KpisPage() {
               </CardBody>
             </Card>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

@@ -162,6 +162,18 @@ def input_fingerprints(state=None) -> dict:
     return {"revision": state["revision"], "nodes": dict(nodes)}
 
 
+def state_summary() -> dict:
+    """`/state` body: the revision, its input fingerprints and the library flags,
+    all from one snapshot, so the revision and the fingerprints always match."""
+    state = snapshot()
+    inputs = input_fingerprints(state)
+    with _LOCK:
+        current = STATE_META["revision"] == state["revision"]
+        library = CACHE.get("library", {}) if current else {}
+        return {"revision": state["revision"], "inputs": inputs,
+                "library_ready": bool(CACHE) and current, "library_horizon": library.get("horizon")}
+
+
 def changed():
     """Caller holds the repository lock; invalidate the published cache bundle."""
     global UNITLIB, BASE_KPIS

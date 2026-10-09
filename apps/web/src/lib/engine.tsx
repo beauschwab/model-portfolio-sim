@@ -78,7 +78,9 @@ interface EngineState {
   errors: Partial<Record<ResultKind, string>>;
   autoRecalc: boolean;
   setAutoRecalc: (on: boolean) => void;
-  // live run telemetry
+  /** A run a person asked for is queued or running; background refreshes do not count. */
+  busy: boolean;
+  // live run telemetry (any run, background refreshes included)
   running: boolean;
   activeKind: string | null;
   stage: string;
@@ -100,7 +102,7 @@ interface EngineState {
 }
 
 const Ctx = createContext<EngineState | null>(null);
-type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "graph" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
+type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "busy" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "graph" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
 const DataCtx = createContext<EngineData | null>(null);
 
 function readAutoRecalc(): boolean {
@@ -121,6 +123,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [autoRecalc, setAutoRecalcState] = useState<boolean>(readAutoRecalc);
 
   const [running, setRunning] = useState(false);
+  const [busyState, setBusy] = useState(false);
   const [activeKind, setActiveKind] = useState<string | null>(null);
   const [stage, setStage] = useState("");
   const [pct, setPct] = useState(0);
@@ -141,8 +144,11 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const fingerprints = useRef(new Map<number, InputNodes>());
   /** Runs waiting for the single-flight slot. Interactive runs start before any
    * waiting background refresh; the server ranks its queue the same way. */
-  const lanes = useRef<{ interactive: (() => Promise<unknown>)[]; background: (() => Promise<unknown>)[] }>({ interactive: [], background: [] });
+  type Waiting = { key: string; start: () => Promise<unknown> };
+  const lanes = useRef<{ interactive: Waiting[]; background: Waiting[] }>({ interactive: [], background: [] });
   const busy = useRef(false);
+  /** Runs a person asked for that have not finished; they disable run controls. */
+  const interactiveKeys = useRef(new Set<string>());
   const pendingRuns = useRef(new Map<string, Promise<Job>>());
   /** Downstream results to keep fresh, with the books each was requested for. */
   const wanted = useRef(new Map<ResultKind, BookName[] | undefined>(DEFAULT_WANTED.map(k => [k, undefined])));
@@ -228,6 +234,9 @@ export function EngineProvider({ children }: { children: ReactNode }) {
           const at = new Date();
           const next = { ...entriesRef.current };
           if (kind === "risk" || kind === "stress") {
+            // the server omits empty books: stamp every requested node so an empty
+            // book counts as computed instead of staying missing forever
+            for (const node of nodesFor(kind, opts?.books)) next[node] = { value: null, revision: done.revision, at };
             for (const [part, value] of Object.entries((done.result ?? {}) as Record<string, unknown>)) {
               next[`${kind}:${part}`] = { value, revision: done.revision, at };
             }
@@ -262,21 +271,35 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     const next = lanes.current.interactive.shift() ?? lanes.current.background.shift();
     if (!next) return;
     busy.current = true;
-    void next().catch(() => {}).finally(() => { busy.current = false; pump(); });
+    void next.start().catch(() => {}).finally(() => { busy.current = false; pump(); });
   }, []);
 
   const enqueue = useCallback((kind: string, opts?: RunOpts): Promise<Job> => {
     const isDownstream = RESULT_KINDS.includes(kind as ResultKind) && !opts?.scenario && !opts?.pricing && !opts?.optimize;
     const key = JSON.stringify([revisionRef.current, kind, opts?.scenario, opts?.books, opts?.optimize, opts?.pricing]);
+    const lane = opts?.priority ?? "interactive";
     const existing = pendingRuns.current.get(key);
-    if (existing) return existing;
+    if (existing) {
+      if (lane === "interactive") {
+        // a person now waits on this run: promote it if it is still queued behind
+        // refreshes, and count it as theirs (it disables the run controls)
+        const waiting = lanes.current.background.findIndex(item => item.key === key);
+        if (waiting >= 0) lanes.current.interactive.push(...lanes.current.background.splice(waiting, 1));
+        interactiveKeys.current.add(key);
+        setBusy(true);
+      }
+      return existing;
+    }
     if (isDownstream) setPending(p => (p.includes(kind as ResultKind) ? p : [...p, kind as ResultKind]));
     setRunning(true);
+    if (lane === "interactive") { interactiveKeys.current.add(key); setBusy(true); }
     const task = new Promise<Job>((resolve, reject) => {
-      lanes.current[opts?.priority ?? "interactive"].push(() => execute(kind, opts).then(resolve, reject));
+      lanes.current[lane].push({ key, start: () => execute(kind, opts).then(resolve, reject) });
       pump();
     }).finally(() => {
       pendingRuns.current.delete(key);
+      interactiveKeys.current.delete(key);
+      if (!interactiveKeys.current.size) setBusy(false);
       if (isDownstream) setPending(p => p.filter(k => k !== kind));
       if (!pendingRuns.current.size) setRunning(false);
     });
@@ -368,7 +391,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       const parts = Object.entries(entries).filter(([k]) => k.startsWith(`${kind}:`));
       if (!parts.length) continue;
       view[kind] = {
-        value: Object.fromEntries(parts.map(([k, e]) => [k.slice(kind.length + 1), e.value])),
+        value: Object.fromEntries(parts.filter(([, e]) => e.value != null).map(([k, e]) => [k.slice(kind.length + 1), e.value])),
         revision: Math.min(...parts.map(([, e]) => e.revision)),
         at: new Date(Math.max(...parts.map(([, e]) => e.at.getTime()))),
       };
@@ -404,17 +427,17 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const kpisAt = results.kpis?.at ?? null;
 
   const data = useMemo<EngineData>(() => ({ market, settings, scenarios, active, revision,
-    libraryReady, libraryHorizon, running, setActive, setSettings, refreshMarket, refreshScenarios, run,
+    libraryReady, libraryHorizon, running, busy: busyState, setActive, setSettings, refreshMarket, refreshScenarios, run,
     results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request }),
-    [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, running,
+    [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, running, busyState,
       setSettings, refreshMarket, refreshScenarios, run, results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request]);
   const value = useMemo<EngineState>(() => ({
     market, settings, scenarios, active, revision, libraryReady, libraryHorizon,
     results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
-    running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
+    running, busy: busyState, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run, request,
   }), [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
-       running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run, request]);
+       running, busyState, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run, request]);
 
   return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;
 }

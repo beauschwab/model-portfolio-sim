@@ -31,12 +31,13 @@ test("balance popover survives repeated slider changes", async ({ page }) => {
   const panel = page.getByRole("region", { name: "Positions", exact: true });
   await panel.getByRole("cell", { name: /▸mbs/ }).click();
   await panel.locator("tbody tr").filter({ has: page.locator("button span.num") }).first().locator("button").first().click();
-  const slider = panel.getByRole("slider");
+  // popovers render in a portal, outside the scrolling panel
+  const slider = page.getByRole("slider");
   await slider.focus();
   await slider.press("ArrowRight"); await slider.press("ArrowRight");
   await expect(slider).toHaveValue("1.1");
   await expect(slider).toBeFocused();
-  await expect(panel.getByText("110% of booked", { exact: true })).toBeVisible();
+  await expect(page.getByText("110% of booked", { exact: true })).toBeVisible();
 });
 
 test("table bounds rows and unchanged JSON book saves", async ({ page }) => {

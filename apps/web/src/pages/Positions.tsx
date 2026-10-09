@@ -298,10 +298,13 @@ export default function Positions() {
     return rest;
   };
 
-  /** Serialize a book write and keep the local copy in step, so the next edit
-   * computes its plug from what was actually saved. */
-  const write = (book: BookName, rows: Row[]) => {
+  /** Serialize a book write. The rows are derived from the book as saved when the
+   * write runs, and the local copy is kept in step for the next edit. */
+  const writeWith = (book: BookName, mutate: (rows: Row[]) => Row[]) => {
     const task = writeChain.current.then(async () => {
+      const saved = rawRows.current[book] ?? [];
+      const rows = mutate(saved);
+      if (rows === saved) return;   // nothing to change
       await api.putBook(book, rows);
       rawRows.current[book] = rows;
     });
@@ -319,25 +322,25 @@ export default function Positions() {
     saveTimers.current.set(k, setTimeout(() => {
       const book = p.book as BookName;
       const key = rowKey(book), field = BAL_FIELD[book];
-      void writeChain.current.then(async () => {
-        const rows = rawRows.current[book] ?? [];
-        const target = rows.find(r => String(r[key]) === p.id);
-        if (!target) return;
-        const delta = (mv(book, target, value) - mv(book, target)) * p.side;
-        const next = rows.map(r => (r === target ? { ...r, [field]: value } : r));
+      void (async () => {
+        // every write derives its rows inside the chain, so a balance save, its plug
+        // and any assumption edit queued around them all see each other's results
+        let delta = 0;
         try {
           setSaveError(null);
-          if (book === "mm") {
-            await write("mm", withPlug(next, delta));
-          } else {
-            await write(book, next);
-            await write("mm", withPlug(rawRows.current.mm ?? [], delta));
-          }
+          await writeWith(book, rows => {
+            const target = rows.find(r => String(r[key]) === p.id);
+            if (!target) return rows;
+            delta = (mv(book, target, value) - mv(book, target)) * p.side;
+            const next = rows.map(r => (r === target ? { ...r, [field]: value } : r));
+            return book === "mm" ? withPlug(next, delta) : next;
+          });
+          if (book !== "mm" && delta !== 0) await writeWith("mm", mm => withPlug(mm, delta));
         } catch (e) {
           setSaveError(errorText(e));
           setRevision(v => v + 1);   // reload so the grid shows what was saved, not the rejected value
         }
-      });
+      })();
     }, 600));
   };
 
@@ -345,13 +348,13 @@ export default function Positions() {
    * column new to the book is added to every row, at its fallback or empty. */
   const savePosition = async (p: Pos, edit: PositionEdit, fields: PositionField[]) => {
     const book = p.book as BookName, key = rowKey(book);
-    const rows = rawRows.current[book] ?? [];
     const defaults = Object.fromEntries(fields.filter(f => f.key in edit).map(f => [f.key, f.fallback ?? null]));
-    const next = rows.map(r => {
+    // build the rows inside the write chain, after earlier writes (a pending balance
+    // save, its plug) have landed, so this full-book write cannot undo them
+    await writeWith(book, rows => rows.map(r => {
       const filled = { ...defaults, ...r };
       return String(r[key]) === p.id ? { ...filled, ...edit } : filled;
-    });
-    await write(book, next);
+    }));
   };
 
   /** The saved funding plug: >0 is short-term funding raised, <0 is cash held. */

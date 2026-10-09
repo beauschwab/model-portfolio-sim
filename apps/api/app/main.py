@@ -572,12 +572,7 @@ def state_status():
         except HTTPException:
             return {"revision": persistence.REPO.head(), "library_ready": False,
                     "library_horizon": None, "worker_ready": False}
-    inputs = store.input_fingerprints()
-    with store._LOCK:
-        return {"revision": store.STATE_META["revision"],
-                "library_ready": bool(store.CACHE),
-                "library_horizon": store.CACHE.get("library", {}).get("horizon"),
-                "inputs": inputs}
+    return store.state_summary()
 
 
 @app.get('/revisions')
