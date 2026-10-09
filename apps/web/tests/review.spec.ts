@@ -46,7 +46,7 @@ test("table bounds rows and unchanged JSON book saves", async ({ page }) => {
   await expect(panel.locator("tbody tr")).toHaveCount(100);
   await panel.getByRole("button", { name: "Next", exact: true }).click();
   await expect(panel.locator("tbody tr")).toHaveCount(20);
-  await panel.getByRole("button", { name: "loans", exact: true }).click();
+  await panel.getByRole("tab", { name: "loans", exact: true }).click();
   await expect(panel.getByText("loans — 90 positions", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Edit book (JSON)", exact: true }).click();
   const saved = page.waitForResponse(r => r.url().endsWith("/api/books/loans") && r.request().method() === "PUT");

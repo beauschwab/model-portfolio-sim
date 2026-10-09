@@ -6,6 +6,8 @@ test('real decision build, selective edit, template update, optimization and rep
   const original = await (await request.get('/api/settings')).json();
   const savedBook = await (await request.get('/api/books/loans')).body();
   await request.put('/api/settings', { data: { ...original, n_paths: 32, n_paths_base: 32, n_threads: 2, horizon_months: 6 } });
+  // the server runs one job at a time; keep background recalculation from queueing ahead of the decision updates
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Open Decide', exact: true }).click();
