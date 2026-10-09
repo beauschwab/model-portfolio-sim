@@ -8,7 +8,7 @@ import { useEngineData } from "../lib/engine";
  * reduced motion respected. */
 import { useEffect, useMemo, useState } from "react";
 import { api, fmt$, type Market } from "../lib/api";
-import { Button, InfoPop } from "../components/ui";
+import { InfoPop } from "../components/ui";
 import { useWorkspace } from "../workspace/Workspace";
 import type { PanelId } from "../workspace/panels";
 
@@ -53,18 +53,10 @@ export default function MorningSheet() {
   const engine = useEngineData();
   const [mkt, setMkt] = useState<Market | null>(null);
   const k = engine.kpis;
-  const [busy, setBusy] = useState(false);
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
 
   useEffect(() => { api.market().then(setMkt); }, []);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const done = await engine.run("kpis");
-      if (done.status === "error") alert(done.detail);
-    } finally { setBusy(false); }
-  };
 
   // the engraved curve: market pillars as a single inked stroke
   const curvePath = useMemo(() => {
@@ -109,10 +101,9 @@ export default function MorningSheet() {
               : " — inside the 15% line; the hedge overlay is doing its job."}
           </p>
         ) : (
-          <div className="flex items-center gap-4">
-            <p className="font-display text-lg text-paper-dim">Pull this morning's position to begin.</p>
-            <Button disabled={busy} onClick={run}>{busy ? "Computing…" : "Run the sheet"}</Button>
-          </div>
+          <p className="font-display text-lg text-paper-dim">
+            {engine.running ? "Computing this morning's position…" : "Pull this morning's position with Run sheet in the command bar."}
+          </p>
         )}
       </section>
 
@@ -139,7 +130,7 @@ export default function MorningSheet() {
           ["decide", "Price the constraints", "Solve the plan; read the shadow prices."],
           ["market", "Move the market", "Set a 9Q path and rerun the sheet."],
         ] as const).map(([panel, t, s]) => (
-          <button key={panel} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">
+          <button key={t} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">
             <div className="font-display text-lg text-paper group-hover:text-brand">{t}</div>
             <div className="mt-1 text-sm text-paper-faint">{s}</div>
           </button>

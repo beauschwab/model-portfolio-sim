@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useEngineData } from "../lib/engine";
 import { rowsOf, type Job, type Table } from "../lib/api";
 import { StressLines } from "../components/charts";
-import { Button, Card, CardBody, CardHeader, ChartState, Spinner, Tabs } from "../components/ui";
+import { Button, Card, CardBody, CardHeader, ChartState, Spinner, Tabs, tabPanelProps } from "../components/ui";
 import BalanceStress from "./BalanceStress";
 
 type Row = Record<string, number | string>;
@@ -80,9 +80,9 @@ export default function Stress() {
   };
   return (
     <div className="space-y-3">
-      <Tabs tabs={["Rate shocks", "Balance sheet"]} active={active} onChange={choose} />
-      <div hidden={active !== "Rate shocks"}><RateShocks /></div>
-      {balanceMounted && <div hidden={active !== "Balance sheet"}><BalanceStress /></div>}
+      <Tabs id="stress" tabs={["Rate shocks", "Balance sheet"]} active={active} onChange={choose} />
+      <div {...tabPanelProps("stress", "Rate shocks", active)}><RateShocks /></div>
+      <div {...tabPanelProps("stress", "Balance sheet", active)}>{balanceMounted && <BalanceStress />}</div>
     </div>
   );
 }
