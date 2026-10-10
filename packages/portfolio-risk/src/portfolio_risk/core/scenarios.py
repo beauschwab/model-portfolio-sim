@@ -152,6 +152,8 @@ def run_engine(paths, sec, oas=None, horizons=None, want_fwd=False,
         from .quant_native import enabled
         if enabled():
             raise ValueError('Custom Python prepayment models are not supported by the Rust backend')
+        if np.any(sec[8] != 1.0):
+            raise ValueError("prepay_mult needs the built-in prepayment model; a custom prepay step sets its own speed")
         kern = make_generic_engine(suite.prepay_step)
     return kern(paths["mtg"], paths["hpi"], paths["yoy"], paths["df"],
                   MOY, SEASONALITY, PREPAY_PARAMS, LTV_KNOTS, LTV_COEFS,
@@ -168,7 +170,18 @@ def extract_sec(port: pl.DataFrame):
     horig = (port["hpi_orig_ratio"].to_numpy().astype(np.float64)
              if "hpi_orig_ratio" in port.columns
              else (1.0 + HPI_MU) ** (sec[3] / 12.0))
-    return sec + (horig, static_multipliers(port))
+    return sec + (horig, static_multipliers(port), prepay_multiplier(port))
+
+
+def prepay_multiplier(port: pl.DataFrame) -> np.ndarray:
+    """Per-pool prepay speed multiplier from the optional ``prepay_mult`` column:
+    it scales turnover plus refi before the CPR cap. Absent or null means 1."""
+    if "prepay_mult" not in port.columns:
+        return np.ones(len(port))
+    values = port["prepay_mult"].fill_null(1.0).to_numpy().astype(np.float64)
+    if not np.all(np.isfinite(values)) or np.any(values < 0):
+        raise ValueError("prepay_mult must be finite and nonnegative")
+    return np.ascontiguousarray(values)
 
 
 def setup(port, swap_rates, vol_pts, cc_hist, ps_hist, ps_spot=0.012, suite=None):

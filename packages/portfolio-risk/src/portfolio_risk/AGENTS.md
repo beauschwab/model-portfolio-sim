@@ -166,7 +166,8 @@ incentive), not pool-factor based. Turnover = base × 30m seasoning ramp ×
 monthly seasonality × YoY-HPA kicker (floored 0.3) × rate lock-in
 sigmoid. CLTV migrates by pool factor amortization ÷ HPI (origination
 appreciation proxied from age if `hpi_orig_ratio` absent). FICO / size /
-state / channel are STATIC per-security multipliers. All anchors
+state / channel are STATIC per-security multipliers on refi; the optional
+`prepay_mult` column scales turnover + refi together before the CPR cap. All anchors
 stylized — fit to loan level. Payment delay: `pay_delay_days` column →
 discounting shift at the OAS layer (delay discounted at OAS, not
 pathwise short — bp-level residual).

@@ -8,7 +8,8 @@ import polars as pl
 FIELDS = {
     'mbs': {'wac': (0.0001, .5), 'net_coupon': (0., .5), 'wam': (1., 359.),
             'age': (0., 600.), 'oltv': (.01, 2.), 'factor': (.001, 1.),
-            'fico': (300., 850.), 'avg_loan_size': (1., 1e8), 'hpi_orig_ratio': (.01, 100.)},
+            'fico': (300., 850.), 'avg_loan_size': (1., 1e8), 'hpi_orig_ratio': (.01, 100.),
+            'prepay_mult': (0., 10.)},
     'loans': {'coupon_or_spread': (-.1, .5), 'cap': (-.1, 1.), 'floor': (-.1, 1.),
               'call_threshold': (0., .5)},
     'debt': {'coupon_or_spread': (-.1, .5), 'cap': (-.1, 1.), 'floor': (-.1, 1.),
@@ -20,7 +21,8 @@ FIELDS = {
                  'attrition_base': (0., 1.), 'attrition_amp': (0., 1.),
                  'attrition_slope': (0., 1000.), 'attrition_gap': (0., 1.)},
 }
-DEFAULTS = {'cap': 10., 'floor': -10., 'call_threshold': .005, 'ew_mult': 1., 'svc_cost': 0.}
+DEFAULTS = {'cap': 10., 'floor': -10., 'call_threshold': .005, 'ew_mult': 1., 'svc_cost': 0.,
+            'prepay_mult': 1.}
 
 
 def apply_overrides(books, overrides):

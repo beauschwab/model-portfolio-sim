@@ -270,9 +270,11 @@ fn mortgage_step(
     let cltv = a[17].at(s) * a[18].at(s) / a[19].at(s) * *bal / a[1].x(p, m);
     refi *= spline(cltv, a[7].v, a[8].v) * a[20].at(s);
     let ramp = ((a[16].at(s) + m as f64) / 30.0).min(1.0);
-    let cpr = (pp[4] * ramp * a[5].at(a[4].ix(m)) * (1.0 + pp[6] * a[2].x(p, m)).max(0.3) * lock
+    // a[21]: per-pool speed multiplier on turnover + refi, applied before the cap
+    let cpr = ((pp[4] * ramp * a[5].at(a[4].ix(m)) * (1.0 + pp[6] * a[2].x(p, m)).max(0.3) * lock
         + refi)
-        .min(pp[5]);
+        * a[21].at(s))
+    .min(pp[5]);
     let smm = lut(cpr * a[10].at(0), a[9].v);
     let pmt = *bal * r / (1.0 - *q);
     *q *= 1.0 + r;
@@ -285,12 +287,12 @@ fn mortgage_step(
 }
 pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
     crate::compute_span!("mortgage_cashflows");
-    assert_eq!(a.len(), if stress { 27 } else { 25 });
+    assert_eq!(a.len(), if stress { 28 } else { 26 });
     let (p, t) = (a[0].shape[0], a[0].shape[1]);
     let n = a[13].v.len();
-    let hcount = if stress { 1 } else { a[22].v.len() };
-    let forward = !stress && a[23].at(0) != 0.0;
-    let rational = a[if stress { 26 } else { 24 }].at(0) != 0.0;
+    let hcount = if stress { 1 } else { a[23].v.len() };
+    let forward = !stress && a[24].at(0) != 0.0;
+    let rational = a[if stress { 27 } else { 25 }].at(0) != 0.0;
     let rows = (0..n)
         .into_par_iter()
         .map(|s| {
@@ -307,8 +309,8 @@ pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                     vec![0.0; t],
                 ]
             };
-            let h = if stress { a[22].ix(0) } else { 0 };
-            let oa = a[21].at(s);
+            let h = if stress { a[23].ix(0) } else { 0 };
+            let oa = a[22].at(s);
             let eo = (-oa / 12.0).exp();
             let div = (-oa * h as f64 / 12.0).exp();
             let disc: Vec<_> = (0..t)
@@ -316,7 +318,7 @@ pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                 .collect();
             for path in 0..p {
                 let (mut bal, mut burn) = if stress {
-                    (a[24].z(s, path, a[23].ix(0)), a[25].z(s, path, a[23].ix(0)))
+                    (a[25].z(s, path, a[24].ix(0)), a[26].z(s, path, a[24].ix(0)))
                 } else {
                     (1.0, 1.0)
                 };
@@ -330,7 +332,7 @@ pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                 let mut e = div * eo;
                 let mut v = 0.0;
                 for m in h..t {
-                    if forward && kf < hcount && m == a[22].ix(kf) {
+                    if forward && kf < hcount && m == a[23].ix(kf) {
                         out[3][path * hcount + kf] = (bal as f32) as f64;
                         out[4][path * hcount + kf] = (burn as f32) as f64;
                         out[2][kf] += bal;
@@ -356,13 +358,13 @@ pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                     out[0][0] += v / (a[3].x(path, h - 1) * div);
                 } else if forward {
                     let mut k = hcount;
-                    while k > 0 && a[22].ix(k - 1) >= last {
+                    while k > 0 && a[23].ix(k - 1) >= last {
                         k -= 1;
                     }
                     let mut v = 0.0;
                     for m in (0..last).rev() {
                         v += buf[m] * disc[m];
-                        while k > 0 && a[22].ix(k - 1) == m {
+                        while k > 0 && a[23].ix(k - 1) == m {
                             let prev = if m == 0 { t - 1 } else { m - 1 };
                             out[1][k - 1] += v / (a[3].x(path, prev) * disc[prev]);
                             k -= 1;
@@ -492,14 +494,14 @@ pub(crate) fn deposits(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
 }
 
 pub(crate) fn mortgage_batch(a: &[View<'_>]) -> Vec<Vec<f64>> {
-    assert_eq!(a.len(), 26);
+    assert_eq!(a.len(), 27);
     let n = a[15].v.len();
     let ns = a[5].ix(0);
     let t = a[0].shape[1];
     // Reuse the month event with the standard mortgage argument positions.
     let b: Vec<_> = a[..4]
         .iter()
-        .chain(a[6..24].iter())
+        .chain(a[6..25].iter())
         .map(|x| View {
             v: x.v,
             shape: x.shape,
@@ -509,16 +511,16 @@ pub(crate) fn mortgage_batch(a: &[View<'_>]) -> Vec<Vec<f64>> {
         .into_par_iter()
         .map(|s| {
             let mut out = vec![0.0; ns];
-            let oa = a[23].at(s);
+            let oa = a[24].at(s);
             let eo = (-oa / 12.0).exp();
             for p in 0..a[0].shape[0] {
                 let (mut bal, mut burn) = (1.0, 1.0);
                 let mut q = (1.0 + a[15].at(s) / 12.0).powi(-a[17].at(s) as i32);
-                let mut e = (-oa * a[24].at(s)).exp() * eo;
+                let mut e = (-oa * a[25].at(s)).exp() * eo;
                 let mut v = 0.0;
                 for m in 0..t {
                     let (cf, _, _) =
-                        mortgage_step(&b, s, p, m, &mut bal, &mut burn, &mut q, a[25].at(0) != 0.0);
+                        mortgage_step(&b, s, p, m, &mut bal, &mut burn, &mut q, a[26].at(0) != 0.0);
                     v += cf * a[3].x(p, m) * e;
                     e *= eo;
                     if bal <= 1e-12 {
@@ -823,7 +825,7 @@ pub(crate) fn volatility(a: &[View<'_>]) -> Vec<Vec<f64>> {
 
 #[no_mangle]
 pub extern "C" fn portfolio_quant_abi_version() -> u32 {
-    8
+    9
 }
 
 fn market_paths(a: &[View<'_>], mortgage: bool) -> Vec<Vec<f64>> {
@@ -899,8 +901,8 @@ fn interactive(a: &[View<'_>]) -> Vec<Vec<f64>> {
 
 fn validate(op: u32, a: &[View<'_>]) {
     let counts = [
-        0, 7, 17, 14, 25, 27, 19, 20, 9, 5, 26, 0, 4, 6, 4, 6, 5, 7, 4, 6, 14, 5, 1, 2, 4, 6, 1, 2,
-        25, 27, 1, 3,
+        0, 7, 17, 14, 26, 28, 19, 20, 9, 5, 27, 0, 4, 6, 4, 6, 5, 7, 4, 6, 14, 5, 1, 2, 4, 6, 1, 2,
+        26, 28, 1, 3,
     ];
     assert!((1..=31).contains(&op));
     if op != 11 {
@@ -930,15 +932,16 @@ fn validate(op: u32, a: &[View<'_>]) {
         4 | 5 | 10 => {
             same(&[0, 1, 2, 3]);
             let start = if op == 10 { 15 } else { 13 };
-            same(&(start..start + 9).collect::<Vec<_>>());
+            // nine per-pool vectors (terms, original HPI, static and speed multipliers) and OAS
+            same(&(start..start + 10).collect::<Vec<_>>());
             if op == 10 {
                 assert_eq!(a[4].v.len(), a[0].shape[0]);
-                assert_eq!(a[24].v.len(), a[start].v.len());
+                assert_eq!(a[25].v.len(), a[start].v.len());
             }
             if op == 5 {
-                same(&[24, 25]);
-                assert_eq!(a[24].shape[..2], [a[13].v.len(), a[0].shape[0]]);
-                assert!(a[22].ix(0) > 0);
+                same(&[25, 26]);
+                assert_eq!(a[25].shape[..2], [a[13].v.len(), a[0].shape[0]]);
+                assert!(a[23].ix(0) > 0);
             }
         }
         6 | 7 => {
@@ -1277,6 +1280,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                     ps_history: a[4].v,
                     book: a[5].v,
                     original_hpi: a[6].v,
+                    prepay_multiplier: a[if op == 28 { 25 } else { 27 }].v,
                     seed: &seed,
                     fixed_oas: a[9].v,
                     config: RiskConfig {

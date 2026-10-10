@@ -81,6 +81,7 @@ All frames are Polars. Rates, spreads, coupons, vols are DECIMALS
 | channel | str | "R"/"B"/"C" retail/broker/correspondent |
 | price | f64 | market price, % of par — OAS solve target |
 | hpi_orig_ratio | f64 | OPTIONAL: H_settle/H_orig; defaults to (1+HPI_MU)^(age/12) |
+| prepay_mult | f64 | OPTIONAL: pool prepay speed multiplier on turnover + refi before the CPR cap; null/absent = 1, 0 stops prepayment |
 
 ## Market inputs
 

@@ -35,7 +35,8 @@ should not add their own run button for a result the engine already keeps fresh.
 The positions grid edits assumptions at two levels in one popover: the product level a
 class shares (deposit segment, CD withdrawal curve; the MBS prepay model is read-only)
 and the position's own row fields in `POSITION_FIELDS` (price, rate, terms, CD
-withdrawal multiplier, deposit behaviour overrides that inherit the segment when empty).
+withdrawal multiplier, MBS pool prepay speed, deposit behaviour overrides that inherit
+the segment when empty).
 Add a position field only when the native deck reads that column per row.
 Balance edits write back to the book, and the grid reloads only when the book changes
 underneath it; it never shows a spinner for a background refresh.
