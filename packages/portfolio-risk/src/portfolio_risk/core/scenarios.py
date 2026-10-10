@@ -179,8 +179,9 @@ def prepay_multiplier(port: pl.DataFrame) -> np.ndarray:
     if "prepay_mult" not in port.columns:
         return np.ones(len(port))
     values = port["prepay_mult"].fill_null(1.0).to_numpy().astype(np.float64)
-    if not np.all(np.isfinite(values)) or np.any(values < 0):
-        raise ValueError("prepay_mult must be finite and nonnegative")
+    # same domain as temporary what-if and decision edits
+    if not np.all(np.isfinite(values)) or np.any(values < 0) or np.any(values > 10):
+        raise ValueError("prepay_mult must be finite in [0, 10]")
     return np.ascontiguousarray(values)
 
 

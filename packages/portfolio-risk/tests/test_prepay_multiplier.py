@@ -76,17 +76,19 @@ def test_unit_multiplier_is_the_model_speed_and_zero_stops_prepayment(market):
 def test_multiplier_is_applied_before_the_cpr_cap(market):
     from portfolio_risk.core.config import PREPAY_PARAMS
     port, *_, paths = market
-    huge = run_engine(paths, extract_sec(port.with_columns(prepay_mult=pl.lit(10.0))))
-    capped = run_engine(paths, extract_sec(port.with_columns(prepay_mult=pl.lit(1e6))))
+    base = extract_sec(port)
+    # the kernel itself takes any multiplier; book validation stops at 10
+    speed = lambda m: run_engine(paths, base[:8] + (np.full(len(port), m),))
+    huge, capped = speed(10.0), speed(1e6)
     # beyond the cap a larger multiplier changes nothing
     if PREPAY_PARAMS[5] < 1:
-        np.testing.assert_allclose(capped[6], run_engine(paths, extract_sec(port.with_columns(prepay_mult=pl.lit(1e7))))[6])
+        np.testing.assert_allclose(capped[6], speed(1e7)[6])
     assert np.all(huge[6][:, :12].sum(axis=1) <= capped[6][:, :12].sum(axis=1) + 1e-12)
 
 
 def test_multiplier_is_validated(market):
     port = market[0]
-    for bad in (-0.1, float('inf')):
+    for bad in (-0.1, 10.5, float('inf')):
         with pytest.raises(ValueError, match='prepay_mult'):
             extract_sec(port.with_columns(prepay_mult=pl.lit(bad)))
     # a missing value means the model's own speed

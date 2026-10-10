@@ -27,12 +27,12 @@ const CD_FIELDS = ["Base annual withdrawal", "Amplitude", "B", "g0", "Annual cap
 /** A per-position input the native deck reads from the book row.
  * `segment` names the deposit segment parameter a null value inherits; `fallback`
  * is the value rows without the column take when the column is first added. */
-type PositionField = { key: string; label: string; min?: number; segment?: string; fallback?: number };
+type PositionField = { key: string; label: string; min?: number; max?: number; segment?: string; fallback?: number };
 const PRICE: PositionField = { key: "price", label: "Price (per 100)", min: 0 };
 /** Position-level inputs by book. Product-level assumptions (deposit segments, the
  * CD withdrawal curve, the MBS prepay model) sit above these in the popover. */
 const POSITION_FIELDS: Record<BookName, PositionField[]> = {
-  mbs: [PRICE, { key: "prepay_mult", label: "Prepay speed ×", min: 0, fallback: 1 }],
+  mbs: [PRICE, { key: "prepay_mult", label: "Prepay speed ×", min: 0, max: 10, fallback: 1 }],
   loans: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
   debt: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
   cds: [PRICE, { key: "rate", label: "Rate" }, { key: "penalty_months", label: "Penalty months", min: 0 },
@@ -181,7 +181,7 @@ function AssumptionEdit({ p, assumptions, row, onSaved, onSavePosition }: {
             {fields.map((f, i) => (
               <label key={f.key} className="flex items-center gap-2">
                 <span className="w-32 text-xs text-paper-dim">{f.label}</span>
-                <Input type="number" step="any" min={f.min}
+                <Input type="number" step="any" min={f.min} max={f.max}
                   placeholder={f.segment && Number.isFinite(segmentValues[f.segment]) ? String(segmentValues[f.segment]) : ""}
                   aria-label={`${f.label} ${f.segment ? "override " : ""}for ${p.id}`}
                   value={position[i] ?? ""}

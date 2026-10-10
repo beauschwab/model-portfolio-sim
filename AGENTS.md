@@ -316,8 +316,8 @@ require new binaries. Saved economics require explicit model selection/rebuild.
 An optional MBS book column `prepay_mult` scales one pool's prepayment speed:
 monthly CPR = (turnover + refi) x `prepay_mult`, then the existing CPR cap. A
 missing column or null cell means 1, which reproduces the model exactly; 0 stops
-prepayment, leaving scheduled amortization. Values must be finite and
-nonnegative; temporary what-if and decision edits accept [0, 10]. The global
+prepayment, leaving scheduled amortization. Saved books, what-if and
+decision edits accept finite values in [0, 10]. The global
 prepay vector, LUTs and static FICO/size/state/channel multipliers are
 unchanged, and the multiplier is not a fitted pool-level model.
 
