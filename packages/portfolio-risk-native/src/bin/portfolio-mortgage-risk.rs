@@ -34,6 +34,8 @@ struct Request {
     ps_history: Vec<f64>,
     book: Vec<f64>,
     original_hpi: Vec<f64>,
+    #[serde(default)]
+    prepay_multiplier: Vec<f64>,
     seed: Vec<u32>,
     fixed_oas: Vec<f64>,
     config: RiskConfig,
@@ -79,6 +81,7 @@ fn execute() -> Result<Output, String> {
         ps_history: &r.ps_history,
         book: &r.book,
         original_hpi: &r.original_hpi,
+        prepay_multiplier: &r.prepay_multiplier,
         seed: &r.seed,
         fixed_oas: &r.fixed_oas,
         config: r.config,

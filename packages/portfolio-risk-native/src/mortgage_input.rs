@@ -31,6 +31,9 @@ pub struct OwnedMortgage {
     pub ps_history: Vec<f64>,
     pub book: Vec<f64>,
     pub original_hpi: Vec<f64>,
+    /// Per-pool prepay speed multipliers; empty means 1 for every pool.
+    #[serde(default)]
+    pub prepay_multiplier: Vec<f64>,
     pub seed: Vec<u32>,
     pub fixed_oas: Vec<f64>,
     pub config: RiskConfig,
@@ -49,6 +52,7 @@ impl OwnedMortgage {
             ps_history: &r.ps_history,
             book: &r.book,
             original_hpi: &r.original_hpi,
+            prepay_multiplier: &r.prepay_multiplier,
             seed: &r.seed,
             fixed_oas: &r.fixed_oas,
             config: r.config.clone(),

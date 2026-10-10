@@ -61,6 +61,29 @@ test('a CD withdrawal multiplier saves to that position and adds the column at i
   }
 });
 
+test('an MBS pool prepay speed saves to that pool and adds the column at its default', async ({ page, request }) => {
+  const panel = await openBook(page, 'mbs');
+  const writes: Record<string, unknown>[][] = [];
+  page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/api/books/mbs')) writes.push(JSON.parse(r.postData() ?? '[]')); });
+  try {
+    await panel.getByLabel('Assumptions for ').first().click();
+    const field = page.getByLabel(/^Prepay speed × for /);
+    await expect(field).toHaveValue('1');
+    const cusip = (await field.getAttribute('aria-label'))!.replace('Prepay speed × for ', '');
+    await field.fill('1.8');
+    await page.getByRole('button', { name: 'Save position', exact: true }).click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].find(r => r.cusip === cusip)!.prepay_mult).toBe(1.8);
+    expect(writes[0].filter(r => r.cusip !== cusip).every(r => r.prepay_mult === 1)).toBe(true);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  } finally {
+    if (writes.length) {
+      const rows = writes[0].map(({ prepay_mult: _drop, ...r }) => r);
+      expect((await request.put('/api/books/mbs', { data: rows })).ok()).toBeTruthy();
+    }
+  }
+});
+
 test('a balance edit is funded by a saved money-market plug, and undoing it removes the plug', async ({ page }) => {
   const panel = await openBook(page, 'mbs');
   const mmWrites: Record<string, unknown>[][] = [];

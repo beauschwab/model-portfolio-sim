@@ -27,12 +27,12 @@ const CD_FIELDS = ["Base annual withdrawal", "Amplitude", "B", "g0", "Annual cap
 /** A per-position input the native deck reads from the book row.
  * `segment` names the deposit segment parameter a null value inherits; `fallback`
  * is the value rows without the column take when the column is first added. */
-type PositionField = { key: string; label: string; min?: number; segment?: string; fallback?: number };
+type PositionField = { key: string; label: string; min?: number; max?: number; segment?: string; fallback?: number };
 const PRICE: PositionField = { key: "price", label: "Price (per 100)", min: 0 };
 /** Position-level inputs by book. Product-level assumptions (deposit segments, the
  * CD withdrawal curve, the MBS prepay model) sit above these in the popover. */
 const POSITION_FIELDS: Record<BookName, PositionField[]> = {
-  mbs: [PRICE],
+  mbs: [PRICE, { key: "prepay_mult", label: "Prepay speed ×", min: 0, max: 10, fallback: 1 }],
   loans: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
   debt: [PRICE, { key: "coupon_or_spread", label: "Coupon or float spread" }],
   cds: [PRICE, { key: "rate", label: "Rate" }, { key: "penalty_months", label: "Penalty months", min: 0 },
@@ -157,7 +157,7 @@ function AssumptionEdit({ p, assumptions, row, onSaved, onSavePosition }: {
           <div className="eyebrow">{p.book === "deposits" ? `${seg} segment` : p.book === "cds" ? "CD product" : p.book === "mbs" ? "MBS prepayment" : `${p.book} product`}</div>
           {p.book === "deposits" && <p className="text-xs text-paper-faint">Applies to every {seg} account that does not override it below.</p>}
           {p.book === "cds" && <p className="text-xs text-paper-faint">Withdrawal curve for every CD. Each CD scales it with its multiplier below.</p>}
-          {p.book === "mbs" && <p className="text-xs text-paper-faint">The prepay model is shared by every pool and is read-only here: changing it needs an engine restart.</p>}
+          {p.book === "mbs" && <p className="text-xs text-paper-faint">The prepay model is shared by every pool and is read-only here: changing it needs an engine restart. Each pool can scale its speed below.</p>}
           {(p.book === "loans" || p.book === "debt") && <p className="text-xs text-paper-faint">No behavioural model: cash flows follow the contract schedule and calls.</p>}
           {!assumptions && editable && <div className="text-xs text-paper-faint">Loading…</div>}
           {assumptions && editable && (p.book === "deposits" ? DEPOSIT_FIELDS : CD_FIELDS.map(l => [l, l] as [string, string])).map(([, label], i) => (
@@ -177,10 +177,11 @@ function AssumptionEdit({ p, assumptions, row, onSaved, onSavePosition }: {
           <div className={`space-y-2 ${p.book !== "mm" ? "border-t border-line pt-2" : ""}`}>
             <div className="eyebrow">This position · {p.id}</div>
             {p.book === "deposits" && <p className="text-xs text-paper-faint">Leave a behaviour field empty to inherit the segment value shown.</p>}
+            {p.book === "mbs" && <p className="text-xs text-paper-faint">Prepay speed scales this pool's turnover and refi before the CPR cap: 1 is the model, 0 stops prepayment.</p>}
             {fields.map((f, i) => (
               <label key={f.key} className="flex items-center gap-2">
                 <span className="w-32 text-xs text-paper-dim">{f.label}</span>
-                <Input type="number" step="any" min={f.min}
+                <Input type="number" step="any" min={f.min} max={f.max}
                   placeholder={f.segment && Number.isFinite(segmentValues[f.segment]) ? String(segmentValues[f.segment]) : ""}
                   aria-label={`${f.label} ${f.segment ? "override " : ""}for ${p.id}`}
                   value={position[i] ?? ""}

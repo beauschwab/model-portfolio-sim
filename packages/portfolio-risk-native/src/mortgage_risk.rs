@@ -46,6 +46,7 @@ pub struct RiskConfig {
 
 /// Already-tabulated model data is immutable input, not callbacks or calculated
 /// instrument coefficients. Scalar spline evaluation/normalization stays native.
+#[derive(Clone)]
 pub struct PrepayData<'a> {
     pub month_of_year: &'a [f64],
     pub seasonality: &'a [f64],
@@ -69,6 +70,9 @@ pub struct PrepayData<'a> {
 /// state and channel indices into the supplied multiplier tables (other=0),
 /// price per 100, current face, payment-delay days. Optional original HPI is
 /// supplied separately; absence invokes the existing age/HPI-growth convention.
+/// Optional per-pool prepay speed multipliers scale turnover plus refi before the
+/// CPR cap; absence means 1 for every pool.
+#[derive(Clone)]
 pub struct MortgageRiskRequest<'a> {
     pub tenors: &'a [f64],
     pub swap_rates: &'a [f64],
@@ -77,6 +81,7 @@ pub struct MortgageRiskRequest<'a> {
     pub ps_history: &'a [f64],
     pub book: &'a [f64],
     pub original_hpi: &'a [f64],
+    pub prepay_multiplier: &'a [f64],
     pub seed: &'a [u32],
     pub fixed_oas: &'a [f64],
     pub config: RiskConfig,
@@ -340,6 +345,7 @@ impl MortgageRiskRequest<'_> {
             .chain(self.vol_quotes)
             .chain(self.book)
             .chain(self.original_hpi)
+            .chain(self.prepay_multiplier)
             .chain(self.fixed_oas)
             .chain(p.month_of_year)
             .chain(p.seasonality)
@@ -360,6 +366,8 @@ impl MortgageRiskRequest<'_> {
             || (!self.fixed_oas.is_empty() && self.fixed_oas.len() != n)
             || (!self.original_hpi.is_empty() && self.original_hpi.len() != n)
             || self.original_hpi.iter().any(|v| *v <= 0.)
+            || (!self.prepay_multiplier.is_empty() && self.prepay_multiplier.len() != n)
+            || self.prepay_multiplier.iter().any(|v| *v < 0.)
             || c.months == 0
             || c.months > 4096
             || c.dt != 1. / 12.
@@ -556,7 +564,7 @@ impl MortgageRiskRequest<'_> {
         .x;
         let fico = NaturalSpline::new(self.prepay.fico_x, self.prepay.fico_y)?;
         let size = NaturalSpline::new(self.prepay.size_x, self.prepay.size_y)?;
-        let mut sec: Vec<Vec<f64>> = (0..8).map(|_| Vec::with_capacity(n)).collect();
+        let mut sec: Vec<Vec<f64>> = (0..9).map(|_| Vec::with_capacity(n)).collect();
         let (mut targets, mut faces, mut delays) = (
             Vec::with_capacity(n),
             Vec::with_capacity(n),
@@ -577,6 +585,7 @@ impl MortgageRiskRequest<'_> {
                     * self.prepay.state_multipliers[r[8] as usize]
                     * self.prepay.channel_multipliers[r[9] as usize],
             );
+            sec[8].push(self.prepay_multiplier.get(i).copied().unwrap_or(1.));
             targets.push(r[10] / 100.);
             faces.push(r[11]);
             delays.push(r[12] / 365.);
@@ -981,6 +990,7 @@ mod tests {
                 0.05, 0.045, 24., 0., 0.8, 1., 720., 200000., 0., 0., 96., 1000000., 24.,
             ],
             original_hpi: &[],
+            prepay_multiplier: &[],
             seed: &[19],
             fixed_oas: &[],
             config: RiskConfig {
@@ -1046,5 +1056,46 @@ mod tests {
         assert!(replay_request.run_stress(&[0], &[0.]).is_err());
         assert!(replay_request.run_stress(&[1, 1], &[0.]).is_err());
         assert!(replay_request.run_stress(&[1], &[0., 0.]).is_err());
+
+        // Per-pool prepay speed multiplier. The fixture above has prepayment off, so
+        // switch on turnover (6% CPR) and refi under the fixed OAS. An explicit 1
+        // is the model's own speed. The pool is priced at 96, a discount at its
+        // fixed OAS, so faster prepayment returns par sooner and raises its value;
+        // 0 stops prepayment.
+        // Bad lengths and negative or non-finite values are rejected.
+        let prepaying = PrepayData {
+            parameters: &[0.3, -2., 100., 0., 0.06, 0.6, 0., 1., 0.],
+            smm_table: &[0., 0.1],
+            ..replay_request.prepay.clone()
+        };
+        let with = |speed: &'static [f64]| MortgageRiskRequest {
+            prepay_multiplier: speed,
+            prepay: prepaying.clone(),
+            ..replay_request.clone()
+        };
+        let model = with(&[]).run().unwrap();
+        let unit = with(&[1.]).run().unwrap();
+        assert_eq!(unit.price, model.price);
+        assert_eq!(unit.sensitivities, model.sensitivities);
+        let fast = with(&[3.]).run().unwrap();
+        let none = with(&[0.]).run().unwrap();
+        assert_eq!(fast.oas, fixed);
+        assert!(fast.price[0] > model.price[0] && model.price[0] > none.price[0]);
+        let none_off = MortgageRiskRequest {
+            prepay_multiplier: &[0.],
+            ..replay_request.clone()
+        };
+        // with prepayment already off, a zero multiplier changes nothing
+        assert_eq!(none_off.run().unwrap().price, replay.price);
+        let unit_stress = with(&[1.])
+            .run_stress(&[1, 12, 23], &[-100., 0., 100.])
+            .unwrap();
+        let model_stress = with(&[])
+            .run_stress(&[1, 12, 23], &[-100., 0., 100.])
+            .unwrap();
+        assert_eq!(unit_stress.pnl, model_stress.pnl);
+        assert!(with(&[-0.5]).run().is_err());
+        assert!(with(&[1., 1.]).run().is_err());
+        assert!(with(&[f64::NAN]).run().is_err());
     }
 }

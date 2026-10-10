@@ -25,7 +25,7 @@ const FIELDS: Record<string, [string, number]> = {
   age_months: ['Account age (months)', 1], avg_account_size: ['Average account size ($)', 1],
   wam: ['Remaining term (months)', 1], age: ['Pool age (months)', 1], oltv: ['Original loan-to-value (%)', 100],
   factor: ['Pool factor (%)', 100], fico: ['FICO score', 1], avg_loan_size: ['Average loan size ($)', 1],
-  hpi_orig_ratio: ['Home price ratio since origination', 1],
+  hpi_orig_ratio: ['Home price ratio since origination', 1], prepay_mult: ['Prepay speed ×', 1],
 };
 const selectClass = 'h-8 min-w-0 w-full rounded-md border border-line bg-surface-2 px-2 text-sm text-paper focus:outline-brand';
 const money = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? fmt$(Math.abs(value) < .5 ? 0 : value) : '—';

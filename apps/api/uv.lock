@@ -856,7 +856,7 @@ wheels = [
 
 [[package]]
 name = "portfolio-risk"
-version = "0.29.5"
+version = "0.29.6"
 source = { editable = "../../packages/portfolio-risk" }
 dependencies = [
     { name = "numba" },

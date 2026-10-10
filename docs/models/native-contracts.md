@@ -76,6 +76,13 @@ API/workers. These additions retain product ABI 8 and existing ledger protocol;
 an older ABI-8 binary still cannot serve the new additive schemas. Rebuilding
 locally is separate from restarting an executing deployment.
 
+Engine 0.29.6 raises the native product ABI to 9. The mortgage kernels (ops 4, 5
+and 10) take a ninth per-pool vector, the prepay speed multiplier, directly after
+the static multiplier; ops 28 and 29 take it as their last input, empty for
+"1 everywhere". `mortgage-risk-1`, owned mortgage JSON and accounting requests
+accept an optional `prepay_multiplier` array of the same length as the book.
+An ABI-8 binary is refused by the ABI check; rebuild and restart.
+
 ## Validation and remaining work
 
 Independent Rust fixtures and `test_native_model_contracts.py` cover analytical

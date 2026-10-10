@@ -110,6 +110,29 @@ def test_five_book_deltas_match_full_repricing(session, inputs):
         initial.close()
 
 
+def test_mbs_prepay_multiplier_edit_matches_full_repricing(session, inputs):
+    """A pool's speed multiplier is a decision edit like any term: Rust patches it,
+    reprices only that pool, and matches a full repricing of the revised book."""
+    ident = session.books['mbs']['cusip'][0]
+    r = session.update(version=session.version, edits={f'mbs:{ident}': {'prepay_mult': 2.5}})
+    assert r['work']['positions_repriced'] == 1
+    revised = apply_overrides(session.books, {'mbs': {ident: {'prepay_mult': 2.5}}})
+    for si, (_, sr, vp, spread) in enumerate(session.markets):
+        full = price_books(session.books, **session.pricing, valuation_books=revised,
+                           scenario_market=(sr, vp), spread_shift=spread, balance_sheet_extras=inputs['extras'])
+        base = full['kpis'] | {'nii_total_$': full['nii']['total']}
+        for key, value in decision._base(session.libraries[si], base).items():
+            np.testing.assert_allclose(r['bases'][si][key], value, rtol=1e-9, atol=1e-5)
+    restored = session.update(version=session.version, edits={f'mbs:{ident}': {'prepay_mult': None}})
+    initial = decision.DecisionSession(**inputs)
+    try:
+        for actual, expected in zip(session.bases, initial.bases):
+            np.testing.assert_allclose(actual['nii_total_$'], expected['nii_total_$'], rtol=1e-12)
+        assert restored['work']['positions_repriced'] == 1
+    finally:
+        initial.close()
+
+
 @pytest.mark.parametrize('template', ['agency_mbs', 'cml_fixed_5y', 'cd_2y', 'mmda_growth'])
 def test_selective_template_rebuild_matches_full_library(session, template):
     out = session.update(version=session.version, templates={template: {'spread_bp': 275.}})

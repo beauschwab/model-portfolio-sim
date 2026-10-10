@@ -213,7 +213,9 @@ impl<'a> Book<'a> {
                         } else {
                             b.request.original_hpi[i]
                         };
-                        json!((row, hpi))
+                        // the speed multiplier changes cash flows, so it is part of the identity
+                        let speed = b.request.prepay_multiplier.get(i).copied().unwrap_or(1.);
+                        json!((row, hpi, speed))
                     }
                     Self::Term(b) => {
                         let mut c = b.deck.contracts[i].clone();
@@ -257,9 +259,18 @@ impl<'a> Book<'a> {
                 } else {
                     indices.iter().map(|&i| b.request.original_hpi[i]).collect()
                 };
+                let speeds: Vec<_> = if b.request.prepay_multiplier.is_empty() {
+                    vec![]
+                } else {
+                    indices
+                        .iter()
+                        .map(|&i| b.request.prepay_multiplier[i])
+                        .collect()
+                };
                 let mut raw = b.request.borrow();
                 raw.book = &selected;
                 raw.original_hpi = &original;
+                raw.prepay_multiplier = &speeds;
                 raw.fixed_oas = &[];
                 raw.config.base_paths = p;
                 raw.config.sensitivity_paths = p;

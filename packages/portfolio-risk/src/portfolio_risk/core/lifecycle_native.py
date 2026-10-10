@@ -125,7 +125,7 @@ def hedge_risk(swaps, swaptions, asof, swap_rates, vol_pts, seed, horizon):
 
 
 def mortgage_input(port, swap_rates, vol_pts, histories, seed):
-    from .quant_native import _mortgage_inputs
+    from .quant_native import _mortgage_inputs, prepay_speed
     a = _mortgage_inputs(port, swap_rates, vol_pts, *histories, seed, None, None)
     c = np.asarray(a[8]).tolist()
     keys = ['base_paths','sensitivity_paths','months','forwards','factors','dt','tenor','shift',
@@ -136,7 +136,7 @@ def mortgage_input(port, swap_rates, vol_pts, histories, seed):
     config.update(hpi=c[11:14], incentive_lag=int(c[14]), ps_spot=c[15], rational_sigmoid=bool(c[16]))
     flat = lambda i: np.asarray(a[i]).ravel().tolist()
     return dict(tenors=flat(0),swap_rates=flat(1),vol_quotes=flat(2),cc_history=flat(3),ps_history=flat(4),
-        book=flat(5),original_hpi=flat(6),seed=[int(v) for v in flat(7)],fixed_oas=flat(9),config=config,
+        book=flat(5),original_hpi=flat(6),prepay_multiplier=prepay_speed(port),seed=[int(v) for v in flat(7)],fixed_oas=flat(9),config=config,
         prepay=dict(month_of_year=flat(10),seasonality=flat(11),parameters=flat(12),ltv_knots=flat(13),
             ltv_coefficients=flat(14),smm_table=flat(15),smm_scale=a[16][0],burnout_scale=a[16][1],
             burnout_table=flat(17),cc_vol_points=flat(18),fico_x=flat(19),fico_y=flat(20),size_x=flat(21),

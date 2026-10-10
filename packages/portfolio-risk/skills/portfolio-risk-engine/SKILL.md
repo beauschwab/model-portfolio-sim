@@ -775,3 +775,27 @@ Detailed mathematics, schemas, sources and limits are in `docs/models/`;
 the product and decision/workflow artifacts and restart API/workers before use.
 Product ABI 8 and existing ledger protocol remain unchanged; additive schemas
 require new binaries. Saved economics require explicit model selection/rebuild.
+
+## Per-pool MBS prepay speed (0.29.6)
+
+An optional MBS book column `prepay_mult` scales one pool's prepayment speed:
+monthly CPR = (turnover + refi) x `prepay_mult`, then the existing CPR cap. A
+missing column or null cell means 1, which reproduces the model exactly; 0 stops
+prepayment, leaving scheduled amortization. Saved books, what-if and
+decision edits accept finite values in [0, 10]. The global
+prepay vector, LUTs and static FICO/size/state/channel multipliers are
+unchanged, and the multiplier is not a fitted pool-level model.
+
+Rust owns the multiplier in every built-in mortgage path (spot risk, 9Q stress,
+accounting/NII/KPI capture, the incremental graph, whose cashflow identity now
+includes it, and decision repricing). New-origination unit templates use 1. The
+Python kernels carry the same term in all three MODEL-BLOCKs as the independent
+reference; custom Python prepay steps reject non-unit values. Fixed-OAS and CRN
+are unchanged: OAS is still solved to price with the multiplier applied.
+
+The mortgage kernels take a ninth per-pool vector after the static multiplier,
+so native product ABI 9 (ops 4/5/10 arity +1; ops 28/29 take the multiplier
+last) requires rebuilding scripts/build_native.py and the decision/workflow
+artifacts, then restarting API/workers. Saved books without the column are
+unaffected. Tests: `tests/test_prepay_multiplier.py` and the decision edit gate
+in `tests/test_decision.py`.
