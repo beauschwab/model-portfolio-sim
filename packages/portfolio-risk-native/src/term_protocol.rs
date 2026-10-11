@@ -126,6 +126,11 @@ enum Request {
         threads: usize,
         request: DepositDeckInput,
     },
+    #[serde(rename = "deposit-horizon-1")]
+    DepositHorizon {
+        threads: usize,
+        request: Box<crate::deposit_lifecycle::DepositRequest>,
+    },
     #[serde(rename = "term-risk-1")]
     Risk {
         threads: usize,
@@ -157,6 +162,7 @@ enum Output {
     DepositRisk(Box<crate::deposit_lifecycle::DepositRisk>),
     DepositStress(Box<crate::deposit_lifecycle::DepositStress>),
     DepositDeck(Box<crate::deposit_lifecycle::DepositDeck>),
+    DepositHorizon(Box<crate::deposit_lifecycle::DepositHorizon>),
     Risk(RiskResult),
     Deck(Box<Deck>),
 }
@@ -209,7 +215,8 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::Deck { threads, .. }
         | Request::DepositRisk { threads, .. }
         | Request::DepositStress { threads, .. }
-        | Request::DepositDeck { threads, .. } => *threads,
+        | Request::DepositDeck { threads, .. }
+        | Request::DepositHorizon { threads, .. } => *threads,
     };
     if !(1..=256).contains(&threads) {
         return Err("invalid native thread count".into());
@@ -265,6 +272,9 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             crate::deposit_lifecycle::DepositDeck::new(&request.book, &request.assumptions)
                 .map(|v| Output::DepositDeck(Box::new(v)))
         }
+        Request::DepositHorizon { request, .. } => request
+            .horizon_sensitivity()
+            .map(|v| Output::DepositHorizon(Box::new(v))),
         Request::Risk { request, .. } => request.run().map(Output::Risk),
         Request::Deck { request, .. } => request.build().map(|deck| Output::Deck(Box::new(deck))),
     })

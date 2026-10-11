@@ -30,14 +30,18 @@ def market_input(swap_rates,vol_pts,seed):
         vol_quotes=np.asarray(vol_pts).ravel().tolist(),seed=words)
 
 
-def deposit_input(book):
+def deposit_input(book, terminal=None):
     from ..products import deposits as d
     if missing:=d.DEPOSIT_COLS-set(book.columns): raise ValueError(f'deposit book missing columns: {missing}')
     fields=['balance','segment','age_months','avg_account_size','rate_paid','price']
     fields += [name for name in ['svc_cost','attrition_base','attrition_amp','attrition_slope','attrition_gap'] if name in book.columns]
-    return dict(book=book.select(fields).to_dicts(),assumptions=dict(segments=assumption('deposit_segments',d.SEGMENTS),
+    assumptions=dict(segments=assumption('deposit_segments',d.SEGMENTS),
         size_x=d.SIZE_X.tolist(),size_y=d.SIZE_Y.tolist(),age_knots=d.AGE_KNOTS.tolist(),
-        age_coefficients=d.AGE_COEFS.ravel().tolist(),velocity_coefficient=d.VEL_COEF,attrition_cap=d.ATTR_CAP))
+        age_coefficients=d.AGE_COEFS.ravel().tolist(),velocity_coefficient=d.VEL_COEF,attrition_cap=d.ATTR_CAP)
+    terminal=d.TERMINAL_MODES[d.terminal_code(terminal)]
+    # Omitted means payout: default requests (and their stored hashes) are unchanged.
+    if terminal!='payout': assumptions['terminal']=terminal
+    return dict(book=book.select(fields).to_dicts(),assumptions=assumptions)
 
 
 def deposit_deck(book):
@@ -58,8 +62,31 @@ def deposit_risk(book,swap_rates,vol_pts,history,seed,rate_model,oas):
     risk=result['risk'];labels=[f'krd01_{int(t)}y' for t in cfg.SWAP_TENORS]+[f'vega_{int(e)}x{int(t)}' for e,t,_ in vol_pts]
     return book.with_columns(pl.Series('oas_bps',np.asarray(risk['oas'])*1e4),
         pl.Series('model_price',np.asarray(risk['price'])*100),pl.Series('premium_pct',result['premium']),
-        pl.Series('wal_y',result['wal']),pl.Series('dv01',risk['dv01']),
+        pl.Series('wal_y',result['wal']),pl.Series('residual_balance',result['residual']),pl.Series('dv01',risk['dv01']),
         *[pl.Series(name,values) for name,values in zip(labels,np.asarray(risk['sensitivities']).reshape(len(labels),len(book)))])
+
+
+def deposit_horizon(book,swap_rates,vol_pts,history,horizons,seed,oas):
+    """Transport the Rust `deposit-horizon-1` report and format its tables."""
+    request=deposit_request(book,swap_rates,vol_pts,history,seed,None,oas)
+    request.update(horizons=[operator.index(h) for h in horizons])
+    result=term_call('deposit-horizon-1',request)
+    modes=result['modes'];ids=book['id'].to_list();n=len(ids);rows=[]
+    for hi,h in enumerate(result['horizons']):
+        for mi,mode in enumerate(modes):
+            rows.append(pl.DataFrame(dict(id=ids,horizon_m=[h]*n,mode=[mode]*n,
+                balance=book['balance'].cast(pl.Float64),oas_bps=np.asarray(result['oas'])*1e4,
+                residual_balance=result['residual'][hi],pv=result['pv'][hi][mi],
+                terminal_pv=result['terminal_pv'][hi][mi],
+                implied_oas_bps=np.asarray(result['implied_oas'][hi][mi])*1e4)))
+    positions=pl.concat(rows)
+    summary=(positions.group_by(['horizon_m','mode'],maintain_order=True)
+             .agg(pl.col('balance').sum().alias('balance_$'),pl.col('pv').sum().alias('pv_$'),
+                  pl.col('residual_balance').sum().alias('residual_balance_$'),
+                  pl.col('terminal_pv').sum().alias('terminal_pv_$'),
+                  ((pl.col('implied_oas_bps')*pl.col('balance')).sum()/pl.col('balance').sum()).alias('implied_oas_bps'))
+             .with_columns((pl.col('pv_$')/pl.col('balance_$')*100).alias('price')))
+    return dict(policy=result['policy'],base_mode=result['base_mode'],positions=positions,summary=summary)
 
 
 def deposit_stress(book,swap_rates,vol_pts,history,shocks,seed,rate_model,oas):

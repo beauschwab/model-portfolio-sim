@@ -99,6 +99,9 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
     histories_key = fingerprint(mbs_hists) if "mbs" in books else None
     deposit_history_key = fingerprint(dep_hist) if "deposits" in books else None
     segments = SEGMENTS if config.deposit_segments is None else config.deposit_segments
+    # A non-default terminal treatment changes deposit cashflows, so it joins
+    # their identity; payout keeps the historical keys.
+    terminal = config.deposit_terminal or "payout"
     ew_params = CD_EW_PARAMS if config.cd_ew_params is None else config.cd_ew_params
 
     def path_key(market, n_paths, mortgage, anchor=None):
@@ -153,6 +156,8 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
                 terms.setdefault('hpi_orig_ratio', (1 + HPI_MU) ** (float(row['age']) / 12))
             assumption = (segments[row["segment"]] if book == "deposits" else
                           ew_params if book == "cds" else None)
+            if book == "deposits" and terminal != "payout":
+                assumption = (assumption, "terminal", terminal)
             keys.append(fingerprint("cashflows", MODEL_REVISION, book,
                                     row["cusip" if mortgage else "id"],
                                     terms,
@@ -194,7 +199,7 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
                     if field in subset.columns:
                         values = subset[field].to_numpy()
                         setattr(deck, attr, np.where(np.isfinite(values), values, getattr(deck, attr)))
-                A, P, _, _, _, I = _deposit_A(deck, p, dep, r0)
+                A, P, _, _, _, I, _ = _deposit_A(deck, p, dep, r0)
                 delays = np.zeros(len(subset))
             return [(row, TGRID + delay, interest, principal) for row, delay, interest, principal in zip(A, delays, I, P)]
 

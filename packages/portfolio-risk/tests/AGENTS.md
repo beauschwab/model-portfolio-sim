@@ -47,7 +47,7 @@ callable negative dv01 — and that correction is documented inline).
 | change | gating tests |
 |---|---|
 | kernels.py either MODEL-BLOCK | test_zero_shock_invariant (engine vs stress_engine must agree exactly at zero shock) + test_stress_pnl_signs |
-| deposits DEPOSIT-MODEL-BLOCK | test_deposit_zero_shock_invariant |
+| deposits DEPOSIT-MODEL-BLOCK | test_deposit_zero_shock_invariant + test_deposit_terminal (hand fixtures per terminal mode, zero-shock per mode, Rust parity) |
 | Padé / LUT / sigmoid numerics | test_rational_sigmoid_oas_accuracy (<0.05bp asserted; measured 0.007bp) |
 | pricing / solver | test_oas_roundtrip (+ every product's end-to-end reprice check) |
 | conventions | test_day_counts (hand-computed values), test_us_holidays_and_adjust (rule-generated 2026 dates incl. Good Friday/observed July 4), test_schedule_taus_sum |

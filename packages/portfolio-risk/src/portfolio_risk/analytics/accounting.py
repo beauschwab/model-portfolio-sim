@@ -294,7 +294,7 @@ def run_balance_sheet_nii(bs: dict, swap_rates, vol_pts, dep_hist,
         r0 = anchored.get("deposit_initial_rate", float(m.equilibrium(params, rpaths["short"][:, 0].mean())))
         anchors["deposit_initial_rate"] = r0
         dep = m.paths(rpaths["short"].astype(np.float64), params, r0)
-        _, Pout_d, _, _, _, Iout = _deposit_A(deck, rpaths, dep, r0)
+        _, Pout_d, _, _, _, Iout, _ = _deposit_A(deck, rpaths, dep, r0)
         cols["deposit_expense"] = (Iout[:, :horizon] / P
                                    * deck.bal[:, None]).sum(0)
         runoff["deposits"] = (Pout_d[:, :horizon] / P
