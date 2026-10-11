@@ -258,3 +258,25 @@ def test_htm_accounting_inputs_are_validated(mutate, message):
     mutate(spec)
     with pytest.raises(ValueError, match=message):
         validate(spec)
+
+
+def test_large_transfers_eliminate_whatever_the_summation_order(tmp_path):
+    # Rust sums intercompany balances in hash order; at this scale a currency-wide
+    # sum used to leave an ulp-sized residue and fail the elimination check.
+    k = 1e8
+    spec = dict(version=MODEL_VERSION, horizon_days=30,
+                accounts=[dict(id='hold', entity='holdco', currency='USD', cash=300.1234567*k, equity=300.1234567*k),
+                          dict(id='bank', entity='bank', currency='USD', cash=30.987654321*k,
+                               equity=50.987654321*k, cash_floor=20.*k)],
+                positions=[dict(id='ln', account='bank', kind='loan', balance=220.*k),
+                           dict(id='wf', account='bank', kind='funding', balance=50.3333333*k, maturity_day=5),
+                           dict(id='wf2', account='bank', kind='funding', balance=7.77777777*k, maturity_day=9),
+                           dict(id='wf3', account='bank', kind='funding', balance=3.1415926*k, maturity_day=13),
+                           dict(id='dep', account='bank', kind='deposit',
+                                balance=(30.987654321+220.-50.987654321-50.3333333-7.77777777-3.1415926)*k)],
+                policies=[dict(id=f'support{i}', account='hold', destination='bank', kind='transfer',
+                               trigger_cash=25.11111*k, limit=1000.*k) for i in range(2)],
+                scenarios=[dict(name='stress')])
+    for attempt in range(5):
+        result = run(spec, tmp_path/str(attempt))
+        assert (result['actions']['status'] == 'executed').sum() > 2

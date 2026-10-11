@@ -727,5 +727,5 @@ The detail table `accounting_events` records each sale and reclassification.
 Without a policy, sales keep the existing internal face limit and are recorded
 as not_assessed. This is a research implementation of the stated rule, not an
 accounting opinion: management intent, auditor judgment and tainting periods
-are not modeled. Rebuild the ledger and decision/workflow binaries and restart
+are not modeled (HTM positions originating after a reclassification stay HTM). Rebuild the ledger and decision/workflow binaries and restart
 workers; the new output columns are additive.

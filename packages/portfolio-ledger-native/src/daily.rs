@@ -629,13 +629,20 @@ impl<'a> Sim<'a> {
         }
         // Intercompany balances must eliminate within each currency: every
         // receivable has its payable, so transfers never create group funding.
-        let mut eliminations: BTreeMap<&str, f64> = BTreeMap::new();
-        for ((a, _, _), v) in &self.intercompany {
-            *eliminations
-                .entry(self.accounts[*a].currency.as_str())
-                .or_default() += *v;
+        // Each transfer's receivable and payable net per currency, relative to
+        // its gross, so the check does not depend on summation order.
+        let mut eliminations: BTreeMap<(&str, usize), (f64, f64)> = BTreeMap::new();
+        for ((a, _, id), v) in &self.intercompany {
+            let e = eliminations
+                .entry((self.accounts[*a].currency.as_str(), *id))
+                .or_default();
+            e.0 += *v;
+            e.1 += v.abs();
         }
-        if let Some((currency, net)) = eliminations.iter().find(|(_, v)| !near(**v, 0.)) {
+        if let Some(((currency, _), (net, _))) = eliminations
+            .iter()
+            .find(|(_, (net, gross))| net.abs() > 1e-9 * gross.max(1.))
+        {
             return Err(format!(
                 "intercompany balances do not eliminate day {day}: {currency} {net}"
             ));

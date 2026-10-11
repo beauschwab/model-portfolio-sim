@@ -568,11 +568,14 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             expected[claim['account'], 'secured_funding', cid] = -claim['balance']
         journal.verify(expected)
         # Intercompany balances must eliminate within each currency.
-        eliminations = defaultdict(float)
-        for (account, _, _), value in intercompany.items():
-            eliminations[accounts[account].currency] += value
-        for currency, net in eliminations.items():
-            if abs(net) > 1e-9*max(1., abs(net)):
+        # Each transfer nets per currency, relative to its gross amount.
+        eliminations = defaultdict(lambda: [0., 0.])
+        for (account, _, cid), value in intercompany.items():
+            e = eliminations[accounts[account].currency, cid]
+            e[0] += value
+            e[1] += abs(value)
+        for (currency, _), (net, gross) in eliminations.items():
+            if abs(net) > 1e-9*max(1., gross):
                 raise ArithmeticError(f"intercompany balances do not eliminate day {day}: {currency} {net}")
         if detail and (day == 0 or day % 30 == 0 or day == spec["horizon_days"]):
             for p in positions:
