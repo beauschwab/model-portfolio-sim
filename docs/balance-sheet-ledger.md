@@ -106,8 +106,10 @@ posted-VM behavior, not full dealer/XVA pricing.
 
 Ruleset `research-weights-v2` centralizes daily headroom and acceptance checks.
 Cash, CET1, leverage, LCR, NSFR and HTM limits affect breaches, reverse stress and
-candidate validation, including day zero. LCR/NSFR floors default to zero
-(disabled), HTM asset limit to one; set internal limits explicitly.
+candidate validation, including day zero. LCR/NSFR floors default to zero, HTM
+asset limit to one; set internal limits explicitly. A zero floor resolves to
+`unconfigured`, not a pass: path and summary rows report `lcr_status`/`nsfr_status`
+and null headroom unless `*_applicability` is `internal_limit`.
 
 Daily LCR and legacy KPIs share the 40% Level 2A composition and 75% inflow caps.
 Set `hqla_level` to `level1` or `level2a`; supply weights and inflow/outflow

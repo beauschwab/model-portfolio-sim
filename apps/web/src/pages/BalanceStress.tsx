@@ -58,7 +58,7 @@ function StandardBalanceStress() {
   const [result, setResult] = useState<{ data: BalanceStressResult; input: string } | null>(null);
   const [scenario, setScenario] = useState('baseline');
   const [account, setAccount] = useState('');
-  const [view, setView] = useState<'attribution' | 'ledger' | 'journal' | 'trial_balance' | 'funding_claims' | 'actions' | 'breaches' | 'exposures' | 'reverse_grid'>('attribution');
+  const [view, setView] = useState<'attribution' | 'ledger' | 'journal' | 'trial_balance' | 'funding_claims' | 'actions' | 'breaches' | 'exposures' | 'accounting_events' | 'reverse_grid'>('attribution');
   const generation = useRef(0);
   const submittedInput = useRef('');
   useEffect(() => {
@@ -122,7 +122,7 @@ function StandardBalanceStress() {
   const selectedAccount = accounts.includes(account) ? account : accounts[0] ?? '';
   const matches = (r: Row) => r.scenario === selectedScenario && r.account === selectedAccount;
   const path = useMemo(() => shown ? rowsOf(shown.path).filter(r => r.scenario === selectedScenario && r.account === selectedAccount) : [], [shown, selectedScenario, selectedAccount]);
-  const table = useMemo(() => shown ? rowsOf(shown[view]).filter(r => r.scenario === selectedScenario && (r.account === selectedAccount || (view === 'actions' && r.destination === selectedAccount))) : [], [shown, view, selectedScenario, selectedAccount]);
+  const table = useMemo(() => shown ? rowsOf<Row>(shown[view] ?? []).filter(r => r.scenario === selectedScenario && (r.account === selectedAccount || (view === 'actions' && r.destination === selectedAccount))) : [], [shown, view, selectedScenario, selectedAccount]);
   const selected = summary.find(matches);
   const columns: Record<typeof view, string[]> = {
     attribution: ['event', 'cash_delta', 'earnings_delta', 'aoci_delta'],
@@ -133,6 +133,7 @@ function StandardBalanceStress() {
     actions: ['day', 'policy', 'account', 'destination', 'kind', 'status', 'amount', 'reason'],
     breaches: ['day', 'metric'],
     exposures: ['day', 'position', 'kind', 'balance', 'allowance', 'watch_fraction', 'commitment', 'encumbered_fraction'],
+    accounting_events: ['day', 'policy', 'position', 'sale_reason', 'accounting_policy', 'qualification', 'amortized_cost', 'aoci'],
     reverse_grid: ['severity', 'breached', 'first_cash_breach_day', 'first_capital_breach_day', 'first_leverage_breach_day', 'first_lcr_breach_day', 'first_nsfr_breach_day', 'first_htm_breach_day', 'peak_cash_shortfall'],
   };
   return <div className="space-y-3">
@@ -153,8 +154,8 @@ function StandardBalanceStress() {
         {result && !shown && <p role="status" className="text-sm text-paper-faint">Inputs changed; run again to see matching results.</p>}
       </CardBody></Card>
     {shown && <>
-      <Card><CardHeader title="Scenario comparison" sub="Cash is local to each entity and currency; no automatic transfer of group surplus." /><CardBody>
-        <ResultsTable rows={summary} name="comparison" columns={['scenario', 'account', 'currency', 'minimum_cash', 'peak_cash_shortfall', 'final_equity', 'first_cash_breach_day', 'first_capital_breach_day', 'max_reconciliation_error']} />
+      <Card><CardHeader title="Scenario comparison" sub="Cash is local to each entity and currency; no automatic transfer of group surplus. LCR/NSFR status is not applicable or unconfigured unless an internal limit is set." /><CardBody>
+        <ResultsTable rows={summary} name="comparison" columns={['scenario', 'account', 'currency', 'minimum_cash', 'peak_cash_shortfall', 'final_equity', 'first_cash_breach_day', 'first_capital_breach_day', 'lcr_status', 'nsfr_status', 'htm_reclassification_day', 'max_reconciliation_error']} />
       </CardBody></Card>
       <div className="flex flex-wrap items-center gap-3">
         <Badge tone={shown.validation.dynamic_validated ? 'up' : 'danger'}>{shown.validation.dynamic_validated ? 'Daily research limits passed' : `${shown.validation.breach_count} daily limit breaches`}</Badge>
@@ -168,7 +169,7 @@ function StandardBalanceStress() {
             <Line name="Cash" dataKey="cash" stroke="var(--viz-1)" dot={false} isAnimationActive={false} /><Line name="Cash floor" dataKey="cash_floor" stroke="var(--warning-500)" dot={false} strokeDasharray="4 4" isAnimationActive={false} />
           </LineChart></ResponsiveContainer></div>
         <details><summary className="cursor-pointer text-sm text-paper-dim">Balance-sheet and capital timeline</summary>
-          <ResultsTable rows={path} name="timeline" columns={['day', 'cash', 'restricted_cash', 'assets', 'liabilities', 'equity', 'cet1', 'rwa', 'cet1_ratio', 'leverage_ratio', 'usable_collateral', 'lcr_proxy', 'nsfr_proxy', 'lcr_headroom', 'nsfr_headroom', 'htm_headroom']} /></details>
+          <ResultsTable rows={path} name="timeline" columns={['day', 'cash', 'restricted_cash', 'assets', 'liabilities', 'equity', 'cet1', 'rwa', 'cet1_ratio', 'leverage_ratio', 'usable_collateral', 'lcr_proxy', 'lcr_status', 'lcr_headroom', 'nsfr_proxy', 'nsfr_status', 'nsfr_headroom', 'htm_headroom']} /></details>
       </CardBody></Card>
       <Card><CardHeader title="Explain the result" sub="Attribution is the additive event difference from baseline; it is not a causal factor decomposition." /><CardBody className="space-y-3">
         <label className="text-sm">View <select aria-label="Stress detail view" className={selectClass} value={view} onChange={e => setView(e.target.value as typeof view)}>{Object.keys(columns).map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>

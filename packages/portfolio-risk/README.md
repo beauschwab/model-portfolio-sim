@@ -731,3 +731,35 @@ seventh residual output, so native product ABI 10 requires rebuilding
 scripts/build_native.py and the decision/workflow artifacts and restarting
 API/workers. Tests: `tests/test_deposit_terminal.py` and Rust deposit_lifecycle
 unit tests.
+
+## Liquidity applicability, transfer approval and HTM accounting (0.29.8)
+
+Each daily-ledger account declares `lcr_applicability`/`nsfr_applicability`:
+`internal_limit` (needs a positive floor), `not_applicable` or `unconfigured`
+(both forbid a floor). Empty resolves from the floor, so older specifications
+keep their limits as internal limits. `regulatory` is rejected:
+research-weights-v2 computes research proxies only. Path rows carry
+`lcr_status`/`nsfr_status` (within_limit, unavailable when the ratio is
+undefined, breach, or the non-limit basis), headroom is null unless the basis
+is internal_limit, and the summary reports the basis and the worst status. A
+rule that does not apply is never reported as passed.
+
+Transfers may set `approval_day`: a request before it is logged as delayed
+("awaiting transfer approval") and re-dispatched on that day. Intercompany
+receivable/payable must eliminate per currency every day; a non-zero sum
+fails the run. `test_ledger_svb_policies.py` carries the trapped-cash golden
+case: a bank entity breaches its cash floor while consolidated cash is ample.
+
+`htm_accounting="asc320-htm-v1"` classifies HTM sales by `sale_reason`.
+ASC 320-10-25-6/25-14 exceptions (credit_deterioration, tax_law_change,
+business_combination, regulatory_change, and near_maturity within 90 days of
+maturity) are permitted. An unsupported near_maturity claim and liquidity or
+other sales count against `htm_taint_materiality` x opening HTM amortized
+cost. Exceeding it reclassifies the remaining HTM securities to AFS on that
+day, with fair value less amortized cost posted to AOCI in balanced journals.
+The detail table `accounting_events` records each sale and reclassification.
+Without a policy, sales keep the existing internal face limit and are recorded
+as not_assessed. This is a research implementation of the stated rule, not an
+accounting opinion: management intent, auditor judgment and tainting periods
+are not modeled (HTM positions originating after a reclassification stay HTM). Rebuild the ledger and decision/workflow binaries and restart
+workers; the new output columns are additive.

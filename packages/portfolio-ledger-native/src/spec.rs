@@ -6,6 +6,35 @@ use std::collections::{BTreeMap, BTreeSet};
 type R<T> = Result<T, String>;
 const MODEL: &str = "balance-stress-2";
 const RULES: &str = "research-weights-v2";
+/// The only HTM accounting policy implemented: US GAAP ASC 320-10-25 sale
+/// exceptions with a portfolio reclassification above a stated materiality.
+pub const HTM_POLICY: &str = "asc320-htm-v1";
+/// Sale reasons ASC 320-10-25-6 and 25-14 treat as consistent with HTM intent.
+pub const HTM_EXCEPTIONS: [&str; 5] = [
+    "credit_deterioration",
+    "tax_law_change",
+    "business_combination",
+    "regulatory_change",
+    "near_maturity",
+];
+const SALE_REASONS: [&str; 7] = [
+    "credit_deterioration",
+    "tax_law_change",
+    "business_combination",
+    "regulatory_change",
+    "near_maturity",
+    "liquidity",
+    "other",
+];
+/// How a liquidity floor applies to an account. An empty field resolves from the
+/// floor, so specifications written before applicability existed keep their limits.
+pub fn liquidity_basis(applicability: &str, floor: f64) -> &str {
+    match applicability {
+        "" if floor > 0. => "internal_limit",
+        "" => "unconfigured",
+        basis => basis,
+    }
+}
 fn range(row: &Value, fields: &str, lo: f64, hi: f64) -> R<()> {
     for name in fields.split_whitespace() {
         let value = row[name]
@@ -151,6 +180,37 @@ pub fn validate(spec: &Spec, max_positions: usize, max_work: usize) -> R<()> {
             1.,
         )?;
         range(row, "lcr_floor nsfr_floor", 0., 10.)?;
+        for (metric, applicability, floor) in [
+            ("LCR", a.lcr_applicability.as_str(), a.lcr_floor),
+            ("NSFR", a.nsfr_applicability.as_str(), a.nsfr_floor),
+        ] {
+            match liquidity_basis(applicability, floor) {
+                "regulatory" => {
+                    return Err(format!(
+                        "regulatory {metric} needs a source-backed rule set; {RULES} computes research proxies only"
+                    ))
+                }
+                "internal_limit" if floor <= 0. => {
+                    return Err(format!("an internal {metric} limit needs a positive floor"))
+                }
+                "unconfigured" | "not_applicable" if floor > 0. => {
+                    return Err(format!(
+                        "a {metric} floor applies only with internal_limit applicability"
+                    ))
+                }
+                "unconfigured" | "not_applicable" | "internal_limit" => {}
+                _ => return Err(format!("unknown {metric} applicability")),
+            }
+        }
+        if !["", HTM_POLICY].contains(&a.htm_accounting.as_str()) {
+            return Err(format!(
+                "unsupported HTM accounting policy; only {HTM_POLICY} is implemented"
+            ));
+        }
+        range(row, "htm_taint_materiality", 0., 1.)?;
+        if a.htm_taint_materiality > 0. && a.htm_accounting.is_empty() {
+            return Err("HTM taint materiality needs a selected HTM accounting policy".into());
+        }
     }
     for p in &spec.positions {
         let value = serde_json::to_value(p).map_err(|e| e.to_string())?;
@@ -271,6 +331,26 @@ pub fn validate(spec: &Spec, max_positions: usize, max_work: usize) -> R<()> {
         range(row, "funding_rate", 0., 2.)?;
         if p.funding_tenor_days < 1 {
             return Err("funding tenor must be positive".into());
+        }
+        if !p.sale_reason.is_empty()
+            && (p.kind != "sell" || !SALE_REASONS.contains(&p.sale_reason.as_str()))
+        {
+            return Err("sale_reason applies to sell policies and must be a known reason".into());
+        }
+        if p.approval_day != 0 && (p.kind != "transfer" || p.approval_day > days) {
+            return Err("approval_day applies to transfers within the horizon".into());
+        }
+        if p.kind == "sell"
+            && p.allow_htm_sale
+            && p.sale_reason.is_empty()
+            && !accounts[p.account.as_str()].htm_accounting.is_empty()
+            && positions
+                .get(p.position.as_str())
+                .is_some_and(|v| v.classification == "htm")
+        {
+            return Err(
+                "an HTM sale under a selected accounting policy needs a sale_reason".into(),
+            );
         }
         if ["sell", "secured_funding"].contains(&p.kind.as_str())
             && !positions

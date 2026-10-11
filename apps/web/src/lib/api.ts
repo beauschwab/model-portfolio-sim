@@ -37,7 +37,7 @@ export interface BalanceStressResult {
   revision: number; model_version: string; specification: Record<string, unknown>; warnings: string[];
   summary: Table; path: Table; ledger: Table; actions: Table; breaches: Table;
   exposures: Table; attribution: Table; reverse_grid: Table;
-  journal: Table; trial_balance: Table; funding_claims: Table;
+  journal: Table; trial_balance: Table; funding_claims: Table; accounting_events?: Table;
   validation: { dynamic_validated: boolean; validation_scope: string; ruleset: string; breach_count: number };
 }
 export interface StressCapabilities { durable: boolean; rust: boolean; large_book: boolean; scope_id: string | null }

@@ -123,9 +123,16 @@ Securities use `max(.01, 1-duration*(rate_shift+spread_shift))` market factors.
 AFS changes enter AOCI, trading changes enter earnings, HTM/amortized cost retain
 book value until sale/maturity. AFS sales reclassify accumulated OCI to earnings
 without another total-equity loss. HTM sale policies require explicit permission
-and a cumulative face limit; this is an internal modeling restriction, not a
-conclusion about permitted sales or classification consequences under accounting
-standards. Mark factors are static stress proxies, not aging, full-repricing or
+and a cumulative face limit. An account may also select
+`htm_accounting="asc320-htm-v1"`: each HTM sale then needs a `sale_reason`, the
+ASC 320-10-25-6/25-14 exceptions (credit deterioration, tax law, business
+combination, regulatory change, and sales within 90 days of maturity) are
+permitted, and other sales accumulate against `htm_taint_materiality` × opening
+HTM amortized cost. Above it, every remaining HTM security is reclassified to AFS
+that day and its fair value less amortized cost enters AOCI through balanced
+journals; `accounting_events` records sales and reclassifications. This is a
+research implementation of that rule, not an accounting opinion: management
+intent, auditor judgment and the subsequent tainting period are not modeled. Mark factors are static stress proxies, not aging, full-repricing or
 credit-adjusted bond valuations. Securities repay face at maturity.
 
 Netting-set fair value decreases by supplied stress loss × market shock.
@@ -145,7 +152,9 @@ eligible unpledged face after haircuts; sold collateral cannot also be pledged.
 Already encumbered collateral remains encumbered unless sold portions were free;
 funding maturity does not automatically release an unidentified pledge. A
 transfer creates matching intercompany receivable/payable and leaves donor cash
-above its floor. No transfer is inferred from common ownership or consolidated
+above its floor; `approval_day` holds a request until that day ("awaiting
+transfer approval"), and intercompany balances must eliminate per currency every
+day or the run fails. No transfer is inferred from common ownership or consolidated
 surplus. Outages delay policies, not scheduled contractual outflows. Dividend cuts
 affect future distributions only. Policy funding remains outstanding through the
 horizon and pays daily interest.
@@ -161,10 +170,16 @@ capital separately to currency accounts is a diagnostic allocation; true
 legal-entity capital consolidation requires FX translation and eliminations.
 
 LCR proxy uses positive cash plus unencumbered market value × user HQLA weight,
-divided by user-weighted outflows. NSFR proxy uses equity and user-weighted funding
-over user-weighted assets. These exclude regulatory eligibility/caps, inflow caps,
-maturity buckets, netting and many adjustments. They are **labeled proxies**, and
-the stress engine does not assert regulatory LCR/NSFR compliance. The existing
+divided by user-weighted outflows less inflows capped at 75% of outflows; Level 2A
+is capped at 40% of HQLA. NSFR proxy uses equity and user-weighted funding over
+user-weighted assets. These exclude regulatory eligibility, maturity buckets,
+netting and many adjustments. They are **labeled proxies**, and the stress engine
+does not assert regulatory LCR/NSFR compliance. Each account declares
+`lcr_applicability`/`nsfr_applicability` as `internal_limit` (positive floor),
+`not_applicable` or `unconfigured`; only internal limits produce headroom,
+breaches and a `within_limit` status, so a rule that does not apply is never
+shown as passed. `regulatory` is rejected until a source-backed rule set exists.
+An undefined ratio under an internal limit reports `unavailable`. The existing
 Strategy Lab/Decision Lab constraints and their established approximations remain
 unchanged; `/strategy/eval` still performs coefficient-only evaluation.
 

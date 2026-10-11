@@ -6,6 +6,32 @@ Never label a pass under this ruleset as regulatory compliance.
 RULESET = 'research-weights-v2'
 L2_CAP = .40
 INFLOW_CAP = .75
+# The only HTM accounting policy implemented: US GAAP ASC 320-10-25 sale
+# exceptions with a portfolio reclassification above a stated materiality.
+HTM_POLICY = 'asc320-htm-v1'
+# Sale reasons ASC 320-10-25-6 and 25-14 treat as consistent with HTM intent.
+HTM_EXCEPTIONS = ('credit_deterioration', 'tax_law_change', 'business_combination', 'regulatory_change', 'near_maturity')
+SALE_REASONS = (*HTM_EXCEPTIONS, 'liquidity', 'other')
+LIQUIDITY_STATUS = ('within_limit', 'unavailable', 'breach')
+
+
+def liquidity_basis(applicability, floor):
+    """How a liquidity floor applies. Empty resolves from the floor, so older
+    specifications keep their limits as internal limits."""
+    if applicability:
+        return applicability
+    return 'internal_limit' if floor > 0 else 'unconfigured'
+
+
+def liquidity_status(basis, ratio, margin):
+    """(status, rank): a breach outranks unavailable inputs, which outrank a pass."""
+    if basis != 'internal_limit':
+        return ('not_applicable' if basis == 'not_applicable' else 'unconfigured'), 0
+    if margin < -1e-9:
+        return 'breach', 2
+    if ratio is None:
+        return 'unavailable', 1
+    return 'within_limit', 0
 
 
 def liquidity_components(level1, level2a, outflow, inflow):
