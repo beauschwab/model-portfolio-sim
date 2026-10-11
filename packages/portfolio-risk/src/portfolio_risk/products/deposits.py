@@ -540,10 +540,10 @@ def deposit_horizon_sensitivity(book: pl.DataFrame, swap_rates, vol_pts,
     residual balance left at the horizon, the PV of the terminal treatment
     (PV(mode) - PV(truncate)) and the OAS that would reprice to the observed
     price. OAS is supplied or solved at the base horizon under the run's
-    configured mode. One rate tape is simulated at the longest horizon (at
-    most 482 months on the 161-forward grid); shorter horizons use its leading
-    months, so horizons share draws. With horizons=(N_STEPS,) the tape and the
-    configured-mode PV equal run_deposit_risk. Returns dict(policy, base_mode,
+    configured mode. Each horizon (at most 482 months on the 161-forward grid)
+    is simulated as a production run of that length, so the base row equals
+    run_deposit_risk at the base horizon; horizon differences include Monte
+    Carlo noise. Returns dict(policy, base_mode,
     positions, summary)."""
     from ..core.lifecycle_native import deposit_horizon
     return deposit_horizon(book, swap_rates, vol_pts, dep_hist, horizons, seed, oas)

@@ -665,26 +665,12 @@ pub struct DepositHorizon {
     pub implied_oas: Vec<Vec<Vec<f64>>>,
 }
 /// Leading `h` months of each path, so all report horizons share one draw tape.
-fn leading(paths: &DepositPaths, p: usize, t: usize, h: usize) -> DepositPaths {
-    let cut = |v: &[f64]| -> Vec<f64> {
-        (0..p)
-            .flat_map(|path| v[path * t..path * t + h].iter().copied())
-            .collect()
-    };
-    DepositPaths {
-        rate: cut(&paths.rate),
-        short: cut(&paths.short),
-        df: cut(&paths.df),
-        velocity: cut(&paths.velocity),
-    }
-}
 impl DepositRequest {
     /// Liability PV, horizon residual and terminal-treatment PV for each mode at
     /// each report horizon (`horizons`, months, increasing; the first is the base
-    /// horizon). One rate tape is simulated at the longest horizon and every
-    /// shorter horizon uses its leading months (common random numbers across
-    /// horizons); with a single horizon equal to the production grid the tape
-    /// and the configured-mode PV are those of `risk`.
+    /// horizon). Each horizon is simulated as a production run of that length
+    /// with the same seed, so the base row equals `risk` at the base horizon and
+    /// differences across horizons include Monte Carlo noise.
     pub fn horizon_sensitivity(&self) -> Result<DepositHorizon, String> {
         let n = self.book.len();
         let hz = &self.horizons;
@@ -696,16 +682,21 @@ impl DepositRequest {
         {
             return Err("invalid deposit horizon report horizons".into());
         }
-        let longest = hz[hz.len() - 1];
         let modes = Terminal::ALL.len();
         admit(&[n, hz.len(), modes, 3], 128 * 1024 * 1024)?;
-        let mut request = self.clone();
-        request.market.config.months = longest;
-        let (market, params, r0) = request.prepare()?;
-        let p = request.market.config.paths;
-        let base = market.base()?;
-        let dep = deposit_paths(&base.short, &base.df, &params, r0, p, longest);
-        let tapes: Vec<_> = hz.iter().map(|&h| leading(&dep, p, longest, h)).collect();
+        // Each horizon is simulated exactly as a production run of that length,
+        // so every row (the base row in particular) reconciles with deposit
+        // risk configured at that horizon. Draws are path-major, so tapes of
+        // different lengths do not share leading months.
+        let p = self.market.config.paths;
+        let mut tapes = Vec::with_capacity(hz.len());
+        for &h in hz {
+            let mut request = self.clone();
+            request.market.config.months = h;
+            let (market, params, r0) = request.prepare()?;
+            let base = market.base()?;
+            tapes.push((deposit_paths(&base.short, &base.df, &params, r0, p, h), r0));
+        }
         let configured = Terminal::ALL
             .iter()
             .position(|m| *m == self.assumptions.terminal)
@@ -728,12 +719,12 @@ impl DepositRequest {
             let zero = vec![0.; count];
             // flows[horizon][mode] = (A, residual path sums)
             let mut flows = Vec::with_capacity(hz.len());
-            for (tape, &h) in tapes.iter().zip(hz) {
+            for ((tape, r0), &h) in tapes.iter().zip(hz) {
                 let mut row = Vec::with_capacity(modes);
                 for mode in Terminal::ALL {
                     let mut a = self.assumptions.clone();
                     a.terminal = mode;
-                    let mut f = cashflows(&deck, &a, tape, r0, p, h, &zero, &[0.], false, None);
+                    let mut f = cashflows(&deck, &a, tape, *r0, p, h, &zero, &[0.], false, None);
                     let residual = f.swap_remove(6);
                     row.push((f.swap_remove(0), residual));
                 }

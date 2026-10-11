@@ -410,7 +410,8 @@ and mode. Deposit risk adds a `residual_balance` column ($ before the terminal
 treatment). `deposit_horizon_sensitivity` (Rust `deposit-horizon-1`) reports PV,
 residual balance, terminal-treatment PV (PV(mode)-PV(truncate)) and implied OAS
 for every mode at the base and extended horizons (up to 482 months) at one fixed
-OAS; horizons share one draw tape simulated at the longest horizon. The deposit
+OAS, solved at the base horizon; each horizon is simulated as a production run of
+that length, so the base row reconciles with deposit risk. The deposit
 kernels (ops 6/7) take the mode code as their last input and op 6 returns a
 seventh residual output, so native product ABI 10 requires rebuilding
 scripts/build_native.py and the decision/workflow artifacts and restarting

@@ -306,15 +306,17 @@ def test_mode_change_invalidates_graph_identity(backend):
 
 # --- horizon-sensitivity report ---------------------------------------------------
 @native
-def test_horizon_report_single_horizon_matches_risk():
+@pytest.mark.parametrize('horizons', [(360,), (360, 480)])
+def test_horizon_report_base_row_matches_risk(horizons):
     from portfolio_risk.products.deposits import deposit_horizon_sensitivity, run_deposit_risk
     sr, vp = demo.demo_market(); dh = demo.demo_deposit_history(); book = demo.demo_deposit_book(12)
     for mode in ('payout', 'runoff_tail'):
         with run_context(RunConfig(n_paths=16, compute_backend='rust', deposit_terminal=mode)):
             risk = run_deposit_risk(book, sr, vp, dh)
-            rep = deposit_horizon_sensitivity(book, sr, vp, dh, horizons=(360,))
+            rep = deposit_horizon_sensitivity(book, sr, vp, dh, horizons=horizons)
         assert rep['policy'] == 'deposit-terminal-1' and rep['base_mode'] == mode
-        pos = rep['positions'].filter(pl.col('mode') == mode)
+        # the base row reconciles with production whatever the other horizons
+        pos = rep['positions'].filter((pl.col('mode') == mode) & (pl.col('horizon_m') == 360))
         np.testing.assert_allclose(pos['oas_bps'].to_numpy(), risk['oas_bps'].to_numpy(), rtol=1e-12)
         np.testing.assert_allclose(pos['pv'].to_numpy(),
                                    risk['model_price'].to_numpy() / 100 * book['balance'].to_numpy(), rtol=1e-12)
