@@ -189,8 +189,14 @@ Fit = JOINT NLS over the simulated recursion — never static levels
 visits the logistic plateau (high-rate beta = extrapolation). Attrition =
 segment base × age curve (young churns, seasoned floor) × size mult ×
 opportunity-gap S-curve × positive-12m-rate-velocity accelerator, capped
-0.5/mo. Liability = PV(interest + servicing + runoff + terminal at T−1)
-on the monthly grid; widened OAS bracket to −15% (franchise premia).
+0.5/mo. Liability = PV(interest + servicing + runoff + terminal treatment
+at T−1) on the monthly grid. The terminal treatment is the explicit
+`deposit-terminal-1` assumption (RunConfig.deposit_terminal / request
+assumptions.terminal): payout (default, residual repaid at par), truncate
+(residual excluded) or runoff_tail (closed-form perpetuity
+R(r/12+svc/12+a)/max(a+s/12, 1e-4) at the final attrition/paid/short rate,
+lumped into the T−1 A column so OAS discounts it to the horizon only);
+`deposit_horizon_sensitivity` quantifies it at extended horizons; widened OAS bracket to −15% (franchise premia).
 9Q stress shocks are EXACT re-runs of the rate recursion on the shifted
 short path (no linearized template); velocity recomputes → shock-induced
 flight captured. EVE sign: eve_pnl = −Δliability.

@@ -19,7 +19,8 @@ for _m in (config, conventions, curve, interfaces, kernels, lmm, pricing,
 
 from .analytics.risk import run_risk
 from .products.corp import CorpDeck, run_corp_risk
-from .products.deposits import DepositDeck, run_deposit_risk, run_deposit_stress
+from .products.deposits import (DepositDeck, deposit_horizon_sensitivity,
+                                run_deposit_risk, run_deposit_stress)
 from .products.cds import CDDeck, run_cd_risk
 from .analytics.stress import run_stress
 from . import demo
@@ -27,5 +28,6 @@ from . import demo
 __version__ = "0.29.8"
 __all__ = ["run_risk", "run_stress", "run_corp_risk", "CorpDeck",
            "run_deposit_risk", "run_deposit_stress", "DepositDeck",
+           "deposit_horizon_sensitivity",
            "run_cd_risk", "CDDeck",
            "config", "demo", "__version__"]

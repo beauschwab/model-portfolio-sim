@@ -247,7 +247,7 @@ def build_unit_library(swap_rates, vol_pts, mbs_hists, dep_hist,
         def dep_pass(sr):
             paths = rp(sr)
             dep = mdl.paths(paths["short"].astype(np.float64), params, r0)
-            A, Pout, _, _, _, Iout = _deposit_A(ddeck, paths, dep, r0)
+            A, Pout, _, _, _, Iout, _ = _deposit_A(ddeck, paths, dep, r0)
             return A, Pout / P, Iout / P
         Ad, Pd, Id = dep_pass(swap_rates)
         doas, _ = solve_oas_from_A(Ad, P, ddeck.tgt, lo0=-0.15)
