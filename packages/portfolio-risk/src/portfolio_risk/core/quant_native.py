@@ -43,7 +43,7 @@ def _load(path):
         raise RuntimeError('Native product ABI unavailable; rebuild scripts/build_native.py and restart') from exc
     version.argtypes = []
     version.restype = ctypes.c_uint32
-    if version() != 9:
+    if version() != 10:
         raise RuntimeError('Unsupported native product ABI; rebuild and restart')
     call.argtypes = [ctypes.c_uint32, ctypes.POINTER(Buffer), ctypes.c_size_t,
                      ctypes.POINTER(Buffer), ctypes.c_size_t, ctypes.c_size_t]
@@ -317,7 +317,7 @@ def dispatch(name, reference):
             return call(5, a, [(len(a[13]),)])[0]
         if name == 'deposit':
             s, h = len(a[6]), len(a[17])
-            out = list(call(6, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t)]))
+            out = list(call(6, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t),(s,)]))
             out[4] = out[4].astype(np.float32)
             return tuple(out)
         if name == 'deposit_stress':

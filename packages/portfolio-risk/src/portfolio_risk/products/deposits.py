@@ -1,7 +1,8 @@
 """Non-maturity deposit (NMD) valuation on the LMM paths -- the MBS-OAS
 structure with the signs flipped: balance runoff plays prepayment, the
 deposit rate plays the coupon, and the liability is priced as the PV of
-all outflows (interest + servicing + principal runoff + terminal balance).
+all outflows (interest + servicing + principal runoff + the explicit terminal
+treatment of the balance left at the horizon; see TERMINAL_MODES).
 A liability price of e.g. 96.5 implies a 3.5% deposit franchise premium.
 
 DEPOSIT RATE MODEL ("logistic_beta_ecm", analog of the trending CC model):
@@ -76,6 +77,35 @@ SIZE_X = np.array([1e3, 5e3, 25e3, 100e3, 250e3, 1e6])
 SIZE_Y = np.array([0.80, 0.90, 1.00, 1.15, 1.35, 1.60])   # big balances fly
 VEL_COEF = 4.0          # attrition accel per +100bp 12m rate rise: +4%... x
 ATTR_CAP = 0.50
+
+# --- terminal treatment (deposit-terminal-1) ----------------------------------
+# The simulation grid ends at month T. What happens to the balance still on
+# the books after the final month's attrition is an explicit assumption:
+#   payout       residual repaid at par in the final month (historical default;
+#                saved results are unchanged)
+#   truncate     no terminal principal: the residual is excluded from the
+#                liability (its value stays with the bank as franchise)
+#   runoff_tail  the residual R keeps running off at the final month's
+#                attrition a, paying the final paid rate r plus servicing,
+#                discounted at the final short rate s held flat:
+#                  sum_k R(1-a)^k (r/12+svc/12+a) / (1+s/12)^(k+1)
+#                    = R (r/12+svc/12+a) / (a + s/12)
+#                with a + s/12 floored at TAIL_MIN_DECAY. The tail is lumped
+#                into the final month's A column, so OAS discounts it to the
+#                horizon date only (A-matrix factorization is preserved).
+TERMINAL_POLICY = "deposit-terminal-1"
+TERMINAL_MODES = ("payout", "truncate", "runoff_tail")
+TAIL_MIN_DECAY = 1e-4
+
+
+def terminal_code(mode=None) -> int:
+    """Validated integer code of a terminal mode (default: run assumption)."""
+    if mode is None:
+        from ..core.runtime import assumption
+        mode = assumption("deposit_terminal", "payout")
+    if mode not in TERMINAL_MODES:
+        raise ValueError(f"deposit terminal treatment must be one of {TERMINAL_MODES}")
+    return TERMINAL_MODES.index(mode)
 
 
 # --- deposit rate model --------------------------------------------------------
@@ -206,8 +236,8 @@ class LogisticBetaECM:
 @njit(parallel=True, fastmath=True, cache=True)
 def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
                    off, base, size_m, fl_amp, fl_b, fl_g0, age0, svc,
-                   vel_coef, attr_cap, oas, horizons, want_fwd):
-    """Returns (A, Pout, FV, BAL, ck_bal):
+                   vel_coef, attr_cap, oas, horizons, want_fwd, terminal=0):
+    """Returns (A, Pout, FV, BAL, ck_bal, Iout, Rout):
       A[s,t]    = sum_p liability outflow * deflator (pricing at any OAS)
       Pout[s,t] = sum_p UNDISCOUNTED principal runoff (WAL / profiles)
       FV[s,h]   = sum_p fwd liability value at horizons[h], fixed OAS
@@ -215,9 +245,14 @@ def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
       ck_bal[s,p,h] = per-path balance checkpoints (stress restarts; the
       deposit state is balance-only -- no burnout analog)
       Iout[s,t] = UNDISCOUNTED expected interest expense (ex-servicing;
-      servicing is noninterest expense -- appended LAST).
-    Outflow_t = bal*(rate_paid + svc)/12 + bal*attr_t; terminal balance
-    paid at T-1. rate_paid = dep path + per-cohort offset, floored at 0."""
+      servicing is noninterest expense).
+      Rout[s]   = sum_p residual balance after the final month's attrition,
+      before the terminal treatment (mode independent; appended LAST).
+    Outflow_t = bal*(rate_paid + svc)/12 + bal*attr_t; the final month adds
+    the terminal treatment (see TERMINAL_MODES): payout repays the residual,
+    truncate adds nothing, runoff_tail adds the closed-form perpetuity
+    R*(r/12 + svc/12 + attr)/max(attr + short/12, TAIL_MIN_DECAY).
+    rate_paid = dep path + per-cohort offset, floored at 0."""
     P, T = dep.shape
     S = off.shape[0]
     H = horizons.shape[0]
@@ -227,6 +262,7 @@ def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
     FV = np.zeros((S, H))
     BAL = np.zeros((S, H))
     ck_bal = np.zeros((S, P, H), dtype=np.float32)
+    Rout = np.zeros(S)
     for s in prange(S):
         o = off[s]
         b0 = base[s]
@@ -264,10 +300,22 @@ def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
                     attr = attr_cap
                 prin = bal * attr
                 if m == T - 1:
-                    prin = bal                      # terminal runoff
+                    prin = bal                      # payout terminal runoff
                 cf = bal * (r / 12.0 + sv) + prin
                 Iout[s, m] += bal * r / 12.0
                 bal -= prin
+                if m == T - 1:                      # terminal treatment
+                    bprev = prin                    # balance entering T-1
+                    tprin = bprev * attr
+                    Rout[s] += bprev - tprin
+                    if terminal != 0:
+                        prin = tprin
+                        cf = bprev * (r / 12.0 + sv) + prin
+                        if terminal == 2:           # closed-form run-off tail
+                            dec = attr + short[p, m] / 12.0
+                            if dec < TAIL_MIN_DECAY:
+                                dec = TAIL_MIN_DECAY
+                            cf += (bprev - prin) * (r / 12.0 + sv + attr) / dec
                 # --- end DEPOSIT-MODEL-BLOCK -------------------------------
                 buf[m] = cf * df[p, m]
                 Prow[m] += prin
@@ -286,14 +334,15 @@ def deposit_engine(dep, short, vel, df, age_knots, age_coefs,
                     while k >= 0 and horizons[k] == m:
                         FV[s, k] += vv / (df[p, m - 1] * disc[m - 1])
                         k -= 1
-    return A, Pout, FV, BAL, ck_bal, Iout
+    return A, Pout, FV, BAL, ck_bal, Iout, Rout
 
 
 @kernel('deposit_stress')
 @njit(parallel=True, fastmath=True, cache=True)
 def deposit_stress_engine(dep, short, vel, df, age_knots, age_coefs,
                           off, base, size_m, fl_amp, fl_b, fl_g0, age0, svc,
-                          vel_coef, attr_cap, oas, h, h_idx, ck_bal):
+                          vel_coef, attr_cap, oas, h, h_idx, ck_bal,
+                          terminal=0):
     """Forward liability value at single horizon h under (already-shocked)
     paths, restarting each (s, p) from the base balance checkpoint at h
     (pre-h months are unshocked by construction). Returns FV path-sums."""
@@ -332,9 +381,19 @@ def deposit_stress_engine(dep, short, vel, df, age_knots, age_coefs,
                     attr = attr_cap
                 prin = bal * attr
                 if m == T - 1:
-                    prin = bal
+                    prin = bal                      # payout terminal runoff
                 cf = bal * (r / 12.0 + sv) + prin
                 bal -= prin
+                if m == T - 1:                      # terminal treatment
+                    bprev = prin                    # balance entering T-1
+                    if terminal != 0:
+                        prin = bprev * attr
+                        cf = bprev * (r / 12.0 + sv) + prin
+                        if terminal == 2:           # closed-form run-off tail
+                            dec = attr + short[p, m] / 12.0
+                            if dec < TAIL_MIN_DECAY:
+                                dec = TAIL_MIN_DECAY
+                            cf += (bprev - prin) * (r / 12.0 + sv + attr) / dec
                 # --- end DEPOSIT-MODEL-BLOCK -------------------------------
                 vsum += cf * df[p, m] * e
                 e *= eo
@@ -392,15 +451,16 @@ def _dep_args(deck, paths, dep_paths, r0):
 
 
 def _deposit_A(deck: DepositDeck, paths, dep_paths, r0, oas=None,
-               horizons=None, want_fwd=False):
+               horizons=None, want_fwd=False, terminal=None):
     """Per-cohort rate offset anchors each cohort's paid rate at its
-    observed spot: rate_s(t) = model_path(t) + (rate_paid_s - r0)."""
+    observed spot: rate_s(t) = model_path(t) + (rate_paid_s - r0).
+    `terminal` (a TERMINAL_MODES name) defaults to the run assumption."""
     if oas is None:
         oas = np.zeros(deck.n)
     if horizons is None:
         horizons = np.zeros(1, dtype=np.int64)
     return deposit_engine(*_dep_args(deck, paths, dep_paths, r0),
-                          oas, horizons, want_fwd)
+                          oas, horizons, want_fwd, terminal_code(terminal))
 
 
 def run_deposit_risk(book: pl.DataFrame, swap_rates, vol_pts,
@@ -432,7 +492,7 @@ def run_deposit_risk(book: pl.DataFrame, swap_rates, vol_pts,
         dep = rate_model.paths(paths["short"].astype(np.float64), params, r0)
         return _deposit_A(deck, paths, dep, r0)
 
-    A, Pout, *_ = value(base)
+    A, Pout, *_, Rout = value(base)
     if oas is None:
         oas, px = solve_oas_from_A(A, crn.n, deck.tgt, lo0=-0.15)
     else:
@@ -465,8 +525,28 @@ def run_deposit_risk(book: pl.DataFrame, swap_rates, vol_pts,
         pl.Series("model_price", px * 100.0),
         pl.Series("premium_pct", (1.0 - px) * 100.0),
         pl.Series("wal_y", wal),
+        pl.Series("residual_balance", deck.bal * Rout / crn.n),
         pl.Series("dv01", dv01),
         *[pl.Series(k, v) for k, v in cols.items()])
+
+
+def deposit_horizon_sensitivity(book: pl.DataFrame, swap_rates, vol_pts,
+                                dep_hist: pl.DataFrame, horizons=(N_STEPS, 480),
+                                seed: int = SEED, oas=None) -> dict:
+    """Terminal-treatment and horizon sensitivity of an NMD book (Rust-owned).
+
+    For each report horizon (months; the first is the base) and each
+    TERMINAL_MODES entry: liability PV ($) at one fixed OAS, the expected
+    residual balance left at the horizon, the PV of the terminal treatment
+    (PV(mode) - PV(truncate)) and the OAS that would reprice to the observed
+    price. OAS is supplied or solved at the base horizon under the run's
+    configured mode. One rate tape is simulated at the longest horizon (at
+    most 482 months on the 161-forward grid); shorter horizons use its leading
+    months, so horizons share draws. With horizons=(N_STEPS,) the tape and the
+    configured-mode PV equal run_deposit_risk. Returns dict(policy, base_mode,
+    positions, summary)."""
+    from ..core.lifecycle_native import deposit_horizon
+    return deposit_horizon(book, swap_rates, vol_pts, dep_hist, horizons, seed, oas)
 
 
 # --- 9Q deposit stress capital ------------------------------------------------
@@ -544,7 +624,7 @@ def run_deposit_stress(book: pl.DataFrame, swap_rates, vol_pts,
                                              rate_model, params, r0)
             args = _dep_args(deck, sp, dep2, r0)
             FVs[j, hi] = deposit_stress_engine(
-                *args, oas, int(h), hi, ck_bal) / crn.n
+                *args, oas, int(h), hi, ck_bal, terminal_code()) / crn.n
 
     fwd_dv01 = None
     sb = list(shocks_bp)

@@ -383,3 +383,36 @@ Conditional forecast jobs are not capital/FTP bridge sources. The Capital & FTP
 panel accepts compatible completed ledger/cohort analytics jobs. See
 `docs/capital-and-ftp.md` for current integration scope. Rebuild native product and
 decision/workflow binaries and restart workers.
+
+## Deposit terminal treatment (0.29.7)
+
+The non-maturity deposit grid ends at month T (360). The balance left after the
+final month's attrition is now an explicit, versioned assumption
+(`deposit-terminal-1`), selected by `RunConfig(deposit_terminal=...)` and carried
+as `assumptions.terminal` in every Rust deposit request:
+
+- `payout` (default; omitted from requests): the residual is repaid at par in the
+  final month, exactly the historical behaviour. Saved results are unchanged.
+- `truncate`: no terminal principal; the residual is excluded from the liability
+  (its value stays with the bank as franchise).
+- `runoff_tail`: the residual R runs off beyond T at the final month's attrition
+  a, paying the final paid rate r plus servicing, discounted at the final short
+  rate s held flat. Closed form at the final deflator:
+  sum_k R(1-a)^k (r/12+svc/12+a)/(1+s/12)^(k+1) = R(r/12+svc/12+a)/(a+s/12),
+  with a+s/12 floored at 1e-4/month. No extra simulated months are added.
+
+The tail is lumped into the final A column, so OAS discounts it to the horizon
+date only (the A-matrix factorization is preserved). Runoff, interest and NII
+capture remain in-horizon in every mode. Risk, stress, accounting/NII, KPIs,
+balance risk, the incremental graph (identity keys include a non-payout mode),
+decision repricing and unit-library deposit templates all use the same kernel
+and mode. Deposit risk adds a `residual_balance` column ($ before the terminal
+treatment). `deposit_horizon_sensitivity` (Rust `deposit-horizon-1`) reports PV,
+residual balance, terminal-treatment PV (PV(mode)-PV(truncate)) and implied OAS
+for every mode at the base and extended horizons (up to 482 months) at one fixed
+OAS; horizons share one draw tape simulated at the longest horizon. The deposit
+kernels (ops 6/7) take the mode code as their last input and op 6 returns a
+seventh residual output, so native product ABI 10 requires rebuilding
+scripts/build_native.py and the decision/workflow artifacts and restarting
+API/workers. Tests: `tests/test_deposit_terminal.py` and Rust deposit_lifecycle
+unit tests.

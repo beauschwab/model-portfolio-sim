@@ -385,12 +385,28 @@ pub(crate) fn mortgage(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
     )
 }
 
+/// Floor on the monthly tail decay (attrition + short/12) for `runoff_tail`,
+/// keeping the closed-form perpetuity finite on zero/negative-rate paths.
+pub(crate) const DEPOSIT_TAIL_MIN_DECAY: f64 = 1e-4;
+
+/// Deposit terminal treatment codes (`deposit-terminal-1`), the last kernel input.
+/// 0 `payout`: residual balance repaid at par in the final month (historical default).
+/// 1 `truncate`: no terminal principal; the residual is excluded from the liability.
+/// 2 `runoff_tail`: the residual R keeps running off at the final month's attrition a,
+///   paying the final paid rate r plus servicing, discounted at the final short rate s
+///   held flat. Closed form, valued at the final month's deflator:
+///   sum_k R (1-a)^k (r/12 + svc/12 + a) / (1 + s/12)^(k+1) = R (r/12 + svc/12 + a) / (a + s/12),
+///   with the denominator floored at DEPOSIT_TAIL_MIN_DECAY. The tail enters only A
+///   (valuation), lumped into the final month column, so OAS discounts it to the
+///   horizon date only; runoff, interest and balance outputs stay in-horizon.
 pub(crate) fn deposits(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
-    assert_eq!(a.len(), if stress { 20 } else { 19 });
+    assert_eq!(a.len(), if stress { 21 } else { 20 });
     let (p, t) = (a[0].shape[0], a[0].shape[1]);
     let n = a[6].v.len();
     let hcount = if stress { 1 } else { a[17].v.len() };
     let forward = !stress && a[18].at(0) != 0.0;
+    let terminal = a[a.len() - 1].ix(0);
+    assert!(terminal <= 2);
     let rows = (0..n)
         .into_par_iter()
         .map(|s| {
@@ -404,6 +420,7 @@ pub(crate) fn deposits(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                     vec![0.0; hcount],
                     vec![0.0; p * hcount],
                     vec![0.0; t],
+                    vec![0.0; 1],
                 ]
             };
             let h = if stress { a[17].ix(0) } else { 0 };
@@ -444,10 +461,27 @@ pub(crate) fn deposits(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
                         attr *= 1.0 + a[14].at(0) * vel;
                     }
                     attr = attr.min(a[15].at(0));
-                    let principal = if m == t - 1 { bal } else { bal * attr };
-                    let cf = bal * (r / 12.0 + a[13].at(s) / 12.0) + principal;
+                    let mut principal = bal * attr;
+                    let mut tail = 0.0;
+                    if m == t - 1 {
+                        let residual = bal - principal;
+                        if !stress {
+                            out[6][0] += residual;
+                        }
+                        if terminal == 0 {
+                            principal = bal;
+                        } else if terminal == 2 {
+                            let decay = (attr + a[1].x(path, m) / 12.0).max(DEPOSIT_TAIL_MIN_DECAY);
+                            tail = residual * (r / 12.0 + a[13].at(s) / 12.0 + attr) / decay;
+                        }
+                    }
+                    let cf = bal * (r / 12.0 + a[13].at(s) / 12.0) + principal + tail;
                     let intr = bal * r / 12.0;
                     bal -= principal;
+                    if m == t - 1 {
+                        // Truncated/tail residuals leave the in-horizon balance state.
+                        bal = 0.0;
+                    }
                     if stress {
                         v += cf * a[3].x(path, m) * e;
                         e *= eo;
@@ -488,7 +522,7 @@ pub(crate) fn deposits(a: &[View<'_>], stress: bool) -> Vec<Vec<f64>> {
         &if stress {
             vec![1]
         } else {
-            vec![t, t, hcount, hcount, p * hcount, t]
+            vec![t, t, hcount, hcount, p * hcount, t, 1]
         },
     )
 }
@@ -825,7 +859,7 @@ pub(crate) fn volatility(a: &[View<'_>]) -> Vec<Vec<f64>> {
 
 #[no_mangle]
 pub extern "C" fn portfolio_quant_abi_version() -> u32 {
-    9
+    10
 }
 
 fn market_paths(a: &[View<'_>], mortgage: bool) -> Vec<Vec<f64>> {
@@ -901,7 +935,7 @@ fn interactive(a: &[View<'_>]) -> Vec<Vec<f64>> {
 
 fn validate(op: u32, a: &[View<'_>]) {
     let counts = [
-        0, 7, 17, 14, 26, 28, 19, 20, 9, 5, 27, 0, 4, 6, 4, 6, 5, 7, 4, 6, 14, 5, 1, 2, 4, 6, 1, 2,
+        0, 7, 17, 14, 26, 28, 20, 21, 9, 5, 27, 0, 4, 6, 4, 6, 5, 7, 4, 6, 14, 5, 1, 2, 4, 6, 1, 2,
         26, 28, 1, 3,
     ];
     assert!((1..=31).contains(&op));
@@ -947,6 +981,8 @@ fn validate(op: u32, a: &[View<'_>]) {
         6 | 7 => {
             same(&[0, 1, 2, 3]);
             same(&[6, 7, 8, 9, 10, 11, 12, 13, 16]);
+            // terminal treatment code is the last input (deposit-terminal-1)
+            assert!(a[a.len() - 1].ix(0) <= 2);
             if op == 7 {
                 assert_eq!(a[19].shape[..2], [a[6].v.len(), a[0].shape[0]]);
                 assert!(a[17].ix(0) > 0);
