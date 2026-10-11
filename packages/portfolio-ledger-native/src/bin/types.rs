@@ -69,6 +69,19 @@ pub struct Account {
     pub nsfr_floor: f64,
     #[serde(default = "default_account_htm_asset_limit")]
     pub htm_asset_limit: f64,
+    /// How the LCR floor applies: "unconfigured", "not_applicable" or
+    /// "internal_limit". Empty resolves from the floor (legacy specifications).
+    #[serde(default)]
+    pub lcr_applicability: String,
+    #[serde(default)]
+    pub nsfr_applicability: String,
+    /// Selected HTM accounting policy; empty means sales are not assessed.
+    #[serde(default)]
+    pub htm_accounting: String,
+    /// Cumulative non-exception HTM sales, as a fraction of opening HTM
+    /// amortized cost, above which the selected policy reclassifies the rest.
+    #[serde(default)]
+    pub htm_taint_materiality: f64,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -207,6 +220,12 @@ pub struct Policy {
     pub htm_sale_limit: f64,
     #[serde(default = "default_policy_funding_tenor_days")]
     pub funding_tenor_days: usize,
+    /// Stated reason for security sales, assessed by the account's HTM policy.
+    #[serde(default)]
+    pub sale_reason: String,
+    /// Transfers cannot settle before this day (approval or legal restriction).
+    #[serde(default)]
+    pub approval_day: usize,
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

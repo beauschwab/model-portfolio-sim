@@ -31,19 +31,20 @@ def _schema(strings='', floats='', integers='', booleans=''):
             **dict.fromkeys(integers.split(), pl.Int64), **dict.fromkeys(booleans.split(), pl.Boolean)}
 
 
-SUMMARY = _schema('scenario account entity currency', 'final_cash final_equity minimum_cash peak_cash_shortfall max_reconciliation_error',
-                  'first_cash_breach_day first_capital_breach_day first_leverage_breach_day first_lcr_breach_day first_nsfr_breach_day first_htm_breach_day')
+SUMMARY = _schema('scenario account entity currency lcr_applicability nsfr_applicability lcr_status nsfr_status', 'final_cash final_equity minimum_cash peak_cash_shortfall max_reconciliation_error',
+                  'first_cash_breach_day first_capital_breach_day first_leverage_breach_day first_lcr_breach_day first_nsfr_breach_day first_htm_breach_day htm_reclassification_day')
 SCHEMAS = {
     'journal': JOURNAL_SCHEMA,
     'summary': SUMMARY,
     'reverse_grid': dict(SUMMARY, severity=pl.Float64, breached=pl.Boolean),
-    'path': _schema('scenario account entity currency', 'cash restricted_cash cash_floor assets liabilities equity aoci cet1 rwa cet1_ratio leverage_ratio usable_collateral undrawn hqla_proxy lcr_proxy nsfr_proxy reconciliation_error cash_headroom cet1_headroom leverage_headroom lcr_headroom nsfr_headroom htm_headroom', 'day'),
+    'path': _schema('scenario account entity currency lcr_status nsfr_status', 'cash restricted_cash cash_floor assets liabilities equity aoci cet1 rwa cet1_ratio leverage_ratio usable_collateral undrawn hqla_proxy lcr_proxy nsfr_proxy reconciliation_error cash_headroom cet1_headroom leverage_headroom lcr_headroom nsfr_headroom htm_headroom', 'day'),
     'ledger': _schema('scenario account event', 'cash earnings aoci memo_amount', 'day'),
     'actions': _schema('scenario policy account destination kind status reason', 'amount', 'day'),
     'breaches': _schema('scenario account metric', '', 'day'),
     'exposures': _schema('scenario account position kind', 'balance allowance watch_fraction commitment market_factor encumbered_fraction accrued_interest', 'day'),
     'trial_balance': _schema('scenario account gl_account instrument_id', 'balance'),
     'funding_claims': _schema('scenario claim_id account position', 'face balance rate', 'due'),
+    'accounting_events': _schema('scenario account policy position sale_reason accounting_policy qualification', 'amortized_cost aoci', 'day'),
     'attribution': _schema('scenario account event', 'cash_delta earnings_delta aoci_delta'),
     'closing_statements': _schema('scenario account currency', 'assets liabilities equity cash restricted_cash intercompany_assets intercompany_liabilities reconciliation_error'),
     'consolidated': _schema('scenario currency', 'assets liabilities equity cash restricted_cash'),

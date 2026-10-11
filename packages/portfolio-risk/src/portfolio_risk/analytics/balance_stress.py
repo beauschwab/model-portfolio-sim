@@ -14,11 +14,15 @@ import math
 from typing import get_type_hints
 from functools import lru_cache
 from .journal import Journal, statements, SCHEMA as JOURNAL_SCHEMA
-from .balance_rules import headroom, validation_status, liquidity_components, RULESET
+from .balance_rules import (headroom, validation_status, liquidity_components, liquidity_basis, liquidity_status,
+                            RULESET, HTM_POLICY, HTM_EXCEPTIONS, SALE_REASONS, LIQUIDITY_STATUS)
 
 import polars as pl
 
 MODEL_VERSION = "balance-stress-2"
+ACCOUNTING_EVENTS = {"scenario": pl.String, "day": pl.Int64, "account": pl.String, "policy": pl.String,
+                     "position": pl.String, "sale_reason": pl.String, "accounting_policy": pl.String,
+                     "qualification": pl.String, "amortized_cost": pl.Float64, "aoci": pl.Float64}
 
 
 @dataclass
@@ -40,6 +44,10 @@ class Account:
     lcr_floor: float = 0.0
     nsfr_floor: float = 0.0
     htm_asset_limit: float = 1.0
+    lcr_applicability: str = ""  # unconfigured, not_applicable, internal_limit; empty resolves from floor
+    nsfr_applicability: str = ""
+    htm_accounting: str = ""  # selected HTM accounting policy; empty means sales are not assessed
+    htm_taint_materiality: float = 0.0  # non-exception sales / opening HTM amortized cost that taint
 
 
 @dataclass
@@ -121,6 +129,8 @@ class Policy:
     allow_htm_sale: bool = False
     htm_sale_limit: float = 0.0  # cumulative face; explicit internal policy, not accounting rule
     funding_tenor_days: int = 30
+    sale_reason: str = ""  # assessed by the account's HTM accounting policy
+    approval_day: int = 0  # transfers cannot settle before this day
 
 
 @dataclass
@@ -223,6 +233,21 @@ def validate(raw, *, max_positions=2000, max_work=3_000_000):
         _range(a, "cet1_floor leverage_floor tax_rate")
         _range(a, "lcr_floor nsfr_floor", 0, 10)
         _range(a, "htm_asset_limit")
+        for metric, applicability, floor in (("LCR", a.lcr_applicability, a.lcr_floor), ("NSFR", a.nsfr_applicability, a.nsfr_floor)):
+            basis = liquidity_basis(applicability, floor)
+            if basis == "regulatory":
+                raise ValueError(f"regulatory {metric} needs a source-backed rule set; {RULESET} computes research proxies only")
+            if basis not in {"unconfigured", "not_applicable", "internal_limit"}:
+                raise ValueError(f"unknown {metric} applicability")
+            if basis == "internal_limit" and floor <= 0:
+                raise ValueError(f"an internal {metric} limit needs a positive floor")
+            if basis != "internal_limit" and floor > 0:
+                raise ValueError(f"a {metric} floor applies only with internal_limit applicability")
+        if a.htm_accounting not in {"", HTM_POLICY}:
+            raise ValueError(f"unsupported HTM accounting policy; only {HTM_POLICY} is implemented")
+        _range(a, "htm_taint_materiality")
+        if a.htm_taint_materiality > 0 and not a.htm_accounting:
+            raise ValueError("HTM taint materiality needs a selected HTM accounting policy")
     for p in out["positions"]:
         if p.account not in accounts or p.kind not in {"loan", "security", "deposit", "funding", "repo", "reverse_repo"}:
             raise ValueError("invalid position account or kind")
@@ -278,6 +303,13 @@ def validate(raw, *, max_positions=2000, max_work=3_000_000):
         _range(p, "funding_rate", 0, 2)
         if p.funding_tenor_days < 1:
             raise ValueError("funding tenor must be positive")
+        if p.sale_reason and (p.kind != "sell" or p.sale_reason not in SALE_REASONS):
+            raise ValueError("sale_reason applies to sell policies and must be a known reason")
+        if p.approval_day and (p.kind != "transfer" or p.approval_day > days):
+            raise ValueError("approval_day applies to transfers within the horizon")
+        if (p.kind == "sell" and p.allow_htm_sale and not p.sale_reason and accounts[p.account].htm_accounting
+                and getattr(positions.get(p.position), "classification", None) == "htm"):
+            raise ValueError("an HTM sale under a selected accounting policy needs a sale_reason")
         if p.kind in {"sell", "secured_funding"}:
             pos = positions.get(p.position)
             if pos is None or pos.account != p.account or pos.kind != "security":
@@ -407,6 +439,13 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
     aggregate = defaultdict(lambda: [0., 0., 0.])
     earnings_by = defaultdict(float)
     opening_equity = {a.id: a.equity for a in accounts.values()}
+    # Selected HTM accounting policy state: opening amortized cost, cumulative
+    # non-exception sales at amortized cost, and the day the portfolio was tainted.
+    htm_opening = {a: sum(p.balance+p.book_adjustment for p in positions
+                          if p.account == a and p.classification == 'htm' and not p.start_day) for a in accounts}
+    htm_nonexception, htm_reclassified = defaultdict(float), {}
+    liquidity_worst = {a: [0, 0] for a in accounts}
+    accounting_events = []
 
     for p in positions:
         if p.kind == 'security' and p.classification == 'afs':
@@ -457,6 +496,46 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                 opening['received_margin', n.id] = -n.received_margin
         journal.post(0, a.id, 'opening', opening)
 
+    def accounting_event(day, account, policy_id, position, reason, policy, qualification, cost, oci):
+        if detail:
+            accounting_events.append(dict(scenario=scenario.name, day=day, account=account, policy=policy_id,
+                position=position, sale_reason=reason, accounting_policy=policy or 'none',
+                qualification=qualification, amortized_cost=cost, aoci=oci))
+
+    def htm_sale(day, source, p, pos, cost):
+        """Assess an executed HTM sale under the account's selected policy. The
+        permission to sell is separate: the sale has happened either way."""
+        policy, reason = source.htm_accounting, p.sale_reason
+        if not policy:
+            qualification = 'not_assessed'
+        elif reason == 'near_maturity':
+            # ASC 320-10-25-14: within three months of maturity; the 85%-collected
+            # test needs origination data the ledger does not hold.
+            m = pos.maturity_day
+            qualification = 'permitted_exception' if m and day <= m <= day+90 else 'unsupported_judgment'
+        elif reason in HTM_EXCEPTIONS:
+            qualification = 'permitted_exception'
+        else:
+            qualification = 'non_exception'
+        accounting_event(day, source.id, p.id, pos.id, reason, policy, qualification, cost, 0.)
+        if not policy or qualification == 'permitted_exception':
+            return
+        # Unsupported judgments count against HTM intent; the record says so.
+        htm_nonexception[source.id] += cost
+        if source.id in htm_reclassified or htm_nonexception[source.id] <= source.htm_taint_materiality*htm_opening[source.id]+1e-9:
+            return
+        # Tainted: the remaining HTM portfolio moves to AFS at fair value, with the
+        # unrealized difference recognized in AOCI.
+        htm_reclassified[source.id] = day
+        for q in positions:
+            if q.account != source.id or q.classification != 'htm' or q.balance == 0:
+                continue
+            fair = q.balance*(market[q.id]-1)-q.book_adjustment
+            q.classification = 'afs'
+            marks[q.id] += fair
+            post(day, source.id, 'htm_reclassification', oci=fair, changes={('fair_value_adjustment', q.id): fair}, instrument=q.id)
+            accounting_event(day, source.id, p.id, q.id, reason, policy, 'reclassified_to_afs', 0., fair)
+
     def log_action(day, p, status, amount=0., reason=""):
         if detail:
             actions.append(dict(scenario=scenario.name, day=day, policy=p.id, account=p.account,
@@ -488,6 +567,13 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
         for cid, claim in claims.items():
             expected[claim['account'], 'secured_funding', cid] = -claim['balance']
         journal.verify(expected)
+        # Intercompany balances must eliminate within each currency.
+        eliminations = defaultdict(float)
+        for (account, _, _), value in intercompany.items():
+            eliminations[accounts[account].currency] += value
+        for currency, net in eliminations.items():
+            if abs(net) > 1e-9*max(1., abs(net)):
+                raise ArithmeticError(f"intercompany balances do not eliminate day {day}: {currency} {net}")
         if detail and (day == 0 or day % 30 == 0 or day == spec["horizon_days"]):
             for p in positions:
                 exposures.append(dict(scenario=scenario.name, day=day, account=p.account, position=p.id,
@@ -547,6 +633,11 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             margins = headroom(a, cash=a.cash, cet1=cet1, rwa=rwa, exposure=leverage_exposure,
                 hqla=hqla, outflow=outflow, asf=asf, rsf=rsf, assets=asset,
                 htm=sum(p.balance+p.book_adjustment for p in positions if p.account == a.id and p.classification == 'htm'))
+            lcr_basis, nsfr_basis = liquidity_basis(a.lcr_applicability, a.lcr_floor), liquidity_basis(a.nsfr_applicability, a.nsfr_floor)
+            lcr_status, lcr_rank = liquidity_status(lcr_basis, hqla/outflow if outflow > 0 else None, margins['lcr'])
+            nsfr_status, nsfr_rank = liquidity_status(nsfr_basis, asf/rsf if rsf > 0 else None, margins['nsfr'])
+            worst = liquidity_worst[a.id]
+            worst[0], worst[1] = max(worst[0], lcr_rank), max(worst[1], nsfr_rank)
             checks = {metric: value < -1e-9 for metric, value in margins.items()}
             for metric, failed in checks.items():
                 if failed and (a.id, metric) not in first:
@@ -558,8 +649,13 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                                  equity=a.equity, aoci=aoci[a.id], cet1=cet1, rwa=rwa, cet1_ratio=ratio,
                                  leverage_ratio=leverage, usable_collateral=collateral, undrawn=undrawn,
                                  hqla_proxy=hqla, lcr_proxy=hqla/outflow if outflow > 0 else None,
-                                 nsfr_proxy=asf/rsf if rsf > 0 else None, reconciliation_error=error))
+                                 nsfr_proxy=asf/rsf if rsf > 0 else None, lcr_status=lcr_status, nsfr_status=nsfr_status,
+                                 reconciliation_error=error))
                 path[-1].update({metric+'_headroom': value for metric, value in margins.items()})
+                # without an applicable limit there is no headroom to report
+                for metric, basis in (('lcr', lcr_basis), ('nsfr', nsfr_basis)):
+                    if basis != 'internal_limit':
+                        path[-1][metric+'_headroom'] = None
 
     observe(0)
     for day in range(1, spec["horizon_days"] + 1):
@@ -830,6 +926,12 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                 scheduled.add(p.id)
                 log_action(day, p, "delayed", reason="operational outage")
                 continue
+            if p.kind == "transfer" and day < p.approval_day:
+                # a restricted or unapproved transfer waits; it never settles early
+                pending[p.approval_day].append(p)
+                scheduled.add(p.id)
+                log_action(day, p, "delayed", reason="awaiting transfer approval")
+                continue
             source = accounts[p.account]
             target = accounts[p.destination] if p.kind == "transfer" else source
             need = max(0., p.trigger_cash-target.cash)
@@ -895,6 +997,8 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                         changes['fair_value_adjustment', pos.id] = -face*(price-1)+adjustment
                     post(day, source.id, "security_sale", cash=amount, earnings=amount-carry+reclass, oci=-reclass,
                          changes=changes, instrument=pos.id)
+                    if pos.classification == "htm" and face > 0:
+                        htm_sale(day, source, p, pos, face+adjustment)
             used[p.id] += amount
             log_action(day, p, "executed" if amount else "blocked", amount, "" if amount else "cash, collateral or HTM limit")
         # Tax all daily earnings, including completed management actions. Dividends
@@ -921,12 +1025,23 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                     first_lcr_breach_day=first.get((a.id, 'lcr')),
                     first_nsfr_breach_day=first.get((a.id, 'nsfr')),
                     first_htm_breach_day=first.get((a.id, 'htm')),
-                    max_reconciliation_error=max_error) for a in accounts.values()]
+                    max_reconciliation_error=max_error, htm_reclassification_day=htm_reclassified.get(a.id),
+                    **liquidity_summary(a, liquidity_worst[a.id])) for a in accounts.values()]
     entries, trial = journal.close()
     claim_rows = [dict(scenario=scenario.name, claim_id=cid, **claim) for cid, claim in claims.items()]
     return dict(summary=summary, path=path, ledger=ledger, actions=actions, breaches=breaches,
                 exposures=exposures, journal=entries if detail else [], trial_balance=trial if detail else [],
-                funding_claims=claim_rows if detail else [])
+                funding_claims=claim_rows if detail else [], accounting_events=accounting_events)
+
+
+def liquidity_summary(account, worst):
+    out = {}
+    for k, (metric, applicability, floor) in enumerate((('lcr', account.lcr_applicability, account.lcr_floor),
+                                                        ('nsfr', account.nsfr_applicability, account.nsfr_floor))):
+        basis = liquidity_basis(applicability, floor)
+        out[metric+'_applicability'] = basis
+        out[metric+'_status'] = LIQUIDITY_STATUS[worst[k]] if basis == 'internal_limit' else basis
+    return out
 
 
 def run_balance_stress(raw, progress=None, *, journal_backend='python'):
@@ -975,6 +1090,7 @@ def run_balance_stress(raw, progress=None, *, journal_backend='python'):
                "breaches": {"scenario": pl.String, "account": pl.String, "day": pl.Int64, "metric": pl.String},
                'journal': JOURNAL_SCHEMA,
                'trial_balance': {'scenario': pl.String, 'account': pl.String, 'gl_account': pl.String, 'instrument_id': pl.String, 'balance': pl.Float64},
+               'accounting_events': ACCOUNTING_EVENTS,
                'funding_claims': {'scenario': pl.String, 'claim_id': pl.String, 'account': pl.String, 'position': pl.String,
                                   'face': pl.Float64, 'balance': pl.Float64, 'rate': pl.Float64, 'due': pl.Int64}}
     result = {k: pl.DataFrame(rows, schema=schemas.get(k), infer_schema_length=None) for k, rows in outputs.items()}

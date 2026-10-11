@@ -2,6 +2,7 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[path = "bin/report.rs"]
 mod report;
+use crate::spec::{liquidity_basis, HTM_EXCEPTIONS};
 use crate::types;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -268,6 +269,34 @@ struct Sim<'a> {
     scheduled: HashSet<usize>,
     first: HashMap<(usize, String), usize>,
     max_error: f64,
+    /// Opening HTM amortized cost and cumulative non-exception HTM sales (at
+    /// amortized cost) per account, for the selected HTM accounting policy.
+    htm_opening: Vec<f64>,
+    htm_nonexception: Vec<f64>,
+    htm_reclassified: Vec<Option<usize>>,
+    /// Worst LCR/NSFR status rank seen per account over the horizon.
+    liquidity_worst: Vec<[usize; 2]>,
+}
+/// Status ranks: a breach outranks unavailable inputs, which outrank a pass.
+const LIQUIDITY_STATUS: [&str; 3] = ["within_limit", "unavailable", "breach"];
+fn liquidity_status(basis: &str, ratio: Option<f64>, margin: f64) -> (&'static str, usize) {
+    if basis != "internal_limit" {
+        return (
+            if basis == "not_applicable" {
+                "not_applicable"
+            } else {
+                "unconfigured"
+            },
+            0,
+        );
+    }
+    if margin < -1e-9 {
+        ("breach", 2)
+    } else if ratio.is_none() {
+        ("unavailable", 1)
+    } else {
+        ("within_limit", 0)
+    }
 }
 impl<'a> Sim<'a> {
     fn new(
@@ -365,6 +394,22 @@ impl<'a> Sim<'a> {
             scheduled: HashSet::new(),
             first: HashMap::new(),
             max_error: 0.,
+            htm_opening: (0..a)
+                .map(|ai| {
+                    spec.positions
+                        .iter()
+                        .filter(|p| {
+                            p.start_day == 0
+                                && p.classification == "htm"
+                                && p.account == spec.accounts[ai].id
+                        })
+                        .map(|p| p.balance + p.book_adjustment)
+                        .sum()
+                })
+                .collect(),
+            htm_nonexception: vec![0.; a],
+            htm_reclassified: vec![None; a],
+            liquidity_worst: vec![[0, 0]; a],
         };
         for (i, p) in sim.positions.iter_mut().enumerate() {
             if p.start_day > 0 {
@@ -582,6 +627,19 @@ impl<'a> Sim<'a> {
                 self.sink.emit("exposures",json!({"scenario":self.scenario.name,"day":day,"account":p.account,"position":p.id,"kind":p.kind,"balance":p.balance,"allowance":p.allowance,"watch_fraction":p.watch_fraction,"commitment":p.commitment,"market_factor":self.market[i],"encumbered_fraction":p.encumbered_fraction,"accrued_interest":self.accrued[i]}))?;
             }
         }
+        // Intercompany balances must eliminate within each currency: every
+        // receivable has its payable, so transfers never create group funding.
+        let mut eliminations: BTreeMap<&str, f64> = BTreeMap::new();
+        for ((a, _, _), v) in &self.intercompany {
+            *eliminations
+                .entry(self.accounts[*a].currency.as_str())
+                .or_default() += *v;
+        }
+        if let Some((currency, net)) = eliminations.iter().find(|(_, v)| !near(**v, 0.)) {
+            return Err(format!(
+                "intercompany balances do not eliminate day {day}: {currency} {net}"
+            ));
+        }
         for ai in 0..self.accounts.len() {
             let a = &self.accounts[ai];
             let mut assets = a.cash + self.restricted[ai] + self.extra_assets[ai];
@@ -689,11 +747,26 @@ impl<'a> Sim<'a> {
                     }
                 }
             }
+            let lcr_basis = liquidity_basis(&a.lcr_applicability, a.lcr_floor);
+            let nsfr_basis = liquidity_basis(&a.nsfr_applicability, a.nsfr_floor);
+            let (lcr_status, lcr_rank) =
+                liquidity_status(lcr_basis, ratio(hqla, outflow), margins[3].1);
+            let (nsfr_status, nsfr_rank) =
+                liquidity_status(nsfr_basis, ratio(asf, rsf), margins[4].1);
+            let worst = &mut self.liquidity_worst[ai];
+            worst[0] = worst[0].max(lcr_rank);
+            worst[1] = worst[1].max(nsfr_rank);
             if self.detail && (day <= 30 || day.is_multiple_of(30) || day == self.spec.horizon_days)
             {
-                let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"day":day,"cash":a.cash,"restricted_cash":self.restricted[ai],"cash_floor":a.cash_floor,"assets":assets,"liabilities":liabilities,"equity":a.equity,"aoci":self.aoci[ai],"cet1":cet1,"rwa":rwa,"cet1_ratio":ratio(cet1,rwa),"leverage_ratio":ratio(cet1,exposure),"usable_collateral":collateral,"undrawn":undrawn,"hqla_proxy":hqla,"lcr_proxy":ratio(hqla,outflow),"nsfr_proxy":ratio(asf,rsf),"reconciliation_error":error});
+                let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"day":day,"cash":a.cash,"restricted_cash":self.restricted[ai],"cash_floor":a.cash_floor,"assets":assets,"liabilities":liabilities,"equity":a.equity,"aoci":self.aoci[ai],"cet1":cet1,"rwa":rwa,"cet1_ratio":ratio(cet1,rwa),"leverage_ratio":ratio(cet1,exposure),"usable_collateral":collateral,"undrawn":undrawn,"hqla_proxy":hqla,"lcr_proxy":ratio(hqla,outflow),"nsfr_proxy":ratio(asf,rsf),"lcr_status":lcr_status,"nsfr_status":nsfr_status,"reconciliation_error":error});
                 for (m, v) in margins {
                     row[format!("{m}_headroom")] = json!(v);
+                }
+                // without an applicable limit there is no headroom to report
+                for (m, basis) in [("lcr", lcr_basis), ("nsfr", nsfr_basis)] {
+                    if basis != "internal_limit" {
+                        row[format!("{m}_headroom")] = Value::Null;
+                    }
                 }
                 self.sink.emit("path", row)?;
             }
@@ -1207,6 +1280,93 @@ impl Sim<'_> {
         self.positions[i] = p;
         Ok(())
     }
+    /// Assess an executed HTM sale under the account's selected accounting policy.
+    /// Policy permission to sell is separate from accounting qualification: the
+    /// sale happens either way, and only its consequences depend on the policy.
+    fn htm_sale(&mut self, day: usize, a: usize, p: &Policy, i: usize, cost: f64) -> R<()> {
+        let policy = self.accounts[a].htm_accounting.clone();
+        let reason = p.sale_reason.as_str();
+        let qualification = if policy.is_empty() {
+            "not_assessed"
+        } else if reason == "near_maturity" {
+            // ASC 320-10-25-14: within three months of maturity. The alternative
+            // 85%-collected test needs origination data the ledger does not hold.
+            let m = self.positions[i].maturity_day;
+            if m > 0 && m >= day && m - day <= 90 {
+                "permitted_exception"
+            } else {
+                "unsupported_judgment"
+            }
+        } else if HTM_EXCEPTIONS.contains(&reason) {
+            "permitted_exception"
+        } else {
+            "non_exception"
+        };
+        self.accounting_event(day, a, &p.id, i, reason, &policy, qualification, cost, 0.)?;
+        if policy.is_empty() || qualification == "permitted_exception" {
+            return Ok(());
+        }
+        // Unsupported judgments count against HTM intent; the record says so.
+        self.htm_nonexception[a] += cost;
+        if self.htm_reclassified[a].is_some()
+            || self.htm_nonexception[a]
+                <= self.accounts[a].htm_taint_materiality * self.htm_opening[a] + 1e-9
+        {
+            return Ok(());
+        }
+        // Tainted: the remaining HTM portfolio moves to AFS at fair value, with
+        // the unrealized difference recognized in AOCI.
+        self.htm_reclassified[a] = Some(day);
+        for j in 0..self.positions.len() {
+            let q = &self.positions[j];
+            if self.aid[q.account.as_str()] != a || q.classification != "htm" || q.balance == 0. {
+                continue;
+            }
+            let fair = q.balance * (self.market[j] - 1.) - q.book_adjustment;
+            let id = q.id.clone();
+            self.positions[j].classification = "afs".into();
+            self.marks[j] += fair;
+            self.post(
+                day,
+                a,
+                "htm_reclassification",
+                0.,
+                0.,
+                fair,
+                vec![entry("fair_value_adjustment", &id, fair)],
+                &id,
+            )?;
+            self.accounting_event(
+                day,
+                a,
+                &p.id,
+                j,
+                reason,
+                &policy,
+                "reclassified_to_afs",
+                0.,
+                fair,
+            )?;
+        }
+        Ok(())
+    }
+    fn accounting_event(
+        &mut self,
+        day: usize,
+        a: usize,
+        policy_id: &str,
+        i: usize,
+        reason: &str,
+        policy: &str,
+        qualification: &str,
+        cost: f64,
+        aoci: f64,
+    ) -> R<()> {
+        if !self.detail {
+            return Ok(());
+        }
+        self.sink.emit("accounting_events",json!({"scenario":self.scenario.name,"day":day,"account":self.accounts[a].id,"policy":policy_id,"position":self.positions[i].id,"sale_reason":reason,"accounting_policy":if policy.is_empty() {"none"} else {policy},"qualification":qualification,"amortized_cost":cost,"aoci":aoci}))
+    }
     fn log_action(
         &mut self,
         day: usize,
@@ -1253,6 +1413,13 @@ impl Sim<'_> {
                 self.pending.entry(day + 1).or_default().push(pi);
                 self.scheduled.insert(pi);
                 self.log_action(day, &p, "delayed", 0., "operational outage")?;
+                continue;
+            }
+            if p.kind == "transfer" && day < p.approval_day {
+                // a restricted or unapproved transfer waits; it never settles early
+                self.pending.entry(p.approval_day).or_default().push(pi);
+                self.scheduled.insert(pi);
+                self.log_action(day, &p, "delayed", 0., "awaiting transfer approval")?;
                 continue;
             }
             let a = self.aid[p.account.as_str()];
@@ -1434,6 +1601,11 @@ impl Sim<'_> {
                         changes,
                         &pos.id,
                     )?;
+                    if pos.classification == "htm" && face > 0. {
+                        self.positions[i] = pos.clone();
+                        self.htm_sale(day, a, &p, i, face + adjustment)?;
+                        pos = self.positions[i].clone();
+                    }
                 }
                 self.positions[i] = pos;
             }
@@ -1641,6 +1813,22 @@ impl Sim<'_> {
                 ("first_htm_breach_day", "htm"),
             ] {
                 row[field] = json!(self.first.get(&(ai, metric.into())));
+            }
+            row["htm_reclassification_day"] = json!(self.htm_reclassified[ai]);
+            for (k, (metric, applicability, floor)) in [
+                ("lcr", &a.lcr_applicability, a.lcr_floor),
+                ("nsfr", &a.nsfr_applicability, a.nsfr_floor),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let basis = liquidity_basis(applicability, floor);
+                row[format!("{metric}_applicability")] = json!(basis);
+                row[format!("{metric}_status")] = json!(if basis == "internal_limit" {
+                    LIQUIDITY_STATUS[self.liquidity_worst[ai][k]]
+                } else {
+                    basis
+                });
             }
             if !self.detail {
                 row["severity"] = json!(self.severity);
