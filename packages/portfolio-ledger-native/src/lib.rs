@@ -327,7 +327,7 @@ mod deposit_source_principal_json;
 pub mod deposit_fifo_derivation;
 mod deposit_portfolio_money;
 pub mod deposit_source_portfolio;
-#[cfg(feature = "historical-output-control")]
+#[cfg(any(test, feature = "historical-output-control"))]
 #[doc(hidden)]
 pub mod historical_daily;
 

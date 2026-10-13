@@ -1,6 +1,8 @@
 //! Full daily research state machine; bounded table batches over a local pipe.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 mod commercial_hooks;
+#[cfg(test)]
+mod compatibility_tests;
 mod consumer_hooks;
 mod derivative_hooks;
 mod mortgage_hooks;

@@ -195,52 +195,6 @@ fn failed_output_write_cannot_complete_native_publication() {
 }
 
 #[test]
-fn optional_none_preserves_frozen_financial_output_with_explicit_liquidity_status() {
-    let mut r = raw();
-    for run in &mut r.source.runs {
-        for d in &mut run.revised.drivers {
-            d.reference_rate = 0.24;
-        }
-    }
-    let new = m::prepare(r).unwrap();
-    let expected = include_bytes!("fixtures/deposit_revision_none.ndjson");
-    let b = Arc::new(Mutex::new(vec![]));
-    portfolio_ledger_native::daily::run_dated(new.dated, Box::new(Sink(b.clone()))).unwrap();
-    let actual = b.lock().unwrap();
-    let expected_lines: Vec<_> = std::str::from_utf8(expected).unwrap().lines().collect();
-    let actual_lines: Vec<_> = std::str::from_utf8(&actual).unwrap().lines().collect();
-    assert_eq!(expected_lines.len(), actual_lines.len());
-    for (before, after) in expected_lines.into_iter().zip(actual_lines) {
-        let mut historical: Value = serde_json::from_str(before).unwrap();
-        match historical["table"].as_str() {
-            Some("path") => {
-                // Upstream liquidity applicability explicitly makes headroom
-                // unavailable when no limit is configured. No financial amount
-                // or journal field is removed from the comparison.
-                for row in historical["rows"].as_array_mut().unwrap() {
-                    row["lcr_headroom"] = Value::Null;
-                    row["nsfr_headroom"] = Value::Null;
-                    row["lcr_status"] = "unconfigured".into();
-                    row["nsfr_status"] = "unconfigured".into();
-                }
-                assert_eq!(historical, serde_json::from_str::<Value>(after).unwrap());
-            }
-            Some("summary") => {
-                for row in historical["rows"].as_array_mut().unwrap() {
-                    row["lcr_applicability"] = "unconfigured".into();
-                    row["nsfr_applicability"] = "unconfigured".into();
-                    row["lcr_status"] = "unconfigured".into();
-                    row["nsfr_status"] = "unconfigured".into();
-                    row["htm_reclassification_day"] = Value::Null;
-                }
-                assert_eq!(historical, serde_json::from_str::<Value>(after).unwrap());
-            }
-            _ => assert_eq!(before, after),
-        }
-    }
-}
-
-#[test]
 fn public_original_raw_identity_and_four_key_header() {
     let mut original = serde_json::to_value(raw()).unwrap();
     original["source"]["anchor"]["original_principal"] = serde_json::json!(100);
