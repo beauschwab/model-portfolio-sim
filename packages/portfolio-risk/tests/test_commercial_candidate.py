@@ -17,6 +17,46 @@ def test_purchased_native_commercial_candidate_replays_complete_graph_and_journa
     assert result['opening_identity_verified']is False
 
 
+@pytest.mark.parametrize('basis,floor,status', [
+    ('unconfigured', 0., 'unconfigured'),
+    ('not_applicable', 0., 'not_applicable'),
+])
+def test_commercial_journal_verifies_explicit_liquidity_policy(basis, floor, status):
+    request = raw()
+    for account in request['specification']['accounts']:
+        for metric in ('lcr', 'nsfr'):
+            account[metric + '_applicability'] = basis
+            account[metric + '_floor'] = floor
+    result, _ = run(request)
+    assert verify(request, result)['purchased_journal_replayed']
+    for row in result['tables']['path']:
+        assert row['lcr_status'] == row['nsfr_status'] == status
+        if basis != 'internal_limit':
+            assert row['lcr_headroom'] is None and row['nsfr_headroom'] is None
+    altered = deepcopy(result)
+    altered['tables']['path'][0]['lcr_status'] = 'within_limit'
+    with pytest.raises(ArithmeticError):
+        verify(request, altered)
+    altered = deepcopy(result)
+    altered['preparation']['resolved_specification']['accounts'][0]['lcr_applicability'] = 'regulatory'
+    with pytest.raises(ArithmeticError):
+        verify(request, altered)
+
+
+def test_commercial_journal_keeps_configured_liquidity_outside_adopted_scope():
+    request = raw()
+    request['specification']['accounts'][0].update(lcr_applicability='internal_limit', lcr_floor=1.)
+    with pytest.raises(ValueError, match='eligibility is not adopted'):
+        run(request)
+    from portfolio_risk.analytics.commercial_reports_reference import normalize_specification, scope
+    from types import SimpleNamespace
+    normalized = normalize_specification(request['specification'])
+    spec = {key: [SimpleNamespace(**row) for row in values] if key in ('accounts', 'positions', 'scenarios') else values
+            for key, values in normalized.items()}
+    with pytest.raises(ArithmeticError, match='capital/liquidity'):
+        scope(spec, [owner['position_id'] for owner in request['owners']])
+
+
 @pytest.mark.parametrize('target',['allocation','journal','source','origin','bool','completion'])
 def test_purchased_candidate_nested_finance_dates_and_scalar_injection_fail(target):
     request=raw();result,_=run(request)

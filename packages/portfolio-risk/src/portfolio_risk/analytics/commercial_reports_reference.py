@@ -4,12 +4,51 @@ import math
 from .commercial_source_reference import compare
 
 
+def normalize_specification(raw):
+    """Independently extend the frozen opening schema with current policy inputs."""
+    from copy import deepcopy
+    from ._deposit_continuation_calendar import _normalize
+    legacy = deepcopy(raw)
+    defaults = dict(lcr_applicability='', nsfr_applicability='',
+                    htm_accounting='', htm_taint_materiality=0.)
+    policies = [{key: account.pop(key, value) for key, value in defaults.items()}
+                for account in legacy.get('accounts', [])]
+    normalized = _normalize(legacy)
+    for account, policy in zip(normalized['accounts'], policies, strict=True):
+        for metric in ('lcr', 'nsfr'):
+            selection = policy[metric + '_applicability']
+            floor = account[metric + '_floor']
+            if type(selection) is not str:
+                raise ArithmeticError('commercial liquidity applicability must be a string')
+            basis = selection or ('internal_limit' if floor > 0 else 'unconfigured')
+            if basis not in ('internal_limit', 'not_applicable', 'unconfigured') or ((basis == 'internal_limit') != (floor > 0)):
+                raise ArithmeticError('commercial liquidity applicability/floor differs')
+        materiality = policy['htm_taint_materiality']
+        if (policy['htm_accounting'] not in ('', 'asc320-htm-v1')
+                or type(materiality) not in (int, float) or not math.isfinite(materiality)
+                or not 0 <= materiality <= 1 or (materiality > 0 and not policy['htm_accounting'])):
+            raise ArithmeticError('commercial HTM policy domain differs')
+        policy['htm_taint_materiality'] = float(materiality)
+        account.update(policy)
+    return normalized
+
+
+def liquidity_policy(account, metric):
+    basis = getattr(account, metric + '_applicability') or (
+        'internal_limit' if getattr(account, metric + '_floor') > 0 else 'unconfigured')
+    # These exclusively owned commercial sources have no legacy liquidity
+    # denominator. A configured limit is unavailable, never a reported pass.
+    return basis, 'unavailable' if basis == 'internal_limit' else basis
+
+
 def scope(spec,owned):
     if {p.id for p in spec['positions']}!=set(owned) or spec['policies'] or spec['netting_sets'] or spec['cashflows'] or spec['reverse_severities']:
         raise ArithmeticError('commercial publication requires explicit exclusively owned commercial sources; legacy mixed overlays require independent adoption')
     for account in spec['accounts']:
         if any(getattr(account,k)!=0. for k in ('annual_fees','annual_costs','annual_dividends','tax_rate')):
             raise ArithmeticError('commercial account operating overlays require independent adoption')
+        if any(getattr(account, k) != 0. for k in ('cet1_floor', 'leverage_floor', 'lcr_floor', 'nsfr_floor')) or account.htm_asset_limit != 1.:
+            raise ArithmeticError('commercial capital/liquidity limits require independent adoption')
 
 
 def reports(prepared,events,check=lambda:False):
@@ -45,10 +84,16 @@ def reports(prepared,events,check=lambda:False):
                 error=assets-liabilities-equity;maximum_error=max(maximum_error,abs(error));minimum[a.id]=min(minimum[a.id],cash);cet1=equity-a.capital_deductions
                 margins=dict(cash=cash-a.cash_floor,cet1=cet1,leverage=cet1,lcr=max(cash,0.),nsfr=max(equity,0.),htm=max(assets,0.))
                 for metric,value in margins.items():
+                    if metric in ('lcr', 'nsfr') and liquidity_policy(a, metric)[0] != 'internal_limit':continue
                     if value < -1e-9 and (a.id,metric) not in first:first[a.id,metric]=day;wanted['breaches'].append(dict(scenario=scenario,account=a.id,day=day,metric=metric))
                 if day<=30 or day%30==0 or day==horizon:
                     row=dict(scenario=scenario,account=a.id,entity=a.entity,currency=a.currency,day=day,cash=cash,restricted_cash=0.,cash_floor=float(a.cash_floor),assets=assets,liabilities=liabilities,equity=equity,aoci=0.,cet1=cet1,rwa=0.,cet1_ratio=None,leverage_ratio=cet1/assets if assets>0. else None,usable_collateral=0.,undrawn=0.,hqla_proxy=max(cash,0.),lcr_proxy=None,nsfr_proxy=None,reconciliation_error=error)
-                    row.update({k+'_headroom':float(v) for k,v in margins.items()});wanted['path'].append(row)
+                    row.update({k+'_headroom':float(v) for k,v in margins.items()})
+                    for metric in ('lcr', 'nsfr'):
+                        basis, status = liquidity_policy(a, metric)
+                        row[metric + '_status'] = status
+                        if basis != 'internal_limit':row[metric + '_headroom'] = None
+                    wanted['path'].append(row)
             if day==0 or day%30==0 or day==horizon:
                 for p in spec['positions']:wanted['exposures'].append(dict(scenario=scenario,day=day,account=p.account,position=p.id,kind=p.kind,balance=0.,allowance=0.,watch_fraction=float(p.watch_fraction),commitment=0.,market_factor=float(p.opening_market_price),encumbered_fraction=0.,accrued_interest=0.))
             for (account,event),value in aggregate.items():
@@ -60,6 +105,11 @@ def reports(prepared,events,check=lambda:False):
         for a in spec['accounts']:
             cash,equity=money[a.id];wanted['summary'].append(dict(scenario=scenario,account=a.id,entity=a.entity,currency=a.currency,final_cash=cash,final_equity=equity,minimum_cash=minimum[a.id],peak_cash_shortfall=max(a.cash_floor-minimum[a.id],0.),max_reconciliation_error=maximum_error,
                 **{field:first.get((a.id,metric)) for field,metric in (('first_cash_breach_day','cash'),('first_capital_breach_day','cet1'),('first_leverage_breach_day','leverage'),('first_lcr_breach_day','lcr'),('first_nsfr_breach_day','nsfr'),('first_htm_breach_day','htm'))}))
+            wanted['summary'][-1]['htm_reclassification_day'] = None
+            for metric in ('lcr', 'nsfr'):
+                basis, status = liquidity_policy(a, metric)
+                wanted['summary'][-1][metric + '_applicability'] = basis
+                wanted['summary'][-1][metric + '_status'] = status
             assets=liabilities=equity=0.
             for (account,name,_),value in sorted(gl.items()):
                 if account!=a.id:continue
