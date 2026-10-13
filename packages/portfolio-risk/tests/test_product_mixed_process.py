@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import pytest
+from copy import deepcopy
 from portfolio_risk.core import product_mixed_native as native
 
 ROOT=Path(__file__).resolve().parents[3]
@@ -34,3 +35,24 @@ def test_mixed_process_identity_and_prelaunch_cancel_publish_no_result(monkeypat
     def forbidden(*a,**k):pytest.fail('cancelled mixed request launched process')
     monkeypatch.setattr(product_strategy_native.subprocess,'Popen',forbidden)
     with pytest.raises(InterruptedError):native.run(raw,cancelled=lambda:True)
+
+
+@pytest.mark.parametrize('basis,floor,status', [
+    ('unconfigured', 0., 'unconfigured'),
+    ('not_applicable', 0., 'not_applicable'),
+    ('internal_limit', 1., 'unavailable'),
+])
+def test_mixed_liquidity_policy_is_independently_verified(basis, floor, status):
+    from portfolio_risk.analytics.product_mixed_reference import verify
+    raw = example()
+    for specification in (raw['backbook']['specification'], raw['combined_specification']):
+        for account in specification['accounts']:
+            account.update(lcr_applicability=basis, lcr_floor=floor)
+    result, _ = native.run(raw, threads=1, timeout=60.)
+    assert verify(raw, result)['mixed_performing_only']
+    for row in result['daily_balance']:
+        assert row['lcr_status'] == status
+        if basis != 'internal_limit':assert row['lcr_headroom'] is None
+    altered = deepcopy(result)
+    altered['daily_balance'][0]['lcr_status'] = 'within_limit'
+    with pytest.raises(ArithmeticError):verify(raw, altered)

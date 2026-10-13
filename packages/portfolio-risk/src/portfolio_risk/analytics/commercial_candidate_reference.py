@@ -95,7 +95,7 @@ def verify(raw,actual,check=lambda:False):
             year=full_end(native['source_request']);days=year*365.;rounded=round(days);elapsed=rounded if rounded/365.==year else math.ceil(days)
             if year>elapsed/365.:elapsed+=1
             full=max(full,origin+elapsed)
-    from ._deposit_continuation_calendar import _normalize
+    from .commercial_reports_reference import normalize_specification as _normalize
     from ._deposit_continuation_models import Account,Position,Scenario
     specification=deepcopy(raw['specification']);specification['horizon_days']=full;normalized=_normalize(specification)
     for key,cls in(('accounts',Account),('positions',Position),('scenarios',Scenario)):

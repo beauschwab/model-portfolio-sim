@@ -1,5 +1,6 @@
 """Research daily ratios and statements from one independently replayed joint GL."""
 from collections import defaultdict
+from . import liquidity_policy_reference as liquidity_policy
 from ._deposit_portfolio_calendar import _side
 from .joint_derivative_source_reference import gross_state
 from .saved_derivative_mixed_reference import LIABILITIES
@@ -30,6 +31,7 @@ def observe(spec,positions,accounts,rights,accrued,scenario,day,contexts):
         if abs(error)>1e-8*max(1.,abs(assets),abs(liabilities)):raise ArithmeticError('joint independent EOD balance sheet fails')
         if a['cash']<a['cash_floor']-1e-9:raise ArithmeticError('joint pooled cash floor fails')
         output.append(dict(scenario=scenario,account=a['id'],entity=a['entity'],currency=a['currency'],day=day,cash=a['cash'],restricted_cash=0.,cash_floor=a['cash_floor'],assets=assets,liabilities=liabilities,equity=a['equity'],aoci=0.,cet1=cet1,rwa=rwa,cet1_ratio=ratio(cet1,rwa),leverage_ratio=ratio(cet1,exposure),usable_collateral=collateral,undrawn=undrawn,hqla_proxy=hqla,lcr_proxy=ratio(hqla,outflow),nsfr_proxy=ratio(asf,rsf),reconciliation_error=error,cash_headroom=a['cash']-a['cash_floor'],cet1_headroom=cet1-a['cet1_floor']*rwa,leverage_headroom=cet1-a['leverage_floor']*exposure,lcr_headroom=hqla-a['lcr_floor']*outflow,nsfr_headroom=asf-a['nsfr_floor']*rsf,htm_headroom=a['htm_asset_limit']*max(assets,0.)-htm))
+        liquidity_policy.apply_path(output[-1], a)
     return output
 
 def statements(trial,accounts,scenarios=()):

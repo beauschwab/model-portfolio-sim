@@ -183,7 +183,7 @@ def verify_stream(raw,control,frames,check=lambda:False):
     for table,rows in remaining.items():
         if table in ('reported_daily_balance','reporting_rights','acquisition_lineage','daily_balance'):continue
         for row in rows:emit(table,row)
-    if not (set(cursors)-set(counts)).issubset({'actions','reverse_grid','breaches','funding_claims'}):raise ArithmeticError('unexpected table inventory')
+    if not (set(cursors)-set(counts)).issubset({'actions','reverse_grid','breaches','funding_claims','accounting_events'}):raise ArithmeticError('unexpected table inventory')
     for table,cursor in cursors.items():
         if next(cursor,None) is not None:raise ArithmeticError('extra row '+table)
     c.tick(check)

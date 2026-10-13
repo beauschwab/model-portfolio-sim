@@ -5,6 +5,7 @@ Frozen public-pending SciPy/source controls reconstruct each raw registry entry.
 This file is a review oracle, never an execution backend or adoption receipt.
 """
 from collections import defaultdict
+from . import liquidity_policy_reference as liquidity_policy
 from copy import deepcopy
 from pathlib import Path
 import json
@@ -391,6 +392,7 @@ def observe(spec,positions,accounts,rights,books,bindings,scenario,day):
         if abs(error)>1e-8*max(1.,abs(assets),abs(liabilities)): raise ArithmeticError('independent pooled financial statement does not balance')
         if a['cash']<a['cash_floor']-1e-9-1e-12*abs(a['cash_floor']): raise ArithmeticError('pooled end-of-day cash floor')
         result.append(dict(scenario=scenario,account=a['id'],entity=a['entity'],currency=a['currency'],day=day,cash=float(a['cash']),restricted_cash=0.,cash_floor=float(a['cash_floor']),assets=float(assets),liabilities=float(liabilities),equity=float(a['equity']),aoci=0.,cet1=float(cet1),rwa=rwa,cet1_ratio=ratio(cet1,rwa),leverage_ratio=ratio(cet1,exposure),usable_collateral=0.,undrawn=0.,hqla_proxy=hqla,lcr_proxy=ratio(hqla,outflow),nsfr_proxy=ratio(asf,rsf),reconciliation_error=error,cash_headroom=float(a['cash']-a['cash_floor']),cet1_headroom=cet1-a['cet1_floor']*rwa,leverage_headroom=float(cet1-a['leverage_floor']*exposure),lcr_headroom=hqla-a['lcr_floor']*outflow,nsfr_headroom=asf-a['nsfr_floor']*rsf,htm_headroom=a['htm_asset_limit']*max(assets,0.)-htm))
+        liquidity_policy.apply_path(result[-1], a)
     return result
 
 
@@ -536,7 +538,7 @@ def replay_rows(r,spec,events,bindings,sources,check=lambda:False,verified_posti
             for row in rows:
                 mincash[row['account']]=min(mincash[row['account']],row['cash']); maxerror=max(maxerror,abs(row['reconciliation_error']))
                 for label in ('cash','cet1','leverage','lcr','nsfr','htm'):
-                    if row[label+'_headroom']< -1e-9 and (row['account'],label) not in breaches:
+                    if row[label+'_headroom'] is not None and row[label+'_headroom']< -1e-9 and (row['account'],label) not in breaches:
                         breaches[row['account'],label]=day; out['breaches'].append(dict(scenario=scenario,account=row['account'],day=day,metric=label))
             if day<=30 or day%30==0 or day==horizon or ordinal==r['reporting_end_ordinal']: out['path']+=rows
             if day==0 or day%30==0 or day==horizon or ordinal==r['reporting_end_ordinal']:
@@ -564,6 +566,9 @@ def replay_rows(r,spec,events,bindings,sources,check=lambda:False,verified_posti
         for a in accounts:
             row=dict(scenario=scenario,account=a['id'],entity=a['entity'],currency=a['currency'],final_cash=float(a['cash']),final_equity=float(a['equity']),minimum_cash=float(mincash[a['id']]),peak_cash_shortfall=float(max(a['cash_floor']-mincash[a['id']],0.)),max_reconciliation_error=maxerror)
             for field,metric in [('first_cash_breach_day','cash'),('first_capital_breach_day','cet1'),('first_leverage_breach_day','leverage'),('first_lcr_breach_day','lcr'),('first_nsfr_breach_day','nsfr'),('first_htm_breach_day','htm')]: row[field]=breaches.get((a['id'],metric))
+            # Admission above requires zero liquidity floors for this owner, so
+            # applicability is constant through the complete replay.
+            liquidity_policy.apply_summary(row, a, [x for x in rows if x['account'] == a['id']])
             out['summary'].append(row)
         out['dated_rights']+=dated._rights_rows(selected,state,scenario,runid,end,{}, {}, [])
         for bi,b in enumerate(bb):

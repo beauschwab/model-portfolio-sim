@@ -1,3 +1,4 @@
+from . import liquidity_policy_reference as liquidity_policy
 from ._deposit_portfolio_calendar import *
 from ._deposit_portfolio_calendar import _check,_cumulative,_rights,_path_rights,_side,_principal,_rights_rows,_observe,_decode,_equal
 from . import _deposit_portfolio_income_reference as c
@@ -202,7 +203,7 @@ def _replay(raw, spec, events, acquisitions, end, pool_for_event, coupon_signs, 
             if row['scenario']!=scenario:continue
             for metric in ('cash','cet1','leverage','lcr','nsfr','htm'):
                 key=(row['account'],metric)
-                if row[metric+'_headroom'] < -1e-9 and key not in first:
+                if row[metric+'_headroom'] is not None and row[metric+'_headroom'] < -1e-9 and key not in first:
                     first.add(key);output['breaches'].append(dict(scenario=scenario,account=row['account'],day=row['day'],metric=metric))
     for scenario in scenarios:
         for account in spec['accounts']:
@@ -210,7 +211,8 @@ def _replay(raw, spec, events, acquisitions, end, pool_for_event, coupon_signs, 
             last=rows[-1];minimum=min([account['cash']]+[x['cash'] for x in rows])
             summary=dict(scenario=scenario,account=account['id'],entity=account['entity'],currency=account['currency'],final_cash=last['cash'],final_equity=last['equity'],minimum_cash=minimum,peak_cash_shortfall=max(0.,account['cash_floor']-minimum),max_reconciliation_error=max(abs(x['reconciliation_error']) for x in rows))
             for label,metric in [('cash','cash'),('capital','cet1'),('leverage','leverage'),('lcr','lcr'),('nsfr','nsfr'),('htm','htm')]:
-                summary['first_'+label+'_breach_day']=next((x['day'] for x in rows if x[metric+'_headroom'] < -1e-9),None)
+                summary['first_'+label+'_breach_day']=next((x['day'] for x in rows if x[metric+'_headroom'] is not None and x[metric+'_headroom'] < -1e-9),None)
+            liquidity_policy.apply_summary(summary, account, rows)
             output['summary'].append(summary)
     output['consolidated']=[{k:x[k] for k in ('scenario','currency','assets','liabilities','equity','cash','restricted_cash')} for x in output['closing_statements']]
     totals={}

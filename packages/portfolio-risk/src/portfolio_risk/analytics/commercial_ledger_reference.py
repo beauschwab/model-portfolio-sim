@@ -135,7 +135,7 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False,*,expected_protoc
         return day+1 if year>day/365. else day
     full=max(report,max(full_days(r) for r in raw['commercial']))
     resolved=deepcopy(raw['spec']);resolved['horizon_days']=full
-    from ._deposit_continuation_calendar import _normalize
+    from .commercial_reports_reference import normalize_specification as _normalize
     from ._deposit_continuation_models import Account,Position,Scenario
     normalized=_normalize(resolved)
     for key,cls in (('accounts',Account),('positions',Position),('scenarios',Scenario)):

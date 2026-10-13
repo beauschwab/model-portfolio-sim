@@ -5,6 +5,7 @@ reviewed supplied calendar recognition; candidate EIR economics are independentl
 reconstructed. Neither policy establishes observed or joint credit accuracy.
 """
 from collections import defaultdict
+from . import liquidity_policy_reference as liquidity_policy
 from copy import deepcopy
 from dataclasses import asdict
 import json
@@ -104,6 +105,7 @@ def _normalize(raw):
         ranges(a, 'cash cash_floor capital_deductions annual_fees annual_costs annual_dividends', 0.,1e15)
         ranges(a, 'cet1_floor leverage_floor tax_rate htm_asset_limit', 0.,1.)
         ranges(a, 'lcr_floor nsfr_floor', 0.,10.); product._finite(a['equity'])
+        liquidity_policy.validate(a)
         if type(a['include_aoci']) is not bool:
             raise ArithmeticError('mixed explicit boolean capital policy required')
     ids = {a['id'] for a in result['accounts']}
@@ -655,6 +657,7 @@ def _observe(spec, positions, accounts, rights, accrued, scenario, day):
             cash_headroom=a['cash']-a['cash_floor'], cet1_headroom=cet1-a['cet1_floor']*rwa,
             leverage_headroom=cet1-a['leverage_floor']*exposure, lcr_headroom=hqla-a['lcr_floor']*outflow,
             nsfr_headroom=asf-a['nsfr_floor']*rsf, htm_headroom=a['htm_asset_limit']*max(assets, 0.)-htm)
+        liquidity_policy.apply_path(row, a)
         if abs(error) > 1e-8*max(1., abs(assets), abs(liabilities)):
             raise ArithmeticError('mixed independent daily balance sheet fails')
         if a['cash'] < a['cash_floor']-1e-9:
