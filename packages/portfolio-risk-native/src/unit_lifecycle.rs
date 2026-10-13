@@ -1,14 +1,14 @@
 //! Unit-grid raw contract construction, pricing and coefficient preparation.
 use crate::accounting_lifecycle::cd_flows;
 use crate::conventions::{Bdc, CalendarSpec, DayCount};
-use crate::hedge_lifecycle::{bullet, smear, term_flows, term_price};
 use crate::lifecycle_market::{admit, finite, monthly_price, MarketInput, RateMarket};
 use crate::math::random::SharedDraws;
 use crate::products::deposits::lifecycle::{
     cashflows, deposit_paths, equilibrium, Assumptions, Cohort, DepositDeck,
 };
+use crate::products::derivatives::lifecycle::{bullet, smear, term_flows, term_price};
 use crate::products::mortgages::input::OwnedMortgage;
-use crate::term_deck::{Amortization, DeckRequest, Product};
+use crate::products::term::deck::{Amortization, DeckRequest, Product};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]

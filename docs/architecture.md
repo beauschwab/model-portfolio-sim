@@ -153,6 +153,7 @@ packages/
       installment/
       revolving/
       commercial/
+      term/                      # Shared corporate/CD schedules and pricing
       term_deposits/
       derivatives/
       funding/
@@ -240,6 +241,26 @@ ledger ownership, decision workflows, and Python transport/reference/verificatio
 Independent publication verification stays installed at runtime. Package-directory
 relocation comes last, together with build/source-identity/discovery updates;
 existing package names and deployment paths remain stable in this stage.
+
+### Domain migration, stage 2
+
+Another 68 source files now live with their owning products. `installment/` and
+`revolving/` own their supplied-history graphs; `commercial/` owns cash extraction,
+credit compilation, fee and factor sources, exercise policies, graphs, income and
+unit preparation. `derivatives/` owns contracts, CSA, reviewed accounting, saved
+sources and hedge lifecycle; `funding/` owns funding contracts and their graph.
+
+`term/` is the shared corporate/CD schedule, dated projection and risk foundation.
+CD elections and chronological continuation live in `term_deposits/`; the previous
+`term_enhancements::cd` and `cd_sequence` paths remain compatibility exports. Shared
+term structures are not duplicated into commercial and CD modules. The private
+commercial serialization boundary stays private to the crate.
+
+The inventory now covers 92 relocated source files and checks both root and nested
+compatibility exports. Fixture references move with their owners. Numerical bodies,
+wire schemas, ABI versions, public function signatures and publication rules are
+unchanged. Cross-product protocol dispatch, portfolio aggregation, graph/runtime
+coordination, treasury and shared model-core organization remain subsequent stages.
 
 Validate native unit/integration tests, legacy public imports, native ownership,
 generated contracts and architecture boundaries before promoting each stage.

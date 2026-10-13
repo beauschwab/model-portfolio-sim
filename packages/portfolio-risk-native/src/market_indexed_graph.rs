@@ -25,9 +25,9 @@ pub struct Counts {
 pub struct Case {
     pub role: String,
     pub source: bridge::Identity,
-    pub indexed_request: crate::term_enhancements::indexed::ContractPathRequest,
+    pub indexed_request: crate::products::term::contracts::indexed::ContractPathRequest,
     pub indexed_result: ContractPathResult,
-    pub swap_request: crate::derivative_contract::swaps::SwapRequest,
+    pub swap_request: crate::products::derivatives::contract::swaps::SwapRequest,
     pub swap_result: SwapResult,
     pub original_oas: f64,
     pub spread_adjusted_swap_pv: f64,
@@ -330,21 +330,21 @@ impl IndexedPosition {
                 vec![cash_key, collateral_parent, self.base.clone()],
             )?;
             let loan = node(cache, loan_key, "indexed-loan-pv", &mut counts, || {
-                let native = crate::term_product_graph::NativeSource {
+                let native = crate::products::term::graph::NativeSource {
                     position_id: indexed_request.position_id.clone(),
                     scenario_id: indexed_request.scenario_id.clone(),
                     run_id: "explicit-pricing-source".into(),
                     path_id: indexed_request.path.id.clone(),
                     weight: 1.,
-                    role: crate::advanced_graph::Role::Pricing,
-                    product: crate::term_product_graph::ProductHistory::IndexedTerm {
+                    role: crate::products::installment::graph::Role::Pricing,
+                    product: crate::products::term::graph::ProductHistory::IndexedTerm {
                         request: indexed_request.clone(),
                     },
-                    projection: crate::term_product_graph::SourceProjection::IndexedTerm {
+                    projection: crate::products::term::graph::SourceProjection::IndexedTerm {
                         result: (*indexed).clone(),
                     },
                 };
-                crate::term_product_graph::pricing::price(
+                crate::products::term::graph::pricing::price(
                     &native,
                     collateral,
                     source.bridge.identity.as_of_ordinal,

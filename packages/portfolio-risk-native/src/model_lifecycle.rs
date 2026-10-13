@@ -16,7 +16,7 @@ pub fn fit_observed_credit(
 }
 
 pub fn dated_term(
-    request: &crate::dated_term::DatedTermRequest,
+    request: &crate::products::term::dated::DatedTermRequest,
 ) -> Result<serde_json::Value, String> {
     let result = request.build()?;
     serde_json::to_value(result).map_err(|error| error.to_string())

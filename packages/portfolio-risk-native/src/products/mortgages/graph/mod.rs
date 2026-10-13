@@ -4,7 +4,7 @@ mod admission;
 mod metrics;
 mod pricing;
 mod types;
-use crate::advanced_graph::{BaseAnchor, OasTarget, PositionOas, Role};
+use crate::products::installment::graph::{BaseAnchor, OasTarget, PositionOas, Role};
 use portfolio_model_core::{
     cashflow::CashflowMeasure,
     mortgage_state::{self, MortgageOwnership, MortgageRate, MortgageRequest},
@@ -27,7 +27,7 @@ pub struct MortgageGraph {
 }
 fn history_request(
     position: &Position,
-    scenario: &crate::advanced_graph::Scenario,
+    scenario: &crate::products::installment::graph::Scenario,
     role: Role,
     history: &History,
 ) -> MortgageRequest {

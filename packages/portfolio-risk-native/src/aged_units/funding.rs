@@ -1,5 +1,5 @@
 //! Native gross contractual cash, separate from principal and earned-income metrics.
-use crate::advanced_product::{amount, ContractualProjection, SourceIdentity};
+use crate::products::term::projection::{amount, ContractualProjection, SourceIdentity};
 use portfolio_model_core::limits::MAX_DATED_METADATA_BYTES;
 use serde::Serialize;
 use std::collections::BTreeSet;

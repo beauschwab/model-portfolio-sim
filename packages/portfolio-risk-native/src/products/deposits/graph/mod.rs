@@ -3,7 +3,7 @@ mod admission;
 mod metrics;
 mod pricing;
 mod types;
-use crate::advanced_graph::{BaseAnchor, OasTarget, PositionOas, Role};
+use crate::products::installment::graph::{BaseAnchor, OasTarget, PositionOas, Role};
 use portfolio_model_core::deposit_state;
 use std::sync::Arc;
 pub use types::*;

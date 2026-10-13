@@ -2,7 +2,7 @@
 use crate::accounting_lifecycle::{AccountingRequest, DepositBook, MortgageBook, TermBook};
 use crate::incremental::PriceRequest;
 use crate::products::mortgages::input::OwnedMortgage;
-use crate::term_deck::DeckRequest;
+use crate::products::term::deck::DeckRequest;
 use serde_json::Value;
 use std::collections::BTreeMap;
 

@@ -431,7 +431,7 @@ impl Portfolio {
             for case in &result.cases {
                 for period in &case.indexed_request.periods {
                     checkpoint()?;
-                    if let crate::term_enhancements::indexed::Coupon::Indexed {
+                    if let crate::products::term::contracts::indexed::Coupon::Indexed {
                         margin,
                         observations,
                         ..

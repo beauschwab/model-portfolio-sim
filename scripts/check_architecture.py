@@ -91,11 +91,13 @@ def native_domain_violations(root):
     for old, new in layout['relocations'].items():
         if (source / old).exists() or not (source / new).is_file():
             errors.append(f'{layout["crate"]}: migrated module must live only at {new}, not {old}')
-    exports = (source / 'lib.rs').read_text()
-    for old, new in layout['compatibility_exports'].items():
-        declaration = f'pub use {new};' if old == new.split('::')[-1] else f'pub use {new} as {old};'
-        if declaration not in exports:
-            errors.append(f'{layout["crate"]}/src/lib.rs: missing compatibility export {old}')
+    export_files = {'lib.rs': layout['compatibility_exports'], **layout.get('nested_compatibility_exports', {})}
+    for file, aliases in export_files.items():
+        exports = (source / file).read_text()
+        for old, new in aliases.items():
+            declaration = f'pub use {new};' if old == new.split('::')[-1] else f'pub use {new} as {old};'
+            if declaration not in exports:
+                errors.append(f'{layout["crate"]}/src/{file}: missing compatibility export {old}')
     for path in (source / 'math').rglob('*.rs'):
         # Math uses explicit crate paths; grouped root imports would hide ownership.
         text = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', path.read_text(), flags=re.S)

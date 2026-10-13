@@ -1,7 +1,7 @@
 //! Shared bounded JSON protocol for the standalone executable and Python adapter.
 use crate::products::mortgages::risk::RiskResult;
-use crate::term_deck::{Deck, DeckRequest};
-use crate::term_risk::TermRiskRequest;
+use crate::products::term::deck::{Deck, DeckRequest};
+use crate::products::term::risk::TermRiskRequest;
 use serde::{Deserialize, Serialize};
 use std::ffi::{c_char, CString};
 use std::io::{self, Write};
@@ -11,14 +11,14 @@ const MAX_OUTPUT: usize = 128 * 1024 * 1024;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdvancedRepriceRequest {
-    base: crate::advanced_graph::Request,
-    current: crate::advanced_graph::Request,
+    base: crate::products::installment::graph::Request,
+    current: crate::products::installment::graph::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CardRepriceRequest {
-    base: crate::card_graph::Request,
-    current: crate::card_graph::Request,
+    base: crate::products::revolving::graph::Request,
+    current: crate::products::revolving::graph::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,27 +35,27 @@ struct MortgageGraphRepriceRequest {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FundingGraphRepriceRequest {
-    base: crate::funding_graph::Request,
-    current: crate::funding_graph::Request,
+    base: crate::products::funding::graph::Request,
+    current: crate::products::funding::graph::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TermProductGraphRepriceRequest {
-    base: crate::term_product_graph::legacy_request::Request,
-    current: crate::term_product_graph::legacy_request::Request,
+    base: crate::products::term::graph::legacy_request::Request,
+    current: crate::products::term::graph::legacy_request::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TermSequenceGraphRepriceRequest {
-    base: crate::term_product_graph::strict_request::SequenceRequest,
-    current: crate::term_product_graph::strict_request::SequenceRequest,
+    base: crate::products::term::graph::strict_request::SequenceRequest,
+    current: crate::products::term::graph::strict_request::SequenceRequest,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AdvancedCaptureRequest {
-    graph: crate::advanced_graph::Request,
-    owners: Vec<crate::advanced_graph::CaptureOwner>,
-    policy: crate::advanced_graph::CapturePolicy,
+    graph: crate::products::installment::graph::Request,
+    owners: Vec<crate::products::installment::graph::CaptureOwner>,
+    policy: crate::products::installment::graph::CapturePolicy,
 }
 #[derive(Deserialize)]
 #[serde(tag = "schema", deny_unknown_fields)]
@@ -64,27 +64,27 @@ enum Request {
     CommercialContinuation {
         threads: usize,
         execution_timeout_ms: u64,
-        request: Box<crate::commercial_continuation::Request>,
+        request: Box<crate::products::commercial::continuation::Request>,
     },
     #[serde(rename = "commercial-generated-exercise-1")]
     CommercialGeneratedExercise {
         threads: usize,
         execution_timeout_ms: u64,
-        request: Box<crate::commercial_stochastic_exercise::Request>,
+        request: Box<crate::products::commercial::stochastic_exercise::Request>,
     },
     #[serde(rename = "commercial-product-graph-1")]
     CommercialGraph {
         threads: usize,
         #[serde(default)]
         execution_timeout_ms: Option<u64>,
-        request: Box<crate::commercial_graph::Request>,
+        request: Box<crate::products::commercial::graph::Request>,
     },
     #[serde(rename = "commercial-units-1")]
     CommercialUnits {
         threads: usize,
         #[serde(default)]
         execution_timeout_ms: Option<u64>,
-        request: Box<crate::commercial_units::Request>,
+        request: Box<crate::products::commercial::units::Request>,
     },
     #[serde(rename = "product-units-1")]
     ProductUnits {
@@ -94,7 +94,7 @@ enum Request {
     #[serde(rename = "term-product-graph-2")]
     TermSequenceGraph {
         threads: usize,
-        request: Box<crate::term_product_graph::strict_request::SequenceRequest>,
+        request: Box<crate::products::term::graph::strict_request::SequenceRequest>,
     },
     #[serde(rename = "term-product-reprice-2")]
     TermSequenceGraphReprice {
@@ -104,7 +104,7 @@ enum Request {
     #[serde(rename = "term-product-graph-1")]
     TermProductGraph {
         threads: usize,
-        request: Box<crate::term_product_graph::legacy_request::Request>,
+        request: Box<crate::products::term::graph::legacy_request::Request>,
     },
     #[serde(rename = "term-product-reprice-1")]
     TermProductGraphReprice {
@@ -129,7 +129,7 @@ enum Request {
     #[serde(rename = "funding-product-graph-1")]
     FundingGraph {
         threads: usize,
-        request: Box<crate::funding_graph::Request>,
+        request: Box<crate::products::funding::graph::Request>,
     },
     #[serde(rename = "funding-product-reprice-1")]
     FundingGraphReprice {
@@ -149,7 +149,7 @@ enum Request {
     #[serde(rename = "card-product-graph-1")]
     CardGraph {
         threads: usize,
-        request: Box<crate::card_graph::Request>,
+        request: Box<crate::products::revolving::graph::Request>,
     },
     #[serde(rename = "card-product-reprice-1")]
     CardReprice {
@@ -159,7 +159,7 @@ enum Request {
     #[serde(rename = "advanced-product-graph-1")]
     AdvancedGraph {
         threads: usize,
-        request: Box<crate::advanced_graph::Request>,
+        request: Box<crate::products::installment::graph::Request>,
     },
     #[serde(rename = "advanced-product-reprice-1")]
     AdvancedReprice {
@@ -184,7 +184,7 @@ enum Request {
     #[serde(rename = "derivative-accounting-1")]
     DerivativeAccounting {
         threads: usize,
-        request: Box<crate::derivative_accounting::DerivativeAccountingRequest>,
+        request: Box<crate::products::derivatives::accounting::DerivativeAccountingRequest>,
     },
     #[serde(rename = "credit-path-accounting-1")]
     CreditPathAccounting {
@@ -219,7 +219,7 @@ enum Request {
     #[serde(rename = "derivative-contract-1")]
     DerivativeContract {
         threads: usize,
-        request: Box<crate::derivative_contract::DerivativeRequest>,
+        request: Box<crate::products::derivatives::contract::DerivativeRequest>,
     },
     #[serde(rename = "market-indexed-adapter-1")]
     MarketIndexedAdapter {
@@ -270,7 +270,7 @@ enum Request {
     #[serde(rename = "funding-contract-1")]
     FundingContract {
         threads: usize,
-        request: Box<crate::funding_contract::FundingRequest>,
+        request: Box<crate::products::funding::contract::FundingRequest>,
     },
     #[serde(rename = "consumer-installment-1")]
     ConsumerInstallment {
@@ -300,17 +300,17 @@ enum Request {
     #[serde(rename = "indexed-contract-1")]
     IndexedContract {
         threads: usize,
-        request: Box<crate::term_enhancements::indexed::ContractPathRequest>,
+        request: Box<crate::products::term::contracts::indexed::ContractPathRequest>,
     },
     #[serde(rename = "conditional-exercise-1")]
     ConditionalExercise {
         threads: usize,
-        request: Box<crate::term_enhancements::exercise::ExerciseRequest>,
+        request: Box<crate::products::term::contracts::exercise::ExerciseRequest>,
     },
     #[serde(rename = "cd-election-1")]
     CdElection {
         threads: usize,
-        request: Box<crate::term_enhancements::cd::CdElectionRequest>,
+        request: Box<crate::products::term_deposits::elections::CdElectionRequest>,
     },
     #[serde(rename = "floating-rate-1")]
     FloatingRate {
@@ -320,7 +320,7 @@ enum Request {
     #[serde(rename = "dated-term-1")]
     DatedTerm {
         threads: usize,
-        request: Box<crate::dated_term::DatedTermRequest>,
+        request: Box<crate::products::term::dated::DatedTermRequest>,
     },
     #[serde(rename = "observed-credit-calibration-1")]
     ObservedCreditCalibration {
@@ -410,12 +410,12 @@ enum Request {
     #[serde(rename = "hedge-risk-1")]
     HedgeRisk {
         threads: usize,
-        request: Box<crate::hedge_lifecycle::HedgeRequest>,
+        request: Box<crate::products::derivatives::lifecycle::HedgeRequest>,
     },
     #[serde(rename = "hedge-deck-1")]
     HedgeDeck {
         threads: usize,
-        request: crate::hedge_lifecycle::HedgeDeckInput,
+        request: crate::products::derivatives::lifecycle::HedgeDeckInput,
     },
     #[serde(rename = "deposit-risk-1")]
     DepositRisk {
@@ -463,8 +463,8 @@ enum Output {
     BalanceRisk(Box<crate::balance_risk::BalanceRiskResult>),
     Kpi(serde_json::Value),
     Accounting(Box<crate::accounting_lifecycle::AccountingResult>),
-    HedgeRisk(Box<crate::hedge_lifecycle::HedgeRisk>),
-    HedgeDeck(Box<crate::hedge_lifecycle::HedgeDeck>),
+    HedgeRisk(Box<crate::products::derivatives::lifecycle::HedgeRisk>),
+    HedgeDeck(Box<crate::products::derivatives::lifecycle::HedgeDeck>),
     DepositRisk(Box<crate::products::deposits::lifecycle::DepositRisk>),
     DepositStress(Box<crate::products::deposits::lifecycle::DepositStress>),
     DepositDeck(Box<crate::products::deposits::lifecycle::DepositDeck>),
@@ -670,7 +670,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::CommercialContinuation { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                let result = crate::commercial_continuation::evaluate(&request)?;
+                let result = crate::products::commercial::continuation::evaluate(&request)?;
                 portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,
@@ -679,7 +679,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::CommercialGeneratedExercise { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                let result = crate::commercial_stochastic_exercise::analyze(&request)?;
+                let result = crate::products::commercial::stochastic_exercise::analyze(&request)?;
                 portfolio_compute_control::checkpoint()?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,
@@ -698,7 +698,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                         "generated OAS calibration requires original execution deadline".into(),
                     );
                 }
-                let result = crate::commercial_graph::analyze(&request)?;
+                let result = crate::products::commercial::graph::analyze(&request)?;
                 portfolio_compute_control::checkpoint()?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,
@@ -722,7 +722,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                         "generated OAS calibration requires original execution deadline".into(),
                     );
                 }
-                let result = crate::commercial_units::prepare(&request)?;
+                let result = crate::products::commercial::units::prepare(&request)?;
                 portfolio_compute_control::checkpoint()?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result.source()).map_err(|e| e.to_string())?,
@@ -735,25 +735,25 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         )),
         Request::TermSequenceGraph { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                if request.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA {
+                if request.0.schema != crate::products::term::graph::SEQUENCE_SCHEMA {
                     return Err("explicit term-product-graph-2 selection required".into());
                 }
                 Ok(Output::Kpi(
-                    serde_json::to_value(crate::term_product_graph::analyze(&request.0)?)
+                    serde_json::to_value(crate::products::term::graph::analyze(&request.0)?)
                         .map_err(|e| e.to_string())?,
                 ))
             })
         }
         Request::TermSequenceGraphReprice { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                if request.base.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA
-                    || request.current.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA
+                if request.base.0.schema != crate::products::term::graph::SEQUENCE_SCHEMA
+                    || request.current.0.schema != crate::products::term::graph::SEQUENCE_SCHEMA
                 {
                     return Err(
                         "explicit term-product-reprice-2 base/current selection required".into(),
                     );
                 }
-                let graph = crate::term_product_graph::TermGraph::new(&request.base.0)?;
+                let graph = crate::products::term::graph::TermGraph::new(&request.base.0)?;
                 Ok(Output::Kpi(
                     serde_json::to_value(graph.reprice(&request.current.0)?)
                         .map_err(|e| e.to_string())?,
@@ -761,25 +761,25 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             })
         }
         Request::TermProductGraph { request, .. } => {
-            if request.schema == crate::term_product_graph::SEQUENCE_SCHEMA {
+            if request.schema == crate::products::term::graph::SEQUENCE_SCHEMA {
                 return Err("explicit term-product-graph-2 selection required".into());
             }
             Ok(Output::Kpi(
-                serde_json::to_value(crate::term_product_graph::analyze(
+                serde_json::to_value(crate::products::term::graph::analyze(
                     &request.into_current()?,
                 )?)
                 .map_err(|e| e.to_string())?,
             ))
         }
         Request::TermProductGraphReprice { request, .. } => {
-            if request.base.schema == crate::term_product_graph::SEQUENCE_SCHEMA
-                || request.current.schema == crate::term_product_graph::SEQUENCE_SCHEMA
+            if request.base.schema == crate::products::term::graph::SEQUENCE_SCHEMA
+                || request.current.schema == crate::products::term::graph::SEQUENCE_SCHEMA
             {
                 return Err("explicit term-product-reprice-2 selection required".into());
             }
             let base = request.base.into_current()?;
             let current = request.current.into_current()?;
-            let graph = crate::term_product_graph::TermGraph::new(&base)?;
+            let graph = crate::products::term::graph::TermGraph::new(&base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&current)?).map_err(|e| e.to_string())?,
             ))
@@ -800,11 +800,11 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             ))
         }
         Request::FundingGraph { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::funding_graph::analyze(&request)?)
+            serde_json::to_value(crate::products::funding::graph::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::FundingGraphReprice { request, .. } => {
-            let graph = crate::funding_graph::FundingGraph::new(&request.base)?;
+            let graph = crate::products::funding::graph::FundingGraph::new(&request.base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&request.current)?)
                     .map_err(|e| e.to_string())?,
@@ -822,29 +822,29 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             ))
         }
         Request::CardGraph { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::card_graph::analyze(&request)?)
+            serde_json::to_value(crate::products::revolving::graph::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::CardReprice { request, .. } => {
-            let graph = crate::card_graph::CardGraph::new(&request.base)?;
+            let graph = crate::products::revolving::graph::CardGraph::new(&request.base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&request.current)?)
                     .map_err(|e| e.to_string())?,
             ))
         }
         Request::AdvancedGraph { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::advanced_graph::analyze(&request)?)
+            serde_json::to_value(crate::products::installment::graph::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::AdvancedReprice { request, .. } => {
-            let graph = crate::advanced_graph::AdvancedGraph::new(&request.base)?;
+            let graph = crate::products::installment::graph::AdvancedGraph::new(&request.base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&request.current)?)
                     .map_err(|e| e.to_string())?,
             ))
         }
         Request::AdvancedCapture { request, .. } => {
-            let graph = crate::advanced_graph::AdvancedGraph::new(&request.graph)?;
+            let graph = crate::products::installment::graph::AdvancedGraph::new(&request.graph)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.capture_scheduled(&request.owners, &request.policy)?)
                     .map_err(|e| e.to_string())?,
@@ -859,8 +859,10 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 .map_err(|e| e.to_string())?,
         )),
         Request::DerivativeAccounting { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::derivative_accounting::evaluate(&request)?)
-                .map_err(|e| e.to_string())?,
+            serde_json::to_value(crate::products::derivatives::accounting::evaluate(
+                &request,
+            )?)
+            .map_err(|e| e.to_string())?,
         )),
         Request::CreditPathAccounting { request, .. } => Ok(Output::Kpi(
             serde_json::to_value(portfolio_model_core::credit_path_accounting::evaluate(
@@ -924,7 +926,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             .map_err(|e| e.to_string())?,
         )),
         Request::DerivativeContract { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::derivative_contract::evaluate(&request)?)
+            serde_json::to_value(crate::products::derivatives::contract::evaluate(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::MarketIndexedAdapter { request, .. } => {
@@ -990,7 +992,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 .map_err(|e| e.to_string())
         }
         Request::FundingContract { request, .. } => {
-            let result = crate::funding_contract::evaluate(&request)?;
+            let result = crate::products::funding::contract::evaluate(&request)?;
             serde_json::to_value(result)
                 .map(Output::Kpi)
                 .map_err(|e| e.to_string())
@@ -1026,14 +1028,14 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 .map_err(|e| e.to_string())
         }
         Request::IndexedContract { request, .. } => {
-            let result = crate::term_enhancements::indexed::build_path(&request)?;
+            let result = crate::products::term::contracts::indexed::build_path(&request)?;
             serde_json::to_value(result)
                 .map(Output::Kpi)
                 .map_err(|e| e.to_string())
         }
         Request::ConditionalExercise { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                let result = crate::term_enhancements::exercise::value_exercise(&request)?;
+                let result = crate::products::term::contracts::exercise::value_exercise(&request)?;
                 let output = serde_json::to_value(result)
                     .map(Output::Kpi)
                     .map_err(|e| e.to_string())?;
@@ -1042,7 +1044,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             })
         }
         Request::CdElection { request, .. } => {
-            let result = crate::term_enhancements::cd::step_cd(&request)?;
+            let result = crate::products::term_deposits::elections::step_cd(&request)?;
             serde_json::to_value(result)
                 .map(Output::Kpi)
                 .map_err(|e| e.to_string())
@@ -1107,8 +1109,12 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::HedgeRisk { request, .. } => request.run().map(|v| Output::HedgeRisk(Box::new(v))),
         Request::HedgeDeck { request, .. } => {
-            crate::hedge_lifecycle::HedgeDeck::new(&request.swaps, request.asof, request.months)
-                .map(|v| Output::HedgeDeck(Box::new(v)))
+            crate::products::derivatives::lifecycle::HedgeDeck::new(
+                &request.swaps,
+                request.asof,
+                request.months,
+            )
+            .map(|v| Output::HedgeDeck(Box::new(v)))
         }
         Request::DepositRisk { request, .. } => {
             request.risk().map(|v| Output::DepositRisk(Box::new(v)))
@@ -1187,15 +1193,17 @@ pub fn respond(input: &[u8]) -> (Vec<u8>, bool) {
     respond_started(input, std::time::Instant::now())
 }
 pub fn respond_started(input: &[u8], started: std::time::Instant) -> (Vec<u8>, bool) {
-    if let Some(selected) = crate::commercial_stochastic_boundary::selected(input, started, || {
-        let result = std::panic::catch_unwind(|| execute(input))
-            .unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
-        let mut output = crate::commercial_stochastic_boundary::Output(Vec::new());
-        serde_json::to_writer(&mut output, &Response::Success { ok: true, result })
-            .map_err(|e| e.to_string())?;
-        portfolio_compute_control::checkpoint()?;
-        Ok(output.0)
-    }) {
+    if let Some(selected) =
+        crate::products::commercial::stochastic_boundary::selected(input, started, || {
+            let result = std::panic::catch_unwind(|| execute(input))
+                .unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
+            let mut output = crate::products::commercial::stochastic_boundary::Output(Vec::new());
+            serde_json::to_writer(&mut output, &Response::Success { ok: true, result })
+                .map_err(|e| e.to_string())?;
+            portfolio_compute_control::checkpoint()?;
+            Ok(output.0)
+        })
+    {
         return match selected {
             Ok(output) => (output, true),
             Err(error) => (

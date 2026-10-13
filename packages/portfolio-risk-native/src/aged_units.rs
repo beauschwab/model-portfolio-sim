@@ -1,8 +1,8 @@
 //! Actual-purchase/aged fixed-contract coefficients for the existing native solver.
 pub mod cache;
 pub mod funding;
-use crate::advanced_product::{self as product, FixedTermDefinition, SourceIdentity};
 use crate::market::analysis::curves::SuppliedCurve;
+use crate::products::term::projection::{self as product, FixedTermDefinition, SourceIdentity};
 use portfolio_model_core::cashflow::{validate_ordinal, MAX_HORIZON_DAYS};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -218,7 +218,7 @@ fn validate(r: &AgedUnitsRequest) -> Result<(usize, usize), String> {
         }
         if !names.insert(&t.template_id)
             || t.side
-                != if t.term.product == crate::term_deck::Product::Corporate {
+                != if t.term.product == crate::products::term::deck::Product::Corporate {
                     1.
                 } else {
                     -1.
