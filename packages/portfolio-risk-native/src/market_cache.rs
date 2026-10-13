@@ -9,7 +9,7 @@ pub(crate) fn fit_abcd(
     loadings: &[f64],
     initial: &[f64],
     grid: [f64; 2],
-) -> Result<crate::least_squares::Fit, String> {
+) -> Result<crate::math::least_squares::Fit, String> {
     let key = Key::new(1)
         .floats(quotes)
         .floats(forwards)

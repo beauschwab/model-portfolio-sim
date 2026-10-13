@@ -2,7 +2,7 @@
 //! SeedSequence, PCG64 XSL-RR and Ziggurat normal algorithms are adapted from
 //! NumPy 2.4.6. Provenance and licenses: random-source-manifest.json and
 //! THIRD_PARTY_NOTICES.md. This is simulation randomness, not cryptography.
-use crate::ziggurat::*;
+use crate::math::ziggurat::*;
 
 /// Limit retained draws to 1 GiB. FFI adapters reserve an additional output copy.
 pub const MAX_DRAW_VALUES: usize = 128 * 1024 * 1024;

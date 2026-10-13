@@ -7,8 +7,8 @@ use crate::market::{
     bootstrap, MarketContext, MortgageInputs, MortgagePaths, ParallelShock, RatePaths,
 };
 use crate::market_cache::fit_abcd;
+use crate::math::random::SharedDraws;
 use crate::quant::{mortgage, mortgage_batch, oas, View};
-use crate::random::SharedDraws;
 use std::sync::Arc;
 
 fn vector(v: &[f64]) -> View<'_> {

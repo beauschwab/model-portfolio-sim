@@ -1293,7 +1293,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
             }
             SHARED_DRAWS => {
                 let seed: Vec<_> = views[0].v.iter().map(|&v| v as u32).collect();
-                let out = crate::random::SharedDraws::new(
+                let out = crate::math::random::SharedDraws::new(
                     &seed,
                     [views[1].ix(0), views[1].ix(1), views[1].ix(2)],
                 )

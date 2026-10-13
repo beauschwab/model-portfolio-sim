@@ -6,7 +6,7 @@
 //! default and prepayment elasticities.  No pricing-measure conversion,
 //! OAS solve, recovery fit or accounting policy is inferred here.
 
-use crate::model_market::joint::{self, JointGaussianRequest, JointGaussianResult};
+use crate::market::analysis::joint::{self, JointGaussianRequest, JointGaussianResult};
 use portfolio_model_core::cashflow::{actual_year_fraction, validate_ordinal, ActualDayCount};
 use portfolio_model_core::credit_path::UniformPair;
 use portfolio_model_core::joint_state::{

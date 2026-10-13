@@ -2,7 +2,7 @@
 mod strict_curves;
 mod types;
 mod validation;
-use crate::model_market::curves::SuppliedCurve;
+use crate::market::analysis::curves::SuppliedCurve;
 pub use types::*;
 use validation::{admit, checkpoint, fraction};
 

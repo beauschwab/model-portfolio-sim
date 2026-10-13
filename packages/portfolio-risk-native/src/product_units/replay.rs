@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_market::curves::SuppliedCurve;
+use crate::market::analysis::curves::SuppliedCurve;
 use portfolio_model_core::{
     cashflow::CashflowMeasure,
     dated_income::{self, DatedIncomeRequest, Identity, IncomeEvent},

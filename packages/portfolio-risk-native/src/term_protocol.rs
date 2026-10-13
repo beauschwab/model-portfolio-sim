@@ -229,7 +229,7 @@ enum Request {
     #[serde(rename = "model-market-1")]
     ModelMarket {
         threads: usize,
-        request: Box<crate::model_market::ModelMarketRequest>,
+        request: Box<crate::market::analysis::ModelMarketRequest>,
     },
     #[serde(rename = "market-driver-calibration-1")]
     MarketDriverCalibration {
@@ -239,7 +239,7 @@ enum Request {
     #[serde(rename = "market-quote-bootstrap-1")]
     MarketQuoteBootstrap {
         threads: usize,
-        request: Box<crate::market_bootstrap::Request>,
+        request: Box<crate::market::curves::quote_bootstrap::Request>,
     },
     #[serde(rename = "nonintegral-fee-accounting-1")]
     NonintegralFees {
@@ -948,7 +948,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             })
         }
         Request::ModelMarket { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::model_market::analyze(&request)?)
+            serde_json::to_value(crate::market::analysis::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::MarketDriverCalibration { request, .. } => {
@@ -960,7 +960,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::MarketQuoteBootstrap { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                serde_json::to_value(crate::market_bootstrap::evaluate(&request)?)
+                serde_json::to_value(crate::market::curves::quote_bootstrap::evaluate(&request)?)
                     .map(Output::Kpi)
                     .map_err(|e| e.to_string())
             })

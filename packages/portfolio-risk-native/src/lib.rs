@@ -36,17 +36,17 @@ pub mod hedge_lifecycle;
 pub mod incremental;
 pub mod joint_market_credit;
 pub mod kpi_lifecycle;
-mod least_squares;
 pub mod ledger_mapping;
 pub mod lifecycle_market;
 pub mod market;
-pub mod market_bootstrap;
+pub mod math;
+pub use market::curves::quote_bootstrap as market_bootstrap;
 mod market_cache;
 pub mod market_driver_calibration;
 pub mod market_indexed_adapter;
 pub mod market_product_source;
 pub mod model_lifecycle;
-pub mod model_market;
+pub use market::analysis as model_market;
 pub mod mortgage_graph;
 pub mod mortgage_input;
 pub mod mortgage_risk;
@@ -69,13 +69,12 @@ macro_rules! compute_span {
     };
 }
 mod quant;
-pub mod random;
+pub use math::random;
 pub mod term_deck;
 pub mod term_protocol;
 pub mod term_risk;
 pub mod unit_lifecycle;
 pub mod whatif;
-mod ziggurat;
 
 type PoolSlot = Option<(usize, Arc<rayon::ThreadPool>)>;
 static POOL: OnceLock<Mutex<PoolSlot>> = OnceLock::new();

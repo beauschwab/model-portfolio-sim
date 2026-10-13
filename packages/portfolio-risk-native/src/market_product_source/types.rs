@@ -1,4 +1,4 @@
-use crate::model_market::curves::SuppliedCurve;
+use crate::market::analysis::curves::SuppliedCurve;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

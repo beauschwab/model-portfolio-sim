@@ -2,7 +2,7 @@
 pub mod cache;
 pub mod funding;
 use crate::advanced_product::{self as product, FixedTermDefinition, SourceIdentity};
-use crate::model_market::curves::SuppliedCurve;
+use crate::market::analysis::curves::SuppliedCurve;
 use portfolio_model_core::cashflow::{validate_ordinal, MAX_HORIZON_DAYS};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -195,7 +195,7 @@ fn validate(r: &AgedUnitsRequest) -> Result<(usize, usize), String> {
             || s.collateral_curve.currency != r.currency
             || !matches!(
                 s.collateral_curve.role,
-                crate::model_market::curves::CurveRole::Collateral { .. }
+                crate::market::analysis::curves::CurveRole::Collateral { .. }
             )
         {
             return Err("duplicate scenario/currency mismatch".into());

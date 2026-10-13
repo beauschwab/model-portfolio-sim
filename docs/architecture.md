@@ -121,6 +121,38 @@ coverage; a validation report records checks actually run on a stated platform.
 
 ## Build and extension workflow
 
+### Domain migration, stage 1
+
+Native market source now lives under `portfolio-risk-native/src/market/`:
+`paths.rs` retains production market-path construction, `curves/quote_bootstrap.rs`
+owns supplied quote bootstrapping, and `analysis/` retains the explicit supplied
+curve/smile/joint analytical contract. These routes keep their existing financial
+and adoption boundaries. No provider IO enters the engine.
+
+`src/math/` owns bounded least squares, seeded random draws and their Ziggurat
+constants. It cannot import products, market policy, graph execution or application
+code. Existing public `market`, `model_market`, `market_bootstrap` and `random`
+imports retain the same underlying implementations through reexports; no duplicate
+implementation or runtime wrapper is introduced. ABI 10, protocol names, reduction
+order, original OAS, CRN and numerical tolerances are unchanged by these moves.
+
+`docs/contracts/native-domains.json` records the exact moves and remaining flat
+modules. The architecture check rejects new flat modules, duplicate old locations,
+lost public aliases and reversed math dependencies. The manifest is a migration
+inventory, not a second runtime registry.
+
+Next stages organize one complete product family, then shared model-core states,
+ledger ownership, decision workflows, and Python transport/reference/verification.
+Independent publication verification stays installed at runtime. Package-directory
+relocation comes last, together with build/source-identity/discovery updates;
+existing package names and deployment paths remain stable in this stage.
+
+Validate native unit/integration tests, legacy public imports, native ownership,
+generated contracts and architecture boundaries before promoting each stage.
+Any source-identity change requires fresh matching artifacts and explicit selected
+library/session rebuilds. A source-only move does not authorize rewriting historical
+manifests, deploying, or claiming empirical model acceptance.
+
 Build all three native runtime artifacts with `make build-native`, restart
 API/workers, and rebuild libraries/sessions whose identity changed. `make build`
 also builds the web app. `make check-architecture` checks static rules and generated

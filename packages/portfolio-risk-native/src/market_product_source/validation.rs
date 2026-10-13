@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_market::{curves::CurveRole, label, range};
+use crate::market::analysis::{curves::CurveRole, label, range};
 use std::collections::HashSet;
 
 pub(super) fn checkpoint(check: &mut impl FnMut() -> bool) -> Result<(), String> {

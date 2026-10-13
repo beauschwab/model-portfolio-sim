@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_market::curves::CurveRole;
+use crate::market::analysis::curves::CurveRole;
 use portfolio_model_core::{
     cashflow::validate_ordinal, consumer_card::CardAction, limits::MAX_MONETARY_AMOUNT,
 };

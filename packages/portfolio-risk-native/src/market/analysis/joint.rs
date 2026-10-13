@@ -1,6 +1,6 @@
 //! Joint additive Gaussian innovations. Regional HPI coordinates are log changes.
 use super::{label, range};
-use crate::random::SharedDraws;
+use crate::math::random::SharedDraws;
 use nalgebra::{linalg::SymmetricEigen, DMatrix};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

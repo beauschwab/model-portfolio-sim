@@ -77,6 +77,38 @@ def cycle_edges(g):
     return sorted([a,b] for a,bs in g.items() for b in bs if reaches(b,a))
 
 
+def native_domain_violations(root):
+    """Ratchet the migrated domains without pretending legacy roots are migrated."""
+    manifest = root / 'docs/contracts/native-domains.json'
+    if not manifest.exists():
+        return []
+    layout = json.loads(manifest.read_text())
+    source = root / layout['crate'] / 'src'
+    errors = []
+    for path in source.glob('*.rs'):
+        if path.name not in layout['root_modules']:
+            errors.append(f'{path.relative_to(root)}: new flat native module; choose its domain')
+    for old, new in layout['relocations'].items():
+        if (source / old).exists() or not (source / new).is_file():
+            errors.append(f'{layout["crate"]}: migrated module must live only at {new}, not {old}')
+    exports = (source / 'lib.rs').read_text()
+    for old, new in layout['compatibility_exports'].items():
+        declaration = f'pub use {new};' if old == new.split('::')[-1] else f'pub use {new} as {old};'
+        if declaration not in exports:
+            errors.append(f'{layout["crate"]}/src/lib.rs: missing compatibility export {old}')
+    for path in (source / 'math').rglob('*.rs'):
+        # Math uses explicit crate paths; grouped root imports would hide ownership.
+        text = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', path.read_text(), flags=re.S)
+        if re.search(r'crate\s*::\s*\{', text):
+            errors.append(f'{path.relative_to(root)}: math must use explicit domain imports')
+        for target in re.findall(r'crate\s*::\s*([A-Za-z_]\w*)', text):
+            if target != 'math':
+                errors.append(f'{path.relative_to(root)}: math cannot depend on {target}')
+        if re.search(r'std\s*::\s*(fs|net|process)\b', text):
+            errors.append(f'{path.relative_to(root)}: math cannot own external IO or processes')
+    return errors
+
+
 def rust_violations(root):
     errors=[]
     for p in (root/'packages').glob('*/Cargo.toml'):
@@ -85,7 +117,7 @@ def rust_violations(root):
     for p in (root/'packages').glob('*/src/**/*.rs'):
         for i,line in enumerate(p.read_text().splitlines(),1):
             if re.search(r'(?:use|extern crate)\s+(?:app|apps|web)::|(?:include!|include_str!|path\s*=).*apps[/\\]',line):errors.append(f'{p.relative_to(root)}:{i}: application source: native packages cannot depend on API/UI implementations')
-    return errors
+    return errors + native_domain_violations(root)
 
 
 def main():

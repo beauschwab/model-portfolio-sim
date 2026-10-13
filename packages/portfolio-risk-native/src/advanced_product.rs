@@ -5,7 +5,7 @@ use crate::dated_term::{
     AccrualDates, CashflowDirection, DatedTermPosition, DatedTermRequest, TermPeriodAudit,
     DATED_TERM_SCHEMA,
 };
-use crate::model_market::curves::{CurveRole, SuppliedCurve};
+use crate::market::analysis::curves::{CurveRole, SuppliedCurve};
 use crate::term_deck::{Amortization, Contract, Product};
 use portfolio_model_core::cashflow::{DatedCashflowEvent, MAX_HORIZON_DAYS};
 use portfolio_model_core::limits::MAX_MONETARY_AMOUNT;
