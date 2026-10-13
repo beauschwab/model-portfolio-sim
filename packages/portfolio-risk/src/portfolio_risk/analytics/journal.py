@@ -83,7 +83,8 @@ def statements(trial, accounts, scenarios=()):
             t[gl] += value
         if gl.startswith('pnl:') or gl in {'opening_equity', 'oci', 'equity_distributions'}:
             t['equity'] -= value
-        elif gl in {'funding_principal', 'secured_funding', 'received_margin', 'intercompany_payable'}:
+        elif gl in {'funding_principal', 'secured_funding', 'received_margin', 'intercompany_payable',
+                    'dated_interest_payable', 'dated_deferred_income'}:
             t['liabilities'] -= value
         elif gl in {'book_adjustment', 'accrued_interest'} and (*key, r['instrument_id']) in funding:
             t['liabilities'] -= value

@@ -71,3 +71,4 @@ def test_snapshot_change_during_decision_publication_discards_candidate(client, 
         assert not session._call('status')['pending']
     finally:
         decision_store.close(sid)
+

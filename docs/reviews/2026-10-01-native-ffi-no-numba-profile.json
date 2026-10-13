@@ -1,0 +1,103 @@
+{
+  "positions": 60000,
+  "paths": 8,
+  "threads": 4,
+  "ffi": true,
+  "without_numba_pool": true,
+  "mode": "instrumented persistent FFI process; inclusive nested timings cannot be added; zero NII input only for KPI profiling",
+  "binary_sha256": "52693d91cf191eb21d8cf1fe418f9c08ee7ca8c0d2c53330760d796742f8f714",
+  "results": [
+    {
+      "schema": "accounting-1",
+      "process_seconds": 1.0340247000567615,
+      "inclusive_seconds_and_calls": {
+        "accounting": {
+          "calls": 1,
+          "seconds": 0.8469071
+        },
+        "deposit_cashflows": {
+          "calls": 63,
+          "seconds": 0.19400089999999998
+        },
+        "deposit_fit": {
+          "calls": 1,
+          "seconds": 0.000989
+        },
+        "market_calibration": {
+          "calls": 1,
+          "seconds": 0.0048002
+        },
+        "mortgage_cashflows": {
+          "calls": 75,
+          "seconds": 0.41564589999999996
+        },
+        "mortgage_prepare": {
+          "calls": 1,
+          "seconds": 0.0011313
+        },
+        "rate_paths": {
+          "calls": 1,
+          "seconds": 0.0015405
+        },
+        "term_cashflows": {
+          "calls": 75,
+          "seconds": 0.009461899999999997
+        },
+        "term_kernel": {
+          "calls": 100,
+          "seconds": 0.009927600000000007
+        }
+      }
+    },
+    {
+      "schema": "kpi-1",
+      "process_seconds": 3.855324399890378,
+      "inclusive_seconds_and_calls": {
+        "accounting": {
+          "calls": 0,
+          "seconds": 0.0
+        },
+        "deposit_cashflows": {
+          "calls": 189,
+          "seconds": 1.2653527999999994
+        },
+        "deposit_fit": {
+          "calls": 1,
+          "seconds": 0.0021224999999999994
+        },
+        "kpis": {
+          "calls": 1,
+          "seconds": 3.6030195000000003
+        },
+        "market_calibration": {
+          "calls": 1,
+          "seconds": 0.00018699999999999967
+        },
+        "mortgage_cashflows": {
+          "calls": 75,
+          "seconds": 0.46668030000000044
+        },
+        "mortgage_prepare": {
+          "calls": 1,
+          "seconds": 0.5372279
+        },
+        "parallel_risk": {
+          "calls": 1,
+          "seconds": 3.5916559
+        },
+        "rate_paths": {
+          "calls": 3,
+          "seconds": 0.0035992999999999997
+        },
+        "term_cashflows": {
+          "calls": 223,
+          "seconds": 0.05840490000000001
+        },
+        "term_kernel": {
+          "calls": 298,
+          "seconds": 0.06603250000000008
+        }
+      }
+    }
+  ]
+}

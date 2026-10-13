@@ -1,0 +1,36 @@
+{
+  "scope": "synthetic daily accrual, full journal retention and independent replay; no product path generation",
+  "memory": "process RSS sampled every 10ms; includes Python/Polars and output retention",
+  "results": [
+    {
+      "positions": 100,
+      "days": 30,
+      "scenarios": 2,
+      "elapsed_seconds": 0.08579390007071197,
+      "sampled_peak_rss_mib": 138.37890625,
+      "journal_lines": 12604,
+      "max_reconciliation_error": 1.9184653865522705e-11,
+      "journal_replay_passed": true
+    },
+    {
+      "positions": 500,
+      "days": 30,
+      "scenarios": 2,
+      "elapsed_seconds": 0.45497630001045763,
+      "sampled_peak_rss_mib": 182.984375,
+      "journal_lines": 63004,
+      "max_reconciliation_error": 5.22277332493104e-10,
+      "journal_replay_passed": true
+    },
+    {
+      "positions": 2000,
+      "days": 30,
+      "scenarios": 2,
+      "elapsed_seconds": 1.868801400065422,
+      "sampled_peak_rss_mib": 388.57421875,
+      "journal_lines": 252004,
+      "max_reconciliation_error": 2.089109329972416e-09,
+      "journal_replay_passed": true
+    }
+  ]
+}

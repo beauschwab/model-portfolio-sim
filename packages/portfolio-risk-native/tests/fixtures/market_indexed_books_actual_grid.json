@@ -1,0 +1,692 @@
+{
+  "schema": "market-indexed-books-1",
+  "identity": {
+    "source_id": "book-source1",
+    "source_revision": "r1",
+    "input_revision": "i1",
+    "model_version": "market-indexed-books-1",
+    "currency": "USD",
+    "as_of_ordinal": 738886
+  },
+  "balance_sheet_extras": null,
+  "legacy": {
+    "base": {
+      "market": {
+        "config": {
+          "paths": 1,
+          "months": 360,
+          "forwards": 161,
+          "factors": 3,
+          "dt": 0.08333333333333333,
+          "tenor": 0.25,
+          "shift": 0.02,
+          "curve_bump": 0.0001,
+          "vol_bump": 0.0025
+        },
+        "tenors": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.0,
+          10.0,
+          15.0,
+          20.0,
+          30.0
+        ],
+        "swap_rates": [
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "vol_quotes": [
+          0.25,
+          0.25,
+          0.2
+        ],
+        "seed": [
+          1
+        ]
+      },
+      "asof": 738886,
+      "horizon": 12,
+      "mbs": null,
+      "terms": [
+        {
+          "key": "loans",
+          "ids": [
+            "loan1",
+            "fixed1",
+            "loan2"
+          ],
+          "book_yields": null,
+          "deck": {
+            "product": "corporate",
+            "asof": 738886,
+            "months": 360,
+            "calendar": {
+              "name": "US",
+              "extra_holidays": []
+            },
+            "bdc": "MF",
+            "contracts": [
+              {
+                "maturity": 739246,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.0,
+                "notional": 100.0,
+                "price": 99.60084550283268,
+                "is_float": true
+              },
+              {
+                "maturity": 738887,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.019579784836749322,
+                "notional": 50.0,
+                "price": 100.0,
+                "is_float": false
+              },
+              {
+                "maturity": 739246,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.01,
+                "notional": 200.0,
+                "price": 100.55525854938529,
+                "is_float": true
+              }
+            ]
+          }
+        }
+      ],
+      "deposits": null,
+      "mm": null,
+      "hedges": null,
+      "withdrawal_parameters": [],
+      "anchors": {},
+      "deposit_initial_rate": null,
+      "forecast": null,
+      "draws": null,
+      "capture_anchor": false,
+      "capture_cashflows": false
+    },
+    "current": {
+      "market": {
+        "config": {
+          "paths": 1,
+          "months": 360,
+          "forwards": 161,
+          "factors": 3,
+          "dt": 0.08333333333333333,
+          "tenor": 0.25,
+          "shift": 0.02,
+          "curve_bump": 0.0001,
+          "vol_bump": 0.0025
+        },
+        "tenors": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0,
+          7.0,
+          10.0,
+          15.0,
+          20.0,
+          30.0
+        ],
+        "swap_rates": [
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02,
+          0.02
+        ],
+        "vol_quotes": [
+          0.25,
+          0.25,
+          0.2
+        ],
+        "seed": [
+          1
+        ]
+      },
+      "asof": 738886,
+      "horizon": 12,
+      "mbs": null,
+      "terms": [
+        {
+          "key": "loans",
+          "ids": [
+            "loan1",
+            "fixed1",
+            "loan2"
+          ],
+          "book_yields": null,
+          "deck": {
+            "product": "corporate",
+            "asof": 738886,
+            "months": 360,
+            "calendar": {
+              "name": "US",
+              "extra_holidays": []
+            },
+            "bdc": "MF",
+            "contracts": [
+              {
+                "maturity": 739246,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.0,
+                "notional": 100.0,
+                "price": 99.60084550283268,
+                "is_float": true
+              },
+              {
+                "maturity": 738887,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.019579784836749322,
+                "notional": 50.0,
+                "price": 100.0,
+                "is_float": false
+              },
+              {
+                "maturity": 739246,
+                "freq_months": 6,
+                "daycount": "ACT/360",
+                "coupon": 0.01,
+                "notional": 200.0,
+                "price": 100.55525854938529,
+                "is_float": true
+              }
+            ]
+          }
+        }
+      ],
+      "deposits": null,
+      "mm": null,
+      "hedges": null,
+      "withdrawal_parameters": [],
+      "anchors": {},
+      "deposit_initial_rate": null,
+      "forecast": null,
+      "draws": null,
+      "capture_anchor": false,
+      "capture_cashflows": false
+    },
+    "spread_shift": 0.0,
+    "overrides": {},
+    "include_analytics": false,
+    "include_key_rates": false,
+    "kpis": null,
+    "auxiliary": null
+  },
+  "bindings": [
+    {
+      "book": "loans",
+      "position_id": "loan1",
+      "original_row": {
+        "maturity": 739246,
+        "freq_months": 6,
+        "daycount": "ACT/360",
+        "coupon": 0.0,
+        "notional": 100.0,
+        "price": 99.60084550283268,
+        "is_float": true
+      },
+      "current_row": {
+        "maturity": 739246,
+        "freq_months": 6,
+        "daycount": "ACT/360",
+        "coupon": 0.0,
+        "notional": 100.0,
+        "price": 99.60084550283268,
+        "is_float": true
+      },
+      "quote_review": {
+        "id": "original-quote-loan1",
+        "revision": "r1",
+        "policy": "original_native_pv_quote_reconciliation-1"
+      },
+      "graph": {
+        "schema": "market-indexed-graph-1",
+        "product": "indexed_loan",
+        "source": {
+          "schema": "market-indexed-adapter-1",
+          "index_tenor_months": 6,
+          "calendar": {
+            "id": "supplied-dates-r1",
+            "revision": "r1"
+          },
+          "projection_model": {
+            "id": "deterministic_asof_simple_forward-1",
+            "revision": "market-product-source-1"
+          },
+          "index_basis": {
+            "id": "separate-term-index-basis",
+            "revision": "r1"
+          },
+          "collateral_policy": {
+            "id": "collateral-source-only",
+            "revision": "r1"
+          },
+          "original_oas_review": {
+            "id": "locked-spread-review1",
+            "revision": "r1"
+          },
+          "bridge": {
+            "schema": "market-product-source-1",
+            "model_version": "market-product-source-1",
+            "identity": {
+              "source_id": "market-a",
+              "source_revision": "r1",
+              "input_revision": "i1",
+              "model_version": "market-product-source-1",
+              "currency": "USD",
+              "as_of_ordinal": 738886
+            },
+            "measure": "pricing",
+            "projection_policy": "deterministic_asof_simple_forward-1",
+            "curve_time_policy": "actual365_fixed_from_asof-1",
+            "binding": {
+              "index_id": "TERM-180",
+              "index_curve_id": "projection",
+              "collateral_curve_id": "discount",
+              "collateral_index": "SOFR",
+              "calendar_identity": "supplied-dates-r1",
+              "complete_supplied_date_mapping": true
+            },
+            "contract": {
+              "contract_id": "loan1",
+              "contract_revision": "terms1",
+              "maturity_ordinal": 739246,
+              "direction": "payer_fixed",
+              "monetary_unit": "actual_currency",
+              "notional": 100.0,
+              "fixed_rate": 0.04,
+              "margin": 0.0,
+              "fixed_day_count": "actual360",
+              "index_day_count": "actual360",
+              "periods": [
+                {
+                  "period_id": "p1",
+                  "start_ordinal": 738886,
+                  "end_ordinal": 739066,
+                  "payment_ordinal": 739066,
+                  "reset_ordinal": 738886,
+                  "reset_cutoff_unix_seconds": 1704099600
+                },
+                {
+                  "period_id": "p2",
+                  "start_ordinal": 739066,
+                  "end_ordinal": 739246,
+                  "payment_ordinal": 739246,
+                  "reset_ordinal": 739066,
+                  "reset_cutoff_unix_seconds": 1719651600
+                }
+              ]
+            },
+            "original": {
+              "review_identity": "locked-spread-review1",
+              "locked_oas": 0.015,
+              "market": {
+                "identity": {
+                  "source_id": "market-a",
+                  "source_revision": "r1",
+                  "input_revision": "i1",
+                  "model_version": "market-product-source-1",
+                  "currency": "USD",
+                  "as_of_ordinal": 738886
+                },
+                "available_unix_seconds": 1704092400,
+                "information_unix_seconds": 1704096000,
+                "curves": [
+                  {
+                    "curve_id": "discount",
+                    "source_id": "collateral",
+                    "source_revision": "r1",
+                    "currency": "USD",
+                    "role": {
+                      "kind": "collateral",
+                      "collateral_index": "SOFR"
+                    },
+                    "times_years": [
+                      0.0,
+                      0.4931506849315068,
+                      0.9863013698630136
+                    ],
+                    "discount_factors": [
+                      1.0,
+                      0.98,
+                      0.95
+                    ],
+                    "right_tail": "reject"
+                  },
+                  {
+                    "curve_id": "projection",
+                    "source_id": "term",
+                    "source_revision": "r1",
+                    "currency": "USD",
+                    "role": {
+                      "kind": "index",
+                      "index_id": "TERM-180"
+                    },
+                    "times_years": [
+                      0.0,
+                      0.4931506849315068,
+                      0.9863013698630136
+                    ],
+                    "discount_factors": [
+                      1.0,
+                      0.97,
+                      0.94
+                    ],
+                    "right_tail": "reject"
+                  }
+                ]
+              }
+            },
+            "current_market": {
+              "identity": {
+                "source_id": "market-a",
+                "source_revision": "r1",
+                "input_revision": "i1",
+                "model_version": "market-product-source-1",
+                "currency": "USD",
+                "as_of_ordinal": 738886
+              },
+              "available_unix_seconds": 1704092400,
+              "information_unix_seconds": 1704096000,
+              "curves": [
+                {
+                  "curve_id": "discount",
+                  "source_id": "collateral",
+                  "source_revision": "r1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0.0,
+                    0.4931506849315068,
+                    0.9863013698630136
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    0.98,
+                    0.95
+                  ],
+                  "right_tail": "reject"
+                },
+                {
+                  "curve_id": "projection",
+                  "source_id": "term",
+                  "source_revision": "r1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "index",
+                    "index_id": "TERM-180"
+                  },
+                  "times_years": [
+                    0.0,
+                    0.4931506849315068,
+                    0.9863013698630136
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    0.97,
+                    0.94
+                  ],
+                  "right_tail": "reject"
+                }
+              ]
+            },
+            "risk_bump": 0.0001
+          }
+        }
+      }
+    },
+    {
+      "book": "loans",
+      "position_id": "loan2",
+      "original_row": {
+        "maturity": 739246,
+        "freq_months": 6,
+        "daycount": "ACT/360",
+        "coupon": 0.01,
+        "notional": 200.0,
+        "price": 100.55525854938529,
+        "is_float": true
+      },
+      "current_row": {
+        "maturity": 739246,
+        "freq_months": 6,
+        "daycount": "ACT/360",
+        "coupon": 0.01,
+        "notional": 200.0,
+        "price": 100.55525854938529,
+        "is_float": true
+      },
+      "quote_review": {
+        "id": "original-quote-loan2",
+        "revision": "r1",
+        "policy": "original_native_pv_quote_reconciliation-1"
+      },
+      "graph": {
+        "schema": "market-indexed-graph-1",
+        "product": "indexed_loan",
+        "source": {
+          "schema": "market-indexed-adapter-1",
+          "index_tenor_months": 6,
+          "calendar": {
+            "id": "supplied-dates-r1",
+            "revision": "r1"
+          },
+          "projection_model": {
+            "id": "deterministic_asof_simple_forward-1",
+            "revision": "market-product-source-1"
+          },
+          "index_basis": {
+            "id": "separate-term-index-basis",
+            "revision": "r1"
+          },
+          "collateral_policy": {
+            "id": "collateral-source-only",
+            "revision": "r1"
+          },
+          "original_oas_review": {
+            "id": "locked-spread-review1",
+            "revision": "r1"
+          },
+          "bridge": {
+            "schema": "market-product-source-1",
+            "model_version": "market-product-source-1",
+            "identity": {
+              "source_id": "market-a",
+              "source_revision": "r1",
+              "input_revision": "i1",
+              "model_version": "market-product-source-1",
+              "currency": "USD",
+              "as_of_ordinal": 738886
+            },
+            "measure": "pricing",
+            "projection_policy": "deterministic_asof_simple_forward-1",
+            "curve_time_policy": "actual365_fixed_from_asof-1",
+            "binding": {
+              "index_id": "TERM-180",
+              "index_curve_id": "projection",
+              "collateral_curve_id": "discount",
+              "collateral_index": "SOFR",
+              "calendar_identity": "supplied-dates-r1",
+              "complete_supplied_date_mapping": true
+            },
+            "contract": {
+              "contract_id": "loan2",
+              "contract_revision": "terms1",
+              "maturity_ordinal": 739246,
+              "direction": "payer_fixed",
+              "monetary_unit": "actual_currency",
+              "notional": 200.0,
+              "fixed_rate": 0.04,
+              "margin": 0.01,
+              "fixed_day_count": "actual360",
+              "index_day_count": "actual360",
+              "periods": [
+                {
+                  "period_id": "p1",
+                  "start_ordinal": 738886,
+                  "end_ordinal": 739066,
+                  "payment_ordinal": 739066,
+                  "reset_ordinal": 738886,
+                  "reset_cutoff_unix_seconds": 1704099600
+                },
+                {
+                  "period_id": "p2",
+                  "start_ordinal": 739066,
+                  "end_ordinal": 739246,
+                  "payment_ordinal": 739246,
+                  "reset_ordinal": 739066,
+                  "reset_cutoff_unix_seconds": 1719651600
+                }
+              ]
+            },
+            "original": {
+              "review_identity": "locked-spread-review1",
+              "locked_oas": 0.015,
+              "market": {
+                "identity": {
+                  "source_id": "market-a",
+                  "source_revision": "r1",
+                  "input_revision": "i1",
+                  "model_version": "market-product-source-1",
+                  "currency": "USD",
+                  "as_of_ordinal": 738886
+                },
+                "available_unix_seconds": 1704092400,
+                "information_unix_seconds": 1704096000,
+                "curves": [
+                  {
+                    "curve_id": "discount",
+                    "source_id": "collateral",
+                    "source_revision": "r1",
+                    "currency": "USD",
+                    "role": {
+                      "kind": "collateral",
+                      "collateral_index": "SOFR"
+                    },
+                    "times_years": [
+                      0.0,
+                      0.4931506849315068,
+                      0.9863013698630136
+                    ],
+                    "discount_factors": [
+                      1.0,
+                      0.98,
+                      0.95
+                    ],
+                    "right_tail": "reject"
+                  },
+                  {
+                    "curve_id": "projection",
+                    "source_id": "term",
+                    "source_revision": "r1",
+                    "currency": "USD",
+                    "role": {
+                      "kind": "index",
+                      "index_id": "TERM-180"
+                    },
+                    "times_years": [
+                      0.0,
+                      0.4931506849315068,
+                      0.9863013698630136
+                    ],
+                    "discount_factors": [
+                      1.0,
+                      0.97,
+                      0.94
+                    ],
+                    "right_tail": "reject"
+                  }
+                ]
+              }
+            },
+            "current_market": {
+              "identity": {
+                "source_id": "market-a",
+                "source_revision": "r1",
+                "input_revision": "i1",
+                "model_version": "market-product-source-1",
+                "currency": "USD",
+                "as_of_ordinal": 738886
+              },
+              "available_unix_seconds": 1704092400,
+              "information_unix_seconds": 1704096000,
+              "curves": [
+                {
+                  "curve_id": "discount",
+                  "source_id": "collateral",
+                  "source_revision": "r1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0.0,
+                    0.4931506849315068,
+                    0.9863013698630136
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    0.98,
+                    0.95
+                  ],
+                  "right_tail": "reject"
+                },
+                {
+                  "curve_id": "projection",
+                  "source_id": "term",
+                  "source_revision": "r1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "index",
+                    "index_id": "TERM-180"
+                  },
+                  "times_years": [
+                    0.0,
+                    0.4931506849315068,
+                    0.9863013698630136
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    0.97,
+                    0.94
+                  ],
+                  "right_tail": "reject"
+                }
+              ]
+            },
+            "risk_bump": 0.0001
+          }
+        }
+      }
+    }
+  ]
+}

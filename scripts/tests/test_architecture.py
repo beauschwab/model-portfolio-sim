@@ -18,6 +18,11 @@ class ArchitectureTests(unittest.TestCase):
         self.assertTrue(checker.violations('portfolio_risk.core.example','from app import store'))
         self.assertTrue(checker.violations('portfolio_risk.core.example','def x():\n    __import__("app.store")'))
 
+    def test_mcp_cannot_bypass_http_boundary(self):
+        for target in ['app.store', 'portfolio_risk.core.quant_native', 'sqlalchemy', 'sqlite3', 'ctypes']:
+            self.assertTrue(checker.violations('workbench_mcp.adapter', 'import ' + target))
+        self.assertFalse(checker.violations('workbench_mcp.adapter', 'import httpx\nimport pyarrow'))
+
     def test_storage_cannot_import_dispatch_or_features(self):
         for target in ['operations','pricing_jobs','decision_store','cohort_store','treasury_store','worker']:
             self.assertTrue(checker.violations('app.persistence','from . import '+target))

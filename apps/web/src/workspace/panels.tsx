@@ -6,6 +6,7 @@ const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const KpisPage = lazy(() => import("../pages/Kpis"));
 const Treasury = lazy(() => import("../pages/Treasury"));
+const ModelLab = lazy(() => import("../pages/ModelLab"));
 const MarketPage = lazy(() => import("../pages/Market"));
 const MorningSheet = lazy(() => import("../pages/MorningSheet"));
 const OptimizerPage = lazy(() => import("../pages/Optimizer"));
@@ -23,6 +24,7 @@ export type PanelId =
   | "risk"
   | "kpis"
   | "treasury"
+  | "models"
   | "positions"
   | "cohorts"
   | "whatif"
@@ -49,6 +51,7 @@ export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "risk", title: "Risk Desk", railLabel: "RD", subtitle: "KRD profile · NII forecast · 9Q stress P&L", component: () => <Dashboard /> },
   { id: "kpis", title: "KPIs", railLabel: "K", subtitle: "EVE · LCR · NSFR · CET1", component: () => <KpisPage /> },
   { id: "treasury", title: "Capital & FTP", railLabel: "CF", subtitle: "Capital coverage · internal funding · profitability", component: () => <Treasury /> },
+  { id: "models", title: "Product Models", railLabel: "PM", subtitle: "Product terms · dated cashflows · state and source evidence", component: () => <ModelLab /> },
   { id: "positions", title: "Positions", railLabel: "P", subtitle: "side → book → position · indicative client-side derivations", component: () => <Positions /> },
   { id: "cohorts", title: "Tape & Cohorts", railLabel: "TC", subtitle: "loan tapes · behavioral cohorts · lineage · loan analytics", component: () => <Cohorts /> },
   { id: "whatif", title: "Instrument What-if", railLabel: "WI", subtitle: "temporary assumptions · held calibration · incremental risk and earnings", component: () => <WhatIf /> },

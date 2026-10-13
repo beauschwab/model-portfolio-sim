@@ -1,0 +1,313 @@
+{
+  "DELETE /decision/sessions/{sid}": {
+    "permission": "cancel"
+  },
+  "DELETE /jobs/{jid}": {
+    "permission": "cancel"
+  },
+  "DELETE /programs/{name}": {
+    "permission": "edit"
+  },
+  "DELETE /scenarios/{name}": {
+    "permission": "edit"
+  },
+  "GET /assumptions": {
+    "permission": "read"
+  },
+  "GET /balance-stress/capabilities": {
+    "permission": "read"
+  },
+  "GET /balance-stress/credit-path/example": {
+    "permission": "read"
+  },
+  "GET /balance-stress/credit/example": {
+    "permission": "read"
+  },
+  "GET /balance-stress/dated/example": {
+    "permission": "read"
+  },
+  "GET /balance-stress/example": {
+    "permission": "read"
+  },
+  "GET /balance-stress/inventory": {
+    "permission": "read"
+  },
+  "GET /balance-stress/modeled/{schema}/example": {
+    "permission": "read"
+  },
+  "GET /books": {
+    "permission": "read"
+  },
+  "GET /books/{name}": {
+    "permission": "read",
+    "transport": "arrow"
+  },
+  "GET /books/{name}/rows": {
+    "permission": "read"
+  },
+  "GET /cohorts/audits/{jid}/summary": {
+    "permission": "read"
+  },
+  "GET /cohorts/builds/{jid}/lineage": {
+    "permission": "read"
+  },
+  "GET /cohorts/builds/{jid}/summary": {
+    "permission": "read"
+  },
+  "GET /cohorts/example": {
+    "permission": "read"
+  },
+  "GET /cohorts/presets": {
+    "permission": "read"
+  },
+  "GET /decision/sessions": {
+    "permission": "read"
+  },
+  "GET /decision/sessions/{sid}": {
+    "permission": "read"
+  },
+  "GET /derivatives/deposit-portfolio/example": {
+    "permission": "read"
+  },
+  "GET /derivatives/mixed/example": {
+    "permission": "read"
+  },
+  "GET /health": {
+    "permission": "read"
+  },
+  "GET /hedges": {
+    "permission": "read",
+    "transport": "arrow"
+  },
+  "GET /jobs": {
+    "permission": "read"
+  },
+  "GET /jobs/{jid}": {
+    "permission": "read"
+  },
+  "GET /jobs/{jid}/manifest": {
+    "permission": "read"
+  },
+  "GET /jobs/{jid}/parquet": {
+    "permission": "read",
+    "transport": "artifact"
+  },
+  "GET /jobs/{jid}/result": {
+    "permission": "read",
+    "transport": "arrow"
+  },
+  "GET /jobs/{jid}/table": {
+    "permission": "read"
+  },
+  "GET /market": {
+    "permission": "read"
+  },
+  "GET /market-data/snapshots": {
+    "permission": "read"
+  },
+  "GET /market-data/snapshots/{sid}": {
+    "permission": "read"
+  },
+  "GET /market-data/snapshots/{sid}/export": {
+    "permission": "read",
+    "transport": "artifact"
+  },
+  "GET /market-data/sources": {
+    "permission": "read"
+  },
+  "GET /models/contracts": {
+    "permission": "read"
+  },
+  "GET /models/examples/{schema}": {
+    "permission": "read"
+  },
+  "GET /pricing/assumptions": {
+    "permission": "read"
+  },
+  "GET /programs": {
+    "permission": "read"
+  },
+  "GET /revisions": {
+    "permission": "read"
+  },
+  "GET /scenarios": {
+    "permission": "read"
+  },
+  "GET /settings": {
+    "permission": "read"
+  },
+  "GET /state": {
+    "permission": "read"
+  },
+  "GET /treasury/example": {
+    "permission": "read"
+  },
+  "GET /treasury/modeled-product-ftp/example": {
+    "permission": "read"
+  },
+  "GET /treasury/modeled-product-ftp/sources/{jid}": {
+    "permission": "read"
+  },
+  "GET /treasury/sources/{jid}/template": {
+    "permission": "read"
+  },
+  "PATCH /books/{name}/rows": {
+    "permission": "edit"
+  },
+  "POST /balance-stress/credit": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/credit-path": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/dated": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/modeled": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/run": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/saved-book": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /balance-stress/stream": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /books/{name}/preview": {
+    "permission": "read"
+  },
+  "POST /cohorts/builds": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /cohorts/builds/{jid}/analytics": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /cohorts/builds/{jid}/attribution": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /cohorts/builds/{jid}/audit": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /cohorts/imports": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /decision/sessions": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /decision/sessions/{sid}/eval": {
+    "permission": "compute",
+    "transport": "arrow"
+  },
+  "POST /decision/sessions/{sid}/update": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /derivatives/deposit-portfolio/runs": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /derivatives/mixed/runs": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /forecasts/preview": {
+    "permission": "read"
+  },
+  "POST /forecasts/run": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /market-data/fetch": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /market-data/import": {
+    "permission": "compute"
+  },
+  "POST /models/aged-library": {
+    "job": true,
+    "permission": "publish"
+  },
+  "POST /models/holding-journals": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /models/runs": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /optimize": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /run": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /strategy/eval": {
+    "permission": "compute",
+    "transport": "arrow"
+  },
+  "POST /treasury/bridges": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /treasury/modeled-product-ftp": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /treasury/modeled-product-ftp/sources": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /treasury/mortgage-closing-capital": {
+    "job": true,
+    "permission": "compute"
+  },
+  "POST /treasury/runs": {
+    "job": true,
+    "permission": "compute"
+  },
+  "PUT /assumptions": {
+    "permission": "edit"
+  },
+  "PUT /books/{name}": {
+    "permission": "edit"
+  },
+  "PUT /cohorts/builds/{jid}/publish": {
+    "permission": "publish"
+  },
+  "PUT /cohorts/tapes/{tape_id}": {
+    "permission": "publish"
+  },
+  "PUT /market": {
+    "permission": "edit"
+  },
+  "PUT /market-data/active-curve": {
+    "permission": "publish"
+  },
+  "PUT /programs/{name}": {
+    "permission": "edit"
+  },
+  "PUT /scenarios/{name}": {
+    "permission": "edit"
+  },
+  "PUT /settings": {
+    "permission": "edit"
+  }
+}

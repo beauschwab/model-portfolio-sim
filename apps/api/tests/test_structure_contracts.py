@@ -9,7 +9,23 @@ from app.contracts import WorkspaceSnapshot, PreparedLibraryBundle, QueueFull
 
 def test_durable_operation_allowlist_preserves_names_and_identity():
     handlers=operations.registered()
-    assert len(handlers)==23
+    assert set(handlers)=={
+        'store.run_pricing', 'store.run_risk_all', 'store.run_stress_all',
+        'store.run_kpis_scenario', 'store.run_nii', 'store.build_unitlib_job',
+        'store.build_aged_unitlib_job', 'store.run_strategy_job', 'store.run_optimize_job',
+        'store.run_scenario_grid', 'store.run_forecast', 'store.run_balance_stress',
+        'store.run_streamed_balance_stress', 'store.run_saved_balance_stress',
+        'store.run_dated_balance_stress', 'store.run_credit_balance_stress',
+        'store.run_credit_path_balance_stress', 'store.run_model_analysis',
+        'store.run_modeled_balance_stress', 'store.fetch_research_data', 'store.run_treasury',
+        'decision.build', 'decision.update', 'treasury.run', 'mortgage_capital.run', 'modeled_product_ftp.run', 'saved_derivative.run', 'saved_derivative_deposit_portfolio.run',
+        'cohort.import_tape', 'cohort.build', 'cohort.analytics', 'cohort.attribution', 'cohort.audit',
+    }
+    from app import mortgage_capital, saved_derivative_jobs, joint_deposit_derivative_jobs
+    assert handlers['saved_derivative_deposit_portfolio.run'] is joint_deposit_derivative_jobs.run
+    assert handlers['saved_derivative.run'] is saved_derivative_jobs.run
+    assert handlers['mortgage_capital.run'] is mortgage_capital.run
+    assert handlers['store.run_credit_path_balance_stress'] is store.run_credit_path_balance_stress
     for name,fn in handlers.items():
         assert operations.resolve(name) is fn
         assert operations.operation(fn)==name

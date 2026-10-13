@@ -1,0 +1,226 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "threads": 4,
+  "paths": 128,
+  "records": {
+    "mbs": 120,
+    "loans": 90,
+    "debt": 25,
+    "deposits": 100,
+    "cds": 40
+  },
+  "samples_ms": {
+    "unchanged": [
+      6.58539985306561,
+      6.571700097993016,
+      6.732600042596459,
+      6.6992000211030245,
+      7.341299904510379,
+      7.367100100964308,
+      6.728200009092689
+    ],
+    "spread_edit": [
+      6.700299913063645,
+      6.857800064608455,
+      6.677600089460611,
+      7.904700003564358,
+      6.8795999977737665,
+      6.838199915364385,
+      6.84639997780323
+    ],
+    "contract_edit": [
+      7.838200079277158,
+      7.944900076836348,
+      7.492000004276633,
+      7.646899903193116,
+      7.58010009303689,
+      7.758899824693799,
+      7.510099792852998
+    ],
+    "full_rebuild": [
+      176.7214999999851,
+      179.52420003712177,
+      177.75489995256066,
+      178.22400014847517,
+      178.4928000997752,
+      178.24989999644458,
+      183.04080003872514
+    ]
+  },
+  "median_ms": {
+    "unchanged": 6.728200009092689,
+    "spread_edit": 6.84639997780323,
+    "contract_edit": 7.646899903193116,
+    "full_rebuild": 178.24989999644458
+  },
+  "max_absolute_output_difference": 0.0,
+  "latest_graph_work": {
+    "spread_edit": {
+      "cashflows:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:loans": {
+        "reused": 90,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:loans": {
+        "reused": 90,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:loans": {
+        "reused": 89,
+        "computed": 1,
+        "batches": 1
+      },
+      "cashflows:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      }
+    },
+    "contract_edit": {
+      "cashflows:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:mbs": {
+        "reused": 120,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:loans": {
+        "reused": 89,
+        "computed": 1,
+        "batches": 1
+      },
+      "rate_paths": {
+        "reused": 1,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:loans": {
+        "reused": 89,
+        "computed": 1,
+        "batches": 1
+      },
+      "marks:loans": {
+        "reused": 89,
+        "computed": 1,
+        "batches": 1
+      },
+      "cashflows:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:debt": {
+        "reused": 25,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:deposits": {
+        "reused": 100,
+        "computed": 0,
+        "batches": 0
+      },
+      "cashflows:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      },
+      "calibration:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      },
+      "marks:cds": {
+        "reused": 40,
+        "computed": 0,
+        "batches": 0
+      }
+    }
+  },
+  "cache": {
+    "entries": 1159,
+    "bytes": 6807231,
+    "max_bytes": 134217728,
+    "max_entries": 50000
+  },
+  "scope": "Full engine entry point including graph lookup and result construction; excludes HTTP and Arrow serialization. Synthetic inputs; no Rust backend."
+}

@@ -33,13 +33,19 @@ WORKER = None
 _IDENTITY = None
 EXPECTED_REVISION = ContextVar("expected_revision", default=None)
 IDEMPOTENCY_KEY = ContextVar("idempotency_key", default=None)
+HTTP_REQUEST_SHA256 = ContextVar('http_request_sha256', default=None)
 ACTIVE_JOB = ContextVar('active_job', default=None)
 
 
 def identity() -> ModelIdentity:
     global _IDENTITY
-    if _IDENTITY is not None:
-        return copy.deepcopy(_IDENTITY)
+    if _IDENTITY is None:
+        _IDENTITY = current_identity()
+    return copy.deepcopy(_IDENTITY)
+
+
+def current_identity() -> ModelIdentity:
+    """Read current code/artifacts without changing the startup-pinned identity."""
     import portfolio_risk
     import importlib.metadata
     root = Path(portfolio_risk.__file__).parent
@@ -63,15 +69,18 @@ def identity() -> ModelIdentity:
     import platform
     from portfolio_risk.analytics.balance_stream import binary_path, _hash
     balance_native = _hash(binary_path()) if binary_path().is_file() else None
+    from portfolio_risk.analytics.ledger_native import library_path as ledger_library_path
+    ledger_library = ledger_library_path()
+    ledger_validation_native = _hash(ledger_library) if ledger_library.is_file() else None
     from portfolio_risk.analytics.owned_workflow import binary_path as workflow_binary_path
     workflow_binary = workflow_binary_path()
     workflow_native = _hash(workflow_binary) if workflow_binary.is_file() else None
-    _IDENTITY = {"engine_version": portfolio_risk.__version__, "source_sha256": digest.hexdigest(),
+    return {"engine_version": portfolio_risk.__version__, "source_sha256": digest.hexdigest(),
             "python": platform.python_version(), "platform": platform.system(), "machine": platform.machine(),
             "native_sha256": native, "risk_native_sha256": risk_native, "balance_native_sha256": balance_native,
+            "ledger_validation_native_sha256": ledger_validation_native,
             "workflow_native_sha256": workflow_native, "packages": {name: importlib.metadata.version(name)
                 for name in ("numpy", "numba", "polars", "scipy")}}
-    return copy.deepcopy(_IDENTITY)
 
 
 def start(config=None):
@@ -134,7 +143,24 @@ def changed():
 
 
 def submit(kind, operation: str, args, plan, state: WorkspaceSnapshot):
+    if EXPECTED_REVISION.get() not in (None, state['revision']):
+        raise Conflict('saved inputs changed before job admission; reload before executing')
     payload: DurableRequest = {"operation": operation, "args": args, "state": state, "identity": identity()}
+    fingerprint = HTTP_REQUEST_SHA256.get()
+    key = IDEMPOTENCY_KEY.get()
+    if fingerprint and key:
+        payload['http_request_sha256'] = fingerprint
+        prior = REPO.list_jobs(idempotency_key=key, limit=1)
+        if prior:
+            existing = CODEC.metadata(REPO.job(prior[0]['id'])['request'],
+                                      {'http_request_sha256', 'identity', 'operation'})
+            # Admission may derive fresh deadlines/identities. An exact HTTP retry
+            # returns the original immutable job instead of refreshing those values.
+            if (existing.get('http_request_sha256') == fingerprint and
+                    existing['identity'] == payload['identity'] and
+                    prior[0]['revision'] == state['revision'] and existing['operation'] == operation):
+                return prior[0]['id']
+            raise Conflict('idempotency key already used for a different request or model/revision')
     request = CODEC.dump(payload)
     progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
     store = workspace()
@@ -164,7 +190,7 @@ def remote(path, payload=None, method="POST"):
     from fastapi import HTTPException
     try:
         response = httpx.request(method, CONFIG.worker_url + path, json=payload,
-            headers={"Authorization": f"Bearer {CONFIG.worker_token}"}, timeout=10.)
+            headers={"Authorization": f"Bearer {CONFIG.worker_token}"} if CONFIG.worker_token else {}, timeout=10.)
     except httpx.RequestError as exc:
         raise HTTPException(503, "Calculation worker is unavailable") from exc
     if response.status_code >= 400:

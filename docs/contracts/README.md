@@ -3,6 +3,13 @@
 The current architecture is in [../architecture.md](../architecture.md); financial
 ownership and deployment rules are in [../rust-production-contract.md](../rust-production-contract.md).
 
+The [MCP adapter](../../apps/mcp/README.md) exposes the application through a reviewed
+route-to-tool catalog. `scripts/generate_mcp_contracts.py --check` verifies API/schema
+and bundled model-reference drift without entering application lifespan. New routes
+require explicit permission entries. The stdio process talks only to HTTP; it has
+no engine/storage imports. Optional HTTP request fingerprints in durable requests
+preserve exact retry identity without replacing original deadlines or inputs.
+
 ## Contracts and generators
 
 - `apps/api/app/contracts.py`: typed workspace/run snapshots, model identity,
@@ -40,6 +47,14 @@ application/financial modules. HTTP generation imports the FastAPI assembly to
 read its OpenAPI schemas, without entering lifespan, opening storage or pricing.
 
 ## Transport exceptions
+
+Explicit product analyses use durable `/models/runs` jobs and a cancellable
+standalone native process with immutable input/executable/source identities.
+`/models/aged-library` publishes actual-date coefficients through the existing
+library transaction; `/strategy/eval` consumes those coefficients only. The
+dated lane exposes its own date/template/grid metadata in `/state` and does not
+mix a monthly backbook KPI baseline into actual-date reporting. See
+[product workbench](../models/product-analysis-workbench.md).
 
 The HTTP generator initially covers settings, market/state views, job metadata,
 stress capabilities, forecast/run requests, allocations and named scenarios.

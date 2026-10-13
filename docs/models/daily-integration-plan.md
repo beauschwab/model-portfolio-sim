@@ -1,7 +1,27 @@
 # Next stage: dated schedules and native credit in daily replay
 
+Version 0.29.7 implements the explicitly selected loan-only
+[joint credit state](credit-state.md) and [credit replay](credit-replay.md) route,
+with independent persisted source/accounting checks and durable API/UI publication.
+It also connects verified credit closing journals to native capital preparation.
+The mixed product/graph/candidate adoption and complete scale gates below remain
+required; component execution is not their completion.
+
+Current follow-through adds [realized event-time credit](credit-path-ledger.md),
+[native consumer graph capture](graph-dated-ledger.md) and
+[frozen covariate-driver replay](driven-credit-ledger.md). The modeled routes
+retain raw model inputs, prepared economic sources and independent source/posting
+verification through durable API publication. Consumer capture admits explicitly
+reviewed performing par-note simple interest; the driver route is physical,
+loan-only and preserves analytical versus adoption eligibility. These boundaries
+do not replace the remaining mixed product, yield, candidate and scale gates.
+
 This design preserves the full scopes of issues #11, #12 and the dependent
-accounting/product issues. It is a plan, not delivered ledger behavior. The
+accounting/product issues. Version 0.29.6 delivers the explicit
+[dated scheduled-recognition route](dated-ledger.md), [store](dated-store.md),
+[credit operator](credit-operator.md) and separate [accounting intents](credit-accounting.md).
+Automatic joint credit/product adoption and complete integrated acceptance remain
+open; the full design below is not a claim of delivered coverage. The
 [foundation checkpoint](../reviews/2026-10-01-model-foundations.md) documents
 what is implemented and tested.
 

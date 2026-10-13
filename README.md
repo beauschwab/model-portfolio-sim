@@ -384,9 +384,173 @@ panel accepts compatible completed ledger/cohort analytics jobs. See
 `docs/capital-and-ftp.md` for current integration scope. Rebuild native product and
 decision/workflow binaries and restart workers.
 
+## Dated replay and credit accounting foundations (0.29.6)
+
+`dated-ledger-1` explicitly selects native scheduled recognition and actual-date
+settlement through `analytics.dated_ledger.run_dated_ledger`. Dated owners bypass
+legacy PD/default, generic interest, deposit flight/runoff, proportional scaling
+and synthetic maturity. The source supplies complete scenario/reverse-run coverage
+and explicit calendar recognition segments. Early/late interest rights and full
+contract tails survive principal settlement. Pricing-measure/overlapping sources,
+unsupported credit/draw/mark/collateral ownership and incompatible opening anchors
+fail before execution. Existing `balance-stress-2` economics and protocol 2 remain;
+the dated route uses ledger protocol 3 with separately versioned publication.
+
+Publication retains raw input and source/artifact hashes, event lineage and dated
+closing rights. Independent persisted verification checks source amounts/dates,
+once-only phases, transaction postings, principal/basis/rights and gross closing
+statements. Cancellation/deadline fences remain required through publication.
+This is scheduled expected recognition; it does not prove empirical behavior or
+accounting-standard compliance. The API/UI/saved-book/native graph and complete
+60,000-position joint graph/credit/solver/journal adoption remain open.
+
+Shared `credit_operator` provides reusable transition/earned-interest matrices
+for separate probability, principal, undrawn, signed accrual and basis vectors.
+No live-mass normalization or second probability weighting is permitted.
+`credit_accounting` supplies explicit physical daily policy steps and balanced
+journal intents, keeping economic loss separate from reviewed allowance,
+chargeoff and complete recovery tails. Those components are not yet automatically
+adopted by the dated daily route. Retain the complete issue gates in
+`docs/models/implementation-plan.md`; details are in `docs/models/dated-ledger.md`,
+`dated-store.md`, `credit-operator.md` and `credit-accounting.md`.
+Rebuild ledger and dependent decision/workflow binaries and restart workers before
+using new schemas. Component budgets are not aggregate RSS guarantees.
 
 ## Architecture maintenance
 
 [Current architecture](docs/architecture.md) identifies financial, application, storage and verification ownership.
 [Interface contracts](docs/contracts/README.md) describe generated HTTP/native layouts and retained transport/import compatibility.
 Run `make check-architecture` (or `bun run check:architecture`) before changing boundaries.
+## Explicit product states and durable source routes (0.29.7)
+
+Additive native analysis contracts cover supplied-path auto/personal installment
+and revolving-card state, daily deposit retention/repricing/migration, mortgage
+borrower/investor ownership, actual-date funding/collateral/rollover, indexed
+corporate cashflows, conditional call/put exercise, CD elections and actual-date
+effective-yield income. The inner schemas retain explicit source, assumption,
+measure, calendar and policy identities. These contracts do not automatically
+replace saved economics or establish empirical calibration.
+
+`credit-ledger-1` couples physical daily loan transitions, independently weighted
+money, earned interest and reviewed accounting with explicit repayment/draw/
+maturity boundaries and complete recovery claims. Protocol 4 publication is
+gated by independent SciPy matrix-exponential, source/policy and persisted posting
+replay. This loan-only route admits 62,000 aggregate run-position contracts;
+combined 60,000-position mixed-book graph/solver/journal acceptance remains open.
+No implicit allowance, chargeoff, regulatory limit or legal methodology is inferred.
+
+Durable `/balance-stress/dated` and `/balance-stress/credit` jobs fence the queued
+native executable and validation-library identities through worker publication.
+The partitioned panel pages/downloads/reopens source lineage and claims; managed
+raw-input references survive restart and garbage collection. Standard/large
+admission, cancellation, lease/token checks and immutable publication apply.
+Python remains transport/storage and explicit independent verification.
+
+All child issue gates under #25 remain required, including native graph, cohort,
+saved-book/candidate, strategy/library, accounting/capital/FTP adoption, empirical
+holdouts and complete scale acceptance. Histories and reviewed policies must be
+supplied for those evidence gates. See `docs/models/implementation-plan.md`.
+Rebuild product, ledger and dependent decision/workflow artifacts and restart
+API/workers before executing additive schemas. Product ABI 8 and historical
+ledger protocols remain unchanged; new credit execution explicitly selects 4.
+
+### Analytical workbench and dated coefficients (0.29.7 follow-through)
+
+Supplied multicurve/smile/joint-driver, dated derivatives/CSA, event-time credit
+paths and interval-censored panel calibration are additive explicit contracts.
+Synthetic and supplied assumptions do not prove observed accuracy. `/models/runs`
+uses a durable cancellable standalone Rust process with pinned source/executable
+identity, immutable raw input and paged Parquet output. Python formats output.
+
+`aged-units-1` prepares actual-purchase fixed corporate/CD coefficients with
+retained original yield, complete rights, purchase OAS and actual reporting dates.
+`strategy-aged-1` builds/invokes/replays HiGHS from those native coefficients.
+`/models/aged-library` publishes them through existing library fencing/recovery;
+interactive evaluation must reject missing coefficients/grid without repricing.
+The dated lane reports incremental allocations without a monthly backbook KPI
+baseline. Funding is currently par-based; allocation rejects nonpar quotes.
+Behavioral state conditioning, full mixed candidate journal and scale gates remain.
+
+`credit_ledger` capital bridges independently replay the verified signed credit
+journal and retain separate live/default exposure lineage. Reviewed provision,
+chargeoff, recovery and allowance amounts are applied once; economic modeled loss
+is not automatically a second capital deduction. Regulatory and FTP policy inputs
+remain explicit. See `docs/models/product-analysis-workbench.md`,
+`docs/models/native-contracts.md` and the complete issue implementation plan.
+
+## Corporate exercise publication (local 0.29.9)
+
+The existing `conditional-exercise-1` analysis requires independent raw-tree and
+persisted-result replay of Bellman values, stopped probabilities and complete
+pricing cash rights before durable publication. Original OAS matches exactly;
+shared-draw/policy identities, exact dates, signed cash and full tails remain.
+Native caller cancellation/deadline controls reach the tree through Rayon and
+check admission, branches, backward/forward passes and final audit construction.
+The standalone process watchdog and immutable source/artifact/lease fences remain.
+
+The receipt is explicitly Pricing measure and `physical_journal_eligible=false`,
+with `empirical_validation=false`. It does not infer observed issuer behavior,
+calibrated joint market/credit states, physical journals or saved-book/library
+adoption. Historical economics and schemas remain readable unchanged. Rebuild
+native artifacts and explicitly rebuild selected libraries/sessions; deployed
+workers require their existing restart procedure before executing new source.
+See `docs/models/term-exercise-publication.md` and all original #15/#25 gates in
+`docs/models/implementation-plan.md`. Local validation does not complete those
+issues or deploy this change.
+
+
+## Commercial source, credit and coefficients (local 0.29.10)
+
+The additive `commercial-product-graph-1`, `commercial-units-1`,
+`strategy-commercial-1` and `commercial-credit-ledger-1` contracts retain complete
+supplied Physical/Pricing sources, original purchase yield/cost, one original OAS
+and shared credit draws. Native source factors feed the existing credit loop;
+legal and recognized coupon lots remain separate. Reviewed nonaccrual, integral
+fee cash, contingent default funding and complete recovery tails are explicit.
+Credit-free references reject issuer/borrower hazards and commitments.
+
+The journal uses the existing daily Sim with exclusive commercial owners and
+cash accounts. Acquisition is attributed on actual day zero. The original report
+cutoff is retained separately from the resolved complete contractual/recovery
+calendar. Protocol 6 carries source lineage and daily/closing gross coupon books.
+It does not admit arbitrary mixed owners, capital/FTP policies or legal fee claims.
+Independent raw-source, CTMC/carry, coupon and persisted ordered-journal/report
+replay must pass before publication, with the original deadline, cancellation,
+lease/token, source, executable and artifact fences.
+
+Native conditional call/put decisions use only observed prefixes and exact
+source/default/recovery cash times at fixed original OAS. The result is exact for
+its supplied finite Pricing distribution, not a continuous-model convergence or
+empirical claim. Before-cash and rights-only termination reject. Acquired exercise
+units require a separately verified original stopped Physical cash/yield anchor;
+analytical continuation does not satisfy that adoption gate. Constraint-only
+commercial actor updates and evaluation retain native coefficients; creation
+controls are not cached as session deadlines.
+
+Performing discretionary draw tranches, seasoned source prefixes, nonintegral
+fees, reviewed allowance/chargeoff/legal waivers, full saved/cohort/candidate and
+capital/FTP adoption, observed holdouts and combined scale remain required.
+See `docs/models/commercial-credit-ledger.md`, `commercial-exercise.md` and the
+complete original #15/#25 gates in `docs/models/implementation-plan.md`.
+Rebuild compatible product, ledger and decision/workflow artifacts and explicitly
+rebuild selected saved libraries/sessions. Local validation does not deploy or
+restart workers or close the full issue.
+
+## Complete-origin commercial holding windows (local 0.29.13)
+
+`commercial-holding-continuation-1` replays complete original acquisition histories
+and derives a sealed opening plus subsequent native posting indices. Original cost,
+EIR, gross coupon lots, draw anchors, undrawn commitment and reviewed default state
+remain retained. Completed raw/economic prefixes and CRN identities cannot change.
+Future interval/projected assumptions require explicit retained source conventions.
+No caller monetary checkpoint, credit restart or second acquisition is accepted.
+Independent raw and persisted replay, original deadlines and final source/executable/
+object/SQL publication fences remain required. Rebuild compatible native artifacts
+and explicitly rebuild selected saved sessions/libraries before additive execution.
+
+This is a holding-window foundation; verified prior-publication opening, cut-started
+mixed daily adoption, seasoned graph/cohort/strategy coefficients, stopped acquisition
+and secondary clean/dirty rights allocation remain open. Fees, daily in-arrears
+coupons, generated streaming, empirical/policy evidence and complete mixed60000
+acceptance remain required. See docs/models/commercial-continuation.md and the full
+implementation ledger. Local checks do not imply deployment or full issue closure.

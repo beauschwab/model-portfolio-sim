@@ -1,0 +1,115 @@
+{
+  "verified_at_utc": "2026-09-30T22:18:15.295785+00:00",
+  "scope": "Complete native built-in mortgage spot-risk and forward-stress drivers plus bounded native market-stage caching; full project-wide lifecycle remains incomplete",
+  "engine_version": "0.27.6",
+  "product_abi": 6,
+  "environment": "Local Windows 11, Python 3.12.11, four quant worker threads",
+  "engine_suite": {
+    "passed": 477,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 265.99
+  },
+  "api_suite": {
+    "passed": 93,
+    "failed": 0,
+    "seconds": 100.93,
+    "warnings": [
+      "Starlette TestClient httpx deprecation"
+    ],
+    "note": "Build identity held fixed throughout; default SQLite validation, no live PostgreSQL/S3/Iceberg deployment"
+  },
+  "rust_release_unit_tests": {
+    "passed": 16,
+    "failed": 0
+  },
+  "clippy_all_targets_warnings_denied": "passed",
+  "rust_format": "passed",
+  "new_ownership_parity_and_cache_test_cases": 45,
+  "documentation": {
+    "structure": "passed",
+    "browser": "passed",
+    "architecture": "passed",
+    "skill_mirrors": "identical",
+    "operator_skill": "packaged"
+  },
+  "native_library_sha256": "2e70a54098f5938b9306ad39012fa79fae630b10f09e6a4aa289f00cf647f935",
+  "standalone_executable_sha256": "647d8cd08ff36876b080bd403a3c1d6038d3a1cbabcff5d87a20d857359dd2e9",
+  "source_sha256": {
+    "packages/portfolio-risk-native/src/mortgage_risk.rs": "87503c415004112d26565b326a1d2bb18b7253ec7bad73cfb207f8d7db90c8dc",
+    "packages/portfolio-risk-native/src/cache.rs": "6ad2e53379acf06796936c205fbafccfeb10dd325497b604fac04c5468b08b87",
+    "packages/portfolio-risk-native/src/bin/portfolio-mortgage-risk.rs": "802e60eb9841332efc2abf2f5c5ea87e6482ed500c275f7e20e78ca5e5ca4501",
+    "packages/portfolio-risk-native/src/quant.rs": "740fa40fa2c2b1e56c22285b4ae6f4d46e7cea99fdcb0bacb19a5b3e48b390ff",
+    "packages/portfolio-risk-native/Cargo.lock": "6d4e301f188effd581ac0e769fa4369b1f44d9d911733ed6faa503fd2a2c967a",
+    "packages/portfolio-risk/src/portfolio_risk/core/quant_native.py": "cacc86056055886f548843e32875f349a16bddb9fe66350b535c94e3583dc376",
+    "packages/portfolio-risk/src/portfolio_risk/core/curve.py": "fe21cf5dd5f7d770275c467f37667f1fc7165e70b1071fd489031ad34bb5c44f",
+    "packages/portfolio-risk/src/portfolio_risk/analytics/risk.py": "34cd04e6af191ae3a4ba692afba138defca7ab975efa4070422cedd023a47d87",
+    "packages/portfolio-risk/src/portfolio_risk/analytics/stress.py": "aabf071677fb2c7066f725471e44b736a80269f788d177343e06531b0301a5b1",
+    "packages/portfolio-risk/tests/test_native_mortgage_risk_owner.py": "e1016a068f3616da35970e504a65132816a2774d4960494f0e47fd04efceb36a",
+    "packages/portfolio-risk/tests/test_native_mortgage_stress_owner.py": "63d399c74136251d1dd8a2d679042731e7b0aa6b7b26a5246f42e60ad069d1e0",
+    "packages/portfolio-risk/tests/test_native_mortgage_cache.py": "d4faebb271b81aa097bc44419330c43341f8811bdf85e280e340c10508c8c25d"
+  },
+  "standalone_schemas": [
+    "mortgage-risk-1",
+    "mortgage-stress-1"
+  ],
+  "cache": {
+    "scope": "Immutable mortgage calibration and market paths, not final instrument results or a full cross-book graph",
+    "retained_accounting_limit_bytes": 134217728,
+    "entry_limit": 512,
+    "identity": "Complete length-tagged input bytes; HashMap collisions cannot alias inputs",
+    "failure": "Only successful stages publish; clear prevents earlier in-flight insertion",
+    "tested_changes": [
+      "notional",
+      "curve",
+      "volatility",
+      "CC history",
+      "PS history",
+      "seed",
+      "path counts",
+      "HPI parameters",
+      "incentive lag",
+      "CC volatility feature points",
+      "path storage precision"
+    ]
+  },
+  "memory_limits": {
+    "standalone_input_bytes": 67108864,
+    "stress_output_bytes": 1073741824,
+    "stress_chunk_scratch_estimate_bytes": 67108864,
+    "max_instrument_chunk": 256,
+    "note": "Component budgets exclude active borrowers, input/transport copies and formatted outputs; not a total RSS cap"
+  },
+  "comparison": {
+    "report": "2026-09-30-rust-mortgage-lifecycle-benchmark.json",
+    "parity": true,
+    "rtol": 1e-07,
+    "atol": 1e-05,
+    "max_absolute_error": 2.86102294921875e-06,
+    "workload": "256 synthetic mortgage instruments, 16 base paths, 8 sensitivity paths, 360 simulation months, three stress horizons, three shocks, four worker threads",
+    "not_full_balance_sheet_benchmark": true
+  },
+  "corrections": [
+    "Categorical assumptions now transported, including user-added categories",
+    "Python curve root xtol tightened from 2e-12 to 2e-15 without loosening risk tolerances",
+    "Native market-stage reuse removes repeated warm-stage computation"
+  ],
+  "remaining": [
+    "Other-product raw schedules and risk/stress orchestration",
+    "Cross-book income/accounting/KPI aggregation",
+    "Native unit-library pricing",
+    "Complete dependency graph and selective instrument recomputation",
+    "Saved-book/candidate mapping and final journal/report assembly",
+    "Accounting-category strategy integration and unsupported mappings",
+    "Unified runtime cancellation/deadlines and publication/restart proof",
+    "Full equivalent 60000-instrument cold/warm/edited performance and memory benchmark"
+  ],
+  "solver": "HiGHS remains C++; Rust owns strategy construction/invocation/validation",
+  "not_claimed": [
+    "Full Rust lifecycle completion",
+    "Production deployment",
+    "GSIB regulatory model validation",
+    "Standalone-Rust memory comparison",
+    "Linux execution"
+  ]
+}

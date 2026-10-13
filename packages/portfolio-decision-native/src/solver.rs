@@ -162,6 +162,71 @@ pub struct Solver {
     model: Option<Model>,
     previous: Vec<Row>,
 }
+/// Native-produced dated cash coefficients; never accepted as a public metric override.
+pub struct DatedFunding {
+    pub ordinals: Vec<i32>,
+    pub purchase_costs: Vec<f64>,
+    pub demand: Vec<Vec<Vec<f64>>>,
+    pub max_purchase_cost_assets: Option<f64>,
+}
+/// Native-derived membership, never a public arbitrary LP coefficient route.
+pub struct ProductFaceLimit {
+    pub label: String,
+    pub policy_id: String,
+    pub members: Vec<bool>,
+    pub minimum: bool,
+    pub amount: f64,
+}
+
+pub(crate) fn validate_product_limits(limits: &[ProductFaceLimit], n: usize) -> Result<(), String> {
+    let mut labels = std::collections::HashSet::new();
+    if limits.len() > 100 {
+        return Err("product face-limit count admission exceeded".into());
+    }
+    for r in limits {
+        if r.label.trim().is_empty()
+            || r.label.len() > 200
+            || r.label.chars().any(char::is_control)
+            || r.policy_id.trim().is_empty()
+            || r.policy_id.len() > 200
+            || r.policy_id.chars().any(char::is_control)
+            || !labels.insert(&r.label)
+            || r.members.len() != n
+            || !r.members.iter().any(|b| *b)
+            || !r.amount.is_finite()
+            || r.amount < 0.
+            || r.amount > portfolio_risk_native::product_strategy::MAX_ALLOCATION_AMOUNT
+        {
+            return Err("invalid reviewed product face limit".into());
+        }
+    }
+    Ok(())
+}
+fn replay_product_limits(limits: &[ProductFaceLimit], x: &[f64]) -> Result<Vec<Value>, String> {
+    limits
+        .iter()
+        .map(|r| {
+            let actual: f64 = r
+                .members
+                .iter()
+                .zip(x)
+                .filter(|(b, _)| **b)
+                .map(|(_, x)| x)
+                .sum();
+            let tol = 0.01_f64.max(r.amount.abs() * 1e-8);
+            if !actual.is_finite()
+                || (r.minimum && actual < r.amount - tol)
+                || (!r.minimum && actual > r.amount + tol)
+            {
+                return Err("native product face-limit amount replay failed".into());
+            }
+            Ok(
+                json!({"label":r.label,"policy_id":r.policy_id,"actual_face":actual,
+            "sense":if r.minimum {">="} else {"<="},"required_face":r.amount}),
+            )
+        })
+        .collect()
+}
 impl Solver {
     pub fn new() -> Self {
         Self {
@@ -175,7 +240,32 @@ impl Solver {
         scenarios: &[Scenario],
         c: &Constraints,
     ) -> Result<Value, String> {
-        let result = self.solve_inner(units, scenarios, c);
+        self.solve_with_funding(units, scenarios, c, None)
+    }
+    pub fn solve_with_funding(
+        &mut self,
+        units: &[Unit],
+        scenarios: &[Scenario],
+        c: &Constraints,
+        funding: Option<&DatedFunding>,
+    ) -> Result<Value, String> {
+        let result = self.solve_inner(units, scenarios, c, funding, &[]);
+        if result.is_err() {
+            self.model = None;
+            self.previous.clear();
+        }
+        result
+    }
+    /// Additive product route; all historical calls retain an empty limit set.
+    pub fn solve_with_product_limits(
+        &mut self,
+        units: &[Unit],
+        scenarios: &[Scenario],
+        c: &Constraints,
+        funding: &DatedFunding,
+        limits: &[ProductFaceLimit],
+    ) -> Result<Value, String> {
+        let result = self.solve_inner(units, scenarios, c, Some(funding), limits);
         if result.is_err() {
             self.model = None;
             self.previous.clear();
@@ -187,9 +277,78 @@ impl Solver {
         units: &[Unit],
         scenarios: &[Scenario],
         c: &Constraints,
+        funding: Option<&DatedFunding>,
+        product_limits: &[ProductFaceLimit],
     ) -> Result<Value, String> {
         validate(units, scenarios, c)?;
-        let rows = rows(units, scenarios, c);
+        validate_product_limits(product_limits, units.len())?;
+        let mut rows = rows(units, scenarios, c);
+        for r in product_limits {
+            let sign = if r.minimum { -1. } else { 1. };
+            let mut coefs: Vec<_> = r
+                .members
+                .iter()
+                .map(|b| if *b { sign } else { 0. })
+                .collect();
+            coefs.push(0.);
+            rows.push(Row {
+                label: format!("product_face:{}", r.label),
+                coefs,
+                rhs: sign * r.amount,
+            });
+        }
+        if let Some(f) = funding {
+            let n = units.len();
+            let dates = f.ordinals.len();
+            if dates == 0
+                || f.ordinals.windows(2).any(|w| w[0] >= w[1])
+                || f.purchase_costs.len() != n
+                || f.purchase_costs.iter().any(|v| !v.is_finite() || *v <= 0.)
+                || f.demand.len() != scenarios.len()
+                || f.demand.iter().any(|s| {
+                    s.len() != n
+                        || s.iter()
+                            .any(|u| u.len() != dates || u.iter().any(|v| !v.is_finite()))
+                })
+                || f.max_purchase_cost_assets
+                    .is_some_and(|v| !v.is_finite() || v < 0.)
+            {
+                return Err("invalid native dated funding shape/policy".into());
+            }
+            rows.retain(|r| !r.label.ends_with(":funding"));
+            for (s, values) in f.demand.iter().enumerate() {
+                for (d, ordinal) in f.ordinals.iter().enumerate() {
+                    let mut coefs: Vec<_> = values.iter().map(|u| u[d]).collect();
+                    coefs.push(0.);
+                    rows.push(Row {
+                        label: format!("s{s}:date{ordinal}:cash_resource"),
+                        coefs,
+                        rhs: c.cash_budget,
+                    });
+                }
+            }
+            if let Some(cap) = f.max_purchase_cost_assets {
+                let mut coefs: Vec<_> = units
+                    .iter()
+                    .zip(&f.purchase_costs)
+                    .map(|(u, cost)| if u.side > 0. { *cost } else { 0. })
+                    .collect();
+                coefs.push(0.);
+                rows.push(Row {
+                    label: "cap:purchase_cost_assets".into(),
+                    coefs,
+                    rhs: cap,
+                });
+            }
+        }
+        if funding.is_some()
+            && rows
+                .len()
+                .checked_mul(units.len() + 1)
+                .is_none_or(|v| v > 8_000_000)
+        {
+            return Err("LP dense work admission exceeded".into());
+        }
         if rows
             .iter()
             .any(|r| !r.rhs.is_finite() || r.coefs.iter().any(|x| !x.is_finite()))
@@ -266,6 +425,8 @@ impl Solver {
         let iterations = solved
             .int_info_value(c"simplex_iteration_count")
             .unwrap_or(0);
+        let mut validated_purchase_cost = None;
+        let mut validated_allocation = None;
         let result = if status == HighsModelStatus::Optimal {
             let sol = solved.get_solution();
             if !solved.objective_value().is_finite()
@@ -303,9 +464,44 @@ impl Solver {
                 self.model = Some(Model::from(solved));
                 return Err(format!("native LP replay violation {max_violation}"));
             }
-            let replay = evaluate(scenarios, &x);
+            let mut replay = evaluate(scenarios, &x);
             check_replay(&replay)?;
-            validate_allocation(units, &x, &replay, c)?;
+            validate_allocation(units, &x, &replay, c, funding.is_none())?;
+            let product_face_replay = replay_product_limits(product_limits, &x)?;
+            if let Some(f) = funding {
+                for (s, values) in f.demand.iter().enumerate() {
+                    let mut demands = vec![0.; f.ordinals.len()];
+                    for (u, amount) in values.iter().zip(&x) {
+                        for (d, value) in demands.iter_mut().zip(u) {
+                            *d += value * amount;
+                        }
+                    }
+                    if demands.iter().any(|v| {
+                        !v.is_finite() || *v > c.cash_budget + 0.01_f64.max(c.cash_budget * 1e-7)
+                    }) {
+                        return Err("native dated funding replay failed".into());
+                    }
+                    let exposure = replay[s]["funding_gap"].take();
+                    replay[s]["principal_exposure_gap"] = exposure;
+                    replay[s]["funding_gap"] = json!(demands);
+                    replay[s]["funding_ordinals"] = json!(f.ordinals);
+                }
+                let cost: f64 = units
+                    .iter()
+                    .zip(&x)
+                    .zip(&f.purchase_costs)
+                    .filter(|((u, _), _)| u.side > 0.)
+                    .map(|((_, a), p)| a * p)
+                    .sum();
+                if !cost.is_finite()
+                    || f.max_purchase_cost_assets
+                        .is_some_and(|cap| cost > cap + 0.01_f64.max(cap * 1e-8))
+                {
+                    return Err("native purchase-cost cap replay failed".into());
+                }
+                validated_purchase_cost = Some(cost);
+                validated_allocation = Some(x.clone());
+            }
             let actual = replay
                 .iter()
                 .zip(scenarios)
@@ -321,7 +517,11 @@ impl Solver {
                     "numerator":numerator,"denominator":denominator,"ratio":numerator/denominator,
                     "required_ratio":r.required_ratio,"headroom":numerator-r.required_ratio*denominator})
             }).collect();
-            json!({"feasible":true,"worst_case_nii_$":t,"allocation":allocations,"binding_constraints":binding,"replay":replay,"capital_replay":capital_replay,"native_max_violation_$":max_violation,"total_new_assets_$":units.iter().zip(&x).filter(|(u,_)|u.side>0.).map(|(_,x)|x).sum::<f64>()})
+            let mut value = json!({"feasible":true,"worst_case_nii_$":t,"allocation":allocations,"binding_constraints":binding,"replay":replay,"capital_replay":capital_replay,"native_max_violation_$":max_violation,"total_new_assets_$":units.iter().zip(&x).filter(|(u,_)|u.side>0.).map(|(_,x)|x).sum::<f64>()});
+            if !product_limits.is_empty() {
+                value["product_face_replay"] = json!(product_face_replay);
+            }
+            value
         } else if matches!(
             status,
             HighsModelStatus::Infeasible
@@ -339,6 +539,12 @@ impl Solver {
         self.previous = rows;
         let mut result = result;
         result["solver"] = json!({"backend":"Rust-owned HiGHS (C++)","model_reused":reused,"changed_matrix_entries":changed,"simplex_iterations":iterations});
+        if let Some(cost) = validated_purchase_cost {
+            result["total_purchase_cost_assets_$"] = json!(cost);
+        }
+        if let Some(x) = validated_allocation {
+            result["native_allocated_face"] = json!(x);
+        }
         Ok(result)
     }
 }
@@ -578,6 +784,68 @@ pub fn check_replay(values: &[Value]) -> Result<(), String> {
     }
 }
 
+/// Selected product allocations use the same financial acceptance thresholds as
+/// solved allocations, without constructing a model or invoking a pricer.
+pub fn evaluate_product_allocation(
+    units: &[Unit],
+    scenarios: &[Scenario],
+    c: &Constraints,
+    funding: &DatedFunding,
+    limits: &[ProductFaceLimit],
+    x: &[f64],
+) -> Result<Value, String> {
+    validate(units, scenarios, c)?;
+    validate_product_limits(limits, units.len())?;
+    if x.len() != units.len() {
+        return Err("complete product allocation required".into());
+    }
+    let mut replay = evaluate(scenarios, x);
+    check_replay(&replay)?;
+    validate_allocation(units, x, &replay, c, false)?;
+    let face_replay = replay_product_limits(limits, x)?;
+    for (si, values) in funding.demand.iter().enumerate() {
+        let mut demand = vec![0.; funding.ordinals.len()];
+        for (u, amount) in values.iter().zip(x) {
+            for (d, v) in demand.iter_mut().zip(u) {
+                *d += v * amount;
+            }
+        }
+        if demand
+            .iter()
+            .any(|v| !v.is_finite() || *v > c.cash_budget + 0.01_f64.max(c.cash_budget * 1e-7))
+        {
+            return Err("native dated funding replay failed".into());
+        }
+        let exposure = replay[si]["funding_gap"].take();
+        replay[si]["principal_exposure_gap"] = exposure;
+        replay[si]["funding_gap"] = json!(demand);
+        replay[si]["funding_ordinals"] = json!(funding.ordinals);
+    }
+    let cost: f64 = units
+        .iter()
+        .zip(x)
+        .zip(&funding.purchase_costs)
+        .filter(|((u, _), _)| u.side > 0.)
+        .map(|((_, x), p)| x * p)
+        .sum();
+    if !cost.is_finite()
+        || funding
+            .max_purchase_cost_assets
+            .is_some_and(|cap| cost > cap + 0.01_f64.max(cap * 1e-8))
+    {
+        return Err("native purchase-cost cap replay failed".into());
+    }
+    let worst = replay
+        .iter()
+        .zip(scenarios)
+        .map(|(r, s)| r["nii_total_$"].as_f64().unwrap() + s.base.nii)
+        .fold(f64::INFINITY, f64::min);
+    Ok(
+        json!({"validated":true,"replay":replay,"product_face_replay":face_replay,
+        "worst_case_nii_$":worst,"total_purchase_cost_assets_$":cost}),
+    )
+}
+
 /// Validate financial results independently of the assembled LP rows.
 /// Keep this check at the owner of the solve, including standalone execution.
 fn validate_allocation(
@@ -585,6 +853,7 @@ fn validate_allocation(
     x: &[f64],
     replay: &[Value],
     c: &Constraints,
+    check_principal_funding: bool,
 ) -> Result<(), String> {
     if x.iter().any(|n| !n.is_finite() || *n < 0.) {
         return Err("invalid solver allocation".into());
@@ -617,11 +886,10 @@ fn validate_allocation(
             .iter()
             .any(|v| v.as_f64().unwrap().abs() > c.eve_limit * 100. + 1e-5)
             || r["kpis"]["cet1_horizon_pct"].as_f64().unwrap() < c.cet1_min * 100. - 1e-5
-            || r["funding_gap"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|v| v.as_f64().unwrap() > c.cash_budget + 0.01_f64.max(c.cash_budget * 1e-7))
+            || check_principal_funding
+                && r["funding_gap"].as_array().unwrap().iter().any(|v| {
+                    v.as_f64().unwrap() > c.cash_budget + 0.01_f64.max(c.cash_budget * 1e-7)
+                })
         {
             return Err("native allocation replay failed EVE, capital or funding".into());
         }

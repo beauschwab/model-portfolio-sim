@@ -1,0 +1,290 @@
+{
+  "scenarios": [
+    {
+      "scenario_id": "base",
+      "run_id": "base",
+      "collateral_curve": {
+        "currency": "USD",
+        "role": {
+          "collateral_index": "SOFR",
+          "kind": "collateral"
+        },
+        "source_revision": "1",
+        "right_tail": "reject",
+        "curve_id": "usd-collateral",
+        "times_years": [
+          0,
+          1
+        ],
+        "discount_factors": [
+          1,
+          0.951229424500714
+        ],
+        "source_id": "synthetic-hand"
+      },
+      "severity": 0
+    }
+  ],
+  "bump_bp": 1,
+  "positions": [
+    {
+      "oas_target": {
+        "source_id": "locked-test",
+        "source_revision": "1",
+        "base_oas": -0.05,
+        "kind": "locked"
+      },
+      "position_id": "card-1",
+      "histories": [
+        {
+          "scenario_id": "base",
+          "pricing_down": [
+            {
+              "path_id": "paired-1",
+              "steps": [
+                {
+                  "ordinal": 738917,
+                  "action": {
+                    "rates": {
+                      "purchase": 0,
+                      "promotional": 0,
+                      "promotional_expiry_ordinal": 738946,
+                      "cash_advance": 0,
+                      "post_promotion": 0
+                    },
+                    "kind": "set_rates"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 1001,
+                    "kind": "payment"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 0,
+                    "kind": "set_limit"
+                  }
+                }
+              ],
+              "assumption_id": "synthetic-hand-1",
+              "weight": 1
+            }
+          ],
+          "pricing_up": [
+            {
+              "path_id": "paired-1",
+              "steps": [
+                {
+                  "ordinal": 738917,
+                  "action": {
+                    "rates": {
+                      "purchase": 0,
+                      "promotional": 0,
+                      "promotional_expiry_ordinal": 738946,
+                      "cash_advance": 0,
+                      "post_promotion": 0
+                    },
+                    "kind": "set_rates"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 1001,
+                    "kind": "payment"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 0,
+                    "kind": "set_limit"
+                  }
+                }
+              ],
+              "assumption_id": "synthetic-hand-1",
+              "weight": 1
+            }
+          ],
+          "pricing": [
+            {
+              "path_id": "paired-1",
+              "steps": [
+                {
+                  "ordinal": 738917,
+                  "action": {
+                    "rates": {
+                      "purchase": 0,
+                      "promotional": 0,
+                      "promotional_expiry_ordinal": 738946,
+                      "cash_advance": 0,
+                      "post_promotion": 0
+                    },
+                    "kind": "set_rates"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 1001,
+                    "kind": "payment"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 0,
+                    "kind": "set_limit"
+                  }
+                }
+              ],
+              "assumption_id": "synthetic-hand-1",
+              "weight": 1
+            }
+          ],
+          "physical": [
+            {
+              "path_id": "paired-1",
+              "steps": [
+                {
+                  "ordinal": 738917,
+                  "action": {
+                    "rates": {
+                      "purchase": 0,
+                      "promotional": 0,
+                      "promotional_expiry_ordinal": 738946,
+                      "cash_advance": 0,
+                      "post_promotion": 0
+                    },
+                    "kind": "set_rates"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 1001,
+                    "kind": "payment"
+                  }
+                },
+                {
+                  "ordinal": 738918,
+                  "action": {
+                    "amount": 0,
+                    "kind": "set_limit"
+                  }
+                }
+              ],
+              "assumption_id": "synthetic-hand-1",
+              "weight": 1
+            }
+          ]
+        }
+      ],
+      "contract": {
+        "schema": "consumer-card-1",
+        "identity": {
+          "position_id": "card-1",
+          "original_loan_id": "account-1",
+          "cohort_id": "cohort-card",
+          "currency": "USD",
+          "source_revision": "panel-1",
+          "model_version": "consumer-card-1",
+          "assumption_id": "supplied-1",
+          "run_id": "base",
+          "measure": "contractual"
+        },
+        "as_of_ordinal": 738916,
+        "horizon_days": 2,
+        "opening_principal": [
+          0.0,
+          1000.0,
+          0.0
+        ],
+        "opening_billed_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_unbilled_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_unrecognized_billed_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_fees": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_contingent_purchase_interest": 0.0,
+        "opening_statement_remaining": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_minimum_remaining": 0.0,
+        "opening_due_ordinal": null,
+        "initial_limit": 2000.0,
+        "initial_state": "performing",
+        "rates": {
+          "purchase": 0.365,
+          "cash_advance": 0.365,
+          "promotional": 0.0,
+          "promotional_expiry_ordinal": 738946,
+          "post_promotion": 0.365
+        },
+        "day_count": "act365_fixed",
+        "initial_purchase_grace": true,
+        "regain_grace_after_full_statement_payment": true,
+        "compound_billed_interest": false,
+        "minimum": {
+          "floor": 25.0,
+          "principal_fraction": 0.01,
+          "include_billed_interest": true,
+          "include_fees": true,
+          "allocation_order": [
+            "purchase",
+            "cash_advance",
+            "promotional"
+          ]
+        },
+        "cycles": [
+          {
+            "statement_ordinal": 738917,
+            "due_ordinal": 738918
+          }
+        ],
+        "steps": [],
+        "collection_fraction": 0.4,
+        "collection_cost": 10.0,
+        "recovery_delay_days": 10
+      }
+    }
+  ],
+  "cash_timing": "after_opening_actions",
+  "reporting_ordinals": [
+    738916,
+    738917,
+    738918
+  ],
+  "terminal_policy": "zero_rights_zero_limit_at_tail",
+  "identity": {
+    "model_revision": "card-graph-1",
+    "paired_history_source": "supplied-synthetic",
+    "randomness_domain": "supplied_paired_histories-1",
+    "paired_history_revision": "1",
+    "input_revision": "input-1"
+  },
+  "base_scenario_id": "base",
+  "as_of_ordinal": 738916,
+  "schema": "card-product-graph-1",
+  "currency": "USD"
+}

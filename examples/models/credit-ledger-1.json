@@ -1,0 +1,354 @@
+{
+  "schema": "credit-ledger-1",
+  "monetary_unit": "currency_units",
+  "as_of_ordinal": 739617,
+  "specification": {
+    "version": "balance-stress-2",
+    "horizon_days": 30,
+    "accounts": [
+      {
+        "id": "bank-usd",
+        "entity": "bank",
+        "currency": "USD",
+        "cash": 10.0,
+        "equity": 105.0
+      }
+    ],
+    "positions": [
+      {
+        "id": "loan-1",
+        "account": "bank-usd",
+        "kind": "loan",
+        "balance": 100.0,
+        "book_adjustment": -5.0,
+        "commitment": 20.0,
+        "maturity_day": 2
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "demonstration-stress"
+      }
+    ],
+    "reverse_severities": [],
+    "cashflows": []
+  },
+  "runs": [
+    {
+      "run_id": "baseline-physical-v1",
+      "scenario_id": "baseline",
+      "severity": 1.0,
+      "positions": [
+        {
+          "account_id": "bank-usd",
+          "contract": {
+            "schema": "credit-state-1",
+            "identity": {
+              "id": "synthetic-credit-contract",
+              "revision": "v1"
+            },
+            "measure": "physical",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "position_id": "loan-1",
+            "claim_namespace": "loan1-credit",
+            "economic_source": {
+              "id": "synthetic-demonstration",
+              "revision": "v1"
+            },
+            "recovery_schedule_review": {
+              "id": "synthetic-recovery-review",
+              "revision": "v1"
+            },
+            "accounting_policy": {
+              "identity": {
+                "id": "demonstration-policy",
+                "revision": "v1"
+              },
+              "accrued": "transfer_until_reviewed_reversal",
+              "basis": "transfer_until_reviewed_chargeoff",
+              "allowance_shortfall": "reject",
+              "excess_cash_recovery": "credit_allowance"
+            },
+            "interval_days": 1,
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.3
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "accrual_rates": [
+              0.05,
+              0.0,
+              0.0
+            ],
+            "loss_given_default": [
+              0.4,
+              0.4,
+              0.4
+            ],
+            "credit_conversion_factor": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "complete_recovery_tails": [
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ],
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ],
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ]
+            ]
+          },
+          "opening": {
+            "schema": "credit-state-opening-1",
+            "contract_identity": {
+              "id": "synthetic-credit-contract",
+              "revision": "v1"
+            },
+            "last_ordinal": 739617,
+            "probability": [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "accounting": {
+              "live": [
+                {
+                  "principal": 100.0,
+                  "undrawn": 20.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": -5.0
+                },
+                {
+                  "principal": 0.0,
+                  "undrawn": 0.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": 0.0
+                },
+                {
+                  "principal": 0.0,
+                  "undrawn": 0.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": 0.0
+                }
+              ],
+              "allowance": 0.0,
+              "claims": []
+            }
+          },
+          "boundaries": [
+            {
+              "event_id": "loan-1-maturity",
+              "source": {
+                "id": "contract-schedule",
+                "revision": "v1"
+              },
+              "policy": {
+                "id": "full-live-rights-settlement",
+                "revision": "v1"
+              },
+              "recognition_ordinal": 739619,
+              "action": {
+                "kind": "maturity"
+              }
+            }
+          ],
+          "reviews": []
+        }
+      ]
+    },
+    {
+      "run_id": "stress-physical-v1",
+      "scenario_id": "demonstration-stress",
+      "severity": 1.0,
+      "positions": [
+        {
+          "account_id": "bank-usd",
+          "contract": {
+            "schema": "credit-state-1",
+            "identity": {
+              "id": "synthetic-credit-contract",
+              "revision": "v1"
+            },
+            "measure": "physical",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "position_id": "loan-1",
+            "claim_namespace": "loan1-credit",
+            "economic_source": {
+              "id": "synthetic-demonstration",
+              "revision": "v1"
+            },
+            "recovery_schedule_review": {
+              "id": "synthetic-recovery-review",
+              "revision": "v1"
+            },
+            "accounting_policy": {
+              "identity": {
+                "id": "demonstration-policy",
+                "revision": "v1"
+              },
+              "accrued": "transfer_until_reviewed_reversal",
+              "basis": "transfer_until_reviewed_chargeoff",
+              "allowance_shortfall": "reject",
+              "excess_cash_recovery": "credit_allowance"
+            },
+            "interval_days": 1,
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.3
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "accrual_rates": [
+              0.05,
+              0.0,
+              0.0
+            ],
+            "loss_given_default": [
+              0.4,
+              0.4,
+              0.4
+            ],
+            "credit_conversion_factor": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "complete_recovery_tails": [
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ],
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ],
+              [
+                {
+                  "lag_days": 2,
+                  "weight": 1.0
+                }
+              ]
+            ]
+          },
+          "opening": {
+            "schema": "credit-state-opening-1",
+            "contract_identity": {
+              "id": "synthetic-credit-contract",
+              "revision": "v1"
+            },
+            "last_ordinal": 739617,
+            "probability": [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "accounting": {
+              "live": [
+                {
+                  "principal": 100.0,
+                  "undrawn": 20.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": -5.0
+                },
+                {
+                  "principal": 0.0,
+                  "undrawn": 0.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": 0.0
+                },
+                {
+                  "principal": 0.0,
+                  "undrawn": 0.0,
+                  "accrued_interest": 0.0,
+                  "book_adjustment": 0.0
+                }
+              ],
+              "allowance": 0.0,
+              "claims": []
+            }
+          },
+          "boundaries": [
+            {
+              "event_id": "loan-1-maturity",
+              "source": {
+                "id": "contract-schedule",
+                "revision": "v1"
+              },
+              "policy": {
+                "id": "full-live-rights-settlement",
+                "revision": "v1"
+              },
+              "recognition_ordinal": 739619,
+              "action": {
+                "kind": "maturity"
+              }
+            }
+          ],
+          "reviews": []
+        }
+      ]
+    }
+  ]
+}

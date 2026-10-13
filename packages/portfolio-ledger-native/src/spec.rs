@@ -58,6 +58,13 @@ pub fn normalize(raw: Value, max_positions: usize, max_work: usize) -> R<Spec> {
     validate(&spec, max_positions, max_work)?;
     Ok(spec)
 }
+/// New physical credit-path route only: signed recognized loan interest rights
+/// participate in the same exact opening equity reconciliation without sign conversion.
+pub fn normalize_signed_credit_path(raw: Value, max_positions: usize, max_work: usize) -> R<Spec> {
+    let spec = parse_raw(raw)?;
+    validate_impl(&spec, max_positions, max_work, true, &[])?;
+    Ok(spec)
+}
 /// Parse typed defaults only. Callers must validate before executing.
 pub fn parse_raw(mut raw: Value) -> R<Spec> {
     let map = raw
@@ -72,6 +79,27 @@ pub fn parse_raw(mut raw: Value) -> R<Spec> {
     Ok(spec)
 }
 pub fn validate(spec: &Spec, max_positions: usize, max_work: usize) -> R<()> {
+    validate_impl(spec, max_positions, max_work, false, &[])
+}
+/// Native-only opening stocks: no raw JSON field or equity balancing plug.
+/// The selected coordinator must reconcile these stocks to its generated source.
+#[derive(Clone)]
+pub struct NativeOpening { pub account_id: String, pub assets: f64, pub liabilities: f64 }
+pub fn normalize_with_native_opening(raw: Value, max_positions: usize, max_work: usize,
+    opening: &[NativeOpening]) -> R<Spec> {
+    let spec=parse_raw(raw)?;
+    validate_with_native_opening(&spec,max_positions,max_work,opening)?;
+    Ok(spec)
+}
+pub fn validate_with_native_opening(spec: &Spec,max_positions:usize,max_work:usize,
+    opening:&[NativeOpening])->R<()> { validate_impl(spec,max_positions,max_work,false,opening) }
+fn validate_impl(
+    spec: &Spec,
+    max_positions: usize,
+    max_work: usize,
+    signed_credit_path: bool,
+    native_opening: &[NativeOpening],
+) -> R<()> {
     let days = spec.horizon_days;
     if !(30..=1080).contains(&days) {
         return Err("horizon_days must be in [30, 1080]".into());
@@ -195,7 +223,9 @@ pub fn validate(spec: &Spec, max_positions: usize, max_work: usize) -> R<()> {
         if p.payment_interval_days < 1 {
             return Err("payment_interval_days must be positive".into());
         }
-        if p.balance + p.book_adjustment < p.allowance || p.opening_accrued < 0. {
+        if p.balance + p.book_adjustment < p.allowance
+            || (p.opening_accrued < 0. && !(signed_credit_path && p.kind == "loan"))
+        {
             return Err("invalid opening carrying value or accrued interest".into());
         }
         range(row, "opening_market_price", 0.000001, 100.)?;
@@ -416,12 +446,22 @@ pub fn validate(spec: &Spec, max_positions: usize, max_work: usize) -> R<()> {
                 liabilities += (-n.fair_value).max(0.) + n.received_margin;
             }
         }
+        for stock in native_opening.iter().filter(|s|s.account_id==a.id) {
+            if !stock.assets.is_finite() || !stock.liabilities.is_finite() ||
+                stock.assets<0. || stock.liabilities<0. || stock.assets>1e15 || stock.liabilities>1e15 {
+                return Err("native opening stock domain".into());
+            }
+            assets+=stock.assets;liabilities+=stock.liabilities;
+        }
         if (assets - liabilities - a.equity).abs() > 1e-8 * 1_f64.max(assets).max(liabilities) {
             return Err(format!(
                 "opening balance sheet does not reconcile for {}",
                 a.id
             ));
         }
+    }
+    if native_opening.len()>64 || native_opening.iter().any(|s|!spec.accounts.iter().any(|a|a.id==s.account_id)) {
+        return Err("native opening account/count coverage".into());
     }
     Ok(())
 }

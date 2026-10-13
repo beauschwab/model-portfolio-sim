@@ -1,0 +1,45 @@
+{
+  "schema": "cd-election-1",
+  "threads": 1,
+  "request": {
+    "schema": "term-enhancements-1",
+    "model_version": "term-contracts-1",
+    "measure": "physical",
+    "currency": "USD",
+    "monetary_unit": "currency_units",
+    "direction": "receipt",
+    "scenario_id": "elected",
+    "election_source": {"id": "supplied-cd-election", "revision": "r1"},
+    "policy": {
+      "identity": {"id": "cd-contract-policy", "revision": "r1"},
+      "channel": "retail",
+      "early_withdrawal_permitted": true,
+      "partial_withdrawal_permitted": true,
+      "brokered_contract_allows_withdrawal": false,
+      "earliest_withdrawal_ordinal": 739617,
+      "minimum_remaining_principal": 0,
+      "penalty": {"kind": "interest_days", "annual_penalty_rate": 0.05, "days": 90, "denominator": 365},
+      "penalty_limit": "principal_and_accrued_interest",
+      "penalty_cap": null,
+      "penalty_waivers": [],
+      "maturity_grace_days": 2,
+      "grace_annual_rate": 0.1825,
+      "renewal_permitted": true,
+      "switching_permitted": true
+    },
+    "opening": {
+      "contract": {"id": "cd-original", "revision": "r1"},
+      "position_id": "cd:example",
+      "principal": 100,
+      "accrued_interest": 0,
+      "last_accrual_ordinal": 739617,
+      "maturity_ordinal": 739627,
+      "annual_rate": 0.365,
+      "day_count": "act365_fixed"
+    },
+    "election_ordinal": 739622,
+    "reporting_end_ordinal": 739623,
+    "tail_end_ordinal": 739647,
+    "election": {"kind": "withdraw", "principal": 40}
+  }
+}

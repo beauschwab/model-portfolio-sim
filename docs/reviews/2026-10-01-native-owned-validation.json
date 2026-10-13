@@ -1,0 +1,96 @@
+{
+  "version": "0.28.0",
+  "status": "Built-in Rust execution migration complete and locally validated; inherited model boundaries retained",
+  "product_abi": 8,
+  "ledger_protocol": 2,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "validation": {
+    "engine_full_checkpoint": {
+      "passed": 665,
+      "skipped": 2,
+      "seconds": 290.51,
+      "note": "Preceded final calibration empty/irrelevant-book transport correction"
+    },
+    "engine_followup": {
+      "passed": 21,
+      "seconds": 2.06,
+      "note": "Affected controller and forecast regressions; includes three new calibration boundary cases"
+    },
+    "api": {
+      "passed": 99,
+      "seconds": 84.72,
+      "warnings": 1,
+      "note": "Final full suite after workflow executable identity checks; existing Starlette/httpx deprecation warning"
+    },
+    "rust_release_tests": {
+      "product": 19,
+      "decision": 7,
+      "ledger": 4,
+      "compute_control": 2,
+      "total": 32
+    },
+    "strict_clippy": [
+      "portfolio-risk-native",
+      "portfolio-decision-native",
+      "portfolio-ledger-native"
+    ],
+    "rustfmt": [
+      "portfolio-risk-native",
+      "portfolio-decision-native",
+      "portfolio-ledger-native",
+      "portfolio-compute-control"
+    ],
+    "skill_mirrors": true,
+    "packaged_skill": true,
+    "scoped_whitespace": true
+  },
+  "boundaries": {
+    "storage": "Isolated SQLite and mocked object storage; no live PostgreSQL/S3/Iceberg claim",
+    "source_and_binaries_stable_during_durable_tests": true,
+    "source_and_binaries_stable_during_scale_runs": true,
+    "default_compute_backend": "python",
+    "native_selection": "compute_backend=rust",
+    "excluded": [
+      "Custom Python model extensions",
+      "Production GSIB model certification",
+      "Saved hedge-to-netting mapping",
+      "Category-aware HTM strategy LP integration",
+      "Deployment"
+    ]
+  },
+  "binaries": {
+    "product": {
+      "path": "packages/portfolio-risk-native/target/release/portfolio_risk_native.dll",
+      "sha256": "4d309b8c3b1ded8caede665c8c5fb364751538efca8c0d26d8ba2eafb2c631fb"
+    },
+    "decision": {
+      "path": "packages/portfolio-decision-native/target/release/portfolio_decision_native.dll",
+      "sha256": "baa30c28e46431108b35f4a803c04f114ce4ce5e43bd60a48b23591136d54f4d"
+    },
+    "workflow": {
+      "path": "packages/portfolio-decision-native/target/release/portfolio-workflow.exe",
+      "sha256": "3cdeccf97b95b45aff785abb3183bd3f95af54d8fc16a6696412800f7fed6d7b"
+    },
+    "ledger": {
+      "path": "packages/portfolio-ledger-native/target/release/portfolio-balance.exe",
+      "sha256": "9a4cf65014d2f0c747568435212c3f4b39d252a1c9e0bf9672a8b6a8da60a313"
+    }
+  },
+  "engine_source_sha256": "577fcfb145beb96c1a046ab9fa6d8bcb3b5dacf651183f395551b7b200ad82af",
+  "benchmarks": {
+    "complete_workflow": "2026-10-01-native-workflow-final-60000.json",
+    "workflow_comparison": "2026-10-01-native-workflow-final-comparison.json",
+    "term_comparison": "2026-10-01-term-lifecycle-optimized-60000.json",
+    "prior_graph_comparison": "2026-10-01-native-graph-optimized-60000.json"
+  },
+  "final_workflow": {
+    "seconds": 372.8236126000993,
+    "native_peak_rss_mib": 620.734375,
+    "peak_tree_rss_mib": 1319.44921875,
+    "journal_rows": 10497266,
+    "dynamic_validated": false,
+    "constraint_breaches": 2,
+    "retained_numeric_comparisons": 515,
+    "max_absolute_difference": 2.3874235921539366e-10
+  }
+}

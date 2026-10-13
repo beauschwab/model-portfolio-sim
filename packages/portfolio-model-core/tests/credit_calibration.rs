@@ -106,6 +106,12 @@ fn exact_exposure_counts_cures_and_competing_exits_match_hand_mle() {
     close(result.transition_hazards_per_year[0][1], 365.0 / 830.0);
     close(result.transition_hazards_per_year[0][4], 365.0 / 830.0);
     close(result.transition_hazards_per_year[1][0], 365.0 / 265.0);
+    close(
+        result.hazard_standard_errors_per_year[0][1].unwrap(),
+        365.0 / 830.0,
+    );
+    assert_eq!(result.hazard_standard_errors_per_year[0][3], None);
+    assert_eq!(result.hazard_standard_errors_per_year[2], [None; 5]);
     assert_eq!(result.training.event_counts[0][1], 1);
     assert_eq!(result.training.event_counts[0][4], 1);
     assert_eq!(result.training.event_counts[1][0], 1);
@@ -212,6 +218,11 @@ fn observed_no_events_is_distinct_from_no_exposure() {
     ));
     assert_eq!(result.transition_hazards_per_year[0], [0.0; 5]);
     assert_eq!(result.training.log_likelihood, Some(0.0));
+    assert_eq!(result.hazard_standard_errors_per_year[0][0], Some(0.0));
+    assert_eq!(
+        result.hazard_standard_errors_per_year[0][1..],
+        [None, None, None, None]
+    );
 }
 
 #[test]

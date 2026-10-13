@@ -1,0 +1,655 @@
+{
+  "monetary_unit": "currency_units",
+  "as_of_ordinal": 739890,
+  "specification": {
+    "horizon_days": 30,
+    "version": "balance-stress-2",
+    "cashflows": [],
+    "scenarios": [
+      {
+        "name": "synthetic-flat"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "cash": 10.0,
+        "currency": "USD",
+        "entity": "bank",
+        "equity": 66.0
+      }
+    ],
+    "positions": [
+      {
+        "book_adjustment": -3.0,
+        "commitment": 20.0,
+        "allowance": 41.0,
+        "kind": "loan",
+        "id": "loan",
+        "account": "bank",
+        "balance": 100.0
+      }
+    ],
+    "reverse_severities": []
+  },
+  "schema": "driven-credit-ledger-1",
+  "timeout_ms": 60000,
+  "use_policy": {
+    "kind": "research_analytical_only",
+    "review": {
+      "id": "synthetic-composition-review",
+      "revision": "1"
+    },
+    "rationale": "Explicit synthetic mechanics example; no empirical accuracy approval"
+  },
+  "runs": [
+    {
+      "run_id": "baseline-physical",
+      "scenario_id": "baseline",
+      "severity": 1.0,
+      "batches": [
+        {
+          "batch_id": "supplied-default",
+          "account_id": "bank",
+          "projection": {
+            "schema": "credit-covariate-1",
+            "measure": "physical",
+            "model": {
+              "adoption_eligible": false,
+              "coefficient_identity_sha256": "d3a710dadc01ae70a8384bc450ba1a4cb03cdd2d3ce78e2355565d03ad98584e",
+              "columns": [
+                {
+                  "name": "unemployment",
+                  "offset": 0.0,
+                  "raw_lower": 0.0,
+                  "raw_upper": 1.0,
+                  "role": "macro",
+                  "scale": 1.0,
+                  "scaling_review": {
+                    "id": "frozen-supplied-transform",
+                    "revision": "1"
+                  },
+                  "unit": "fraction"
+                }
+              ],
+              "data_kind": "synthetic",
+              "measure": "physical",
+              "model_policy": {
+                "id": "reviewed-fit-policy",
+                "revision": "1"
+              },
+              "numerical_eligible": true,
+              "population": {
+                "id": "synthetic-population",
+                "revision": "1"
+              },
+              "rows": [
+                {
+                  "edges": [
+                    {
+                      "covariate_coefficients": [
+                        {
+                          "lower": -2.0,
+                          "name": "0:3:unemployment",
+                          "ridge_center": 0.0,
+                          "ridge_weight": 0.0,
+                          "upper": 2.0,
+                          "value": 0.6931471805599451
+                        }
+                      ],
+                      "destination": "default",
+                      "intercept": {
+                        "lower": -5.0,
+                        "name": "0:3:intercept",
+                        "ridge_center": 0.0,
+                        "ridge_weight": 0.0,
+                        "upper": 0.0,
+                        "value": -1.3862943611198906
+                      },
+                      "term_coefficients": []
+                    }
+                  ],
+                  "kind": "log_linear"
+                },
+                {
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "kind": "fixed_row",
+                  "rationale": "Explicit zero transition assumption for unavailable watch origin",
+                  "review": {
+                    "id": "unobserved-origin-assumption",
+                    "revision": "1"
+                  }
+                },
+                {
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "kind": "fixed_row",
+                  "rationale": "Explicit zero transition assumption for unavailable delinquent origin",
+                  "review": {
+                    "id": "unobserved-origin-assumption",
+                    "revision": "1"
+                  }
+                }
+              ],
+              "schema": "credit-covariate-1",
+              "term_levels": [
+                "reference"
+              ],
+              "training_digest_sha256": "5b4c4db9aef37b109f8bcd421d54bec8939bac83937dec3cf1c4868048a0f0e4",
+              "training_source": {
+                "id": "training-observations",
+                "revision": "1"
+              },
+              "training_split": {
+                "id": "train",
+                "revision": "1"
+              }
+            },
+            "model_revision": {
+              "id": "synthetic-frozen-coefficients",
+              "revision": "1"
+            },
+            "review": {
+              "id": "synthetic-driver-review",
+              "revision": "1"
+            },
+            "use_policy": "analytical_only",
+            "position_id": "loan",
+            "scenario_id": "baseline",
+            "origin_time": {
+              "ordinal": 739890,
+              "seconds_of_day": 0
+            },
+            "end_time": {
+              "ordinal": 739920,
+              "seconds_of_day": 0
+            },
+            "timeout_ms": 60000,
+            "intervals": [
+              {
+                "interval_id": "report-period",
+                "start": {
+                  "ordinal": 739890,
+                  "seconds_of_day": 0
+                },
+                "end": {
+                  "ordinal": 739920,
+                  "seconds_of_day": 0
+                },
+                "available_time": {
+                  "ordinal": 739890,
+                  "seconds_of_day": 0
+                },
+                "kind": "supplied_projected",
+                "source": {
+                  "id": "synthetic-driver-path",
+                  "revision": "1"
+                },
+                "covariates": [
+                  0.0
+                ],
+                "term_level": "reference"
+              }
+            ]
+          },
+          "template": {
+            "schema": "credit-path-accounting-1",
+            "day_mapping": "calendar_midnight_right_closed",
+            "reporting_end_ordinal": 739920,
+            "timestamp_tolerance_seconds": 1e-06,
+            "path": {
+              "schema": "credit-path-1",
+              "measure": "physical",
+              "monetary_unit": "currency_units",
+              "source_id": "synthetic-credit",
+              "source_revision": "1",
+              "model_policy_id": "reviewed-fit-policy",
+              "origin_time": {
+                "ordinal": 739890,
+                "seconds_of_day": 0
+              },
+              "max_jumps_per_path": 10,
+              "intervals": [
+                {
+                  "accrual_rates": [
+                    0.365,
+                    0,
+                    0
+                  ],
+                  "loss_given_default": [
+                    0.4,
+                    0.4,
+                    0.4
+                  ],
+                  "credit_conversion_factor": [
+                    0.5,
+                    0.5,
+                    0.5
+                  ],
+                  "interest_recovery_fraction": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "complete_recovery_tails": [
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ]
+                  ],
+                  "end_time": {
+                    "ordinal": 739920,
+                    "seconds_of_day": 0
+                  }
+                }
+              ],
+              "boundaries": [],
+              "draw_stream": {
+                "kind": "supplied",
+                "stream_id": "hand-draws",
+                "stream_revision": "1",
+                "paths": [
+                  {
+                    "path_key": 17,
+                    "pairs": [
+                      {
+                        "waiting_uniform": 0.9996575928812779,
+                        "destination_uniform": 0.5
+                      }
+                    ]
+                  }
+                ]
+              },
+              "paths": [
+                {
+                  "path_id": "loan",
+                  "path_key": 17,
+                  "initial_live_state": "performing",
+                  "principal": 100,
+                  "undrawn_commitment": 20,
+                  "accrued_interest": 0,
+                  "book_adjustment": -3
+                }
+              ]
+            },
+            "bindings": [
+              {
+                "path_key": 17,
+                "position_id": "loan",
+                "currency": "USD",
+                "claim_id": "claim",
+                "economic_source": {
+                  "id": "synthetic-credit",
+                  "revision": "1"
+                },
+                "recovery_schedule_review": {
+                  "id": "complete-supplied-tail",
+                  "revision": "1"
+                },
+                "policy": {
+                  "identity": {
+                    "id": "reviewed-accounting",
+                    "revision": "1"
+                  },
+                  "accrued": "transfer_until_reviewed_reversal",
+                  "basis": "transfer_until_reviewed_chargeoff",
+                  "allowance_shortfall": "reject",
+                  "excess_cash_recovery": "recognize_in_earnings"
+                },
+                "interest_recovery_policy": {
+                  "id": "reviewed-interest-settlement",
+                  "revision": "1"
+                },
+                "interest_recovery_excess": "recognize_in_earnings",
+                "opening_allowance": 41,
+                "allowance_reviews": [],
+                "chargeoffs": [
+                  {
+                    "review": {
+                      "id": "reviewed-chargeoff",
+                      "revision": "1"
+                    },
+                    "claim_id": "claim",
+                    "recognition_ordinal": 739892,
+                    "principal_amount": 44,
+                    "book_adjustment_amount": -3,
+                    "accrued_interest_reversal": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "run_id": "synthetic-flat-physical",
+      "scenario_id": "synthetic-flat",
+      "severity": 1.0,
+      "batches": [
+        {
+          "batch_id": "supplied-default",
+          "account_id": "bank",
+          "projection": {
+            "schema": "credit-covariate-1",
+            "measure": "physical",
+            "model": {
+              "adoption_eligible": false,
+              "coefficient_identity_sha256": "d3a710dadc01ae70a8384bc450ba1a4cb03cdd2d3ce78e2355565d03ad98584e",
+              "columns": [
+                {
+                  "name": "unemployment",
+                  "offset": 0.0,
+                  "raw_lower": 0.0,
+                  "raw_upper": 1.0,
+                  "role": "macro",
+                  "scale": 1.0,
+                  "scaling_review": {
+                    "id": "frozen-supplied-transform",
+                    "revision": "1"
+                  },
+                  "unit": "fraction"
+                }
+              ],
+              "data_kind": "synthetic",
+              "measure": "physical",
+              "model_policy": {
+                "id": "reviewed-fit-policy",
+                "revision": "1"
+              },
+              "numerical_eligible": true,
+              "population": {
+                "id": "synthetic-population",
+                "revision": "1"
+              },
+              "rows": [
+                {
+                  "edges": [
+                    {
+                      "covariate_coefficients": [
+                        {
+                          "lower": -2.0,
+                          "name": "0:3:unemployment",
+                          "ridge_center": 0.0,
+                          "ridge_weight": 0.0,
+                          "upper": 2.0,
+                          "value": 0.6931471805599451
+                        }
+                      ],
+                      "destination": "default",
+                      "intercept": {
+                        "lower": -5.0,
+                        "name": "0:3:intercept",
+                        "ridge_center": 0.0,
+                        "ridge_weight": 0.0,
+                        "upper": 0.0,
+                        "value": -1.3862943611198906
+                      },
+                      "term_coefficients": []
+                    }
+                  ],
+                  "kind": "log_linear"
+                },
+                {
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "kind": "fixed_row",
+                  "rationale": "Explicit zero transition assumption for unavailable watch origin",
+                  "review": {
+                    "id": "unobserved-origin-assumption",
+                    "revision": "1"
+                  }
+                },
+                {
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "kind": "fixed_row",
+                  "rationale": "Explicit zero transition assumption for unavailable delinquent origin",
+                  "review": {
+                    "id": "unobserved-origin-assumption",
+                    "revision": "1"
+                  }
+                }
+              ],
+              "schema": "credit-covariate-1",
+              "term_levels": [
+                "reference"
+              ],
+              "training_digest_sha256": "5b4c4db9aef37b109f8bcd421d54bec8939bac83937dec3cf1c4868048a0f0e4",
+              "training_source": {
+                "id": "training-observations",
+                "revision": "1"
+              },
+              "training_split": {
+                "id": "train",
+                "revision": "1"
+              }
+            },
+            "model_revision": {
+              "id": "synthetic-frozen-coefficients",
+              "revision": "1"
+            },
+            "review": {
+              "id": "synthetic-driver-review",
+              "revision": "1"
+            },
+            "use_policy": "analytical_only",
+            "position_id": "loan",
+            "scenario_id": "synthetic-flat",
+            "origin_time": {
+              "ordinal": 739890,
+              "seconds_of_day": 0
+            },
+            "end_time": {
+              "ordinal": 739920,
+              "seconds_of_day": 0
+            },
+            "timeout_ms": 60000,
+            "intervals": [
+              {
+                "interval_id": "report-period",
+                "start": {
+                  "ordinal": 739890,
+                  "seconds_of_day": 0
+                },
+                "end": {
+                  "ordinal": 739920,
+                  "seconds_of_day": 0
+                },
+                "available_time": {
+                  "ordinal": 739890,
+                  "seconds_of_day": 0
+                },
+                "kind": "supplied_projected",
+                "source": {
+                  "id": "synthetic-driver-path",
+                  "revision": "1"
+                },
+                "covariates": [
+                  1.0
+                ],
+                "term_level": "reference"
+              }
+            ]
+          },
+          "template": {
+            "schema": "credit-path-accounting-1",
+            "day_mapping": "calendar_midnight_right_closed",
+            "reporting_end_ordinal": 739920,
+            "timestamp_tolerance_seconds": 1e-06,
+            "path": {
+              "schema": "credit-path-1",
+              "measure": "physical",
+              "monetary_unit": "currency_units",
+              "source_id": "synthetic-credit",
+              "source_revision": "1",
+              "model_policy_id": "reviewed-fit-policy",
+              "origin_time": {
+                "ordinal": 739890,
+                "seconds_of_day": 0
+              },
+              "max_jumps_per_path": 10,
+              "intervals": [
+                {
+                  "accrual_rates": [
+                    0.365,
+                    0,
+                    0
+                  ],
+                  "loss_given_default": [
+                    0.4,
+                    0.4,
+                    0.4
+                  ],
+                  "credit_conversion_factor": [
+                    0.5,
+                    0.5,
+                    0.5
+                  ],
+                  "interest_recovery_fraction": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "complete_recovery_tails": [
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ]
+                  ],
+                  "end_time": {
+                    "ordinal": 739920,
+                    "seconds_of_day": 0
+                  }
+                }
+              ],
+              "boundaries": [],
+              "draw_stream": {
+                "kind": "supplied",
+                "stream_id": "hand-draws",
+                "stream_revision": "1",
+                "paths": [
+                  {
+                    "path_key": 17,
+                    "pairs": [
+                      {
+                        "waiting_uniform": 0.9996575928812779,
+                        "destination_uniform": 0.5
+                      }
+                    ]
+                  }
+                ]
+              },
+              "paths": [
+                {
+                  "path_id": "loan",
+                  "path_key": 17,
+                  "initial_live_state": "performing",
+                  "principal": 100,
+                  "undrawn_commitment": 20,
+                  "accrued_interest": 0,
+                  "book_adjustment": -3
+                }
+              ]
+            },
+            "bindings": [
+              {
+                "path_key": 17,
+                "position_id": "loan",
+                "currency": "USD",
+                "claim_id": "claim",
+                "economic_source": {
+                  "id": "synthetic-credit",
+                  "revision": "1"
+                },
+                "recovery_schedule_review": {
+                  "id": "complete-supplied-tail",
+                  "revision": "1"
+                },
+                "policy": {
+                  "identity": {
+                    "id": "reviewed-accounting",
+                    "revision": "1"
+                  },
+                  "accrued": "transfer_until_reviewed_reversal",
+                  "basis": "transfer_until_reviewed_chargeoff",
+                  "allowance_shortfall": "reject",
+                  "excess_cash_recovery": "recognize_in_earnings"
+                },
+                "interest_recovery_policy": {
+                  "id": "reviewed-interest-settlement",
+                  "revision": "1"
+                },
+                "interest_recovery_excess": "recognize_in_earnings",
+                "opening_allowance": 41,
+                "allowance_reviews": [],
+                "chargeoffs": [
+                  {
+                    "review": {
+                      "id": "reviewed-chargeoff",
+                      "revision": "1"
+                    },
+                    "claim_id": "claim",
+                    "recognition_ordinal": 739892,
+                    "principal_amount": 44,
+                    "book_adjustment_amount": -3,
+                    "accrued_interest_reversal": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

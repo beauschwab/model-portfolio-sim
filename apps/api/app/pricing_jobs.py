@@ -237,3 +237,4 @@ def run_stress_all(owner, books, sr, vp, scenario=False, spread_shift=0.0):
             out["deposits"] = {"agg": agg, "profile": prof}
         _stress_book("deposits", _run_dep, 70.0, 96.0)
     return out
+

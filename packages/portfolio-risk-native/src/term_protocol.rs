@@ -9,8 +9,291 @@ pub const MAX_INPUT: usize = 64 * 1024 * 1024;
 const MAX_OUTPUT: usize = 128 * 1024 * 1024;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdvancedRepriceRequest {
+    base: crate::advanced_graph::Request,
+    current: crate::advanced_graph::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CardRepriceRequest {
+    base: crate::card_graph::Request,
+    current: crate::card_graph::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DepositGraphRepriceRequest {
+    base: crate::deposit_graph::Request,
+    current: crate::deposit_graph::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MortgageGraphRepriceRequest {
+    base: crate::mortgage_graph::Request,
+    current: crate::mortgage_graph::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FundingGraphRepriceRequest {
+    base: crate::funding_graph::Request,
+    current: crate::funding_graph::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TermProductGraphRepriceRequest {
+    base: crate::term_product_graph::legacy_request::Request,
+    current: crate::term_product_graph::legacy_request::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TermSequenceGraphRepriceRequest {
+    base: crate::term_product_graph::strict_request::SequenceRequest,
+    current: crate::term_product_graph::strict_request::SequenceRequest,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdvancedCaptureRequest {
+    graph: crate::advanced_graph::Request,
+    owners: Vec<crate::advanced_graph::CaptureOwner>,
+    policy: crate::advanced_graph::CapturePolicy,
+}
+#[derive(Deserialize)]
 #[serde(tag = "schema", deny_unknown_fields)]
 enum Request {
+    #[serde(rename = "commercial-holding-continuation-1")]
+    CommercialContinuation { threads: usize, execution_timeout_ms: u64, request: Box<crate::commercial_continuation::Request> },
+    #[serde(rename = "commercial-generated-exercise-1")]
+    CommercialGeneratedExercise { threads: usize, execution_timeout_ms: u64, request: Box<crate::commercial_stochastic_exercise::Request> },
+    #[serde(rename = "commercial-product-graph-1")]
+    CommercialGraph { threads: usize, #[serde(default)] execution_timeout_ms: Option<u64>, request: Box<crate::commercial_graph::Request> },
+    #[serde(rename = "commercial-units-1")]
+    CommercialUnits { threads: usize, #[serde(default)] execution_timeout_ms: Option<u64>, request: Box<crate::commercial_units::Request> },
+    #[serde(rename = "product-units-1")]
+    ProductUnits {
+        threads: usize,
+        request: Box<crate::product_units::ProductUnitsRequest>,
+    },
+    #[serde(rename = "term-product-graph-2")]
+    TermSequenceGraph {
+        threads: usize,
+        request: Box<crate::term_product_graph::strict_request::SequenceRequest>,
+    },
+    #[serde(rename = "term-product-reprice-2")]
+    TermSequenceGraphReprice {
+        threads: usize,
+        request: Box<TermSequenceGraphRepriceRequest>,
+    },
+    #[serde(rename = "term-product-graph-1")]
+    TermProductGraph {
+        threads: usize,
+        request: Box<crate::term_product_graph::legacy_request::Request>,
+    },
+    #[serde(rename = "term-product-reprice-1")]
+    TermProductGraphReprice {
+        threads: usize,
+        request: Box<TermProductGraphRepriceRequest>,
+    },
+    #[serde(rename = "graph-cohort-audit-1")]
+    GraphCohort {
+        threads: usize,
+        request: Box<crate::graph_cohort::Request>,
+    },
+    #[serde(rename = "mortgage-product-graph-1")]
+    MortgageGraph {
+        threads: usize,
+        request: Box<crate::mortgage_graph::Request>,
+    },
+    #[serde(rename = "mortgage-product-reprice-1")]
+    MortgageGraphReprice {
+        threads: usize,
+        request: Box<MortgageGraphRepriceRequest>,
+    },
+    #[serde(rename = "funding-product-graph-1")]
+    FundingGraph {
+        threads: usize,
+        request: Box<crate::funding_graph::Request>,
+    },
+    #[serde(rename = "funding-product-reprice-1")]
+    FundingGraphReprice {
+        threads: usize,
+        request: Box<FundingGraphRepriceRequest>,
+    },
+    #[serde(rename = "deposit-product-graph-1")]
+    DepositGraph {
+        threads: usize,
+        request: Box<crate::deposit_graph::Request>,
+    },
+    #[serde(rename = "deposit-product-reprice-1")]
+    DepositGraphReprice {
+        threads: usize,
+        request: Box<DepositGraphRepriceRequest>,
+    },
+    #[serde(rename = "card-product-graph-1")]
+    CardGraph {
+        threads: usize,
+        request: Box<crate::card_graph::Request>,
+    },
+    #[serde(rename = "card-product-reprice-1")]
+    CardReprice {
+        threads: usize,
+        request: Box<CardRepriceRequest>,
+    },
+    #[serde(rename = "advanced-product-graph-1")]
+    AdvancedGraph {
+        threads: usize,
+        request: Box<crate::advanced_graph::Request>,
+    },
+    #[serde(rename = "advanced-product-reprice-1")]
+    AdvancedReprice {
+        threads: usize,
+        request: Box<AdvancedRepriceRequest>,
+    },
+    #[serde(rename = "advanced-scheduled-capture-1")]
+    AdvancedCapture {
+        threads: usize,
+        request: Box<AdvancedCaptureRequest>,
+    },
+    #[serde(rename = "credit-covariate-1")]
+    CreditCovariate {
+        threads: usize,
+        request: Box<portfolio_model_core::credit_covariate::CovariateFitRequest>,
+    },
+    #[serde(rename = "credit-covariate-projection-1")]
+    CreditCovariateProjection {
+        threads: usize,
+        request: Box<portfolio_model_core::credit_covariate::CovariateProjectionRequest>,
+    },
+    #[serde(rename = "derivative-accounting-1")]
+    DerivativeAccounting {
+        threads: usize,
+        request: Box<crate::derivative_accounting::DerivativeAccountingRequest>,
+    },
+    #[serde(rename = "credit-path-accounting-1")]
+    CreditPathAccounting {
+        threads: usize,
+        request: Box<portfolio_model_core::credit_path_accounting::PathAccountingRequest>,
+    },
+    #[serde(rename = "aged-units-1")]
+    AgedUnits {
+        threads: usize,
+        request: Box<crate::aged_units::AgedUnitsRequest>,
+    },
+    #[serde(rename = "credit-path-1")]
+    CreditPath {
+        threads: usize,
+        request: Box<portfolio_model_core::credit_path::CreditPathRequest>,
+    },
+    #[serde(rename = "joint-state-1")]
+    JointState {
+        threads: usize,
+        request: Box<portfolio_model_core::joint_state::JointStateRequest>,
+    },
+    #[serde(rename = "joint-market-credit-1")]
+    JointMarketCredit {
+        threads: usize,
+        request: Box<crate::joint_market_credit::Request>,
+    },
+    #[serde(rename = "credit-snapshot-calibration-1")]
+    CreditSnapshot {
+        threads: usize,
+        request: Box<portfolio_model_core::credit_snapshot_calibration::SnapshotCalibrationRequest>,
+    },
+    #[serde(rename = "derivative-contract-1")]
+    DerivativeContract {
+        threads: usize,
+        request: Box<crate::derivative_contract::DerivativeRequest>,
+    },
+    #[serde(rename = "market-indexed-adapter-1")]
+    MarketIndexedAdapter {
+        threads: usize,
+        request: Box<crate::market_indexed_adapter::Request>,
+    },
+    #[serde(rename = "model-market-1")]
+    ModelMarket {
+        threads: usize,
+        request: Box<crate::model_market::ModelMarketRequest>,
+    },
+    #[serde(rename = "market-driver-calibration-1")]
+    MarketDriverCalibration {
+        threads: usize,
+        request: Box<crate::market_driver_calibration::Request>,
+    },
+    #[serde(rename = "market-quote-bootstrap-1")]
+    MarketQuoteBootstrap {
+        threads: usize,
+        request: Box<crate::market_bootstrap::Request>,
+    },
+    #[serde(rename = "nonintegral-fee-accounting-1")]
+    NonintegralFees {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<portfolio_model_core::nonintegral_fee::Request>,
+    },
+    #[serde(rename = "dated-income-1")]
+    DatedIncome {
+        threads: usize,
+        request: Box<portfolio_model_core::dated_income::DatedIncomeRequest>,
+    },
+    #[serde(rename = "deposit-state-1")]
+    DepositState {
+        threads: usize,
+        request: Box<portfolio_model_core::deposit_state::DepositStateRequest>,
+    },
+    #[serde(rename = "mortgage-state-1")]
+    MortgageState {
+        threads: usize,
+        request: Box<portfolio_model_core::mortgage_state::MortgageRequest>,
+    },
+    #[serde(rename = "mortgage-credit-accounting-1")]
+    MortgageCreditAccounting {
+        threads: usize,
+        request: Box<portfolio_model_core::mortgage_sequential_carry::Request>,
+    },
+    #[serde(rename = "funding-contract-1")]
+    FundingContract {
+        threads: usize,
+        request: Box<crate::funding_contract::FundingRequest>,
+    },
+    #[serde(rename = "consumer-installment-1")]
+    ConsumerInstallment {
+        threads: usize,
+        request: Box<portfolio_model_core::consumer_installment::InstallmentRequest>,
+    },
+    #[serde(rename = "consumer-card-1")]
+    ConsumerCard {
+        threads: usize,
+        request: Box<portfolio_model_core::consumer_card::CardRequest>,
+    },
+    #[serde(rename = "consumer-credit-accounting-1")]
+    ConsumerCreditAccounting {
+        threads: usize,
+        request: Box<portfolio_model_core::consumer_credit_accounting::Request>,
+    },
+    #[serde(rename = "card-credit-accounting-1")]
+    CardCreditAccounting {
+        threads: usize,
+        request: Box<portfolio_model_core::card_credit_accounting::Request>,
+    },
+    #[serde(rename = "card-credit-accounting-2")]
+    CardCreditAccountingV2 {
+        threads: usize,
+        request: Box<portfolio_model_core::card_credit_accounting_v2::Request>,
+    },
+    #[serde(rename = "indexed-contract-1")]
+    IndexedContract {
+        threads: usize,
+        request: Box<crate::term_enhancements::indexed::ContractPathRequest>,
+    },
+    #[serde(rename = "conditional-exercise-1")]
+    ConditionalExercise {
+        threads: usize,
+        request: Box<crate::term_enhancements::exercise::ExerciseRequest>,
+    },
+    #[serde(rename = "cd-election-1")]
+    CdElection {
+        threads: usize,
+        request: Box<crate::term_enhancements::cd::CdElectionRequest>,
+    },
     #[serde(rename = "floating-rate-1")]
     FloatingRate {
         threads: usize,
@@ -25,6 +308,11 @@ enum Request {
     ObservedCreditCalibration {
         threads: usize,
         request: Box<portfolio_model_core::credit_calibration::CreditCalibrationRequest>,
+    },
+    #[serde(rename = "observed-deposit-calibration-1")]
+    ObservedDepositCalibration {
+        threads: usize,
+        request: Box<portfolio_model_core::deposit_calibration::Request>,
     },
     #[serde(rename = "credit-model-1")]
     CreditModel {
@@ -180,14 +468,83 @@ impl Write for BoundedOutput {
     }
 }
 fn execute(input: &[u8]) -> Result<Output, String> {
+    let started = std::time::Instant::now();
     if input.len() > MAX_INPUT {
         return Err("term request exceeds 64 MiB".into());
     }
     let request: Request = serde_json::from_slice(input).map_err(|e| e.to_string())?;
+    let selected_timeout = match &request {
+        Request::CommercialGeneratedExercise { execution_timeout_ms, .. } | Request::CommercialContinuation { execution_timeout_ms, .. } | Request::NonintegralFees { execution_timeout_ms, .. } => Some(*execution_timeout_ms),
+        Request::CommercialGraph { execution_timeout_ms, .. } | Request::CommercialUnits { execution_timeout_ms, .. } => *execution_timeout_ms,
+        _ => None,
+    };
+    let generated_control = if let Some(execution_timeout_ms) = selected_timeout {
+        let control = if let Some(parent) = portfolio_compute_control::active() {
+            parent.child_started(execution_timeout_ms, started)?
+        } else { portfolio_compute_control::Control::from_started(execution_timeout_ms, started)? };
+        portfolio_compute_control::scope(Some(control.clone()), || {
+            let limit = if matches!(&request, Request::CommercialGeneratedExercise { .. }) { 1 << 20 }
+                else if matches!(&request, Request::NonintegralFees { .. }) { portfolio_model_core::nonintegral_fee::MAX_INPUT }
+                else { 32 << 20 };
+            portfolio_model_core::strict_json::parse_checked(input, limit + 4096, portfolio_compute_control::checkpoint)?;
+            Ok(())
+        })?;
+        Some(control)
+    } else { None };
     let threads = match &request {
-        Request::FloatingRate { threads, .. }
+        Request::CommercialGeneratedExercise { threads, .. }
+        | Request::NonintegralFees { threads, .. }
+        | Request::CommercialContinuation { threads, .. }
+        | Request::CommercialGraph { threads, .. }
+        | Request::CommercialUnits { threads, .. }
+        | Request::ProductUnits { threads, .. }
+        | Request::AgedUnits { threads, .. }
+        | Request::AdvancedGraph { threads, .. }
+        | Request::CardGraph { threads, .. }
+        | Request::DepositGraph { threads, .. }
+        | Request::DepositGraphReprice { threads, .. }
+        | Request::MortgageGraph { threads, .. }
+        | Request::MortgageGraphReprice { threads, .. }
+        | Request::FundingGraph { threads, .. }
+        | Request::FundingGraphReprice { threads, .. }
+        | Request::GraphCohort { threads, .. }
+        | Request::TermSequenceGraph { threads, .. }
+        | Request::TermSequenceGraphReprice { threads, .. }
+        | Request::TermProductGraph { threads, .. }
+        | Request::TermProductGraphReprice { threads, .. }
+        | Request::CardReprice { threads, .. }
+        | Request::AdvancedReprice { threads, .. }
+        | Request::AdvancedCapture { threads, .. }
+        | Request::CreditCovariate { threads, .. }
+        | Request::CreditCovariateProjection { threads, .. }
+        | Request::DerivativeAccounting { threads, .. }
+        | Request::CreditPathAccounting { threads, .. }
+        | Request::CreditPath { threads, .. }
+        | Request::JointState { threads, .. }
+        | Request::JointMarketCredit { threads, .. }
+        | Request::CreditSnapshot { threads, .. }
+        | Request::DerivativeContract { threads, .. }
+        | Request::ModelMarket { threads, .. }
+        | Request::MarketDriverCalibration { threads, .. }
+        | Request::MarketQuoteBootstrap { threads, .. }
+        | Request::MarketIndexedAdapter { threads, .. }
+        | Request::DatedIncome { threads, .. }
+        | Request::DepositState { threads, .. }
+        | Request::MortgageState { threads, .. }
+        | Request::MortgageCreditAccounting { threads, .. }
+        | Request::FundingContract { threads, .. }
+        | Request::ConsumerInstallment { threads, .. }
+        | Request::ConsumerCard { threads, .. }
+        | Request::ConsumerCreditAccounting { threads, .. }
+        | Request::CardCreditAccounting { threads, .. }
+        | Request::CardCreditAccountingV2 { threads, .. }
+        | Request::IndexedContract { threads, .. }
+        | Request::ConditionalExercise { threads, .. }
+        | Request::CdElection { threads, .. }
+        | Request::FloatingRate { threads, .. }
         | Request::DatedTerm { threads, .. }
         | Request::ObservedCreditCalibration { threads, .. }
+        | Request::ObservedDepositCalibration { threads, .. }
         | Request::CreditModel { threads, .. }
         | Request::DatedCashflow { threads, .. }
         | Request::TreasuryBridge { threads, .. }
@@ -214,8 +571,376 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     if !(1..=256).contains(&threads) {
         return Err("invalid native thread count".into());
     }
+    // Propagate only this new analytical branch's caller control across Rayon.
+    // Legacy branches retain their existing execution and None-path behavior.
+    let adapter_control = if generated_control.is_some() { generated_control } else if matches!(
+        &request,
+        Request::TermSequenceGraph { .. } | Request::TermSequenceGraphReprice { .. }
+        | Request::CommercialGraph { .. } | Request::CommercialUnits { .. } | Request::CommercialGeneratedExercise { .. } | Request::CommercialContinuation { .. }
+    ) || matches!(&request, Request::MarketIndexedAdapter { .. })
+        || matches!(&request, Request::JointState { .. })
+        || matches!(&request, Request::JointMarketCredit { .. })
+        || matches!(&request, Request::MarketDriverCalibration { .. })
+        || matches!(&request, Request::MarketQuoteBootstrap { .. })
+        || matches!(&request, Request::ObservedDepositCalibration { .. })
+        || matches!(&request, Request::ConditionalExercise { .. })
+        || matches!(&request, Request::Graph { request, .. } if request.is_market_indexed())
+    {
+        portfolio_compute_control::active()
+    } else {
+        None
+    };
     let pool = crate::pool(threads).map_err(|_| "native thread pool unavailable")?;
     pool.install(|| match request {
+        Request::NonintegralFees { request, .. } => portfolio_compute_control::scope(adapter_control, || {
+            let result=portfolio_model_core::nonintegral_fee::evaluate_with_check(&request, portfolio_compute_control::checkpoint)?;
+            portfolio_model_core::strict_json::serialized_size(&result, portfolio_model_core::nonintegral_fee::MAX_OUTPUT)?;
+            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e| e.to_string())?))
+        }),
+        Request::CommercialContinuation { request, .. } => portfolio_compute_control::scope(adapter_control, || {
+            let result=crate::commercial_continuation::evaluate(&request)?;
+            portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
+            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
+        }),
+        Request::CommercialGeneratedExercise { request, .. } => portfolio_compute_control::scope(adapter_control, || {
+            let result=crate::commercial_stochastic_exercise::analyze(&request)?;
+            portfolio_compute_control::checkpoint()?;
+            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
+        }),
+        Request::CommercialGraph { request, .. } => portfolio_compute_control::scope(adapter_control, || {
+            if request.positions.iter().any(|p|p.generated_policy.as_ref().is_some_and(|g|g.oas_calibration.is_some())) && portfolio_compute_control::active().is_none() {
+                return Err("generated OAS calibration requires original execution deadline".into());
+            }
+            let result=crate::commercial_graph::analyze(&request)?;
+            portfolio_compute_control::checkpoint()?;
+            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
+        }),
+        Request::CommercialUnits { request, .. } => portfolio_compute_control::scope(adapter_control, || {
+            if request.units.iter().flat_map(|u|&u.graph.positions).any(|p|p.generated_policy.as_ref().is_some_and(|g|g.oas_calibration.is_some())) && portfolio_compute_control::active().is_none() {
+                return Err("generated OAS calibration requires original execution deadline".into());
+            }
+            let result=crate::commercial_units::prepare(&request)?;
+            portfolio_compute_control::checkpoint()?;
+            Ok(Output::Kpi(serde_json::to_value(result.source()).map_err(|e|e.to_string())?))
+        }),
+        Request::ProductUnits { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::product_units::prepare(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::TermSequenceGraph { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                if request.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA {
+                    return Err("explicit term-product-graph-2 selection required".into());
+                }
+                Ok(Output::Kpi(
+                    serde_json::to_value(crate::term_product_graph::analyze(&request.0)?)
+                        .map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::TermSequenceGraphReprice { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                if request.base.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA
+                    || request.current.0.schema != crate::term_product_graph::SEQUENCE_SCHEMA
+                {
+                    return Err(
+                        "explicit term-product-reprice-2 base/current selection required".into(),
+                    );
+                }
+                let graph = crate::term_product_graph::TermGraph::new(&request.base.0)?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(graph.reprice(&request.current.0)?)
+                        .map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::TermProductGraph { request, .. } => {
+            if request.schema == crate::term_product_graph::SEQUENCE_SCHEMA {
+                return Err("explicit term-product-graph-2 selection required".into());
+            }
+            Ok(Output::Kpi(
+                serde_json::to_value(crate::term_product_graph::analyze(
+                    &request.into_current()?,
+                )?)
+                .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::TermProductGraphReprice { request, .. } => {
+            if request.base.schema == crate::term_product_graph::SEQUENCE_SCHEMA
+                || request.current.schema == crate::term_product_graph::SEQUENCE_SCHEMA
+            {
+                return Err("explicit term-product-reprice-2 selection required".into());
+            }
+            let base = request.base.into_current()?;
+            let current = request.current.into_current()?;
+            let graph = crate::term_product_graph::TermGraph::new(&base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&current)?).map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::GraphCohort { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::graph_cohort::evaluate(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::MortgageGraph { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::mortgage_graph::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::MortgageGraphReprice { request, .. } => {
+            let graph = crate::mortgage_graph::MortgageGraph::new(&request.base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&request.current)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::FundingGraph { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::funding_graph::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::FundingGraphReprice { request, .. } => {
+            let graph = crate::funding_graph::FundingGraph::new(&request.base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&request.current)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::DepositGraph { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::deposit_graph::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::DepositGraphReprice { request, .. } => {
+            let graph = crate::deposit_graph::DepositGraph::new(&request.base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&request.current)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::CardGraph { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::card_graph::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::CardReprice { request, .. } => {
+            let graph = crate::card_graph::CardGraph::new(&request.base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&request.current)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::AdvancedGraph { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::advanced_graph::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::AdvancedReprice { request, .. } => {
+            let graph = crate::advanced_graph::AdvancedGraph::new(&request.base)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.reprice(&request.current)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::AdvancedCapture { request, .. } => {
+            let graph = crate::advanced_graph::AdvancedGraph::new(&request.graph)?;
+            Ok(Output::Kpi(
+                serde_json::to_value(graph.capture_scheduled(&request.owners, &request.policy)?)
+                    .map_err(|e| e.to_string())?,
+            ))
+        }
+        Request::CreditCovariate { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(portfolio_model_core::credit_covariate::fit(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::CreditCovariateProjection { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(portfolio_model_core::credit_covariate::project(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::DerivativeAccounting { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::derivative_accounting::evaluate(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::CreditPathAccounting { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(portfolio_model_core::credit_path_accounting::evaluate(
+                &request,
+            )?)
+            .map_err(|e| e.to_string())?,
+        )),
+        Request::AgedUnits { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::aged_units::prepare(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::CreditPath { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(portfolio_model_core::credit_path::evaluate(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::JointState { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let mut stopped = None;
+                let result =
+                    portfolio_model_core::joint_state::evaluate_with_check(&request, || {
+                        match portfolio_compute_control::checkpoint() {
+                            Ok(()) => Ok(()),
+                            Err(reason) => {
+                                stopped = Some(reason);
+                                Err("joint-state computation cancelled".into())
+                            }
+                        }
+                    });
+                if let Some(reason) = stopped {
+                    return Err(reason);
+                }
+                serde_json::to_value(result?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
+        }
+        Request::JointMarketCredit { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let mut stopped = None;
+                let result = crate::joint_market_credit::evaluate_with_check(&request, || {
+                    match portfolio_compute_control::checkpoint() {
+                        Ok(()) => Ok(()),
+                        Err(reason) => {
+                            stopped = Some(reason);
+                            Err("joint market-credit computation cancelled".into())
+                        }
+                    }
+                });
+                if let Some(reason) = stopped {
+                    return Err(reason);
+                }
+                serde_json::to_value(result?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
+        }
+        Request::CreditSnapshot { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(portfolio_model_core::credit_snapshot_calibration::fit(
+                &request,
+            )?)
+            .map_err(|e| e.to_string())?,
+        )),
+        Request::DerivativeContract { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::derivative_contract::evaluate(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::MarketIndexedAdapter { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let mut stopped = None;
+                let result = crate::market_indexed_adapter::evaluate_with_check(&request, || {
+                    match portfolio_compute_control::checkpoint() {
+                        Ok(()) => false,
+                        Err(reason) => {
+                            stopped = Some(reason);
+                            true
+                        }
+                    }
+                });
+                if let Some(reason) = stopped {
+                    return Err(reason);
+                }
+                serde_json::to_value(result?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
+        }
+        Request::ModelMarket { request, .. } => Ok(Output::Kpi(
+            serde_json::to_value(crate::model_market::analyze(&request)?)
+                .map_err(|e| e.to_string())?,
+        )),
+        Request::MarketDriverCalibration { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                serde_json::to_value(crate::market_driver_calibration::evaluate(&request)?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
+        }
+        Request::MarketQuoteBootstrap { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                serde_json::to_value(crate::market_bootstrap::evaluate(&request)?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
+        }
+        Request::DatedIncome { request, .. } => {
+            let result = portfolio_model_core::dated_income::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::DepositState { request, .. } => {
+            let result = portfolio_model_core::deposit_state::simulate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::MortgageState { request, .. } => {
+            let result = portfolio_model_core::mortgage_state::project(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::MortgageCreditAccounting { request, .. } => {
+            let result = portfolio_model_core::mortgage_sequential_carry::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::FundingContract { request, .. } => {
+            let result = crate::funding_contract::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::ConsumerInstallment { request, .. } => {
+            let result = portfolio_model_core::consumer_installment::project(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::ConsumerCard { request, .. } => {
+            let result = portfolio_model_core::consumer_card::simulate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::ConsumerCreditAccounting { request, .. } => {
+            let result = portfolio_model_core::consumer_credit_accounting::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::CardCreditAccounting { request, .. } => {
+            let result = portfolio_model_core::card_credit_accounting::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::CardCreditAccountingV2 { request, .. } => {
+            let result = portfolio_model_core::card_credit_accounting_v2::evaluate(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::IndexedContract { request, .. } => {
+            let result = crate::term_enhancements::indexed::build_path(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
+        Request::ConditionalExercise { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::term_enhancements::exercise::value_exercise(&request)?;
+                let output = serde_json::to_value(result)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(output)
+            })
+        }
+        Request::CdElection { request, .. } => {
+            let result = crate::term_enhancements::cd::step_cd(&request)?;
+            serde_json::to_value(result)
+                .map(Output::Kpi)
+                .map_err(|e| e.to_string())
+        }
         Request::FloatingRate { request, .. } => {
             crate::model_lifecycle::floating_rate(&request).map(Output::Kpi)
         }
@@ -224,6 +949,27 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::ObservedCreditCalibration { request, .. } => {
             crate::model_lifecycle::fit_observed_credit(&request).map(Output::Kpi)
+        }
+        Request::ObservedDepositCalibration { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let mut stopped = None;
+                let result =
+                    portfolio_model_core::deposit_calibration::fit_with_check(&request, || {
+                        match portfolio_compute_control::checkpoint() {
+                            Ok(()) => Ok(()),
+                            Err(reason) => {
+                                stopped = Some(reason);
+                                Err("deposit calibration cancelled".into())
+                            }
+                        }
+                    });
+                if let Some(reason) = stopped {
+                    return Err(reason);
+                }
+                serde_json::to_value(result?)
+                    .map(Output::Kpi)
+                    .map_err(|e| e.to_string())
+            })
         }
         Request::CreditModel { request, .. } => {
             crate::model_lifecycle::credit(&request).map(Output::Kpi)
@@ -236,6 +982,9 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         Request::Cohorts { request, .. } => request.run().map(Output::Kpi),
         Request::Controller { request, .. } => request.run().map(Output::Kpi),
         Request::WhatIf { request, .. } => request.run().map(Output::Kpi),
+        Request::Graph { request, .. } if request.is_market_indexed() => {
+            request.run_with_control(adapter_control).map(Output::Kpi)
+        }
         Request::Graph { request, .. } => request.run().map(Output::Kpi),
         Request::Coefficients { request, .. } => request.run().map(Output::Coefficients),
         Request::LedgerMap { request, .. } => request.run().map(Output::Kpi),
@@ -269,7 +1018,72 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         Request::Deck { request, .. } => request.build().map(|deck| Output::Deck(Box::new(deck))),
     })
 }
+pub(crate) fn respond_controlled_graph(
+    input: &[u8],
+    control: portfolio_compute_control::Control,
+    created: &mut Option<u64>,
+) -> Result<Vec<u8>, String> {
+    portfolio_compute_control::scope(Some(control), || {
+        if input.len() > MAX_INPUT {
+            return Err("term request exceeds 64 MiB".into());
+        }
+        let parsed: Request = serde_json::from_slice(input).map_err(|e| e.to_string())?;
+        let Request::Graph { threads, request } = parsed else {
+            return Err("GRAPH_CONTROL_GRAPH_SCHEMA_REQUIRED".into());
+        };
+        if !(1..=256).contains(&threads) {
+            return Err("invalid native thread count".into());
+        }
+        request.admit_runtime()?;
+        let creation = request.is_creation();
+        let active = portfolio_compute_control::active();
+        let value = crate::pool(threads)
+            .map_err(|_| "native thread pool unavailable")?
+            .install(|| {
+                portfolio_compute_control::scope(active, || {
+                    let value = request.run()?;
+                    if creation {
+                        *created = value.get("handle").and_then(serde_json::Value::as_u64);
+                    }
+                    Ok(value)
+                })
+            })?;
+        struct ControlledOutput(BoundedOutput);
+        impl std::io::Write for ControlledOutput {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                portfolio_compute_control::checkpoint().map_err(std::io::Error::other)?;
+                self.0.write(bytes)
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                portfolio_compute_control::checkpoint().map_err(std::io::Error::other)
+            }
+        }
+        let mut output = ControlledOutput(BoundedOutput(Vec::new()));
+        serde_json::to_writer(
+            &mut output,
+            &Response::Success {
+                ok: true,
+                result: Output::Kpi(value),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+        portfolio_compute_control::checkpoint()?;
+        Ok(output.0 .0)
+    })
+}
 pub fn respond(input: &[u8]) -> (Vec<u8>, bool) {
+    respond_started(input, std::time::Instant::now())
+}
+pub fn respond_started(input: &[u8], started: std::time::Instant) -> (Vec<u8>, bool) {
+    if let Some(selected) = crate::commercial_stochastic_boundary::selected(input, started, || {
+        let result = std::panic::catch_unwind(|| execute(input)).unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
+        let mut output = crate::commercial_stochastic_boundary::Output(Vec::new());
+        serde_json::to_writer(&mut output, &Response::Success { ok: true, result }).map_err(|e|e.to_string())?;
+        portfolio_compute_control::checkpoint()?;
+        Ok(output.0)
+    }) {
+        return match selected { Ok(output)=>(output,true),Err(error)=>(serde_json::to_vec(&Response::Error {ok:false,error}).unwrap(),false) };
+    }
     let result = std::panic::catch_unwind(|| execute(input))
         .unwrap_or_else(|_| Err("native term request failed validation".into()));
     let success = result.is_ok();

@@ -1,0 +1,304 @@
+{
+  "request": {
+    "model_version": "derivative-contracts-1",
+    "operation": {
+      "kind": "european_swaption",
+      "request": {
+        "asof_ordinal": 738886,
+        "conditional_model": {
+          "id": "tree-model",
+          "revision": "r1"
+        },
+        "contract": {
+          "id": "option-contract",
+          "revision": "r1"
+        },
+        "crn": {
+          "id": "shared-crn",
+          "revision": "r1"
+        },
+        "currency": "USD",
+        "exercise_policy": {
+          "id": "european-positive-value",
+          "revision": "r1"
+        },
+        "expiry_ordinal": 738888,
+        "measure": "pricing",
+        "monetary_unit": "currency_units",
+        "position_id": "option",
+        "scenario_id": "option",
+        "settlement": "collateralized_cash_price",
+        "settlement_ordinal": 738888,
+        "side": "long",
+        "states": [
+          {
+            "delivered_position_id": "delivered-swap",
+            "discount_source": {
+              "id": "tree-discount",
+              "revision": "r1"
+            },
+            "discount_to_expiry": 0.99,
+            "netting_set_id": "ns",
+            "probability": 0.5,
+            "state_id": "up",
+            "underlying": {
+              "asof_ordinal": 738888,
+              "contract": {
+                "id": "swap-contract",
+                "revision": "r1"
+              },
+              "currency": "USD",
+              "discount_curve": {
+                "asof_ordinal": 738888,
+                "basis": "collateralized_clean",
+                "collateral_discount_policy": {
+                  "id": "discount-policy",
+                  "revision": "r1"
+                },
+                "currency": "USD",
+                "information_unix_seconds": 1704272400,
+                "points": [
+                  {
+                    "discount_factor": 1.0,
+                    "ordinal": 738888
+                  },
+                  {
+                    "discount_factor": 1.0,
+                    "ordinal": 738898
+                  }
+                ],
+                "source": {
+                  "id": "discount",
+                  "revision": "r1"
+                }
+              },
+              "fixed_periods": [
+                {
+                  "day_count": "act360",
+                  "end_ordinal": 738898,
+                  "payment_ordinal": 738898,
+                  "period_id": "f1",
+                  "start_ordinal": 738888
+                }
+              ],
+              "fixed_rate": 0.05,
+              "floating_periods": [
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "calendar",
+                      "revision": "r1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "term-1m",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738888,
+                        "interest_end_ordinal": 738898,
+                        "interest_start_ordinal": 738888,
+                        "observation_end_ordinal": 738898,
+                        "observation_start_ordinal": 738888,
+                        "rate": 0.1,
+                        "selection_cutoff_unix_seconds": 1704272400,
+                        "source": {
+                          "information_unix_seconds": 1704272400,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "index-model",
+                            "revision": "r1"
+                          },
+                          "path": {
+                            "id": "index-path",
+                            "revision": "r1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1704272400
+                  },
+                  "day_count": "act360",
+                  "end_ordinal": 738898,
+                  "fee": 0.0,
+                  "payment_ordinal": 738898,
+                  "period_id": "l1",
+                  "start_ordinal": 738888
+                }
+              ],
+              "index_basis": {
+                "id": "index-basis",
+                "revision": "r1"
+              },
+              "monetary_unit": "currency_units",
+              "notional": 360.0,
+              "payment_timing": "after_scheduled_payments",
+              "position_id": "swap",
+              "rate_path": {
+                "id": "index-path",
+                "revision": "r1"
+              },
+              "scenario_id": "option",
+              "side": "payer",
+              "tail_end_ordinal": 738898,
+              "valuation_cutoff_unix_seconds": 1704272400
+            }
+          },
+          {
+            "delivered_position_id": "delivered-swap",
+            "discount_source": {
+              "id": "tree-discount",
+              "revision": "r1"
+            },
+            "discount_to_expiry": 0.99,
+            "netting_set_id": "ns",
+            "probability": 0.5,
+            "state_id": "down",
+            "underlying": {
+              "asof_ordinal": 738888,
+              "contract": {
+                "id": "swap-contract",
+                "revision": "r1"
+              },
+              "currency": "USD",
+              "discount_curve": {
+                "asof_ordinal": 738888,
+                "basis": "collateralized_clean",
+                "collateral_discount_policy": {
+                  "id": "discount-policy",
+                  "revision": "r1"
+                },
+                "currency": "USD",
+                "information_unix_seconds": 1704272400,
+                "points": [
+                  {
+                    "discount_factor": 1.0,
+                    "ordinal": 738888
+                  },
+                  {
+                    "discount_factor": 1.0,
+                    "ordinal": 738898
+                  }
+                ],
+                "source": {
+                  "id": "discount",
+                  "revision": "r1"
+                }
+              },
+              "fixed_periods": [
+                {
+                  "day_count": "act360",
+                  "end_ordinal": 738898,
+                  "payment_ordinal": 738898,
+                  "period_id": "f1",
+                  "start_ordinal": 738888
+                }
+              ],
+              "fixed_rate": 0.05,
+              "floating_periods": [
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "calendar",
+                      "revision": "r1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "term-1m",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738888,
+                        "interest_end_ordinal": 738898,
+                        "interest_start_ordinal": 738888,
+                        "observation_end_ordinal": 738898,
+                        "observation_start_ordinal": 738888,
+                        "rate": 0.02,
+                        "selection_cutoff_unix_seconds": 1704272400,
+                        "source": {
+                          "information_unix_seconds": 1704272400,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "index-model",
+                            "revision": "r1"
+                          },
+                          "path": {
+                            "id": "index-path",
+                            "revision": "r1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1704272400
+                  },
+                  "day_count": "act360",
+                  "end_ordinal": 738898,
+                  "fee": 0.0,
+                  "payment_ordinal": 738898,
+                  "period_id": "l1",
+                  "start_ordinal": 738888
+                }
+              ],
+              "index_basis": {
+                "id": "index-basis",
+                "revision": "r1"
+              },
+              "monetary_unit": "currency_units",
+              "notional": 360.0,
+              "payment_timing": "after_scheduled_payments",
+              "position_id": "swap",
+              "rate_path": {
+                "id": "index-path",
+                "revision": "r1"
+              },
+              "scenario_id": "option",
+              "side": "payer",
+              "tail_end_ordinal": 738898,
+              "valuation_cutoff_unix_seconds": 1704272400
+            }
+          }
+        ],
+        "tail_end_ordinal": 738898
+      }
+    },
+    "schema": "derivative-contract-1"
+  },
+  "schema": "derivative-contract-1",
+  "threads": 1
+}

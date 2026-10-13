@@ -1,0 +1,664 @@
+{
+  "currency": "USD",
+  "cash_timing": "after_opening_actions",
+  "bump_bp": 1,
+  "schema": "term-product-graph-1",
+  "as_of_ordinal": 738917,
+  "reporting_ordinals": [
+    738917,
+    738918
+  ],
+  "base_scenario_id": "base",
+  "identity": {
+    "paired_history_source": "supplied-synthetic",
+    "model_revision": "term-graph-1",
+    "input_revision": "synthetic-input-1",
+    "randomness_domain": "supplied_paired_histories-1",
+    "paired_history_revision": "r1"
+  },
+  "scenarios": [
+    {
+      "run_id": "base-run",
+      "scenario_id": "base",
+      "collateral_curve": {
+        "curve_id": "collateral",
+        "currency": "USD",
+        "role": {
+          "collateral_index": "SOFR",
+          "kind": "collateral"
+        },
+        "times_years": [
+          0,
+          1
+        ],
+        "source_id": "synthetic-hand",
+        "discount_factors": [
+          1,
+          0.951229424500714
+        ],
+        "right_tail": "reject",
+        "source_revision": "r1"
+      },
+      "severity": 0
+    }
+  ],
+  "positions": [
+    {
+      "histories": [
+        {
+          "pricing_up": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "contract": {
+                    "id": "loan-example",
+                    "revision": "r1"
+                  },
+                  "assumption": {
+                    "id": "contract-example",
+                    "revision": "r1"
+                  },
+                  "path": {
+                    "id": "conditional-path-example",
+                    "revision": "r1"
+                  },
+                  "position_id": "loan:example",
+                  "scenario_id": "base-run",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "receipt",
+                  "measure": "pricing",
+                  "asof_ordinal": 738917,
+                  "reporting_end_ordinal": 738918,
+                  "tail_end_ordinal": 738946,
+                  "observed_publication_cutoff_unix_seconds": 1706774400,
+                  "opening_principal": 100,
+                  "principal_plan": {
+                    "kind": "supplied",
+                    "principal_payments": [
+                      100
+                    ]
+                  },
+                  "periods": [
+                    {
+                      "period_id": "2024-february",
+                      "start_ordinal": 738917,
+                      "end_ordinal": 738946,
+                      "payment_ordinal": 738946,
+                      "day_count": "act360",
+                      "fee": 0,
+                      "coupon": {
+                        "annual_rate": 0.36,
+                        "kind": "fixed"
+                      }
+                    }
+                  ]
+                },
+                "kind": "indexed_term"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ],
+          "pricing": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "contract": {
+                    "id": "loan-example",
+                    "revision": "r1"
+                  },
+                  "assumption": {
+                    "id": "contract-example",
+                    "revision": "r1"
+                  },
+                  "path": {
+                    "id": "conditional-path-example",
+                    "revision": "r1"
+                  },
+                  "position_id": "loan:example",
+                  "scenario_id": "base-run",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "receipt",
+                  "measure": "pricing",
+                  "asof_ordinal": 738917,
+                  "reporting_end_ordinal": 738918,
+                  "tail_end_ordinal": 738946,
+                  "observed_publication_cutoff_unix_seconds": 1706774400,
+                  "opening_principal": 100,
+                  "principal_plan": {
+                    "kind": "supplied",
+                    "principal_payments": [
+                      100
+                    ]
+                  },
+                  "periods": [
+                    {
+                      "period_id": "2024-february",
+                      "start_ordinal": 738917,
+                      "end_ordinal": 738946,
+                      "payment_ordinal": 738946,
+                      "day_count": "act360",
+                      "fee": 0,
+                      "coupon": {
+                        "annual_rate": 0.36,
+                        "kind": "fixed"
+                      }
+                    }
+                  ]
+                },
+                "kind": "indexed_term"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ],
+          "scenario_id": "base",
+          "physical": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "contract": {
+                    "id": "loan-example",
+                    "revision": "r1"
+                  },
+                  "assumption": {
+                    "id": "contract-example",
+                    "revision": "r1"
+                  },
+                  "path": {
+                    "id": "conditional-path-example",
+                    "revision": "r1"
+                  },
+                  "position_id": "loan:example",
+                  "scenario_id": "base-run",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "receipt",
+                  "measure": "physical",
+                  "asof_ordinal": 738917,
+                  "reporting_end_ordinal": 738918,
+                  "tail_end_ordinal": 738946,
+                  "observed_publication_cutoff_unix_seconds": 1706774400,
+                  "opening_principal": 100,
+                  "principal_plan": {
+                    "kind": "supplied",
+                    "principal_payments": [
+                      100
+                    ]
+                  },
+                  "periods": [
+                    {
+                      "period_id": "2024-february",
+                      "start_ordinal": 738917,
+                      "end_ordinal": 738946,
+                      "payment_ordinal": 738946,
+                      "day_count": "act360",
+                      "fee": 0,
+                      "coupon": {
+                        "annual_rate": 0.36,
+                        "kind": "fixed"
+                      }
+                    }
+                  ]
+                },
+                "kind": "indexed_term"
+              },
+              "path_id": "physical-loan",
+              "weight": 1
+            }
+          ],
+          "pricing_down": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "contract": {
+                    "id": "loan-example",
+                    "revision": "r1"
+                  },
+                  "assumption": {
+                    "id": "contract-example",
+                    "revision": "r1"
+                  },
+                  "path": {
+                    "id": "conditional-path-example",
+                    "revision": "r1"
+                  },
+                  "position_id": "loan:example",
+                  "scenario_id": "base-run",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "receipt",
+                  "measure": "pricing",
+                  "asof_ordinal": 738917,
+                  "reporting_end_ordinal": 738918,
+                  "tail_end_ordinal": 738946,
+                  "observed_publication_cutoff_unix_seconds": 1706774400,
+                  "opening_principal": 100,
+                  "principal_plan": {
+                    "kind": "supplied",
+                    "principal_payments": [
+                      100
+                    ]
+                  },
+                  "periods": [
+                    {
+                      "period_id": "2024-february",
+                      "start_ordinal": 738917,
+                      "end_ordinal": 738946,
+                      "payment_ordinal": 738946,
+                      "day_count": "act360",
+                      "fee": 0,
+                      "coupon": {
+                        "annual_rate": 0.36,
+                        "kind": "fixed"
+                      }
+                    }
+                  ]
+                },
+                "kind": "indexed_term"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ]
+        }
+      ],
+      "known": {
+        "contract": {
+          "schema": "term-enhancements-1",
+          "model_version": "term-contracts-1",
+          "contract": {
+            "id": "loan-example",
+            "revision": "r1"
+          },
+          "assumption": {
+            "id": "contract-example",
+            "revision": "r1"
+          },
+          "path": {
+            "id": "conditional-path-example",
+            "revision": "r1"
+          },
+          "position_id": "loan:example",
+          "scenario_id": "base",
+          "currency": "USD",
+          "monetary_unit": "currency_units",
+          "direction": "receipt",
+          "measure": "contractual",
+          "asof_ordinal": 738917,
+          "reporting_end_ordinal": 738918,
+          "tail_end_ordinal": 738946,
+          "observed_publication_cutoff_unix_seconds": 1706774400,
+          "opening_principal": 100,
+          "principal_plan": {
+            "kind": "supplied",
+            "principal_payments": [
+              100
+            ]
+          },
+          "periods": [
+            {
+              "period_id": "2024-february",
+              "start_ordinal": 738917,
+              "end_ordinal": 738946,
+              "payment_ordinal": 738946,
+              "day_count": "act360",
+              "fee": 0,
+              "coupon": {
+                "annual_rate": 0.36,
+                "kind": "fixed"
+              }
+            }
+          ]
+        },
+        "kind": "indexed_term"
+      },
+      "oas_target": {
+        "source_id": "synthetic-lock",
+        "kind": "locked",
+        "base_oas": -0.05,
+        "source_revision": "r1"
+      },
+      "position_id": "loan:example"
+    },
+    {
+      "histories": [
+        {
+          "pricing_up": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "election_source": {
+                    "id": "synthetic-cd-graph-election",
+                    "revision": "r1"
+                  },
+                  "policy": {
+                    "identity": {
+                      "id": "synthetic-cd-graph-policy",
+                      "revision": "r1"
+                    },
+                    "channel": "retail",
+                    "early_withdrawal_permitted": true,
+                    "partial_withdrawal_permitted": true,
+                    "brokered_contract_allows_withdrawal": false,
+                    "earliest_withdrawal_ordinal": 738917,
+                    "minimum_remaining_principal": 0,
+                    "penalty": {
+                      "kind": "interest_days",
+                      "annual_penalty_rate": 0.05,
+                      "days": 90,
+                      "denominator": 365
+                    },
+                    "penalty_limit": "principal_and_accrued_interest",
+                    "penalty_cap": null,
+                    "penalty_waivers": [],
+                    "maturity_grace_days": 2,
+                    "grace_annual_rate": 0.1825,
+                    "renewal_permitted": true,
+                    "switching_permitted": true
+                  },
+                  "opening": {
+                    "contract": {
+                      "id": "synthetic-cd-graph-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 100,
+                    "accrued_interest": 0,
+                    "last_accrual_ordinal": 738917,
+                    "maturity_ordinal": 738927,
+                    "annual_rate": 0.365,
+                    "day_count": "act365_fixed"
+                  },
+                  "election_ordinal": 738922,
+                  "reporting_end_ordinal": 738922,
+                  "tail_end_ordinal": 738947,
+                  "election": {
+                    "kind": "withdraw",
+                    "principal": 40
+                  }
+                },
+                "kind": "cd_election"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ],
+          "pricing": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "election_source": {
+                    "id": "synthetic-cd-graph-election",
+                    "revision": "r1"
+                  },
+                  "policy": {
+                    "identity": {
+                      "id": "synthetic-cd-graph-policy",
+                      "revision": "r1"
+                    },
+                    "channel": "retail",
+                    "early_withdrawal_permitted": true,
+                    "partial_withdrawal_permitted": true,
+                    "brokered_contract_allows_withdrawal": false,
+                    "earliest_withdrawal_ordinal": 738917,
+                    "minimum_remaining_principal": 0,
+                    "penalty": {
+                      "kind": "interest_days",
+                      "annual_penalty_rate": 0.05,
+                      "days": 90,
+                      "denominator": 365
+                    },
+                    "penalty_limit": "principal_and_accrued_interest",
+                    "penalty_cap": null,
+                    "penalty_waivers": [],
+                    "maturity_grace_days": 2,
+                    "grace_annual_rate": 0.1825,
+                    "renewal_permitted": true,
+                    "switching_permitted": true
+                  },
+                  "opening": {
+                    "contract": {
+                      "id": "synthetic-cd-graph-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 100,
+                    "accrued_interest": 0,
+                    "last_accrual_ordinal": 738917,
+                    "maturity_ordinal": 738927,
+                    "annual_rate": 0.365,
+                    "day_count": "act365_fixed"
+                  },
+                  "election_ordinal": 738922,
+                  "reporting_end_ordinal": 738922,
+                  "tail_end_ordinal": 738947,
+                  "election": {
+                    "kind": "withdraw",
+                    "principal": 40
+                  }
+                },
+                "kind": "cd_election"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ],
+          "scenario_id": "base",
+          "physical": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "measure": "physical",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "election_source": {
+                    "id": "synthetic-cd-graph-election",
+                    "revision": "r1"
+                  },
+                  "policy": {
+                    "identity": {
+                      "id": "synthetic-cd-graph-policy",
+                      "revision": "r1"
+                    },
+                    "channel": "retail",
+                    "early_withdrawal_permitted": true,
+                    "partial_withdrawal_permitted": true,
+                    "brokered_contract_allows_withdrawal": false,
+                    "earliest_withdrawal_ordinal": 738917,
+                    "minimum_remaining_principal": 0,
+                    "penalty": {
+                      "kind": "interest_days",
+                      "annual_penalty_rate": 0.05,
+                      "days": 90,
+                      "denominator": 365
+                    },
+                    "penalty_limit": "principal_and_accrued_interest",
+                    "penalty_cap": null,
+                    "penalty_waivers": [],
+                    "maturity_grace_days": 2,
+                    "grace_annual_rate": 0.1825,
+                    "renewal_permitted": true,
+                    "switching_permitted": true
+                  },
+                  "opening": {
+                    "contract": {
+                      "id": "synthetic-cd-graph-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 100,
+                    "accrued_interest": 0,
+                    "last_accrual_ordinal": 738917,
+                    "maturity_ordinal": 738927,
+                    "annual_rate": 0.365,
+                    "day_count": "act365_fixed"
+                  },
+                  "election_ordinal": 738922,
+                  "reporting_end_ordinal": 738922,
+                  "tail_end_ordinal": 738947,
+                  "election": {
+                    "kind": "withdraw",
+                    "principal": 40
+                  }
+                },
+                "kind": "cd_election"
+              },
+              "path_id": "physical-cd",
+              "weight": 1
+            }
+          ],
+          "pricing_down": [
+            {
+              "product": {
+                "request": {
+                  "schema": "term-enhancements-1",
+                  "model_version": "term-contracts-1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "election_source": {
+                    "id": "synthetic-cd-graph-election",
+                    "revision": "r1"
+                  },
+                  "policy": {
+                    "identity": {
+                      "id": "synthetic-cd-graph-policy",
+                      "revision": "r1"
+                    },
+                    "channel": "retail",
+                    "early_withdrawal_permitted": true,
+                    "partial_withdrawal_permitted": true,
+                    "brokered_contract_allows_withdrawal": false,
+                    "earliest_withdrawal_ordinal": 738917,
+                    "minimum_remaining_principal": 0,
+                    "penalty": {
+                      "kind": "interest_days",
+                      "annual_penalty_rate": 0.05,
+                      "days": 90,
+                      "denominator": 365
+                    },
+                    "penalty_limit": "principal_and_accrued_interest",
+                    "penalty_cap": null,
+                    "penalty_waivers": [],
+                    "maturity_grace_days": 2,
+                    "grace_annual_rate": 0.1825,
+                    "renewal_permitted": true,
+                    "switching_permitted": true
+                  },
+                  "opening": {
+                    "contract": {
+                      "id": "synthetic-cd-graph-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 100,
+                    "accrued_interest": 0,
+                    "last_accrual_ordinal": 738917,
+                    "maturity_ordinal": 738927,
+                    "annual_rate": 0.365,
+                    "day_count": "act365_fixed"
+                  },
+                  "election_ordinal": 738922,
+                  "reporting_end_ordinal": 738922,
+                  "tail_end_ordinal": 738947,
+                  "election": {
+                    "kind": "withdraw",
+                    "principal": 40
+                  }
+                },
+                "kind": "cd_election"
+              },
+              "path_id": "paired-1",
+              "weight": 1
+            }
+          ]
+        }
+      ],
+      "known": {
+        "contract": {
+          "direction": "payment",
+          "currency": "USD",
+          "opening": {
+            "contract": {
+              "id": "synthetic-cd-graph-original",
+              "revision": "r1"
+            },
+            "position_id": "cd:example",
+            "principal": 100,
+            "accrued_interest": 0,
+            "last_accrual_ordinal": 738917,
+            "maturity_ordinal": 738927,
+            "annual_rate": 0.365,
+            "day_count": "act365_fixed"
+          },
+          "model_version": "term-contracts-1",
+          "tail_end_ordinal": 738947,
+          "policy": {
+            "identity": {
+              "id": "synthetic-cd-graph-policy",
+              "revision": "r1"
+            },
+            "channel": "retail",
+            "early_withdrawal_permitted": true,
+            "partial_withdrawal_permitted": true,
+            "brokered_contract_allows_withdrawal": false,
+            "earliest_withdrawal_ordinal": 738917,
+            "minimum_remaining_principal": 0,
+            "penalty": {
+              "kind": "interest_days",
+              "annual_penalty_rate": 0.05,
+              "days": 90,
+              "denominator": 365
+            },
+            "penalty_limit": "principal_and_accrued_interest",
+            "penalty_cap": null,
+            "penalty_waivers": [],
+            "maturity_grace_days": 2,
+            "grace_annual_rate": 0.1825,
+            "renewal_permitted": true,
+            "switching_permitted": true
+          }
+        },
+        "kind": "cd_election"
+      },
+      "oas_target": {
+        "source_id": "synthetic-lock",
+        "kind": "locked",
+        "base_oas": -0.05,
+        "source_revision": "r1"
+      },
+      "position_id": "cd:example"
+    }
+  ]
+}

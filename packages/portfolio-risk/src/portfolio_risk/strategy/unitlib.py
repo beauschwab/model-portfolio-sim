@@ -323,6 +323,10 @@ def allocation_vectors(lib, template, h):
         raise ValueError("purchase_m must be a nonnegative integer")
     if template not in lib["templates"]:
         raise ValueError(f"unknown template {template}")
+    if lib.get('preparation_schema') in {'aged-units-1','product-units-1','commercial-units-1'}:
+        ready=lib.get('vectors',{}).get((template,h))
+        if ready is None:raise ValueError('REBUILD_REQUIRED: purchase date absent from native aged grid')
+        return ready
     if h >= H:
         return np.zeros((len(METRICS), H))
     ready = lib.get("vectors", {}).get((template, h))
@@ -343,6 +347,9 @@ def allocation_vectors(lib, template, h):
 
 def prepare_library(lib: PreparedLibrary):
     """Precompute integer-month interpolation outside the interactive path."""
+    if lib.get('preparation_schema') in {'aged-units-1','product-units-1','commercial-units-1'}:
+        if not lib.get('vectors'):raise ValueError('REBUILD_REQUIRED: native aged coefficients missing')
+        return
     from ..core.quant_native import enabled
     if enabled():
         from ..core.lifecycle_native import prepare_coefficients

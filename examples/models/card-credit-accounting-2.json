@@ -1,0 +1,160 @@
+{
+  "schema": "card-credit-accounting-2",
+  "contract": {
+    "schema": "consumer-card-1",
+    "identity": {
+      "position_id": "card-1",
+      "original_loan_id": "account-1",
+      "cohort_id": "cohort-card",
+      "currency": "USD",
+      "source_revision": "panel-1",
+      "model_version": "consumer-card-1",
+      "assumption_id": "supplied-1",
+      "run_id": "base",
+      "measure": "physical"
+    },
+    "as_of_ordinal": 738916,
+    "horizon_days": 40,
+    "opening_principal": [
+      0.0,
+      100.0,
+      0.0
+    ],
+    "opening_billed_interest": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_unbilled_interest": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_unrecognized_billed_interest": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_fees": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_contingent_purchase_interest": 0.0,
+    "opening_statement_remaining": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_minimum_remaining": 0.0,
+    "opening_due_ordinal": null,
+    "initial_limit": 200.0,
+    "initial_state": "performing",
+    "rates": {
+      "purchase": 0.36,
+      "cash_advance": 0.36,
+      "promotional": 0.0,
+      "promotional_expiry_ordinal": 738936,
+      "post_promotion": 0.36
+    },
+    "day_count": "act360",
+    "initial_purchase_grace": false,
+    "regain_grace_after_full_statement_payment": false,
+    "compound_billed_interest": false,
+    "minimum": {
+      "floor": 5.0,
+      "principal_fraction": 0.01,
+      "include_billed_interest": true,
+      "include_fees": true,
+      "allocation_order": [
+        "purchase",
+        "cash_advance",
+        "promotional"
+      ]
+    },
+    "cycles": [
+      {
+        "statement_ordinal": 738926,
+        "due_ordinal": 738941
+      }
+    ],
+    "steps": [
+      {
+        "ordinal": 738926,
+        "action": {
+          "kind": "payment",
+          "amount": 100.0
+        }
+      },
+      {
+        "ordinal": 738936,
+        "action": {
+          "kind": "payment",
+          "amount": 1.0
+        }
+      },
+      {
+        "ordinal": 738936,
+        "action": {
+          "kind": "set_limit",
+          "amount": 0.0
+        }
+      }
+    ],
+    "collection_fraction": 0.0,
+    "collection_cost": 0.0,
+    "recovery_delay_days": 20
+  },
+  "review": {
+    "identity": {
+      "id": "basis-yield-review",
+      "revision": "r1"
+    },
+    "original_yield_anchor": {
+      "id": "original-card-yield",
+      "revision": "r1"
+    },
+    "economic_source": {
+      "id": "supplied-card-history",
+      "revision": "panel-1"
+    },
+    "position_id": "card-1",
+    "currency": "USD",
+    "principal": 100.0,
+    "cost": 100.0,
+    "original_annual_effective_rate": 0.0,
+    "acquisition_ordinal": 738916,
+    "policy": {
+      "identity": {
+        "id": "reviewed-default-right-policy",
+        "revision": "r1"
+      },
+      "accrued": "reverse_income_at_default",
+      "basis": "recognize_in_earnings_at_default",
+      "allowance_shortfall": "reject",
+      "excess_cash_recovery": "credit_allowance"
+    },
+    "accounting_basis": "supplied_non_pcd_gross_cost-1"
+  },
+  "policy": {
+    "review": {
+      "id": "reviewed-yield-right-channel-policy",
+      "revision": "r1"
+    },
+    "principal_basis": "actual_terminal_principal_transfer_to_unpaid_interest-1",
+    "live_original_yield": "frozen_original_yield_on_whole_live_carrying-1",
+    "interest_cash_basis": "proportional_basis_realization_separate_from_original_eir-1",
+    "default_original_yield": "stop_at_source_default_no_claim_eir-1"
+  },
+  "termination": {
+    "kind": "reviewed_zero_rights_closure",
+    "ordinal": 738936,
+    "review": {
+      "id": "actual-zero-right-close",
+      "revision": "r1"
+    }
+  },
+  "claim_id": "interest-claim",
+  "reporting_ordinal": 738931,
+  "interest_recoveries": []
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "consumer-card-1",
+  "identity": {
+    "position_id": "card-1",
+    "original_loan_id": "account-1",
+    "cohort_id": "cohort-card",
+    "currency": "USD",
+    "source_revision": "panel-1",
+    "model_version": "consumer-card-1",
+    "assumption_id": "supplied-1",
+    "run_id": "base",
+    "measure": "physical"
+  },
+  "as_of_ordinal": 738916,
+  "horizon_days": 2,
+  "opening_principal": [0.0, 1000.0, 0.0],
+  "opening_billed_interest": [0.0, 0.0, 0.0],
+  "opening_unbilled_interest": [0.0, 0.0, 0.0],
+  "opening_unrecognized_billed_interest": [0.0, 0.0, 0.0],
+  "opening_fees": [0.0, 0.0, 0.0],
+  "opening_contingent_purchase_interest": 0.0,
+  "opening_statement_remaining": [0.0, 0.0, 0.0],
+  "opening_minimum_remaining": 0.0,
+  "opening_due_ordinal": null,
+  "initial_limit": 2000.0,
+  "initial_state": "performing",
+  "rates": {
+    "purchase": 0.365,
+    "cash_advance": 0.365,
+    "promotional": 0.0,
+    "promotional_expiry_ordinal": 738946,
+    "post_promotion": 0.365
+  },
+  "day_count": "act365_fixed",
+  "initial_purchase_grace": true,
+  "regain_grace_after_full_statement_payment": true,
+  "compound_billed_interest": false,
+  "minimum": {
+    "floor": 25.0,
+    "principal_fraction": 0.01,
+    "include_billed_interest": true,
+    "include_fees": true,
+    "allocation_order": ["purchase", "cash_advance", "promotional"]
+  },
+  "cycles": [{"statement_ordinal": 738917, "due_ordinal": 738918}],
+  "steps": [],
+  "collection_fraction": 0.4,
+  "collection_cost": 10.0,
+  "recovery_delay_days": 10
+}

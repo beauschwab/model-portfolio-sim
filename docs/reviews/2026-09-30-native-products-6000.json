@@ -1,0 +1,65 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "synthetic": true,
+  "script_sha256": "8bc4fdadb9be95cb4944e7f6e954af7968b6becf300ee44211836ab24604e39a",
+  "results": [
+    {
+      "backend": "python",
+      "version": "0.27.0",
+      "positions": 6000,
+      "paths": 128,
+      "horizon": 27,
+      "threads": 4,
+      "cold_seconds": 18.618231000145897,
+      "uncached_warm_seconds": [
+        18.67207880015485,
+        18.871006699977443,
+        19.799335199873894
+      ],
+      "uncached_warm_median": 18.871006699977443,
+      "cached_seconds": 20.199397099902853,
+      "cached_computed_nodes": 288070,
+      "library_and_base_seconds": 2.1461054000537843,
+      "solver_seconds": 0.004122299840673804,
+      "rss_mb": 938.14453125,
+      "process_peak_rss_mb": 1035.26953125
+    },
+    {
+      "backend": "rust",
+      "version": "0.27.0",
+      "positions": 6000,
+      "paths": 128,
+      "horizon": 27,
+      "threads": 4,
+      "cold_seconds": 30.320409499807283,
+      "uncached_warm_seconds": [
+        29.817231999943033,
+        30.275241400115192,
+        31.097170199966058
+      ],
+      "uncached_warm_median": 30.275241400115192,
+      "cached_seconds": 32.061542599927634,
+      "cached_computed_nodes": 288070,
+      "library_and_base_seconds": 4.093952999915928,
+      "solver_seconds": 0.01664620009250939,
+      "rss_mb": 914.703125,
+      "process_peak_rss_mb": 1023.609375,
+      "product_binary_sha256": "39245f1b3e5468d563ad0875c955b481a9b3d238549a49eaf125928f0067db9f"
+    }
+  ],
+  "max_absolute_errors": {
+    "mbs": 4.44706529378891e-08,
+    "loans": 1.3937324183643796e-08,
+    "debt": 8.521601557731628e-08,
+    "deposits": 4.842877388000488e-08,
+    "cds": 5.587935447692871e-09,
+    "nii": 3.2782554626464844e-07,
+    "objective": 2.3283064365386963e-10
+  },
+  "parity": true,
+  "tolerance": {
+    "rtol": 1e-07,
+    "atol": 0.0001
+  }
+}

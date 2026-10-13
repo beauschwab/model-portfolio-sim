@@ -3,9 +3,18 @@
  *  scalar/list payloads stay JSON. */
 import { DataType, tableFromIPC, type Table } from "apache-arrow";
 import type { HttpSettings, HttpMarket, HttpState, HttpJob, HttpStressCapabilities,
-  ForecastRequest as HttpForecastRequest, MarketScenario, RunRequest } from './http.generated';
+  ForecastRequest as HttpForecastRequest, MarketScenario, RunRequest, ModelRunRequest } from './http.generated';
 
 const BASE = "/api";
+
+export type ModeledFTPSourceKind = 'card_v2' | 'deposit_performing' | 'deposit_portfolio';
+export type ModeledFTPSourceMetadata = {
+  job_id: string; kind: ModeledFTPSourceKind; status: 'done'; revision: number;
+  model_schema: string; scope: string;
+  paths: Array<{owner_index:number;run_index:number;path_index:number;position_id:string;run_id:string}>;
+  compatibility_metadata_checked:true; source_journal_verified:false;
+  capital_ftp_eligible:false; accounting_standard_approval:false;
+};
 
 export type { Table };
 export type BookName = NonNullable<RunRequest['books']>[number];
@@ -47,7 +56,8 @@ export interface PartitionTable {
 export interface StressManifest {
   id: string; revision: number; tables: Record<string, PartitionTable>;
   execution: null | { backend: 'python' | 'rust'; model_version: string; binary_sha256: string;
-    validation: { journal_replayed: boolean; dynamic_validated: boolean; journal_rows: number; gl_keys: number } };
+    validation: { journal_replayed: boolean; dynamic_validated?: boolean; journal_rows?: number; gl_keys?: number;
+      physical_deposit_portfolio_sources_recomputed?: boolean; original_yield_continuations_recomputed?: boolean; full_unweighted_gross_origins_verified?: boolean; ordered_pooled_same_sim_journal_replayed?: boolean; persisted_partitions_replayed?: boolean; physical_deposit_source_principal_recomputed?: boolean; original_yield_continuation_recomputed?: boolean; gross_origin_rights_reconciled?: boolean; ordered_same_sim_journal_replayed?: boolean; dated_source_reconciled?: boolean; credit_source_reconciled?: boolean; credit_path_source_reconciled?: boolean; physical_consumer_source_recomputed?: boolean; physical_deposit_source_recomputed?: boolean; original_deposit_income_recomputed?: boolean; original_yield_anchors_retained?: boolean; original_yield_revision_recomputed?: boolean; ordered_deposit_journal_recomputed?: boolean; complete_gross_cash_origin_rights_verified?: boolean; driven_credit_source_recomputed?: boolean; producer_empirically_validated?: boolean; native_mortgage_source_recomputed?: boolean; single_daily_gl_verified?: boolean; ordered_mixed_journal_recomputed?: boolean; pending_memo_phase_verified?: boolean; complete_unweighted_tail_verified?: boolean; capital_ftp_eligible?: boolean; closing_capital_eligible?: boolean } };
 }
 export interface ResultPage { columns: string[]; rows: unknown[][]; offset: number; limit: number; total: number }
 export type Scenario = Required<MarketScenario>;
@@ -174,8 +184,17 @@ async function jArrow(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export const api = {
+  modelContracts: () => j<{schemas:string[];revision:number;durable:boolean;scope:string}>('/models/contracts'),
+  modelExample: (schema:string) => j<{schema_name:string;request:Record<string,unknown>;revision:number;synthetic:boolean}>(`/models/examples/${encodeURIComponent(schema)}`),
+  runModel: (request:ModelRunRequest) => j<Job>('/models/runs',{method:'POST',body:JSON.stringify(request)}),
+  buildAgedLibrary: (request:ModelRunRequest) => j<Job>('/models/aged-library',{method:'POST',body:JSON.stringify(request)}),
+  modelManifest: (id:string) => j<{tables:Record<string,unknown>;execution:null|{schema:string;summary:Record<string,unknown>;scope:string;empirical_validation:boolean;source_verification?:Record<string,boolean>}}>(`/jobs/${encodeURIComponent(id)}/manifest`),
+  modeledFTPSourceMetadata: (id:string,kind:ModeledFTPSourceKind) => j<ModeledFTPSourceMetadata>(`/treasury/modeled-product-ftp/sources/${encodeURIComponent(id)}?kind=${kind}`),
+  runCompletedModeledProductFTP: (specification:Record<string,unknown>,expected_revision:number) => j<Job>('/treasury/modeled-product-ftp/sources',{method:'POST',body:JSON.stringify({specification,expected_revision})}),
+  modeledProductFTPExample: () => j<{specification:Record<string,unknown>;revision:number;durable:boolean}>('/treasury/modeled-product-ftp/example'),
+  runModeledProductFTP: (specification:Record<string,unknown>,expected_revision:number) => j<Job>('/treasury/modeled-product-ftp',{method:'POST',body:JSON.stringify({specification,expected_revision})}),
   treasuryExample: () => j<{specification:Record<string,unknown>;revision:number;durable:boolean}>('/treasury/example'),
-  treasurySourceTemplate: (id:string,kind:'ledger'|'cashflows') => j<{specification:Record<string,unknown>;revision:number;note:string}>(`/treasury/sources/${encodeURIComponent(id)}/template?kind=${kind}`),
+  treasurySourceTemplate: (id:string,kind:'ledger'|'credit_ledger'|'cashflows') => j<{specification:Record<string,unknown>;revision:number;note:string}>(`/treasury/sources/${encodeURIComponent(id)}/template?kind=${kind}`),
   runTreasuryBridge: (source_job:string,specification:Record<string,unknown>,expected_revision:number) => j<Job>('/treasury/bridges',{method:'POST',body:JSON.stringify({source_job,specification,expected_revision})}),
   runTreasury: (specification:Record<string,unknown>,expected_revision:number) => j<Job>('/treasury/runs', {method:'POST',body:JSON.stringify({specification,expected_revision})}),
   cohortPresets: () => j<{config: Record<string, unknown>; revision: number; durable: boolean; tapes: Record<string,{sha256:string;rows:number;source:string;columns:string[]}>}>('/cohorts/presets'),
@@ -217,6 +236,17 @@ export const api = {
   stressCapabilities: () => j<StressCapabilities>('/balance-stress/capabilities'),
   runStreamedStress: (specification: Record<string, unknown>, expected_revision: number, backend: 'rust', large_book: boolean) =>
     j<Job>('/balance-stress/stream', { method: 'POST', body: JSON.stringify({ specification, expected_revision, backend, large_book }) }),
+  datedStressExample: () => j<{ specification: Record<string, unknown>; revision: number; scope: string }>('/balance-stress/dated/example'),
+  runDatedStress: (specification: Record<string, unknown>, expected_revision: number, large_book: boolean) =>
+    j<Job>('/balance-stress/dated', { method: 'POST', body: JSON.stringify({ specification, expected_revision, large_book }) }),
+  creditStressExample: () => j<{ specification: Record<string, unknown>; revision: number; scope: string }>('/balance-stress/credit/example'),
+  modeledStressExample: (schema:string) => j<{specification:Record<string,unknown>;revision:number}>(`/balance-stress/modeled/${encodeURIComponent(schema)}/example`),
+  runModeledStress: (specification:Record<string,unknown>,expected_revision:number,large_book=false) => j<Job>('/balance-stress/modeled',{method:'POST',body:JSON.stringify({specification,expected_revision,large_book})}),
+  creditPathStressExample: () => j<{ specification: Record<string, unknown>; revision: number; scope: string }>('/balance-stress/credit-path/example'),
+  runCreditPathStress: (specification: Record<string, unknown>, expected_revision: number, large_book: boolean) =>
+    j<Job>('/balance-stress/credit-path', {method:'POST',body:JSON.stringify({specification,expected_revision,large_book})}),
+  runCreditStress: (specification: Record<string, unknown>, expected_revision: number, large_book: boolean) =>
+    j<Job>('/balance-stress/credit', { method: 'POST', body: JSON.stringify({ specification, expected_revision, large_book }) }),
   stressManifest: (id: string) => j<StressManifest>(`/jobs/${encodeURIComponent(id)}/manifest`),
   resultPage: (id: string, path: string, offset: number, signal?: AbortSignal) =>
     j<ResultPage>(`/jobs/${encodeURIComponent(id)}/table?${new URLSearchParams({ path, offset: String(offset), limit: '100' })}`, { signal }),
@@ -270,6 +300,15 @@ export interface DecisionResult extends DecisionEvaluation {
   work: { positions_repriced: number; templates_rebuilt: number; total_positions: number; ffi_request_bytes: number };
   solver: { model_reused: boolean; simplex_iterations: number };
   timings_ms: { total: number; native_solve: number; pricing_and_coefficients: number; validation_and_publication: number };
+}
+
+/** Metadata-only polling for reports whose tables are paged independently. */
+export async function awaitJobStatus(id:string,ms=1500):Promise<Job>{
+  for(;;){
+    const status=await api.job(id);
+    if(status.status==='error'||status.status==='done')return status;
+    await new Promise(r=>setTimeout(r,ms));
+  }
 }
 
 /** Poll a job to completion. Status/progress arrive as JSON; the computed

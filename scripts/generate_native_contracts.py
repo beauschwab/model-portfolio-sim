@@ -34,6 +34,16 @@ def artifacts():
         md+='| Output index | Name | Shape | Unit |\n|---|---|---|---|\n'
         for i,f in enumerate(o['outputs']):md+=f'| {i} | {f["name"]} | {f["shape"]} | {f["unit"]} |\n'
         md+='\n'
+    graph=json.loads((ROOT/'docs/contracts/native-graph-runtime-1.json').read_text())
+    if graph['capability_version']!=1 or graph['product_abi_numeric_layouts_changed'] is not False:
+        raise ValueError('graph runtime must retain numeric ABI 8 layouts')
+    if len(graph['symbols'])!=5 or len({item['name'] for item in graph['symbols']})!=5:
+        raise ValueError('five distinct graph runtime capability exports required')
+    md+='## Additive graph-call-control-1 capability\n\n'
+    md+='Generated separately from `native-graph-runtime-1.json`; numeric ABI 8 IDs/layouts above remain unchanged.\n\n'
+    md+='| Export signature | Result |\n|---|---|\n'
+    for item in graph['symbols']:md+=f'| `{item["signature"]}` | {item["result"]} |\n'
+    md+='\n'+graph['caller_contract']+'\n\n'+graph['execution_scope']+'\n\n'+graph['outer_scope']+'\n'
     return {ROOT/'packages/portfolio-risk/src/portfolio_risk/core/abi_generated.py':py,
             ROOT/'packages/portfolio-risk-native/src/abi_operations.rs':rs,
             ROOT/'docs/contracts/native-abi-layouts.md':md}

@@ -13,6 +13,7 @@ Design notes:
 """
 from __future__ import annotations
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import numpy as np
 import polars as pl
@@ -22,7 +23,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from . import store, market_data, decision_store, persistence
-from .schemas import DecisionBuildRequest, DecisionUpdateRequest, DecisionEvalRequest, BalanceStressRequest, SavedBalanceStressRequest, StreamedBalanceStressRequest
+from .schemas import DecisionBuildRequest, DecisionUpdateRequest, DecisionEvalRequest, BalanceStressRequest, SavedBalanceStressRequest, StreamedBalanceStressRequest, DatedBalanceStressRequest, CreditBalanceStressRequest, CreditPathBalanceStressRequest, ModeledBalanceStressRequest
 from .schemas import MarketView, StateStatus, StressCapabilities
 from .schemas import (Allocation, OptimizeRequest, Program, AssumptionPatch, JobStatus, Market, MarketScenario,
                       RiskSettings, RunRequest, ForecastRequest, PythonBackendDeprecated)
@@ -41,14 +42,23 @@ async def request_context(request: Request):
     key = request.headers.get('idempotency-key')
     if key is not None and (not key or len(key) > 128):
         raise HTTPException(400, 'Idempotency-Key must contain 1 to 128 characters')
+    import hashlib
+    fingerprint = None
+    if key:
+        fingerprint = hashlib.sha256(b'\0'.join([request.method.encode(), request.url.path.encode(),
+            request.url.query.encode(), str(expected).encode(), await request.body()])).hexdigest()
     token = persistence.EXPECTED_REVISION.set(expected)
     key_token = persistence.IDEMPOTENCY_KEY.set(key)
+    fingerprint_token = persistence.HTTP_REQUEST_SHA256.set(fingerprint)
     try:
         await run_in_threadpool(persistence.refresh)
+        if expected is not None and expected != store.STATE_META['revision']:
+            raise HTTPException(409, 'saved inputs changed; reload before executing')
         yield
     finally:
         persistence.EXPECTED_REVISION.reset(token)
         persistence.IDEMPOTENCY_KEY.reset(key_token)
+        persistence.HTTP_REQUEST_SHA256.reset(fingerprint_token)
 
 
 @asynccontextmanager
@@ -67,6 +77,10 @@ from .cohort_routes import router as cohort_router
 app.include_router(cohort_router)
 from .treasury_routes import router as treasury_router
 app.include_router(treasury_router)
+from .model_routes import router as model_router
+app.include_router(model_router)
+from .agent_routes import router as agent_router
+app.include_router(agent_router)
 
 
 @app.post('/decision/sessions')
@@ -294,6 +308,118 @@ def balance_stress_capabilities():
             'rust': bool(expected and binary_path().is_file() and _hash(binary_path()) == expected),
             'large_book': durable and os.getenv('WORKBENCH_BALANCE_LARGE_BOOK', '0') == '1',
             'scope_id': persistence.CODEC.objects.prefix.split('/')[-1] if durable else None}
+
+
+@app.get('/balance-stress/dated/example')
+def dated_balance_stress_example():
+    import json
+    from .storage_config import ROOT
+    raw = json.loads((ROOT / 'examples/models/dated-ledger-1.json').read_text(encoding='utf-8'))
+    return {'specification': raw, 'revision': store.snapshot()['revision'],
+            'scope': 'Synthetic supplied contractual schedule; not a fitted behavioral/credit model'}
+
+
+@app.post('/balance-stress/dated', response_model=JobStatus)
+def dated_balance_stress(req: DatedBalanceStressRequest):
+    return _submit_source_stress(req,'dated_balance_stress',store.run_dated_balance_stress)
+
+
+@app.get('/balance-stress/credit/example')
+def credit_balance_stress_example():
+    import json
+    from .storage_config import ROOT
+    raw = json.loads((ROOT / 'examples/models/credit-ledger-1.json').read_text(encoding='utf-8'))
+    return {'specification': raw, 'revision': store.snapshot()['revision'],
+            'scope': 'Synthetic explicit physical credit transitions and reviewed accounting policies'}
+
+
+@app.post('/balance-stress/credit', response_model=JobStatus)
+def credit_balance_stress(req: CreditBalanceStressRequest):
+    return _submit_source_stress(req,'credit_balance_stress',store.run_credit_balance_stress)
+
+
+@app.get('/balance-stress/credit-path/example')
+def credit_path_balance_stress_example():
+    import json
+    from .storage_config import ROOT
+    raw=json.loads((ROOT/'examples/models/credit-path-ledger-1.json').read_text(encoding='utf-8'))
+    return dict(specification=raw,revision=store.snapshot()['revision'],
+        scope='Synthetic realized physical credit paths and reviewed accounting policies')
+
+
+@app.post('/balance-stress/credit-path',response_model=JobStatus)
+def credit_path_balance_stress(req: CreditPathBalanceStressRequest):
+    return _submit_source_stress(req,'credit_path_balance_stress',store.run_credit_path_balance_stress)
+
+
+@app.get('/balance-stress/modeled/{schema}/example')
+def modeled_balance_stress_example(schema:str):
+    import json
+    from .storage_config import ROOT
+    if schema not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1'}:raise HTTPException(404,'unsupported modeled source schema')
+    raw=json.loads((ROOT/'examples/models'/f'{schema}.json').read_text())
+    return dict(specification=raw,revision=store.snapshot()['revision'],scope='Synthetic explicit native model sources and reviewed daily policies')
+
+
+async def _selected_commercial_ledger_body(http:Request):
+    import json
+    import time
+    started=time.time();body=await http.body();duplicates=[]
+    def object_pairs(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result:duplicates.append(key)
+            result[key]=value
+        return result
+    try:value=json.loads(body,object_pairs_hook=object_pairs)
+    except (ValueError,UnicodeDecodeError):return None
+    if type(value)is not dict or type(value.get('specification'))is not dict or value['specification'].get('schema')!='commercial-credit-ledger-1':return None
+    if len(body)>1024*1024:raise HTTPException(422,'bounded commercial ledger HTTP raw bytes')
+    if duplicates:raise HTTPException(422,'duplicate field `'+duplicates[0]+'`')
+    return value['specification'],started
+
+
+@app.post('/balance-stress/modeled',response_model=JobStatus)
+def modeled_balance_stress(req:ModeledBalanceStressRequest, raw_body:Annotated[tuple|None,Depends(_selected_commercial_ledger_body)]=None):
+    from portfolio_risk.analytics.model_ledger import binary_path
+    accepted_start=None
+    if isinstance(raw_body,tuple):
+        original,accepted_start=raw_body
+        from portfolio_risk.analytics.cd_sequence_graph_reference import exact
+        try:exact(original,req.specification,'original accepted commercial ledger JSON')
+        except ValueError as exc:raise HTTPException(422,str(exc)) from exc
+    if req.specification.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1'}:raise HTTPException(422,'unsupported modeled source schema')
+    return _submit_source_stress(req,'modeled_balance_stress',store.run_modeled_balance_stress,executable=binary_path(),accepted_start=accepted_start)
+
+
+def _submit_source_stress(req, kind, execute, *, executable=None,accepted_start=None):
+    import os
+    from portfolio_risk.analytics.balance_stream import binary_path, _hash
+    from portfolio_risk.analytics.ledger_native import library_path
+    if persistence.REPO is None:
+        raise HTTPException(409, 'Dated simulation requires durable execution')
+    if req.large_book and os.getenv('WORKBENCH_BALANCE_LARGE_BOOK', '0') != '1':
+        raise HTTPException(422, 'Large-book capacity is disabled on this deployment')
+    state = store.snapshot()
+    if req.expected_revision != state['revision']:
+        raise HTTPException(409, 'Inputs changed. Reload before submitting dated stress.')
+    identity = persistence.identity()
+    expected = _hash(executable) if executable and executable.is_file() else identity['balance_native_sha256']
+    validation_expected = identity.get('ledger_validation_native_sha256')
+    for path, sha in [(executable or binary_path(), expected), (library_path(), validation_expected)]:
+        if not sha or not path.is_file() or _hash(path) != sha:
+            raise HTTPException(409, 'Dated native artifacts are unavailable or changed; rebuild and restart API and worker')
+    request = req.model_dump(exclude={'expected_revision'}) | {
+        'binary_sha256': expected, 'validation_library_sha256': validation_expected}
+    if executable is not None:
+        from portfolio_risk.analytics.balance_stream import source_identity
+        request['source_sha256']=source_identity()
+    if req.specification.get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1'}:
+        import time
+        # Trusted accepted budget is immutable queued metadata, including retries.
+        request['publication_deadline_unix'] = (time.time() if accepted_start is None else accepted_start) + 1800.
+    jid = store.submit(kind, execute, request, state=state)
+    return store.job_status(jid)
 
 
 @app.get('/balance-stress/inventory')
@@ -574,7 +700,8 @@ def state_status():
     with store._LOCK:
         return {"revision": store.STATE_META["revision"],
                 "library_ready": bool(store.CACHE),
-                "library_horizon": store.CACHE.get("library", {}).get("horizon")}
+                "library_horizon": store.CACHE.get("library", {}).get("horizon"),
+                **store.library_metadata()}
 
 
 @app.get('/revisions')
@@ -592,9 +719,11 @@ def run_manifest(jid: str):
         job = persistence.REPO.job(jid)
         request = persistence.CODEC.load(job['request'])
         execution = None
-        if job['result'] and request['operation'] == 'store.run_streamed_balance_stress':
+        if job['result'] and request['operation'] in {'store.run_streamed_balance_stress', 'store.run_dated_balance_stress', 'store.run_credit_balance_stress', 'store.run_credit_path_balance_stress', 'store.run_modeled_balance_stress'}:
             saved = persistence.CODEC.load(job['result'])['execution']
             execution = {k: v for k,v in saved.items() if k != 'specification'}
+        elif job['result'] and request['operation']=='store.run_model_analysis':
+            execution=persistence.CODEC.metadata(job['result'],{'execution'})['execution']
         return {"id": jid, "revision": job['revision'], "identity": request['identity'],
                 "execution": execution,
                 "catalog_publications": [dict(destination=r['destination'], manifest=r['manifest'])
@@ -647,3 +776,9 @@ def result_parquet(jid: str, path: str, partition: int | None = None):
         raise HTTPException(404, 'Unknown job or result table')
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
+
+from .saved_derivative_routes import router as saved_derivative_router
+app.include_router(saved_derivative_router)
+
+from .joint_deposit_derivative_routes import router as joint_deposit_derivative_router
+app.include_router(joint_deposit_derivative_router)

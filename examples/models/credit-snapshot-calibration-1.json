@@ -1,0 +1,26 @@
+{
+  "schema": "credit-snapshot-calibration-1",
+  "monetary_unit": "USD currency_units",
+  "source_id": "synthetic-test-only", "source_revision": "1",
+  "population_id": "example-accounts", "model_policy_id": "one-edge-panel",
+  "training_split_id": "past", "holdout_split_id": "future", "data_kind": "synthetic",
+  "train_start": {"ordinal": 739500, "seconds_of_day": 0},
+  "train_end": {"ordinal": 739865, "seconds_of_day": 0},
+  "holdout_end": {"ordinal": 740230, "seconds_of_day": 0},
+  "crossing_split_policy": "reject", "censored_outcome_policy": "reject",
+  "covariate_names": [], "term_levels": ["reference"],
+  "rows": [
+    {"kind": "log_linear", "edges": [{"destination": "default", "intercept": {"initial": -2, "lower": -10, "upper": 2}, "covariate_coefficients": [], "term_coefficients": []}]},
+    {"kind": "fixed_row", "hazards_per_year": [0, 0, 0, 0, 0], "assumption_id": "watch-policy", "rationale": "Explicit supplied row for an unobserved origin"},
+    {"kind": "fixed_row", "hazards_per_year": [0, 0, 0, 0, 0], "assumption_id": "delinquent-policy", "rationale": "Explicit supplied row for an unobserved origin"}
+  ],
+  "optimizer": {"max_search_evaluations": 1800, "initial_mesh": 0.5, "final_mesh": 0.000001, "objective_improvement_tolerance": 0.000000000001},
+  "snapshots": [
+    {"snapshot_id": "train:0", "account_id": "a", "source_id": "synthetic-tape", "start": {"ordinal": 739500, "seconds_of_day": 0}, "end": {"ordinal": 739865, "seconds_of_day": 0}, "origin": "performing", "destination": "default", "covariates": [], "term_level": "reference"},
+    {"snapshot_id": "train:1", "account_id": "b", "source_id": "synthetic-tape", "start": {"ordinal": 739500, "seconds_of_day": 0}, "end": {"ordinal": 739865, "seconds_of_day": 0}, "origin": "performing", "destination": "performing", "covariates": [], "term_level": "reference"},
+    {"snapshot_id": "train:2", "account_id": "c", "source_id": "synthetic-tape", "start": {"ordinal": 739500, "seconds_of_day": 0}, "end": {"ordinal": 739865, "seconds_of_day": 0}, "origin": "performing", "destination": "performing", "covariates": [], "term_level": "reference"},
+    {"snapshot_id": "train:3", "account_id": "d", "source_id": "synthetic-tape", "start": {"ordinal": 739500, "seconds_of_day": 0}, "end": {"ordinal": 739865, "seconds_of_day": 0}, "origin": "performing", "destination": "performing", "covariates": [], "term_level": "reference"},
+    {"snapshot_id": "holdout", "account_id": "e", "source_id": "synthetic-tape", "start": {"ordinal": 739865, "seconds_of_day": 0}, "end": {"ordinal": 740230, "seconds_of_day": 0}, "origin": "performing", "destination": "performing", "covariates": [], "term_level": "reference"}
+  ],
+  "default_outcomes": []
+}

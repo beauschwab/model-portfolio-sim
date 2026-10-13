@@ -5,9 +5,28 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Accounting asset channels admitted only by the reviewed mortgage helper.
+pub const MORTGAGE_PENDING_ASSET_GLS: &[&str] = &[
+    "mortgage_pending_default_principal", "mortgage_pending_default_interest_receivable",
+    "mortgage_pending_default_basis", "mortgage_pending_prepay_principal",
+    "mortgage_pending_prepay_interest_receivable", "mortgage_pending_prepay_basis",
+];
+
+fn default_credit_protocol() -> u8 {
+    4
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Request {
+    CreditLedger {
+        #[serde(default = "default_credit_protocol")]
+        credit_protocol: u8,
+        treasury: Box<Treasury>,
+        trial_balance: Vec<Trial>,
+        policies: Vec<LedgerPolicy>,
+        amount_multiplier: f64,
+    },
     Ledger {
         treasury: Box<Treasury>,
         trial_balance: Vec<Trial>,
@@ -21,6 +40,26 @@ pub enum Request {
         mappings: Vec<FlowPolicy>,
         horizon: usize,
     },
+}
+/// Explicit successor policy. The string wire admits no unit-enum object aliases.
+#[derive(Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExposurePolicy {
+    pub identity: portfolio_model_core::credit_accounting::Identity,
+    pub negative_net_carrying: String,
+}
+impl ExposurePolicy {
+    pub fn validate(&self) -> Result<(), String> {
+        for s in [&self.identity.id, &self.identity.revision] {
+            if s.trim().is_empty() || s.len()>200 || s.chars().any(char::is_control) {
+                return Err("reviewed exposure policy identity required".into());
+            }
+        }
+        if !["reject_negative_exposure_groups", "research_signed_exposure_groups", "reviewed_nonnegative_group_exposure"].contains(&self.negative_net_carrying.as_str()) {
+            return Err("unsupported reviewed negative net carrying policy".into());
+        }
+        Ok(())
+    }
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -116,22 +155,58 @@ const ASSET_GLS: &[&str] = &[
     "derivative_value",
     "posted_margin",
     "intercompany_receivable",
+    "dated_interest_receivable",
+    "dated_prepaid_expense",
+    "credit_default_principal",
+    "credit_default_book_adjustment",
+    "credit_default_interest_receivable",
+    // Reviewed interest-right basis is a signed asset adjustment. A credit
+    // balance reduces the gross right; it is not an interest payable or income.
+    // Existing explicit instrument/GL policy weights apply to each signed row.
+    "live_interest_basis_adjustment",
+    "default_interest_basis_adjustment",
 ];
 const LIAB_GLS: &[&str] = &[
     "funding_principal",
     "secured_funding",
     "received_margin",
     "intercompany_payable",
+    "dated_interest_payable",
+    "dated_deferred_income",
+    "credit_default_deferred_income",
+];
+const CREDIT_ASSET_GLS: &[&str] = &[
+    "credit_default_principal",
+    "credit_default_accrued_interest",
+    "credit_default_book_adjustment",
+];
+const CREDIT_PNL_GLS: &[&str] = &[
+    "interest_income",
+    "credit_loss_expense",
+    "basis_recognition_expense",
+    "recovery_income",
 ];
 impl Request {
     pub fn run(self) -> Result<Value, String> {
         match self {
+            Self::CreditLedger {
+                credit_protocol,
+                treasury,
+                trial_balance,
+                policies,
+                amount_multiplier,
+            } => {
+                if [6,7].contains(&credit_protocol) {
+                    return Err("mortgage closing protocol cannot be selected on credit ledger".into());
+                }
+                ledger(*treasury, trial_balance, policies, amount_multiplier, credit_protocol)
+            },
             Self::Ledger {
                 treasury,
                 trial_balance,
                 policies,
                 amount_multiplier,
-            } => ledger(*treasury, trial_balance, policies, amount_multiplier),
+            } => ledger(*treasury, trial_balance, policies, amount_multiplier, 0),
             Self::Cashflows {
                 treasury,
                 openings,
@@ -142,12 +217,30 @@ impl Request {
         }
     }
 }
-fn ledger(
+pub(crate) fn ledger(
+    t: Treasury, rows: Vec<Trial>, policies: Vec<LedgerPolicy>, amount_multiplier: f64, credit_protocol: u8,
+) -> Result<Value, String> {
+    ledger_with_exposure(t, rows, policies, amount_multiplier, credit_protocol, None)
+}
+pub(crate) fn ledger_with_exposure(
     mut t: Treasury,
     mut rows: Vec<Trial>,
     policies: Vec<LedgerPolicy>,
     amount_multiplier: f64,
+    credit_protocol: u8,
+    exposure_policy: Option<&ExposurePolicy>,
 ) -> Result<Value, String> {
+    if ![0, 4, 5, 6, 7].contains(&credit_protocol) {
+        return Err("unsupported credit ledger protocol".into());
+    }
+    let credit_source = [4, 5].contains(&credit_protocol);
+    let mortgage_closing = credit_protocol == 6;
+    let commercial_closing = credit_protocol == 7;
+    if let Some(p) = exposure_policy {
+        p.validate()?;
+        if !mortgage_closing && !commercial_closing { return Err("reviewed exposure policy requires native reviewed closing".into()); }
+    }
+
     check(amount_multiplier, true)?;
     if amount_multiplier == 0. {
         return Err("ledger amount multiplier must be positive".into());
@@ -181,10 +274,11 @@ fn ledger(
             label(k)?;
             check(*v, true)?;
         }
-        if p.gl_risk_weights
-            .keys()
-            .any(|k| !ASSET_GLS.contains(&k.as_str()))
-        {
+        if p.gl_risk_weights.keys().any(|k| {
+            !(ASSET_GLS.contains(&k.as_str())
+                || mortgage_closing && MORTGAGE_PENDING_ASSET_GLS.contains(&k.as_str())
+                || credit_source && CREDIT_ASSET_GLS.contains(&k.as_str()))
+        }) {
             return Err("unknown asset GL risk mapping".into());
         }
         if rules
@@ -215,14 +309,32 @@ fn ledger(
     // P&L (including tax/provision); distributions reduce common equity once.
     let mut sums: BTreeMap<(&str, &str), [f64; 7]> = BTreeMap::new();
     let mut contributions = Vec::new();
+    let mut groups: BTreeMap<(&str,&str,&str), (f64,f64)> = BTreeMap::new();
     for r in &rows {
         let p = rules[&(r.scenario.as_str(), r.account.as_str())];
         let s = sums.entry((&r.scenario, &r.account)).or_default();
         let gl = r.gl_account.as_str();
         let v = r.balance;
-        if gl == "opening_equity" || gl == "equity_distributions" {
+        if credit_source
+            && !(CREDIT_ASSET_GLS.contains(&gl)
+                || CREDIT_PNL_GLS.contains(&gl)
+                || [
+                    "cash",
+                    "asset_principal",
+                    "accrued_interest",
+                    "book_adjustment",
+                    "allowance",
+                    "equity_opening",
+                ]
+                .contains(&gl))
+        {
+            return Err(format!("unsupported credit source GL {gl}"));
+        }
+        if (!credit_source && (gl == "opening_equity" || gl == "equity_distributions"))
+            || (credit_source && gl == "equity_opening")
+        {
             s[2] -= v;
-        } else if gl.starts_with("pnl:") {
+        } else if gl.starts_with("pnl:") || credit_source && CREDIT_PNL_GLS.contains(&gl) {
             s[3] -= v;
         } else if gl == "oci" {
             s[4] -= v;
@@ -230,9 +342,13 @@ fn ledger(
             || (["book_adjustment", "accrued_interest"].contains(&gl)
                 && funding.contains(&(&r.scenario, &r.account, &r.instrument_id)))
             || gl == "derivative_value" && v < 0.
+            || credit_protocol == 5
+                && ["accrued_interest", "credit_default_accrued_interest"].contains(&gl)
+                && v < 0.
         {
             s[1] -= v;
-        } else if ASSET_GLS.contains(&gl) {
+        } else if ASSET_GLS.contains(&gl) || credit_source && CREDIT_ASSET_GLS.contains(&gl)
+            || mortgage_closing && MORTGAGE_PENDING_ASSET_GLS.contains(&gl) {
             let weight = p
                 .instrument_risk_weights
                 .get(&r.instrument_id)
@@ -244,6 +360,11 @@ fn ledger(
             };
             s[0] += v;
             s[5] += v * weight;
+            if exposure_policy.is_some() {
+                let group=groups.entry((&r.scenario,&r.account,&r.instrument_id)).or_insert((0.,weight));
+                if group.1 != weight { return Err("one reviewed risk weight required per exposure group".into()); }
+                group.0 += v;
+            }
             contributions.push(json!({"scenario":r.scenario,"account":r.account,"gl_account":gl,
                 "instrument_id":r.instrument_id,"balance":v,"risk_weight":weight,"rwa_contribution":v*weight}));
         } else {
@@ -257,6 +378,21 @@ fn ledger(
             .any(|p| !sums.contains_key(&(p.scenario.as_str(), p.account.as_str())))
     {
         return Err("empty or missing ledger account balances".into());
+    }
+    let mut group_audit=Vec::new();
+    let mut research_scopes=BTreeSet::new();
+    if let Some(p) = exposure_policy {
+        for s in sums.values_mut() { s[5]=0.; }
+        for ((scenario,account,instrument), (net,weight)) in groups {
+            if net<0. && p.negative_net_carrying=="reject_negative_exposure_groups" {
+                return Err("negative net carrying exposure group requires different reviewed policy".into());
+            }
+            let exposure=if p.negative_net_carrying=="reviewed_nonnegative_group_exposure" { net.max(0.) } else { net };
+            if net<0. && p.negative_net_carrying=="research_signed_exposure_groups" { research_scopes.insert((scenario,account)); }
+            let rwa=exposure*weight;
+            sums.get_mut(&(scenario,account)).ok_or("missing exposure scope")?[5]+=rwa;
+            group_audit.push(json!({"scenario":scenario,"account":account,"instrument_id":instrument,"accounting_net_carrying":net,"policy_exposure":exposure,"risk_weight":weight,"policy_rwa_contribution":rwa,"negative_accounting_exposure":net<0.}));
+        }
     }
     let mut audit = Vec::new();
     for ((scenario, account), s) in sums {
@@ -293,7 +429,21 @@ fn ledger(
     out["prepared_specification"] = serde_json::to_value(t).map_err(|e| e.to_string())?;
     out["capital_bridge"] = json!(audit);
     out["rwa_contributions"] = json!(contributions);
+    if let Some(p)=exposure_policy {
+        for metric in out["capital_metrics"].as_array_mut().ok_or("capital metrics missing")? {
+            let affected=research_scopes.iter().any(|(scenario,account)| rules.get(&(*scenario,*account)).is_some_and(|rule| metric["scenario"]==*scenario && metric["entity"]==rule.capital.entity && metric["currency"]==rule.capital.currency && metric["period"]==rule.capital.period));
+            if affected && ["cet1","tier1","total_capital","tlac_rwa","ltd_rwa"].contains(&metric["metric"].as_str().unwrap_or("")) { metric["status"]=json!("research_only_signed_exposure"); }
+        }
+        out["exposure_policy"]=serde_json::to_value(p).map_err(|e|e.to_string())?;
+        out["exposure_groups"]=json!(group_audit);
+        out["signed_exposure_research_only"]=json!(!research_scopes.is_empty());
+        out["regulatory_credit_rwa_approval"]=json!(false);
+        out["rwa_contribution_basis"]=json!("Row contributions retain signed accounting diagnostics; only separately disclosed exposure-group contributions determine policy credit RWA. No accounting or regulatory approval inferred.");
+    }
     out["bridge_basis"]=json!("Closing trial balance; net carrying-value risk weights supplied by policy; no automatic regulatory eligibility or consolidation");
+    if credit_source {
+        out["credit_source_basis"] = json!("Physical credit journal; surviving and default principal/accrual/basis retain separate GL lineage; posted allowance/provision/chargeoff/recovery included exactly once. Economic modeled loss is not an additional capital deduction. Undrawn CCF/leverage policy remains explicit.");
+    }
     Ok(out)
 }
 fn flows(
@@ -468,4 +618,75 @@ fn flows(
     out["ftp_preparation"] = json!(audit);
     out["bridge_basis"]=json!("Captured monthly principal and effective-interest income; trapezoidal balances, remaining principal-weighted funding life, explicit residual tail and reset assumptions");
     Ok(out)
+}
+
+/// Pure reviewed exposure mathematics. This helper does not authorize a source
+/// publication; the Decision raw coordinator must derive complete-tail ownership.
+pub fn validate_reviewed_mortgage_inputs(
+    treasury: &Treasury, policies: &[LedgerPolicy], amount_multiplier: f64,
+    exposure_policy: &ExposurePolicy,
+) -> Result<(), String> {
+    exposure_policy.validate()?;
+    check(amount_multiplier, true)?;
+    if amount_multiplier == 0. || policies.is_empty() || policies.len()>16
+        || !treasury.capital.is_empty() || !treasury.capital_deltas.is_empty()
+        || !treasury.positions.is_empty() || !treasury.curves.is_empty()
+        || !treasury.strategy_units.is_empty() {
+        return Err("reviewed mortgage closing input admission".into());
+    }
+    label(&treasury.as_of)?;
+    label(&treasury.policy_id)?;
+    let mut scopes=BTreeSet::new();
+    for p in policies {
+        portfolio_compute_control::checkpoint()?;
+        label(&p.account)?;
+        label(&p.scenario)?;
+        p.capital.components()?;
+        if !scopes.insert((&p.scenario,&p.account))
+            || p.gl_risk_weights.len()+p.instrument_risk_weights.len()>128 {
+            return Err("duplicate or oversized mortgage closing policy".into());
+        }
+        for value in [p.equity_exclusions,p.intangible_assets,p.leverage_addon,p.leverage_deductions] {
+            check(value,true)?;
+        }
+        for (key,value) in p.gl_risk_weights.iter().chain(&p.instrument_risk_weights) {
+            label(key)?;
+            check(*value,true)?;
+        }
+        if p.gl_risk_weights.keys().any(|key|
+            !(ASSET_GLS.contains(&key.as_str()) || MORTGAGE_PENDING_ASSET_GLS.contains(&key.as_str()))) {
+            return Err("unknown asset GL risk mapping".into());
+        }
+    }
+    Ok(())
+}
+
+/// Checked mathematical helper. Source closure remains the coordinator's job.
+pub fn prepare_reviewed_mortgage_exposure(
+    treasury: Treasury, trial: Vec<Trial>, policies: Vec<LedgerPolicy>,
+    amount_multiplier: f64, exposure_policy: &ExposurePolicy,
+) -> Result<Value, String> {
+    validate_reviewed_mortgage_inputs(&treasury,&policies,amount_multiplier,exposure_policy)?;
+    ledger_with_exposure(treasury, trial, policies, amount_multiplier, 6, Some(exposure_policy))
+}
+
+/// Additive reviewed commercial helper. The coordinator must independently
+/// replay its source/journal and remove only balanced legal-right memo pairs.
+/// Public CreditLedger never admits this internal source capability.
+pub fn validate_reviewed_commercial_inputs(
+    treasury: &Treasury, policies: &[LedgerPolicy], amount_multiplier: f64,
+    exposure_policy: &ExposurePolicy,
+) -> Result<(), String> {
+    validate_reviewed_mortgage_inputs(treasury,policies,amount_multiplier,exposure_policy)?;
+    if policies.iter().any(|p|p.gl_risk_weights.keys().any(|k|!ASSET_GLS.contains(&k.as_str()))) {
+        return Err("unknown commercial financial asset GL risk mapping".into());
+    }
+    Ok(())
+}
+pub fn prepare_reviewed_commercial_exposure(
+    treasury: Treasury, trial: Vec<Trial>, policies: Vec<LedgerPolicy>,
+    amount_multiplier: f64, exposure_policy: &ExposurePolicy,
+) -> Result<Value,String> {
+    validate_reviewed_commercial_inputs(&treasury,&policies,amount_multiplier,exposure_policy)?;
+    ledger_with_exposure(treasury,trial,policies,amount_multiplier,7,Some(exposure_policy))
 }

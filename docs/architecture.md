@@ -7,6 +7,8 @@ Python financial implementations are independent reference oracles for tests.
 
 ```mermaid
 flowchart LR
+    Agent[MCP client] --> MCP[Stdio HTTP adapter]
+    MCP --> API
     UI[React workbench] --> Client[Typed API client]
     Client --> API[FastAPI]
     API --> SQL[SQLite / PostgreSQL revisions and jobs]
@@ -25,6 +27,7 @@ flowchart LR
 
 | Layer | Responsibilities |
 |---|---|
+| `apps/mcp` | Permission-scoped MCP tools/resources over HTTP, with separate operations and strategy profiles. Reviewed generated route coverage, enforced role actions, bounded result transport and exact-retry recovery; no financial runtime or database ownership. See [agent interface](../apps/mcp/README.md). |
 | `apps/web` | Workbench interaction, tables/charts, polling and rendering. All transport goes through `src/lib/api.ts`. |
 | `apps/api/app/main.py` and feature routers | Request/response validation, admission and durable enqueueing. No product mathematics. |
 | `app/store.py` | Compatibility facade and the sole local materialization of durable revision state. |
@@ -66,6 +69,13 @@ requires Rust and matching native artifacts; historical Python settings/results
 remain readable and require an explicit settings edit/rebuild before execution.
 
 ## Native boundaries
+
+Explicit product-analysis jobs invoke bounded native contracts in a cancellable
+standalone process; adapters store raw inputs, format native output and retain
+source/executable identities. Dated library preparation publishes through the
+same durable library transaction and recovery path as legacy prepared libraries.
+Its synchronous evaluator consumes native coefficients without repricing. See
+[product analysis and dated adoption](models/product-analysis-workbench.md).
 
 Product batches use borrowed contiguous buffers over C ABI 8 or bounded tagged
 JSON requests with opaque graph/session handles. Standalone lifecycle, strategy,

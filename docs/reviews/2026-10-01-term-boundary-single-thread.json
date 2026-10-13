@@ -1,0 +1,50 @@
+{
+  "scope": "instrumented warm full CD spot risk, 8 paths; native FFI includes parsing and output copy",
+  "threads": 1,
+  "positions": 60000,
+  "records": [
+    {
+      "raw_contract_transport": 0.24196420004591346,
+      "json_encoding": 0.19811940006911755,
+      "native_ffi_including_decode": 2.562603399856016,
+      "total": 3.0176942001562566,
+      "other_transport": 0.015007200185209513
+    },
+    {
+      "raw_contract_transport": 0.2116280000191182,
+      "json_encoding": 0.19901930005289614,
+      "native_ffi_including_decode": 2.5983188000973314,
+      "total": 3.0267783000599593,
+      "other_transport": 0.017812199890613556
+    },
+    {
+      "raw_contract_transport": 0.2720092001836747,
+      "json_encoding": 0.18385599995963275,
+      "native_ffi_including_decode": 2.409207600168884,
+      "total": 2.8850988999474794,
+      "other_transport": 0.02002609963528812
+    },
+    {
+      "raw_contract_transport": 0.2411593000870198,
+      "json_encoding": 0.2203997999895364,
+      "native_ffi_including_decode": 2.418022699886933,
+      "total": 2.898335700156167,
+      "other_transport": 0.018753900192677975
+    },
+    {
+      "raw_contract_transport": 0.2286714999936521,
+      "json_encoding": 0.1876058999914676,
+      "native_ffi_including_decode": 2.451577400090173,
+      "total": 2.8850982000585645,
+      "other_transport": 0.017243399983271956
+    }
+  ],
+  "medians": {
+    "raw_contract_transport": 0.2411593000870198,
+    "json_encoding": 0.19811940006911755,
+    "native_ffi_including_decode": 2.451577400090173,
+    "total": 2.898335700156167,
+    "other_transport": 0.017812199890613556
+  },
+  "binary_sha256": "5844c1435ca7a177100027f7c245a7b063ecce6026b388fb4d605444344e79c6"
+}

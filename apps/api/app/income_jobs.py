@@ -169,3 +169,4 @@ def run_forecast(owner, plan, provenance):
         state["market"]["vol_pts"], state["dep_hist"], plan, seed=state["settings"].seed)
     result["provenance"] = provenance
     return result
+

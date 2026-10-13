@@ -1,0 +1,100 @@
+BENCH START fixture
+BENCH DONE fixture: 0.373s; RSS 0.178 GiB
+BENCH START initialize_three_market_session
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+BENCH PRICED 60000 positions in 47.004s
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+BENCH PRICED 60000 positions in 60.276s
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+BENCH PRICED 60000 positions in 60.440s
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+BENCH DONE initialize_three_market_session: 170.996s; RSS 1.736 GiB
+BENCH START first_solve_and_independent_replay
+BENCH DONE first_solve_and_independent_replay: 0.044s; RSS 1.191 GiB
+BENCH START constraint_update
+BENCH DONE constraint_update: 0.034s; RSS 1.191 GiB
+BENCH START single_mbs_update
+BENCH DONE single_mbs_update: 0.205s; RSS 1.191 GiB
+BENCH START single_loans_update
+BENCH DONE single_loans_update: 0.111s; RSS 1.192 GiB
+BENCH START single_debt_update
+BENCH DONE single_debt_update: 0.126s; RSS 1.192 GiB
+BENCH START single_deposits_update
+BENCH DONE single_deposits_update: 0.147s; RSS 1.192 GiB
+BENCH START single_cds_update
+BENCH DONE single_cds_update: 0.110s; RSS 1.192 GiB
+BENCH START hundred_loan_update
+BENCH DONE hundred_loan_update: 0.472s; RSS 1.193 GiB
+BENCH START template_update
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+BENCH DONE template_update: 2.161s; RSS 1.212 GiB
+BENCH START native_allocation_replay
+BENCH DONE native_allocation_replay: 0.009s; RSS 1.202 GiB
+BENCH START python_allocation_replay
+BENCH DONE python_allocation_replay: 0.008s; RSS 1.202 GiB
+BENCH START fresh_scipy_same_coefficients
+BENCH DONE fresh_scipy_same_coefficients: 0.055s; RSS 1.206 GiB
+BENCH START persistent_native_same_coefficients
+BENCH DONE persistent_native_same_coefficients: 0.035s; RSS 1.206 GiB
+BENCH START full_python_rebuild_and_solve
+BENCH START full_rebuild_price_base
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+BENCH DONE full_rebuild_price_base: 48.137s; RSS 1.420 GiB
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+BENCH START full_rebuild_price_up25bp
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+BENCH DONE full_rebuild_price_up25bp: 60.141s; RSS 1.705 GiB
+[cal] abcd = [ 0.2494 -0.2533  1.8887  0.1583]  RMSE = 25.1 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+BENCH START full_rebuild_price_down25bp
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+BENCH DONE full_rebuild_price_down25bp: 60.355s; RSS 1.762 GiB
+[cal] abcd = [ 0.2679 -0.2991  1.8455  0.1529]  RMSE = 24.2 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+BENCH DONE full_python_rebuild_and_solve: 170.446s; RSS 1.809 GiB
+BENCH START full_key_rate_analytics_base_market
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+[cc] lambda = 0.350  R2 = 0.957
+[ps] kappa = 3.22  theta = 118bp  sigma = 39bp/sqrt(y)
+[dep] b_max = 0.60  pivot = 2.5%  lam_up = 0.12  lam_dn = 0.38  fit RMSE = 1.5bp
+[cal] abcd = [ 0.258  -0.2751  1.8661  0.1557]  RMSE = 24.7 bp vol
+BENCH DONE full_key_rate_analytics_base_market: 315.928s; RSS 2.047 GiB
+BENCH REPORT C:\Users\schwa\Repos\model-portfolio-sim\docs\reviews\2026-09-28-balance-sheet-60000-cache-after.json

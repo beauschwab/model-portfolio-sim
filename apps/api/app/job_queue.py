@@ -80,3 +80,4 @@ def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None) ->
 
     owner._POOL.submit(run)
     return jid
+

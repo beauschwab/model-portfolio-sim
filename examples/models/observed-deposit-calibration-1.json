@@ -1,0 +1,24 @@
+{
+  "schema": "observed-deposit-calibration-1",
+  "source_id": "synthetic-deposit-history",
+  "source_revision": "synthetic-v1",
+  "population_id": "retail-commercial-cohorts",
+  "model_policy_id": "retention-v1",
+  "training_split_id": "train-through-2021",
+  "holdout_split_id": "holdout-2022",
+  "observation_mode": "exact_transition_times",
+  "sampling_unit": "account_full_exit",
+  "data_kind": "synthetic",
+  "train_start": {"ordinal": 1000, "seconds_of_day": 0},
+  "train_end": {"ordinal": 1365, "seconds_of_day": 0},
+  "holdout_end": {"ordinal": 1730, "seconds_of_day": 0},
+  "segment_ids": ["retail", "commercial"],
+  "unobserved_row_policy": [{"kind": "reject"}, {"kind": "reject"}],
+  "spells": [
+    {"spell_id": "a-retail", "account_id": "a", "segment_id": "retail", "start": {"ordinal": 1000, "seconds_of_day": 0}, "end": {"ordinal": 1100, "seconds_of_day": 0}, "ending": {"kind": "migration", "destination": "commercial"}},
+    {"spell_id": "a-commercial", "account_id": "a", "segment_id": "commercial", "start": {"ordinal": 1100, "seconds_of_day": 0}, "end": {"ordinal": 1730, "seconds_of_day": 0}, "ending": {"kind": "right_censored"}},
+    {"spell_id": "b-retail", "account_id": "b", "segment_id": "retail", "start": {"ordinal": 1000, "seconds_of_day": 0}, "end": {"ordinal": 1730, "seconds_of_day": 0}, "ending": {"kind": "right_censored"}},
+    {"spell_id": "c-retail", "account_id": "c", "segment_id": "retail", "start": {"ordinal": 1000, "seconds_of_day": 0}, "end": {"ordinal": 1365, "seconds_of_day": 0}, "ending": {"kind": "withdrawal"}},
+    {"spell_id": "d-retail", "account_id": "d", "segment_id": "retail", "start": {"ordinal": 1365, "seconds_of_day": 0}, "end": {"ordinal": 1500, "seconds_of_day": 0}, "ending": {"kind": "closure"}}
+  ]
+}

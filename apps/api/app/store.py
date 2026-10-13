@@ -286,10 +286,40 @@ def run_streamed_balance_stress(request):
     return ledger_jobs.run_streamed_balance_stress(_owner, request)
 
 
+def run_dated_balance_stress(request):
+    return ledger_jobs.run_dated_balance_stress(_owner, request)
 
 
+def run_credit_balance_stress(request):
+    return ledger_jobs.run_credit_balance_stress(_owner, request)
+
+
+def run_credit_path_balance_stress(request):
+    return ledger_jobs.run_credit_path_balance_stress(_owner,request)
+
+
+def run_model_analysis(request):
+    return ledger_jobs.run_model_analysis(_owner, request)
+
+
+def build_aged_unitlib_job(request):
+    return ledger_jobs.build_aged_unitlib(_owner,request)
+
+
+def library_metadata():
+    library=CACHE.get('library',{})
+    return dict(library_schema=library.get('preparation_schema'),
+        library_templates=list(library.get('templates',{})),
+        library_purchase_grid=library.get('grid_m'),
+        library_reporting_ordinals=library.get('reporting_ordinals'),
+        library_unit_grid={name:sorted({u['h'] for u in library.get('units',[]) if u['template']==name})
+                           for name in library.get('templates',{})})
 
 
 # Storage sees an explicit state port, never imports concrete feature handlers.
 from . import persistence
 persistence.bind_workspace(_owner)
+
+
+def run_modeled_balance_stress(request):
+    return ledger_jobs.run_modeled_balance_stress(_owner,request)

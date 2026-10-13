@@ -9,6 +9,8 @@ description = "Shared typed credit and dated cashflow models for native portfoli
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
 
+sha2 = "=0.10.9"
+
 [profile.release]
 opt-level = 3
 lto = "thin"

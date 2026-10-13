@@ -1,0 +1,591 @@
+{
+  "passed": true,
+  "positions_per_product": 16,
+  "paths": 128,
+  "checks": {
+    "mortgage_risk": [
+      {
+        "column": "current_face",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "net_coupon",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "wac",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "wam",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "age",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "oltv",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "factor",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "fico",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "avg_loan_size",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "price",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "oas_bps",
+        "cells": 16,
+        "max_absolute_error": 3.325340003357269e-12,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "model_price",
+        "cells": 16,
+        "max_absolute_error": 1.9895196601282805e-13,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "dv01",
+        "cells": 16,
+        "max_absolute_error": 2.4814653443172574e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_1y",
+        "cells": 16,
+        "max_absolute_error": 1.2946472338626336e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_2y",
+        "cells": 16,
+        "max_absolute_error": 1.4024521988176275e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_3y",
+        "cells": 16,
+        "max_absolute_error": 8.414644980803132e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_4y",
+        "cells": 16,
+        "max_absolute_error": 5.609877007373143e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_5y",
+        "cells": 16,
+        "max_absolute_error": 1.4024408301338553e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_7y",
+        "cells": 16,
+        "max_absolute_error": 6.473214853031095e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_10y",
+        "cells": 16,
+        "max_absolute_error": 8.630991032987367e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_15y",
+        "cells": 16,
+        "max_absolute_error": 5.253355084278155e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_20y",
+        "cells": 16,
+        "max_absolute_error": 8.414644980803132e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_30y",
+        "cells": 16,
+        "max_absolute_error": 3.1519675758318044e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x2",
+        "cells": 16,
+        "max_absolute_error": 6.731761459377594e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x5",
+        "cells": 16,
+        "max_absolute_error": 4.487810656428337e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x10",
+        "cells": 16,
+        "max_absolute_error": 7.85366864874959e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x2",
+        "cells": 16,
+        "max_absolute_error": 4.2027750168927014e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x5",
+        "cells": 16,
+        "max_absolute_error": 1.1219526641070843e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x10",
+        "cells": 16,
+        "max_absolute_error": 2.2439053282141685e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x2",
+        "cells": 16,
+        "max_absolute_error": 6.731534085702151e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x5",
+        "cells": 16,
+        "max_absolute_error": 3.452259988989681e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x10",
+        "cells": 16,
+        "max_absolute_error": 6.731715984642506e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      }
+    ],
+    "deposit_risk": [
+      {
+        "column": "balance",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "age_months",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "avg_account_size",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "rate_paid",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "svc_cost",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "price",
+        "cells": 16,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "oas_bps",
+        "cells": 16,
+        "max_absolute_error": 1.1590941539907362e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "model_price",
+        "cells": 16,
+        "max_absolute_error": 1.2789769243681803e-13,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "premium_pct",
+        "cells": 16,
+        "max_absolute_error": 1.2168044349891716e-13,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "wal_y",
+        "cells": 16,
+        "max_absolute_error": 2.0738966099997924e-13,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "dv01",
+        "cells": 16,
+        "max_absolute_error": 8.224606062867679e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_1y",
+        "cells": 16,
+        "max_absolute_error": 1.5958221410983242e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_2y",
+        "cells": 16,
+        "max_absolute_error": 2.4551070509915007e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_3y",
+        "cells": 16,
+        "max_absolute_error": 5.124277890899975e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_4y",
+        "cells": 16,
+        "max_absolute_error": 1.0263192962156609e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_5y",
+        "cells": 16,
+        "max_absolute_error": 1.964087914529955e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_7y",
+        "cells": 16,
+        "max_absolute_error": 2.086835593217984e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_10y",
+        "cells": 16,
+        "max_absolute_error": 6.1579328303196235e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_15y",
+        "cells": 16,
+        "max_absolute_error": 6.137781838333467e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_20y",
+        "cells": 16,
+        "max_absolute_error": 6.530135543414417e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "krd01_30y",
+        "cells": 16,
+        "max_absolute_error": 7.365322574059974e-09,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x2",
+        "cells": 16,
+        "max_absolute_error": 1.7185766409966163e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x5",
+        "cells": 16,
+        "max_absolute_error": 9.673094609752297e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_1x10",
+        "cells": 16,
+        "max_absolute_error": 7.856340289436048e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x2",
+        "cells": 16,
+        "max_absolute_error": 1.1195297702215612e-06,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x5",
+        "cells": 16,
+        "max_absolute_error": 9.329414751846343e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_3x10",
+        "cells": 16,
+        "max_absolute_error": 2.455108187859878e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x2",
+        "cells": 16,
+        "max_absolute_error": 5.597648851107806e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x5",
+        "cells": 16,
+        "max_absolute_error": 3.0443288778769784e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "vega_5x10",
+        "cells": 16,
+        "max_absolute_error": 4.4191892811795697e-08,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      }
+    ],
+    "nii:monthly": [
+      {
+        "column": "month",
+        "cells": 27,
+        "max_absolute_error": 0.0,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "mbs_income",
+        "cells": 27,
+        "max_absolute_error": 8.731149137020111e-11,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "deposit_expense",
+        "cells": 27,
+        "max_absolute_error": 8.599581633461639e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "interest_income",
+        "cells": 27,
+        "max_absolute_error": 8.731149137020111e-11,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "interest_expense",
+        "cells": 27,
+        "max_absolute_error": 8.599581633461639e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "nii",
+        "cells": 27,
+        "max_absolute_error": 8.599890861660242e-07,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      }
+    ],
+    "nii:summary": [
+      {
+        "column": "value",
+        "cells": 3,
+        "max_absolute_error": 1.3208016753196716e-05,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      }
+    ],
+    "nii:book_yields": [
+      {
+        "column": "book_yield",
+        "cells": 16,
+        "max_absolute_error": 2.033095913844818e-15,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      },
+      {
+        "column": "balance",
+        "cells": 16,
+        "max_absolute_error": 2.3283064365386963e-10,
+        "rtol": 1e-07,
+        "atol": 1e-05,
+        "passed": true
+      }
+    ]
+  },
+  "cuda_calls": {
+    "4": 40,
+    "6": 40
+  },
+  "gpu_binary_sha256": "e6191f2d17e627a8dee957ce1cf1f835ab880615ba4afae2b99c5ce94c15250a",
+  "scope": "Public spot risk columns including OAS bps, price, KRD and vega, plus full monthly NII tables. Rust public routes compared with Python reference orchestration patched to CUDA prepared cashflow kernels. Validation only; not API or native workflow GPU integration."
+}

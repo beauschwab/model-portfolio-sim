@@ -40,6 +40,9 @@ def violations(module,text,path=None,package=False):
         rule=None
         if module.startswith('portfolio_risk') and (target=='app' or target.startswith(('app.','apps.'))):
             rule='engine cannot depend on API/UI implementations'
+        elif module.startswith('workbench_mcp') and any(target==x or target.startswith(x+'.')
+                for x in ('app','apps','portfolio_risk','sqlalchemy','sqlite3','ctypes')):
+            rule='MCP uses HTTP only; no application internals, financial runtime or database ownership'
         elif module in STORAGE and any(target==x or target.startswith(x+'.') for x in HANDLERS):
             rule='storage cannot depend on feature handlers or application dispatch'
         elif module.startswith('app.') and target in LEGACY:
@@ -50,7 +53,8 @@ def violations(module,text,path=None,package=False):
 
 def graph(root):
     result={};errors=[]
-    for folder,prefix in [('apps/api/app','app'),('packages/portfolio-risk/src/portfolio_risk','portfolio_risk')]:
+    for folder,prefix in [('apps/api/app','app'),('packages/portfolio-risk/src/portfolio_risk','portfolio_risk'),
+                          ('apps/mcp/src/workbench_mcp','workbench_mcp')]:
         for p in (root/folder).rglob('*.py'):
             parts=list(p.relative_to(root/folder).with_suffix('').parts)
             if parts[-1]=='__init__':parts.pop()

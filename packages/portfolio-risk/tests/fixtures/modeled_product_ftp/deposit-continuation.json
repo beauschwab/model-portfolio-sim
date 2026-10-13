@@ -1,0 +1,3418 @@
+{
+  "schema": "modeled-product-ftp-preparation-1",
+  "source": {
+    "schema": "modeled-product-ftp-source-proof-1",
+    "sources": [
+      {
+        "source_id": "deposit-performing-income-ledger-1",
+        "input": {
+          "kind": "deposit_continuation",
+          "request": {
+            "schema": "deposit-performing-income-ledger-1",
+            "position_id": "deposit-1",
+            "account_id": "bank",
+            "recognition_policy": {
+              "policy_id": "calendar-original-eir",
+              "policy_revision": "1",
+              "recognition_model": "supplied_calendar_segments-1",
+              "fees": "immediate_earnings"
+            },
+            "interest_rights_policy": "native_earned_fifo_cash_origin-1",
+            "specification": {
+              "version": "balance-stress-2",
+              "horizon_days": 31,
+              "accounts": [
+                {
+                  "id": "bank",
+                  "entity": "synthetic-bank",
+                  "currency": "USD",
+                  "cash": 1102.9975355221598,
+                  "equity": 1000.0,
+                  "cash_floor": 0.0,
+                  "cet1_floor": 0.0,
+                  "leverage_floor": 0.0
+                }
+              ],
+              "positions": [
+                {
+                  "id": "deposit-1",
+                  "account": "bank",
+                  "kind": "deposit",
+                  "classification": "ac",
+                  "balance": 100.0,
+                  "opening_accrued": 0.0,
+                  "book_adjustment": 2.997535522159822,
+                  "risk_weight": 0.0
+                }
+              ],
+              "scenarios": [
+                {
+                  "name": "zero",
+                  "rate_shift": 0.0,
+                  "spread_shift": 0.0,
+                  "deposit_flight": 0.0,
+                  "pd_multiplier": 1.0
+                }
+              ],
+              "reverse_severities": []
+            },
+            "runs": [
+              {
+                "run_id": "base-path",
+                "scenario_id": "baseline",
+                "severity": 1.0,
+                "source": {
+                  "schema": "deposit-source-income-1",
+                  "review": {
+                    "id": "review-source-partition",
+                    "revision": "1"
+                  },
+                  "ownership": "source_retained_mass_principal_with_basis_reclassification-1",
+                  "continuation": {
+                    "schema": "deposit-performing-continuation-1",
+                    "contract": {
+                      "id": "deposit-1",
+                      "revision": "original-1"
+                    },
+                    "anchor": {
+                      "purchase_ordinal": 738916,
+                      "original_principal": 100.0,
+                      "original_price_per_100": 102.99753552215982,
+                      "original_gross_carrying_value": 102.99753552215982,
+                      "original_annual_effective_rate": 0.0,
+                      "purchase_quote": {
+                        "id": "original-cost",
+                        "revision": "1"
+                      },
+                      "original_yield_anchor": {
+                        "id": "original-eir",
+                        "revision": "1"
+                      }
+                    },
+                    "policy": {
+                      "review": {
+                        "id": "reviewed-expectation-revision",
+                        "revision": "1"
+                      },
+                      "expectation_policy": "later_date_original_yield_catchup-1",
+                      "pnl_policy": "liability_revision_separate_pnl-1",
+                      "phase_policy": "all_date_recognition_settlement_then_revision-1",
+                      "tail_policy": "complete_original_and_revised_tail-1",
+                      "changed_driver_dimensions": [
+                        "reference_rate"
+                      ]
+                    },
+                    "revision_ordinal": 738926,
+                    "prefix": {
+                      "identity": {
+                        "id": "supplied-observed-prefix",
+                        "revision": "1"
+                      },
+                      "through_ordinal": 738926,
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ]
+                    },
+                    "original": {
+                      "schema": "deposit-state-1",
+                      "identity": {
+                        "entity_id": "synthetic-bank",
+                        "cohort_id": "synthetic-customers",
+                        "currency": "USD",
+                        "source_revision": "synthetic-v1",
+                        "model_version": "deposit-state-1",
+                        "assumption_id": "original-physical-history",
+                        "assumption_rationale": "Synthetic two-day interest mechanics with supplied zero retention hazards; no fitted behavior",
+                        "run_id": "original",
+                        "measure": "physical"
+                      },
+                      "as_of_ordinal": 738916,
+                      "horizon_days": 31,
+                      "day_count": "act360",
+                      "segments": [
+                        {
+                          "segment_id": "retail",
+                          "opening_balance": 100.0,
+                          "opening_accrued_interest": 0,
+                          "opening_paid_rate": 0.36,
+                          "characteristics": {
+                            "uninsured_fraction": 0.5,
+                            "concentration": 0.2,
+                            "digital_fraction": 0.8,
+                            "relationship_fraction": 0.5,
+                            "operational_fraction": 0.5
+                          },
+                          "repricing": {
+                            "target": {
+                              "kind": "linear",
+                              "intercept": 0.0,
+                              "beta": 1.0,
+                              "competitor_weight": 0.0
+                            },
+                            "observation_lag_days": 0,
+                            "rising_half_life_days": 0,
+                            "falling_half_life_days": 0,
+                            "floor": 0,
+                            "ceiling": 1,
+                            "supported_observation_range": null
+                          },
+                          "retention": {
+                            "withdrawal_per_year": 0,
+                            "closure_per_year": 0,
+                            "opportunity_gap_sensitivity": 2.0,
+                            "absolute_daily_velocity_sensitivity": 0,
+                            "uninsured_stress_sensitivity": 0,
+                            "concentration_stress_sensitivity": 0,
+                            "digital_stress_sensitivity": 0,
+                            "relationship_protection": 0,
+                            "operational_protection": 0,
+                            "closure_stress_sensitivity": 0
+                          },
+                          "maturity_ordinal": 738946,
+                          "interest_payment_ordinals": [
+                            738946
+                          ]
+                        }
+                      ],
+                      "migrations": [],
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738927,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738928,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738929,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738930,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738931,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738932,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738933,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738934,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738935,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738936,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738937,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738938,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738939,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738940,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738941,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738942,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738943,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738944,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738945,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738946,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ],
+                      "terminal": {
+                        "kind": "retain_residual"
+                      }
+                    },
+                    "current": {
+                      "schema": "deposit-state-1",
+                      "identity": {
+                        "entity_id": "synthetic-bank",
+                        "cohort_id": "synthetic-customers",
+                        "currency": "USD",
+                        "source_revision": "supplied-current-1",
+                        "model_version": "deposit-state-1",
+                        "assumption_id": "explicit-current-expectations",
+                        "assumption_rationale": "Synthetic two-day interest mechanics with supplied zero retention hazards; no fitted behavior",
+                        "run_id": "current",
+                        "measure": "physical"
+                      },
+                      "as_of_ordinal": 738916,
+                      "horizon_days": 31,
+                      "day_count": "act360",
+                      "segments": [
+                        {
+                          "segment_id": "retail",
+                          "opening_balance": 100.0,
+                          "opening_accrued_interest": 0,
+                          "opening_paid_rate": 0.36,
+                          "characteristics": {
+                            "uninsured_fraction": 0.5,
+                            "concentration": 0.2,
+                            "digital_fraction": 0.8,
+                            "relationship_fraction": 0.5,
+                            "operational_fraction": 0.5
+                          },
+                          "repricing": {
+                            "target": {
+                              "kind": "linear",
+                              "intercept": 0.0,
+                              "beta": 1.0,
+                              "competitor_weight": 0.0
+                            },
+                            "observation_lag_days": 0,
+                            "rising_half_life_days": 0,
+                            "falling_half_life_days": 0,
+                            "floor": 0,
+                            "ceiling": 1,
+                            "supported_observation_range": null
+                          },
+                          "retention": {
+                            "withdrawal_per_year": 0,
+                            "closure_per_year": 0,
+                            "opportunity_gap_sensitivity": 2.0,
+                            "absolute_daily_velocity_sensitivity": 0,
+                            "uninsured_stress_sensitivity": 0,
+                            "concentration_stress_sensitivity": 0,
+                            "digital_stress_sensitivity": 0,
+                            "relationship_protection": 0,
+                            "operational_protection": 0,
+                            "closure_stress_sensitivity": 0
+                          },
+                          "maturity_ordinal": 738946,
+                          "interest_payment_ordinals": [
+                            738946
+                          ]
+                        }
+                      ],
+                      "migrations": [],
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738927,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738928,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738929,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738930,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738931,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738932,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738933,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738934,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738935,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738936,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738937,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738938,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738939,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738940,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738941,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738942,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738943,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738944,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738945,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738946,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ],
+                      "terminal": {
+                        "kind": "retain_residual"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "run_id": "zero-path",
+                "scenario_id": "zero",
+                "severity": 1.0,
+                "source": {
+                  "schema": "deposit-source-income-1",
+                  "review": {
+                    "id": "review-source-partition",
+                    "revision": "1"
+                  },
+                  "ownership": "source_retained_mass_principal_with_basis_reclassification-1",
+                  "continuation": {
+                    "schema": "deposit-performing-continuation-1",
+                    "contract": {
+                      "id": "deposit-1",
+                      "revision": "original-1"
+                    },
+                    "anchor": {
+                      "purchase_ordinal": 738916,
+                      "original_principal": 100.0,
+                      "original_price_per_100": 102.99753552215982,
+                      "original_gross_carrying_value": 102.99753552215982,
+                      "original_annual_effective_rate": 0.0,
+                      "purchase_quote": {
+                        "id": "original-cost",
+                        "revision": "1"
+                      },
+                      "original_yield_anchor": {
+                        "id": "original-eir",
+                        "revision": "1"
+                      }
+                    },
+                    "policy": {
+                      "review": {
+                        "id": "reviewed-expectation-revision",
+                        "revision": "1"
+                      },
+                      "expectation_policy": "later_date_original_yield_catchup-1",
+                      "pnl_policy": "liability_revision_separate_pnl-1",
+                      "phase_policy": "all_date_recognition_settlement_then_revision-1",
+                      "tail_policy": "complete_original_and_revised_tail-1",
+                      "changed_driver_dimensions": [
+                        "reference_rate"
+                      ]
+                    },
+                    "revision_ordinal": 738926,
+                    "prefix": {
+                      "identity": {
+                        "id": "supplied-observed-prefix",
+                        "revision": "1"
+                      },
+                      "through_ordinal": 738926,
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ]
+                    },
+                    "original": {
+                      "schema": "deposit-state-1",
+                      "identity": {
+                        "entity_id": "synthetic-bank",
+                        "cohort_id": "synthetic-customers",
+                        "currency": "USD",
+                        "source_revision": "synthetic-v1",
+                        "model_version": "deposit-state-1",
+                        "assumption_id": "original-physical-history",
+                        "assumption_rationale": "Synthetic two-day interest mechanics with supplied zero retention hazards; no fitted behavior",
+                        "run_id": "original",
+                        "measure": "physical"
+                      },
+                      "as_of_ordinal": 738916,
+                      "horizon_days": 31,
+                      "day_count": "act360",
+                      "segments": [
+                        {
+                          "segment_id": "retail",
+                          "opening_balance": 100.0,
+                          "opening_accrued_interest": 0,
+                          "opening_paid_rate": 0.36,
+                          "characteristics": {
+                            "uninsured_fraction": 0.5,
+                            "concentration": 0.2,
+                            "digital_fraction": 0.8,
+                            "relationship_fraction": 0.5,
+                            "operational_fraction": 0.5
+                          },
+                          "repricing": {
+                            "target": {
+                              "kind": "linear",
+                              "intercept": 0.0,
+                              "beta": 1.0,
+                              "competitor_weight": 0.0
+                            },
+                            "observation_lag_days": 0,
+                            "rising_half_life_days": 0,
+                            "falling_half_life_days": 0,
+                            "floor": 0,
+                            "ceiling": 1,
+                            "supported_observation_range": null
+                          },
+                          "retention": {
+                            "withdrawal_per_year": 0,
+                            "closure_per_year": 0,
+                            "opportunity_gap_sensitivity": 2.0,
+                            "absolute_daily_velocity_sensitivity": 0,
+                            "uninsured_stress_sensitivity": 0,
+                            "concentration_stress_sensitivity": 0,
+                            "digital_stress_sensitivity": 0,
+                            "relationship_protection": 0,
+                            "operational_protection": 0,
+                            "closure_stress_sensitivity": 0
+                          },
+                          "maturity_ordinal": 738946,
+                          "interest_payment_ordinals": [
+                            738946
+                          ]
+                        }
+                      ],
+                      "migrations": [],
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738927,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738928,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738929,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738930,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738931,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738932,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738933,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738934,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738935,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738936,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738937,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738938,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738939,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738940,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738941,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738942,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738943,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738944,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738945,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738946,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ],
+                      "terminal": {
+                        "kind": "retain_residual"
+                      }
+                    },
+                    "current": {
+                      "schema": "deposit-state-1",
+                      "identity": {
+                        "entity_id": "synthetic-bank",
+                        "cohort_id": "synthetic-customers",
+                        "currency": "USD",
+                        "source_revision": "supplied-current-1",
+                        "model_version": "deposit-state-1",
+                        "assumption_id": "explicit-current-expectations",
+                        "assumption_rationale": "Synthetic two-day interest mechanics with supplied zero retention hazards; no fitted behavior",
+                        "run_id": "current",
+                        "measure": "physical"
+                      },
+                      "as_of_ordinal": 738916,
+                      "horizon_days": 31,
+                      "day_count": "act360",
+                      "segments": [
+                        {
+                          "segment_id": "retail",
+                          "opening_balance": 100.0,
+                          "opening_accrued_interest": 0,
+                          "opening_paid_rate": 0.36,
+                          "characteristics": {
+                            "uninsured_fraction": 0.5,
+                            "concentration": 0.2,
+                            "digital_fraction": 0.8,
+                            "relationship_fraction": 0.5,
+                            "operational_fraction": 0.5
+                          },
+                          "repricing": {
+                            "target": {
+                              "kind": "linear",
+                              "intercept": 0.0,
+                              "beta": 1.0,
+                              "competitor_weight": 0.0
+                            },
+                            "observation_lag_days": 0,
+                            "rising_half_life_days": 0,
+                            "falling_half_life_days": 0,
+                            "floor": 0,
+                            "ceiling": 1,
+                            "supported_observation_range": null
+                          },
+                          "retention": {
+                            "withdrawal_per_year": 0,
+                            "closure_per_year": 0,
+                            "opportunity_gap_sensitivity": 2.0,
+                            "absolute_daily_velocity_sensitivity": 0,
+                            "uninsured_stress_sensitivity": 0,
+                            "concentration_stress_sensitivity": 0,
+                            "digital_stress_sensitivity": 0,
+                            "relationship_protection": 0,
+                            "operational_protection": 0,
+                            "closure_stress_sensitivity": 0
+                          },
+                          "maturity_ordinal": 738946,
+                          "interest_payment_ordinals": [
+                            738946
+                          ]
+                        }
+                      ],
+                      "migrations": [],
+                      "drivers": [
+                        {
+                          "ordinal": 738915,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738916,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738917,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738918,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738919,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738920,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738921,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738922,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738923,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738924,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738925,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738926,
+                          "reference_rate": 0.36,
+                          "competitor_rates": [
+                            0.46
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738927,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738928,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738929,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738930,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738931,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738932,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738933,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738934,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738935,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738936,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738937,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738938,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738939,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738940,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738941,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738942,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738943,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738944,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738945,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        },
+                        {
+                          "ordinal": 738946,
+                          "reference_rate": 0.18,
+                          "competitor_rates": [
+                            0.36
+                          ],
+                          "offered_spread_stress": [
+                            0.0
+                          ],
+                          "confidence_stress": [
+                            0.0
+                          ],
+                          "external_inflows": [
+                            0.0
+                          ]
+                        }
+                      ],
+                      "terminal": {
+                        "kind": "retain_residual"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "scope": "whole_isolated_continuation_deposit_owner-1",
+        "scope_review": {
+          "id": "reviewed-analysis-scope",
+          "revision": "r1"
+        }
+      }
+    ],
+    "reviews": [
+      {
+        "source_id": "deposit-performing-income-ledger-1",
+        "owner_index": 0,
+        "run_index": 0,
+        "path_index": 0,
+        "entity": "synthetic-bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "review",
+            "revision": "r1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "trapezoid_daily",
+          "negative_funding": "research_signed",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-active_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-pending_default_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-pending_prepay_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_claim_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-live_interest_receivable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "funding-live_interest_payable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_interest_receivable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "funding-default_interest_payable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-principal_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-live_interest_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_principal_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_interest_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-borrower_principal_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-borrower_interest_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-economic_principal_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-economic_interest_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-undrawn_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-allowance",
+                "revision": "r1"
+              }
+            }
+          ]
+        },
+        "cash_assignment": "actual_cash_retained_excluded_from_channel_rollforward-1",
+        "cash_exclusion_review": {
+          "id": "cash-review",
+          "revision": "r1"
+        },
+        "channel_change_review": {
+          "id": "channel-review",
+          "revision": "r1"
+        },
+        "other_income": {
+          "deposit:revision": "deposit_revision"
+        },
+        "income_review": {
+          "id": "income-review",
+          "revision": "r1"
+        },
+        "resets": [
+          {
+            "ordinal": 738916,
+            "reference_years": 0.25,
+            "liquidity_years": 1.0,
+            "review": {
+              "id": "tenor-review",
+              "revision": "r1"
+            }
+          }
+        ]
+      },
+      {
+        "source_id": "deposit-performing-income-ledger-1",
+        "owner_index": 0,
+        "run_index": 1,
+        "path_index": 0,
+        "entity": "synthetic-bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "review",
+            "revision": "r1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "trapezoid_daily",
+          "negative_funding": "research_signed",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-active_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-pending_default_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-pending_prepay_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_claim_principal",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-live_interest_receivable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "funding-live_interest_payable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_interest_receivable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "funding-default_interest_payable",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-principal_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-live_interest_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_principal_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "funding-default_interest_basis",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-borrower_principal_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-borrower_interest_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-economic_principal_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-economic_interest_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-undrawn_memo",
+                "revision": "r1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "funding-allowance",
+                "revision": "r1"
+              }
+            }
+          ]
+        },
+        "cash_assignment": "actual_cash_retained_excluded_from_channel_rollforward-1",
+        "cash_exclusion_review": {
+          "id": "cash-review",
+          "revision": "r1"
+        },
+        "channel_change_review": {
+          "id": "channel-review",
+          "revision": "r1"
+        },
+        "other_income": {
+          "deposit:revision": "deposit_revision"
+        },
+        "income_review": {
+          "id": "income-review",
+          "revision": "r1"
+        },
+        "resets": [
+          {
+            "ordinal": 738916,
+            "reference_years": 0.25,
+            "liquidity_years": 1.0,
+            "review": {
+              "id": "tenor-review",
+              "revision": "r1"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "as_of": "2024-01-31",
+  "policy_review": {
+    "id": "curve-and-comparative-cost-review",
+    "revision": "review-1"
+  },
+  "curves": [
+    {
+      "id": "curve-0",
+      "entity": "synthetic-bank",
+      "currency": "USD",
+      "as_of": "2024-01-31",
+      "tenors": [
+        0.0,
+        0.25,
+        1.0,
+        5.0
+      ],
+      "reference_rates": [
+        0.02,
+        0.025,
+        0.03,
+        0.04
+      ],
+      "liquidity_spreads": [
+        0.005,
+        0.007,
+        0.01,
+        0.015
+      ]
+    }
+  ],
+  "charges": [
+    {
+      "binding": {
+        "source_id": "deposit-performing-income-ledger-1",
+        "owner_index": 0,
+        "run_index": 0,
+        "path_index": 0
+      },
+      "review": {
+        "id": "complete-binding",
+        "revision": "review-1"
+      },
+      "curve_id": "curve-0",
+      "option": {
+        "review": {
+          "id": "reviewed-incremental-funding",
+          "revision": "review-1"
+        },
+        "benchmark": {
+          "source_id": "deposit-performing-income-ledger-1",
+          "owner_index": 0,
+          "run_index": 0,
+          "path_index": 0
+        },
+        "methodology": "positive_incremental_daily_funding-1",
+        "annual_rate": 0.01,
+        "rate_vintage": "2024-01-31"
+      },
+      "contingent": {
+        "review": {
+          "id": "reviewed-incremental-undrawn",
+          "revision": "review-1"
+        },
+        "benchmark": {
+          "source_id": "deposit-performing-income-ledger-1",
+          "owner_index": 0,
+          "run_index": 0,
+          "path_index": 0
+        },
+        "methodology": "positive_incremental_native_undrawn-1",
+        "annual_rate": 0.02,
+        "rate_vintage": "2024-01-31"
+      },
+      "other_earnings": "retain_seven_lanes_no_second_credit_loss-1",
+      "cost_review": {
+        "id": "explicit-zero-operating-capital-cost",
+        "revision": "review-1"
+      },
+      "daily_operating_cost": 0.0,
+      "allocated_capital": 0.0,
+      "annual_cost_of_capital": 0.0
+    },
+    {
+      "binding": {
+        "source_id": "deposit-performing-income-ledger-1",
+        "owner_index": 0,
+        "run_index": 1,
+        "path_index": 0
+      },
+      "review": {
+        "id": "complete-binding",
+        "revision": "review-1"
+      },
+      "curve_id": "curve-0",
+      "option": {
+        "review": {
+          "id": "reviewed-incremental-funding",
+          "revision": "review-1"
+        },
+        "benchmark": {
+          "source_id": "deposit-performing-income-ledger-1",
+          "owner_index": 0,
+          "run_index": 0,
+          "path_index": 0
+        },
+        "methodology": "positive_incremental_daily_funding-1",
+        "annual_rate": 0.01,
+        "rate_vintage": "2024-01-31"
+      },
+      "contingent": {
+        "review": {
+          "id": "reviewed-incremental-undrawn",
+          "revision": "review-1"
+        },
+        "benchmark": {
+          "source_id": "deposit-performing-income-ledger-1",
+          "owner_index": 0,
+          "run_index": 0,
+          "path_index": 0
+        },
+        "methodology": "positive_incremental_native_undrawn-1",
+        "annual_rate": 0.02,
+        "rate_vintage": "2024-01-31"
+      },
+      "other_earnings": "retain_seven_lanes_no_second_credit_loss-1",
+      "cost_review": {
+        "id": "explicit-zero-operating-capital-cost",
+        "revision": "review-1"
+      },
+      "daily_operating_cost": 0.0,
+      "allocated_capital": 0.0,
+      "annual_cost_of_capital": 0.0
+    }
+  ],
+  "capital": null,
+  "capital_source_id": null,
+  "dirty_unit_state": "clean_frozen_units-1",
+  "acquisition_phase_policy": "actual_owned_purchase_and_initial_allowance_once-1"
+}

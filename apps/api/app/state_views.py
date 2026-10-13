@@ -15,3 +15,4 @@ def restore(owner, state: WorkspaceSnapshot) -> None:
     owner.STATE_META["revision"] = state["revision"]
     owner.CACHE.clear()
     owner.UNITLIB = owner.BASE_KPIS = None
+

@@ -1,0 +1,500 @@
+{
+  "scope": "Browser clock click to version publication plus two animation frames; real API, Arrow envelope, 75ms polling and render scheduling. One base scenario, 375 positions, 128 paths, 4 threads, 27 months. No SLA claim.",
+  "initialization_ms": 1789.9000000953674,
+  "constraint_update": {
+    "samples_ms": [
+      67.20000004768372,
+      67.70000004768372,
+      66.5,
+      68,
+      73.40000009536743
+    ],
+    "median_ms": 67.70000004768372,
+    "max_ms": 73.40000009536743
+  },
+  "instrument_update": {
+    "samples_ms": [
+      138.09999990463257,
+      155.40000009536743,
+      157.19999980926514,
+      155.09999990463257,
+      173.69999980926514
+    ],
+    "median_ms": 155.40000009536743,
+    "max_ms": 173.69999980926514
+  },
+  "template_update": {
+    "samples_ms": [
+      360.5,
+      338.09999990463257,
+      353
+    ],
+    "median_ms": 353,
+    "max_ms": 360.5
+  },
+  "page_errors": [],
+  "backend_results": [
+    {
+      "version": 1,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 184
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.18420000560581684,
+        "native_solve": 8.787300204858184,
+        "validation_and_publication": 2.006799913942814,
+        "total": 10.978500125929713
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 0,
+        "model_reused": false,
+        "simplex_iterations": 31
+      }
+    },
+    {
+      "version": 2,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 329
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.685499981045723,
+        "native_solve": 0.8882000111043453,
+        "validation_and_publication": 2.71419994533062,
+        "total": 4.288200056180358
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 1,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 3,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 329
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.1943001989275217,
+        "native_solve": 0.5671998951584101,
+        "validation_and_publication": 2.819499932229519,
+        "total": 3.581500146538019
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 1,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 4,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 329
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.3944002091884613,
+        "native_solve": 0.5316999740898609,
+        "validation_and_publication": 1.516199903562665,
+        "total": 2.4429000914096832
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 1,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 5,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 329
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.2693000715225935,
+        "native_solve": 0.6178999319672585,
+        "validation_and_publication": 1.044000033289194,
+        "total": 1.9314000383019447
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 1,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 6,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 329
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 0.7044000085443258,
+        "native_solve": 1.4726999215781689,
+        "validation_and_publication": 4.1704000905156136,
+        "total": 6.347900023683906
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 1,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 7,
+      "validated": true,
+      "work": {
+        "positions_repriced": 1,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [
+          {
+            "cashflows:loans": {
+              "reused": 3,
+              "computed": 3,
+              "batches": 3
+            },
+            "calibration:loans": {
+              "reused": 1,
+              "computed": 0,
+              "batches": 0
+            },
+            "rate_paths": {
+              "reused": 3,
+              "computed": 0,
+              "batches": 0
+            },
+            "marks:loans": {
+              "reused": 0,
+              "computed": 3,
+              "batches": 3
+            },
+            "income:loans": {
+              "reused": 0,
+              "computed": 1,
+              "batches": 1
+            }
+          }
+        ],
+        "ffi_request_bytes": 483
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 8.209299994632602,
+        "native_solve": 1.052499981597066,
+        "validation_and_publication": 2.0225001499056816,
+        "total": 11.284600012004375
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 56,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 8,
+      "validated": true,
+      "work": {
+        "positions_repriced": 1,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [
+          {
+            "cashflows:loans": {
+              "reused": 3,
+              "computed": 3,
+              "batches": 3
+            },
+            "calibration:loans": {
+              "reused": 1,
+              "computed": 0,
+              "batches": 0
+            },
+            "rate_paths": {
+              "reused": 3,
+              "computed": 0,
+              "batches": 0
+            },
+            "marks:loans": {
+              "reused": 0,
+              "computed": 3,
+              "batches": 3
+            },
+            "income:loans": {
+              "reused": 0,
+              "computed": 1,
+              "batches": 1
+            }
+          }
+        ],
+        "ffi_request_bytes": 489
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 8.943299995735288,
+        "native_solve": 1.1012000031769276,
+        "validation_and_publication": 2.1999001037329435,
+        "total": 12.244600104168057
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 56,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 9,
+      "validated": true,
+      "work": {
+        "positions_repriced": 1,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [
+          {
+            "cashflows:loans": {
+              "reused": 3,
+              "computed": 3,
+              "batches": 3
+            },
+            "calibration:loans": {
+              "reused": 1,
+              "computed": 0,
+              "batches": 0
+            },
+            "rate_paths": {
+              "reused": 3,
+              "computed": 0,
+              "batches": 0
+            },
+            "marks:loans": {
+              "reused": 0,
+              "computed": 3,
+              "batches": 3
+            },
+            "income:loans": {
+              "reused": 0,
+              "computed": 1,
+              "batches": 1
+            }
+          }
+        ],
+        "ffi_request_bytes": 499
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 8.256000000983477,
+        "native_solve": 1.1146999895572662,
+        "validation_and_publication": 2.3032999597489834,
+        "total": 11.674199951812625
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 56,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 10,
+      "validated": true,
+      "work": {
+        "positions_repriced": 1,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [
+          {
+            "cashflows:loans": {
+              "reused": 3,
+              "computed": 3,
+              "batches": 3
+            },
+            "calibration:loans": {
+              "reused": 1,
+              "computed": 0,
+              "batches": 0
+            },
+            "rate_paths": {
+              "reused": 3,
+              "computed": 0,
+              "batches": 0
+            },
+            "marks:loans": {
+              "reused": 0,
+              "computed": 3,
+              "batches": 3
+            },
+            "income:loans": {
+              "reused": 0,
+              "computed": 1,
+              "batches": 1
+            }
+          }
+        ],
+        "ffi_request_bytes": 490
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 8.95889988169074,
+        "native_solve": 1.1913999915122986,
+        "validation_and_publication": 2.2825999185442924,
+        "total": 12.43309979327023
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 56,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 11,
+      "validated": true,
+      "work": {
+        "positions_repriced": 1,
+        "templates_rebuilt": 0,
+        "total_positions": 375,
+        "pricing_graph": [
+          {
+            "cashflows:loans": {
+              "reused": 3,
+              "computed": 3,
+              "batches": 3
+            },
+            "calibration:loans": {
+              "reused": 1,
+              "computed": 0,
+              "batches": 0
+            },
+            "rate_paths": {
+              "reused": 3,
+              "computed": 0,
+              "batches": 0
+            },
+            "marks:loans": {
+              "reused": 0,
+              "computed": 3,
+              "batches": 3
+            },
+            "income:loans": {
+              "reused": 0,
+              "computed": 1,
+              "batches": 1
+            }
+          }
+        ],
+        "ffi_request_bytes": 491
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 13.244399800896645,
+        "native_solve": 1.0939000640064478,
+        "validation_and_publication": 2.7022999711334705,
+        "total": 17.04079983755946
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 56,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 12,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 1,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 8619
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 278.27980020083487,
+        "native_solve": 1.6673998907208443,
+        "validation_and_publication": 1.9451999105513096,
+        "total": 281.8927001208067
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 160,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 13,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 1,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 8636
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 272.2347001545131,
+        "native_solve": 1.8390999175608158,
+        "validation_and_publication": 2.1575000137090683,
+        "total": 276.2316002044827
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 160,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    },
+    {
+      "version": 14,
+      "validated": true,
+      "work": {
+        "positions_repriced": 0,
+        "templates_rebuilt": 1,
+        "total_positions": 375,
+        "pricing_graph": [],
+        "ffi_request_bytes": 8596
+      },
+      "timings_ms": {
+        "pricing_and_coefficients": 266.4361000061035,
+        "native_solve": 1.5457000117748976,
+        "validation_and_publication": 2.034100005403161,
+        "total": 270.0161000248045
+      },
+      "solver": {
+        "backend": "Rust-owned HiGHS (C++)",
+        "changed_matrix_entries": 160,
+        "model_reused": true,
+        "simplex_iterations": 0
+      }
+    }
+  ]
+}

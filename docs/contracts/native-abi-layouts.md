@@ -668,3 +668,21 @@ Variant 3 deposit rate:
 | 0 | values | 11 x H (METRICS then funding gap) | supplied monetary units; dv01 row per bp |
 | 1 | kpi_path | 3 x H [eve_shock,lcr,nsfr] | percent |
 | 2 | scalars | 7 [nii,dv01,eve_shock,duration_gap,lcr,nsfr,cet1] | money,money/bp,percent,years,percent |
+
+## Additive graph-call-control-1 capability
+
+Generated separately from `native-graph-runtime-1.json`; numeric ABI 8 IDs/layouts above remain unchanged.
+
+| Export signature | Result |
+|---|---|
+| `uint32_t portfolio_graph_runtime_version(void)` | 1 identifies this additive capability |
+| `uint64_t portfolio_graph_cancel_new(void)` | Nonzero inert one-shot token; zero is refusal |
+| `int32_t portfolio_graph_cancel_signal(uint64_t token)` | 1 succeeds for Fresh or Running; 0 refuses |
+| `int32_t portfolio_graph_cancel_release(uint64_t token)` | 1 removes Fresh or Finished; Running and unknown refuse |
+| `char* portfolio_term_graph_controlled(const uint8_t* input, size_t length, uint64_t token, uint64_t timeout_ms)` | Owned JSON status/result allocation freed exactly once with portfolio_term_free |
+
+The input range stays live during the synchronous call. All token, graph, invocation and free operations use the originating captured library. Bare u64 IDs may coincide across libraries; native cross-library collision rejection is not claimed.
+
+Only explicit indexed graph/book creation, matching indexed pricing, info and clear are controlled. Each call receives a fresh deadline and one-shot flag; a graph retains neither. Runtime fields are not financial input or cache/source identity.
+
+Bounded thread-safe IO callback, whole-job deadline, durable lease/cancellation and atomic publication fences remain caller-owned. A cold book operation may make two calls. This capability provides cooperative checkpoints, not a hard interrupt or aggregate RSS/scale acceptance.

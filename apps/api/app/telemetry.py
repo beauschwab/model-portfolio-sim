@@ -133,3 +133,4 @@ def compute_run_plan(owner, kind: str, books: list[str], state=None) -> dict:
         "crn_seed": int(s.seed),
         "note": "workload modeled from settings x book sizes",
     }
+

@@ -83,6 +83,24 @@ def execute(job):
     store._CUR_JID = job['id']
     sid = None
     prior_library = store.CACHE.copy()
+    deposit_guard=None
+    deposit_job=(payload['operation']=='store.run_modeled_balance_stress' and
+        payload['args'][0].get('specification',{}).get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2'})
+    accepted_deposit_deadline=payload['args'][0].get('publication_deadline_unix') if deposit_job else None
+    commercial_job=(payload['operation']=='store.run_modeled_balance_stress' and payload['args'][0].get('specification',{}).get('schema')=='commercial-credit-ledger-1')
+    commercial_guard=None
+    accepted_commercial_deadline=payload['args'][0].get('publication_deadline_unix') if commercial_job else None
+    commercial_library=payload['operation']=='store.build_aged_unitlib_job' and payload['args'][0].get('schema')=='commercial-units-1'
+    from .commercial_selection import is_commercial_cohort
+    from .commercial_analysis_jobs import SCHEMAS as commercial_analysis_schemas
+    commercial_analysis=(payload['operation']=='store.run_model_analysis' and (is_commercial_cohort(payload['args'][0].get('schema'),payload['args'][0].get('request')) or payload['args'][0].get('schema') in commercial_analysis_schemas-{'graph-cohort-audit-1'})) or commercial_library
+    commercial_analysis_guard=None
+    accepted_commercial_analysis_deadline=payload['args'][0].get('publication_deadline_unix') if commercial_analysis else None
+    cd_guard=None
+    cd_job=payload['operation']=='store.run_model_analysis' and payload['args'][0].get('schema') in {'term-product-graph-2','term-product-reprice-2'}
+    accepted_cd_deadline=payload['args'][0].get('publication_deadline_unix') if cd_job else None
+    indexed_guard=None
+    indexed_job=payload['operation']=='store.run_model_analysis' and payload['args'][0].get('schema')=='market-indexed-books-1'
     try:
         if payload['identity'] != db.identity():
             raise RuntimeError('MODEL_VERSION_CHANGED: submit a new run using the deployed engine')
@@ -90,11 +108,92 @@ def execute(job):
         with computation(state) as context:
             token = db.ACTIVE_JOB.set(job)
             try:
-                result = operations.resolve(payload['operation'])(*copy.deepcopy(payload['args']))
+                handler = operations.resolve(payload['operation'])
+                if payload['operation']in ('saved_derivative.run','saved_derivative_deposit_portfolio.run'):
+                    result = handler(*copy.deepcopy(payload['args']),stopping=STOP.is_set)
+                else:
+                    result = handler(*copy.deepcopy(payload['args']))
             finally:
                 db.ACTIVE_JOB.reset(token)
             store.report(cache_hits=context.hits, cache_misses=context.misses)
+        if payload['operation']=='saved_derivative_deposit_portfolio.run':
+            from . import joint_deposit_derivative_jobs
+            token=db.ACTIVE_JOB.set(job)
+            try:
+                joint_deposit_derivative_jobs.publish(result)
+            finally:
+                db.ACTIVE_JOB.reset(token)
+            store.report(stage='done',pct=100.)
+            return
+        if payload['operation']=='saved_derivative.run':
+            from . import saved_derivative_jobs
+            token=db.ACTIVE_JOB.set(job)
+            try:
+                saved_derivative_jobs.publish(result)
+            finally:
+                db.ACTIVE_JOB.reset(token)
+            store.report(stage='done',pct=100.)
+            return
+        if payload['operation']=='modeled_product_ftp.run':
+            from . import modeled_product_ftp_jobs
+            token=db.ACTIVE_JOB.set(job)
+            try:
+                modeled_product_ftp_jobs.publish(result)
+            finally:
+                db.ACTIVE_JOB.reset(token)
+            store.report(stage='done',pct=100.)
+            return
+        if payload['operation']=='mortgage_capital.run':
+            from . import mortgage_capital
+            token=db.ACTIVE_JOB.set(job)
+            try:
+                mortgage_capital.publish(result)
+            finally:
+                db.ACTIVE_JOB.reset(token)
+            store.report(stage='done',pct=100.)
+            return
+        model_publication = payload['operation'] in {'store.run_modeled_balance_stress',
+            'store.run_model_analysis','store.build_aged_unitlib_job'}
+        publication_deadline = accepted_commercial_analysis_deadline if commercial_analysis else accepted_commercial_deadline if commercial_job else accepted_cd_deadline if cd_job else accepted_deposit_deadline if deposit_job else result['execution']['publication_deadline_unix'] if model_publication else None
+        if deposit_job or commercial_job:
+            from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
+            if not exact_json_identity(result['execution'].get('publication_deadline_unix'),publication_deadline):
+                raise ValueError('deposit producer deadline changed from accepted budget')
         output = db.CODEC.dump(result)
+        if payload['operation'] == 'store.run_modeled_balance_stress':
+            from .model_jobs import verify_modeled_persisted
+            token = db.ACTIVE_JOB.set(job)
+            try:
+                if commercial_job:
+                    from .commercial_publication_jobs import prepare_publication
+                    commercial_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],
+                        expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+                elif deposit_job:
+                    from .deposit_continuation_jobs import prepare_publication
+                    deposit_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],
+                        expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+                else:
+                    verify_modeled_persisted(payload['args'][0], db.CODEC.load(output), job=job, stopping=STOP.is_set,
+                        expected_deadline=publication_deadline)
+            finally:
+                db.ACTIVE_JOB.reset(token)
+        if payload['operation'] in {'store.run_model_analysis','store.build_aged_unitlib_job'}:
+            from .model_jobs import verify_persisted
+            if commercial_analysis:
+                from .commercial_analysis_jobs import prepare_publication
+                if not commercial_library:
+                    commercial_analysis_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+            elif cd_job:
+                from .cd_sequence_jobs import prepare_publication
+                cd_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+            elif indexed_job:
+                from .indexed_book_jobs import prepare_publication
+                indexed_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+            else:
+                verify_persisted(payload['args'][0],db.CODEC.load(output),request_manifest=job['request'],
+                    expected_deadline=publication_deadline,job=job,stopping=STOP.is_set)
+            if STOP.is_set():raise InterruptedError('model source publication cancelled')
+
         session = library = None
         if payload['operation'] == 'decision.build':
             sid = result['session_id']
@@ -109,13 +208,42 @@ def execute(job):
             journal = db.CODEC.load(previous['manifest'])
             journal['updates'].append(request)
             session = (sid, result['version'], db.CODEC.dump(journal))
-        elif payload['operation'] == 'store.build_unitlib_job':
+        elif payload['operation'] in ('store.build_unitlib_job','store.build_aged_unitlib_job'):
             library = db.CODEC.dump({'identity': payload['identity'], 'cache': store.CACHE})
+            if payload['operation']=='store.build_aged_unitlib_job' and payload['args'][0]['schema'] in {'product-units-1','commercial-units-1'}:
+                from .model_jobs import verify_product_library
+                verify_product_library(payload['args'][0],db.CODEC.load(output),db.CODEC.load(library),
+                    deadline=publication_deadline,job=job,stopping=STOP.is_set)
+                if commercial_library:
+                    from .commercial_analysis_jobs import prepare_publication
+                    commercial_analysis_guard=prepare_publication(payload['args'][0],output,payload_identity=payload['identity'],expected_deadline=publication_deadline,job=job,stopping=STOP.is_set,library=library)
         store.report(stage='done', pct=100.)
         db.REPO.progress(job, copy.deepcopy(store.JOBS[job['id']]['progress']))
-        db.REPO.complete(job, result=output, session=session, library=library)
+        if model_publication:
+            from .model_jobs import verify_final_execution
+            if db.current_identity()!=payload['identity']:
+                raise RuntimeError('MODEL_VERSION_CHANGED: deployed engine bundle changed at final publication')
+            verify_final_execution(payload['args'][0],deadline=publication_deadline,
+                job=job,stopping=STOP.is_set)
+        if cd_job:
+            if cd_guard is None:raise RuntimeError('missing private CD source publication guard')
+            cd_guard()
+        elif indexed_job:
+            if indexed_guard is None:raise RuntimeError('missing private indexed publication guard')
+            indexed_guard()
+        elif commercial_analysis:
+            if commercial_analysis_guard is None:raise RuntimeError('missing private commercial analytical publication guard')
+            db.REPO.complete(job,result=output,session=session,library=library,guard=commercial_analysis_guard)
+        elif commercial_job:
+            if commercial_guard is None:raise RuntimeError('missing private commercial publication guard')
+            db.REPO.complete(job,result=output,session=session,library=library,guard=commercial_guard)
+        elif deposit_job:
+            if deposit_guard is None:raise RuntimeError('missing private deposit publication guard')
+            db.REPO.complete(job, result=output, session=session, library=library,guard=deposit_guard)
+        else:
+            db.REPO.complete(job, result=output, session=session, library=library)
     except Exception as exc:
-        if payload['operation'] == 'store.build_unitlib_job':
+        if payload['operation'] in ('store.build_unitlib_job','store.build_aged_unitlib_job'):
             store.CACHE.clear()
             if prior_library.get('revision') == db.REPO.head():
                 store.CACHE.update(prior_library)
@@ -245,7 +373,8 @@ async def invalid(_request, exc):
 def state():
     with store._LOCK:
         return {'revision': store.STATE_META['revision'], 'worker_ready': True,
-                'library_ready': bool(store.CACHE), 'library_horizon': store.CACHE.get('library', {}).get('horizon')}
+                'library_ready': bool(store.CACHE), 'library_horizon': store.CACHE.get('library', {}).get('horizon'),
+                **store.library_metadata()}
 
 
 @app.post('/strategy/eval')

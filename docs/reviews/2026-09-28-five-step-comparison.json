@@ -1,0 +1,1188 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "numpy": "2.4.6",
+  "numba": "0.65.1",
+  "threads": 4,
+  "script_sha256": "f925ae5c3135769e2f4261eda430699c0579dd24fd8dc7109a1b25402926e577",
+  "backend_identities": {
+    "numpy": "numpy-csr-v1",
+    "numba": "numba-csr-v1",
+    "rust": "rust-csr-abi1-329ce32a1e881832"
+  },
+  "kernels": [
+    {
+      "positions": 1000,
+      "cashflows": 60000,
+      "backend": "numpy",
+      "prepared_call": {
+        "median_ms": 0.2748998813331127,
+        "p95_ms": 0.2838799497112632,
+        "samples_ms": [
+          0.2741999924182892,
+          0.28609996661543846,
+          0.2748998813331127,
+          0.2717999741435051,
+          0.2786999102681875,
+          0.27709989808499813,
+          0.27219997718930244
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 0.6103001069277525,
+        "p95_ms": 0.864190049469471,
+        "samples_ms": [
+          0.8924000430852175,
+          0.6103001069277525,
+          0.5787000991404057
+        ]
+      },
+      "traced_call_peak_mb": 0.9162673950195312,
+      "max_abs_error": 0.0,
+      "rss_mb": 118.4609375,
+      "process_peak_rss_mb": 118.4609375
+    },
+    {
+      "positions": 1000,
+      "cashflows": 60000,
+      "backend": "numba",
+      "prepared_call": {
+        "median_ms": 0.0629001297056675,
+        "p95_ms": 0.06916006095707417,
+        "samples_ms": [
+          0.0629001297056675,
+          0.06509991362690926,
+          0.06170012056827545,
+          0.06720004603266716,
+          0.0700000673532486,
+          0.061400001868605614,
+          0.06160000339150429
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 0.6964998319745064,
+        "p95_ms": 1.022389903664589,
+        "samples_ms": [
+          1.0585999116301537,
+          0.6964998319745064,
+          0.6035000551491976
+        ]
+      },
+      "traced_call_peak_mb": 0.0156402587890625,
+      "max_abs_error": 6.661338147750939e-16,
+      "rss_mb": 149.69140625,
+      "process_peak_rss_mb": 149.69140625
+    },
+    {
+      "positions": 1000,
+      "cashflows": 60000,
+      "backend": "rust",
+      "prepared_call": {
+        "median_ms": 0.19519985653460026,
+        "p95_ms": 0.2052600495517254,
+        "samples_ms": [
+          0.19519985653460026,
+          0.16489997506141663,
+          0.19150017760694027,
+          0.19910000264644623,
+          0.17449981532990932,
+          0.19699987024068832,
+          0.20790006965398788
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 0.6327000446617603,
+        "p95_ms": 0.7742699701339006,
+        "samples_ms": [
+          0.7899999618530273,
+          0.6327000446617603,
+          0.5550000350922346
+        ]
+      },
+      "traced_call_peak_mb": 0.0201568603515625,
+      "max_abs_error": 6.661338147750939e-16,
+      "rss_mb": 149.90625,
+      "process_peak_rss_mb": 149.90625
+    },
+    {
+      "positions": 10000,
+      "cashflows": 600000,
+      "backend": "numpy",
+      "prepared_call": {
+        "median_ms": 7.094500120729208,
+        "p95_ms": 7.572499988600612,
+        "samples_ms": [
+          7.439499953761697,
+          6.284999893978238,
+          7.629500003531575,
+          6.312600104138255,
+          7.116700056940317,
+          7.094500120729208,
+          6.232599960640073
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 14.481999911367893,
+        "p95_ms": 15.763060026802123,
+        "samples_ms": [
+          14.342200011014938,
+          15.905400039628148,
+          14.481999911367893
+        ]
+      },
+      "traced_call_peak_mb": 9.156013488769531,
+      "max_abs_error": 0.0,
+      "rss_mb": 168.98828125,
+      "process_peak_rss_mb": 187.30078125
+    },
+    {
+      "positions": 10000,
+      "cashflows": 600000,
+      "backend": "numba",
+      "prepared_call": {
+        "median_ms": 0.5747999530285597,
+        "p95_ms": 0.7874699775129554,
+        "samples_ms": [
+          0.5822998937219381,
+          0.5865001585334539,
+          0.5616999696940184,
+          0.5624999757856131,
+          0.8735998999327421,
+          0.5747999530285597,
+          0.5631998647004366
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 7.443400099873543,
+        "p95_ms": 7.956039812415838,
+        "samples_ms": [
+          6.77659991197288,
+          8.012999780476093,
+          7.443400099873543
+        ]
+      },
+      "traced_call_peak_mb": 0.1529693603515625,
+      "max_abs_error": 8.881784197001252e-16,
+      "rss_mb": 168.99609375,
+      "process_peak_rss_mb": 187.30859375
+    },
+    {
+      "positions": 10000,
+      "cashflows": 600000,
+      "backend": "rust",
+      "prepared_call": {
+        "median_ms": 1.2755000498145819,
+        "p95_ms": 1.3119998620823026,
+        "samples_ms": [
+          1.3042998034507036,
+          1.280799973756075,
+          1.2755000498145819,
+          1.2540000025182962,
+          1.3152998872101307,
+          1.2394001241773367,
+          1.270500011742115
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 8.912599878385663,
+        "p95_ms": 9.496160130947828,
+        "samples_ms": [
+          8.912599878385663,
+          8.04489990696311,
+          9.561000159010291
+        ]
+      },
+      "traced_call_peak_mb": 0.1573028564453125,
+      "max_abs_error": 8.881784197001252e-16,
+      "rss_mb": 169.01171875,
+      "process_peak_rss_mb": 187.31640625
+    },
+    {
+      "positions": 100000,
+      "cashflows": 6000000,
+      "backend": "numpy",
+      "prepared_call": {
+        "median_ms": 76.59680000506341,
+        "p95_ms": 82.50135004054755,
+        "samples_ms": [
+          70.77039987780154,
+          74.75110003724694,
+          76.59680000506341,
+          72.05739989876747,
+          76.8718000035733,
+          82.85730006173253,
+          81.67079999111593
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 153.6413999274373,
+        "p95_ms": 160.68128999322653,
+        "samples_ms": [
+          161.46350000053644,
+          153.6413999274373,
+          151.0044999886304
+        ]
+      },
+      "traced_call_peak_mb": 91.55347442626953,
+      "max_abs_error": 0.0,
+      "rss_mb": 365.94140625,
+      "process_peak_rss_mb": 552.33984375
+    },
+    {
+      "positions": 100000,
+      "cashflows": 6000000,
+      "backend": "numba",
+      "prepared_call": {
+        "median_ms": 6.686900043860078,
+        "p95_ms": 6.857309932820499,
+        "samples_ms": [
+          6.197100039571524,
+          6.755899870768189,
+          6.263599963858724,
+          6.535799941048026,
+          6.833299994468689,
+          6.867599906399846,
+          6.686900043860078
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 89.51309998519719,
+        "p95_ms": 89.82818997465074,
+        "samples_ms": [
+          86.97380009107292,
+          89.86319997347891,
+          89.51309998519719
+        ]
+      },
+      "traced_call_peak_mb": 1.5262603759765625,
+      "max_abs_error": 8.881784197001252e-16,
+      "rss_mb": 366.3828125,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 100000,
+      "cashflows": 6000000,
+      "backend": "rust",
+      "prepared_call": {
+        "median_ms": 17.111700028181076,
+        "p95_ms": 17.356730089522898,
+        "samples_ms": [
+          17.111700028181076,
+          16.78339997306466,
+          17.43590016849339,
+          15.23339981213212,
+          17.15880003757775,
+          17.171999905258417,
+          16.861499985679984
+        ]
+      },
+      "pack_and_call": {
+        "median_ms": 94.39749992452562,
+        "p95_ms": 95.41755993850529,
+        "samples_ms": [
+          91.62220009602606,
+          94.39749992452562,
+          95.53089994005859
+        ]
+      },
+      "traced_call_peak_mb": 1.5302276611328125,
+      "max_abs_error": 8.881784197001252e-16,
+      "rss_mb": 366.41796875,
+      "process_peak_rss_mb": 553.1640625
+    }
+  ],
+  "graphs": [
+    {
+      "positions": 375,
+      "composition": "five-product mixed",
+      "backend": "numpy",
+      "initial_ms": 252.07209982909262,
+      "unchanged": {
+        "median_ms": 7.848700042814016,
+        "p95_ms": 8.56276003178209,
+        "samples_ms": [
+          7.848700042814016,
+          7.6299998909235,
+          8.642100030556321
+        ]
+      },
+      "edit_samples_ms": [
+        8.048499934375286,
+        7.862499915063381,
+        8.122499799355865,
+        8.919000159949064,
+        7.967500016093254
+      ],
+      "edit_median_ms": 8.048499934375286,
+      "fresh_rebuild": {
+        "median_ms": 196.1252000182867,
+        "p95_ms": 196.1252000182867,
+        "samples_ms": [
+          196.1252000182867
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 1136,
+        "bytes": 8252574,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 0,
+      "rss_mb": 192.25390625,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 375,
+      "composition": "five-product mixed",
+      "backend": "numba",
+      "initial_ms": 192.08519998937845,
+      "unchanged": {
+        "median_ms": 8.031399920582771,
+        "p95_ms": 8.693889831192791,
+        "samples_ms": [
+          8.031399920582771,
+          8.767499821260571,
+          7.952600019052625
+        ]
+      },
+      "edit_samples_ms": [
+        9.271400049328804,
+        8.262000046670437,
+        8.2094999961555,
+        7.8668000642210245,
+        9.327900130301714
+      ],
+      "edit_median_ms": 8.262000046670437,
+      "fresh_rebuild": {
+        "median_ms": 198.4362001530826,
+        "p95_ms": 198.4362001530826,
+        "samples_ms": [
+          198.4362001530826
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 1136,
+        "bytes": 8252574,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "rss_mb": 192.99609375,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 375,
+      "composition": "five-product mixed",
+      "backend": "rust",
+      "initial_ms": 201.8726000096649,
+      "unchanged": {
+        "median_ms": 8.117200108245015,
+        "p95_ms": 9.070120030082762,
+        "samples_ms": [
+          9.176000021398067,
+          8.015800034627318,
+          8.117200108245015
+        ]
+      },
+      "edit_samples_ms": [
+        8.510499959811568,
+        8.250799961388111,
+        8.962700143456459,
+        7.985200034454465,
+        9.087699931114912
+      ],
+      "edit_median_ms": 8.510499959811568,
+      "fresh_rebuild": {
+        "median_ms": 200.6279001943767,
+        "p95_ms": 200.6279001943767,
+        "samples_ms": [
+          200.6279001943767
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 1136,
+        "bytes": 8252574,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 3.2782554626464844e-07,
+      "rss_mb": 193.82421875,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 10000,
+      "composition": "corporate loans",
+      "backend": "numpy",
+      "initial_ms": 676.2193001341075,
+      "unchanged": {
+        "median_ms": 134.33539983816445,
+        "p95_ms": 136.64300001692027,
+        "samples_ms": [
+          134.16769984178245,
+          136.89940003678203,
+          134.33539983816445
+        ]
+      },
+      "edit_samples_ms": [
+        132.08879996091127,
+        129.2535001412034,
+        128.02539998665452,
+        127.72549991495907,
+        127.80750007368624
+      ],
+      "edit_median_ms": 128.02539998665452,
+      "fresh_rebuild": {
+        "median_ms": 669.2900001071393,
+        "p95_ms": 669.2900001071393,
+        "samples_ms": [
+          669.2900001071393
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 30007,
+        "bytes": 26042504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 0,
+      "rss_mb": 273.51171875,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 10000,
+      "composition": "corporate loans",
+      "backend": "numba",
+      "initial_ms": 664.1208999790251,
+      "unchanged": {
+        "median_ms": 130.0141999963671,
+        "p95_ms": 131.25332000199705,
+        "samples_ms": [
+          131.3910000026226,
+          129.9759999383241,
+          130.0141999963671
+        ]
+      },
+      "edit_samples_ms": [
+        132.07320007495582,
+        137.10199994966388,
+        135.82620001398027,
+        133.75320006161928,
+        133.84780008345842
+      ],
+      "edit_median_ms": 133.84780008345842,
+      "fresh_rebuild": {
+        "median_ms": 673.6922001000494,
+        "p95_ms": 673.6922001000494,
+        "samples_ms": [
+          673.6922001000494
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 30007,
+        "bytes": 26042504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 5.960464477539063e-08,
+      "rss_mb": 297.80859375,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 10000,
+      "composition": "corporate loans",
+      "backend": "rust",
+      "initial_ms": 694.3934001028538,
+      "unchanged": {
+        "median_ms": 132.2542999405414,
+        "p95_ms": 133.39361012913287,
+        "samples_ms": [
+          130.29800006188452,
+          132.2542999405414,
+          133.52020015008748
+        ]
+      },
+      "edit_samples_ms": [
+        132.95449991710484,
+        133.54049995541573,
+        136.21829985640943,
+        136.07500004582107,
+        131.37480011209846
+      ],
+      "edit_median_ms": 133.54049995541573,
+      "fresh_rebuild": {
+        "median_ms": 680.8863000478595,
+        "p95_ms": 680.8863000478595,
+        "samples_ms": [
+          680.8863000478595
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 30007,
+        "bytes": 26042504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 5.960464477539063e-08,
+      "rss_mb": 318.0703125,
+      "process_peak_rss_mb": 553.1640625
+    },
+    {
+      "positions": 100000,
+      "composition": "corporate loans",
+      "backend": "numpy",
+      "initial_ms": 6473.967500030994,
+      "unchanged": {
+        "median_ms": 1397.7030001115054,
+        "p95_ms": 1404.9411599058658,
+        "samples_ms": [
+          1382.3994998820126,
+          1397.7030001115054,
+          1405.745399883017
+        ]
+      },
+      "edit_samples_ms": [
+        1407.8409001231194,
+        1423.8866998348385,
+        1407.553899800405,
+        1450.7366998586804,
+        1420.0335999485105
+      ],
+      "edit_median_ms": 1420.0335999485105,
+      "fresh_rebuild": {
+        "median_ms": 6751.760799903423,
+        "p95_ms": 6751.760799903423,
+        "samples_ms": [
+          6751.760799903423
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 300007,
+        "bytes": 240452504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 0,
+      "rss_mb": 878.046875,
+      "process_peak_rss_mb": 1321.34375
+    },
+    {
+      "positions": 100000,
+      "composition": "corporate loans",
+      "backend": "numba",
+      "initial_ms": 6771.823300048709,
+      "unchanged": {
+        "median_ms": 1431.6193000413477,
+        "p95_ms": 1442.492469958961,
+        "samples_ms": [
+          1443.700599949807,
+          1431.6193000413477,
+          1410.2375998627394
+        ]
+      },
+      "edit_samples_ms": [
+        1420.622400008142,
+        1531.1921001411974,
+        1532.5480999890715,
+        1562.9826001822948,
+        1525.70839994587
+      ],
+      "edit_median_ms": 1531.1921001411974,
+      "fresh_rebuild": {
+        "median_ms": 7216.447599930689,
+        "p95_ms": 7216.447599930689,
+        "samples_ms": [
+          7216.447599930689
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 300007,
+        "bytes": 240452504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 5.960464477539063e-08,
+      "rss_mb": 1047.51953125,
+      "process_peak_rss_mb": 1505.8828125
+    },
+    {
+      "positions": 100000,
+      "composition": "corporate loans",
+      "backend": "rust",
+      "initial_ms": 7037.279700161889,
+      "unchanged": {
+        "median_ms": 1307.8947998583317,
+        "p95_ms": 1312.5132400309667,
+        "samples_ms": [
+          1307.8947998583317,
+          1299.8741001356393,
+          1313.0264000501484
+        ]
+      },
+      "edit_samples_ms": [
+        1310.3430999908596,
+        1299.2233000695705,
+        1311.8429998867214,
+        1307.5000999961048,
+        1305.9276998974383
+      ],
+      "edit_median_ms": 1307.5000999961048,
+      "fresh_rebuild": {
+        "median_ms": 6357.799699995667,
+        "p95_ms": 6357.799699995667,
+        "samples_ms": [
+          6357.799699995667
+        ]
+      },
+      "computed_nodes_per_edit": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "cache": {
+        "entries": 300007,
+        "bytes": 240452504,
+        "max_bytes": 536870912,
+        "max_entries": 500000
+      },
+      "max_rebuild_error": 0.0,
+      "max_numpy_error": 5.960464477539063e-08,
+      "rss_mb": 1219.41015625,
+      "process_peak_rss_mb": 1659.2578125
+    }
+  ],
+  "analytics": [
+    {
+      "backend": "numpy",
+      "positions": 375,
+      "paths": 128,
+      "horizon": 27,
+      "initial_ms": 2901.467600138858,
+      "comparison": {
+        "median_ms": 254.29220008663833,
+        "p95_ms": 267.3924199305475,
+        "samples_ms": [
+          270.2434998936951,
+          247.60270002298057,
+          254.29220008663833,
+          246.95400008931756,
+          255.98810007795691
+        ]
+      },
+      "revised_graph": {
+        "cashflows:mbs": {
+          "reused": 3000,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:mbs": {
+          "reused": 2760,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:loans": {
+          "reused": 2317,
+          "computed": 23,
+          "batches": 23
+        },
+        "calibration:loans": {
+          "reused": 90,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 23,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 2047,
+          "computed": 23,
+          "batches": 23
+        },
+        "income:loans": {
+          "reused": 89,
+          "computed": 1,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 625,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:debt": {
+          "reused": 575,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:deposits": {
+          "reused": 2500,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:deposits": {
+          "reused": 2300,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:cds": {
+          "reused": 1040,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:cds": {
+          "reused": 920,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        }
+      },
+      "max_rebuild_error": 0.0,
+      "cache": {
+        "entries": 18307,
+        "bytes": 187302688,
+        "max_bytes": 536870912,
+        "max_entries": 100000
+      },
+      "rss_mb": 871.87109375,
+      "process_peak_rss_mb": 1659.2578125
+    },
+    {
+      "backend": "numba",
+      "positions": 375,
+      "paths": 128,
+      "horizon": 27,
+      "initial_ms": 2874.436300015077,
+      "comparison": {
+        "median_ms": 250.29119988903403,
+        "p95_ms": 263.114699954167,
+        "samples_ms": [
+          265.7067999243736,
+          250.29119988903403,
+          249.5820999611169,
+          252.74630007334054,
+          250.07249996997416
+        ]
+      },
+      "revised_graph": {
+        "cashflows:mbs": {
+          "reused": 3000,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:mbs": {
+          "reused": 2760,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:loans": {
+          "reused": 2317,
+          "computed": 23,
+          "batches": 23
+        },
+        "calibration:loans": {
+          "reused": 90,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 23,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 2047,
+          "computed": 23,
+          "batches": 23
+        },
+        "income:loans": {
+          "reused": 89,
+          "computed": 1,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 625,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:debt": {
+          "reused": 575,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:deposits": {
+          "reused": 2500,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:deposits": {
+          "reused": 2300,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:cds": {
+          "reused": 1040,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:cds": {
+          "reused": 920,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        }
+      },
+      "max_rebuild_error": 0.0,
+      "cache": {
+        "entries": 18307,
+        "bytes": 187302688,
+        "max_bytes": 536870912,
+        "max_entries": 100000
+      },
+      "rss_mb": 774.3125,
+      "process_peak_rss_mb": 1659.2578125
+    },
+    {
+      "backend": "rust",
+      "positions": 375,
+      "paths": 128,
+      "horizon": 27,
+      "initial_ms": 2953.803400043398,
+      "comparison": {
+        "median_ms": 267.11049978621304,
+        "p95_ms": 321.45447987131774,
+        "samples_ms": [
+          327.84909987822175,
+          267.11049978621304,
+          256.4848999027163,
+          265.9734000917524,
+          295.8759998437017
+        ]
+      },
+      "revised_graph": {
+        "cashflows:mbs": {
+          "reused": 3000,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:mbs": {
+          "reused": 2760,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:mbs": {
+          "reused": 120,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:loans": {
+          "reused": 2317,
+          "computed": 23,
+          "batches": 23
+        },
+        "calibration:loans": {
+          "reused": 90,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 23,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 2047,
+          "computed": 23,
+          "batches": 23
+        },
+        "income:loans": {
+          "reused": 89,
+          "computed": 1,
+          "batches": 1
+        },
+        "cashflows:debt": {
+          "reused": 625,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:debt": {
+          "reused": 575,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:debt": {
+          "reused": 25,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:deposits": {
+          "reused": 2500,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:deposits": {
+          "reused": 2300,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:deposits": {
+          "reused": 100,
+          "computed": 0,
+          "batches": 0
+        },
+        "cashflows:cds": {
+          "reused": 1040,
+          "computed": 0,
+          "batches": 0
+        },
+        "calibration:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:cds": {
+          "reused": 920,
+          "computed": 0,
+          "batches": 0
+        },
+        "income:cds": {
+          "reused": 40,
+          "computed": 0,
+          "batches": 0
+        }
+      },
+      "max_rebuild_error": 0.0,
+      "cache": {
+        "entries": 18307,
+        "bytes": 187302688,
+        "max_bytes": 536870912,
+        "max_entries": 100000
+      },
+      "rss_mb": 768.703125,
+      "process_peak_rss_mb": 1659.2578125
+    }
+  ],
+  "broad_market_shock": {
+    "positions": 10000,
+    "parallel_bp": 100,
+    "elapsed_ms": 698.1530000921339,
+    "graph": {
+      "cashflows:loans": {
+        "reused": 10000,
+        "computed": 10000,
+        "batches": 1
+      },
+      "calibration:loans": {
+        "reused": 10000,
+        "computed": 0,
+        "batches": 0
+      },
+      "rate_paths": {
+        "reused": 0,
+        "computed": 1,
+        "batches": 1
+      },
+      "market_fit": {
+        "reused": 0,
+        "computed": 1,
+        "batches": 1
+      },
+      "marks:loans": {
+        "reused": 0,
+        "computed": 10000,
+        "batches": 1
+      }
+    },
+    "max_rebuild_error": 0.0,
+    "cache": {
+      "entries": 50004,
+      "bytes": 48371358,
+      "max_bytes": 536870912,
+      "max_entries": 500000
+    }
+  },
+  "cache_pressure": {
+    "max_error": 0.0,
+    "timing": {
+      "median_ms": 79.3930001091212,
+      "p95_ms": 82.57612003944814,
+      "samples_ms": [
+        78.14830006100237,
+        79.3930001091212,
+        82.92980003170669
+      ]
+    },
+    "cache": {
+      "entries": 64,
+      "bytes": 23360,
+      "max_bytes": 65536,
+      "max_entries": 64
+    },
+    "computed": 272
+  },
+  "limits": [
+    "Synthetic instruments, not live market validation.",
+    "Large 10k/100k graph tests use corporate loans; mixed 375-position analytics covers all five products.",
+    "Engine timings exclude HTTP/Arrow and queueing; kernel calls include FFI, validation and output allocation.",
+    "Prepared-kernel input packing is separately measured. Process peak RSS is cumulative, not backend-attributable.",
+    "Traced allocation peak does not capture all Rust/native allocations."
+  ]
+}

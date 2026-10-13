@@ -34,3 +34,4 @@ def seed_demo(owner):
     owner.MARKET["source"] = "Synthetic research market"
     owner.MARKET["provenance"] = {"curve": "assumed", "volatility": "assumed",
                             "warnings": ["Curve, volatility and behavioral histories are synthetic demo inputs."]}
+

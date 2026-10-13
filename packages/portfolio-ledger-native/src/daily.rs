@@ -1,7 +1,14 @@
 //! Full daily research state machine; bounded table batches over a local pipe.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
+mod consumer_hooks;
+mod mortgage_hooks;
+mod derivative_hooks;
+mod commercial_hooks;
 #[path = "bin/report.rs"]
 mod report;
+#[derive(Clone,Copy)]
+enum DepositPrincipalOwner<'a>{Legacy(&'a crate::deposit_source_principal::Prepared),Portfolio(&'a crate::deposit_source_portfolio::Prepared)}
+
 use crate::types;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -264,6 +271,18 @@ struct Sim<'a> {
     streamed_flows: Option<&'a crate::flow_store::FlowStore>,
     dated: Option<&'a crate::dated_ledger::CompiledDatedLedger>,
     dated_state: Option<crate::dated_ledger::DatedRunState>,
+    consumers: Option<crate::product_event_owner::OwnerSources<'a>>,
+    consumer_state: Option<crate::consumer_intent_owner::Runtime>,
+    mortgages: Option<&'a crate::mortgage_pending_owner::Compiled>,
+    mortgage_state: Option<crate::mortgage_pending_owner::Runtime>,
+    deposit_revisions: Option<&'a [crate::deposit_revision::Revision]>,
+    source_principals: Option<DepositPrincipalOwner<'a>>,
+    source_atom_cursor: usize,
+    source_portfolio_cursors: Vec<usize>,
+    derivatives: Option<&'a crate::derivative_intent_owner::Compiled<'a>>,
+    derivative_state: Option<crate::derivative_intent_owner::Runtime>,
+    commercials: Option<&'a crate::commercial_intent_owner::Compiled<'a>>,
+    commercial_state: Option<crate::commercial_intent_owner::Runtime>,
     margin_targets: HashMap<usize, Vec<(usize, f64)>>,
     pending: HashMap<usize, Vec<usize>>,
     used: Vec<f64>,
@@ -280,10 +299,39 @@ impl<'a> Sim<'a> {
         sink: &'a mut Sink,
         streamed_flows: Option<&'a crate::flow_store::FlowStore>,
         dated: Option<&'a crate::dated_ledger::CompiledDatedLedger>,
+        consumers: Option<crate::product_event_owner::OwnerSources<'a>>,
+        mortgages: Option<&'a crate::mortgage_pending_owner::Compiled>,
+        deposit_revisions: Option<&'a [crate::deposit_revision::Revision]>,
+        source_principals: Option<DepositPrincipalOwner<'a>>,
+        derivatives: Option<&'a crate::derivative_intent_owner::Compiled<'a>>,
+        commercials: Option<&'a crate::commercial_intent_owner::Compiled<'a>>,
     ) -> R<Self> {
-        let dated_state = dated.map(|source| source.run_index(&scenario.name, severity)
-            .and_then(|run| crate::dated_ledger::DatedRunState::new(source, run))).transpose()?;
+        let dated_state = dated
+            .map(|source| {
+                source
+                    .run_index(&scenario.name, severity)
+                    .and_then(|run| crate::dated_ledger::DatedRunState::new(source, run))
+            })
+            .transpose()?;
         let n = spec.positions.len();
+        let derivative_state = derivatives.map(|c|
+            crate::derivative_intent_owner::Runtime::new(c, &scenario.name)).transpose()?;
+        let consumer_state = consumers
+            .map(|c| {
+                let run = dated
+                    .ok_or("consumer owner requires dated run")?
+                    .run_index(&scenario.name, severity)?;
+                Ok::<_, String>(crate::consumer_intent_owner::Runtime::new(c, run))
+            })
+            .transpose()?;
+        let mortgage_state = mortgages
+            .map(|c| {
+                let run = dated
+                    .ok_or("mortgage requires dated run")?
+                    .run_index(&scenario.name, severity)?;
+                Ok::<_, String>(crate::mortgage_pending_owner::Runtime::new(c, run))
+            })
+            .transpose()?;
         let a = spec.accounts.len();
         let aid: HashMap<_, _> = spec
             .accounts
@@ -366,6 +414,18 @@ impl<'a> Sim<'a> {
             streamed_flows,
             dated,
             dated_state,
+            consumers,
+            consumer_state,
+            mortgages,
+            mortgage_state,
+            deposit_revisions,
+            source_principals,
+            source_atom_cursor: 0,
+            source_portfolio_cursors: match source_principals {Some(DepositPrincipalOwner::Portfolio(p))=>vec![0;p.owners.len()],_=>Vec::new()},
+            derivatives,
+            derivative_state,
+            commercials,
+            commercial_state: commercials.map(crate::commercial_intent_owner::Runtime::new),
             margin_targets: HashMap::new(),
             pending: HashMap::new(),
             used: vec![0.; spec.policies.len()],
@@ -390,6 +450,26 @@ impl<'a> Sim<'a> {
     }
     fn raw_post(&mut self, day: usize, a: usize, event: &str, entries: Changes) -> R<()> {
         let entries: Changes = entries.into_iter().filter(|x| x.2 != 0.).collect();
+        if self.deposit_revisions.is_some() || self.source_principals.is_some() {
+            portfolio_compute_control::checkpoint()?;
+            // New source's component domain; no monetary normalization or tolerance change.
+            for (_, _, x) in &entries {
+                if !x.is_finite() || x.abs() > 10_000. {
+                    return Err("revised deposit runtime journal money cap".into());
+                }
+            }
+            for (gl, id, value) in &entries {
+                let next = self
+                    .gl
+                    .get(&(a, self.sink.intern(gl), self.sink.intern(id)))
+                    .copied()
+                    .unwrap_or(0.)
+                    + value;
+                if !next.is_finite() || next.abs() > 10_000. {
+                    return Err("revised deposit runtime GL money cap".into());
+                }
+            }
+        }
         if entries.is_empty() {
             return Ok(());
         }
@@ -398,6 +478,17 @@ impl<'a> Sim<'a> {
             || sum_accurate(entries.iter().map(|x| x.2))?.abs() > 1e-9 * scale.max(1.)
         {
             return Err(format!("unbalanced {event} day {day}"));
+        }
+        if let Some(c) = self.mortgages {
+            let mut staged = self.gl.clone();
+            for (gl, id, value) in &entries {
+                let key = (a, self.sink.intern(gl), self.sink.intern(id));
+                *staged.entry(key).or_default() += value;
+            }
+            if staged.len() > c.admission().max_gl_keys {
+                return Err("mortgage GL key reservation exceeded".into());
+            }
+            crate::mortgage_pending_owner::guardian::gross(staged.values().copied())?;
         }
         self.sequence += 1;
         for (gl, id, value) in entries {
@@ -469,6 +560,63 @@ impl<'a> Sim<'a> {
         r[2] += oci;
         Ok(())
     }
+    fn close_day(&mut self, day: usize) -> R<()> {
+        if self.deposit_revisions.is_some() || self.source_principals.is_some() {
+            portfolio_compute_control::checkpoint()?;
+            for x in
+                self.accounts
+                    .iter()
+                    .flat_map(|a| [a.cash, a.equity])
+                    .chain(self.positions.iter().flat_map(|p| {
+                        [p.balance, p.book_adjustment, p.balance + p.book_adjustment]
+                    }))
+                    .chain(self.accrued.iter().copied())
+            {
+                if !x.is_finite() || x.abs() > 10_000. {
+                    return Err("revised deposit end-day monetary domain breach".into());
+                }
+            }
+        }
+        if (self.consumers.is_some()
+            || self.commercials.is_some()
+            || self.mortgages.is_some()
+            || self.deposit_revisions.is_some()
+            || self.source_principals.is_some()
+            || self.derivatives.is_some()
+            || self.dated.is_some_and(|s| s.acquisitions.is_some()))
+            && self
+                .accounts
+                .iter()
+                .any(|a| a.cash < a.cash_floor - 1e-9 - 1e-12 * a.cash_floor.abs())
+        {
+            return Err(
+                "mixed end-of-day cash floor breached; replacement funding unsupported".into(),
+            );
+        }
+        for a in 0..self.accounts.len() {
+            let income: f64 = self
+                .aggregate
+                .iter()
+                .filter(|r| r.0 == a && r.1 != "dividend")
+                .map(|r| r.2[1])
+                .sum();
+            let tax = income.max(0.) * self.accounts[a].tax_rate;
+            if tax != 0. {
+                self.post(day, a, "tax", -tax, -tax, 0., vec![], "")?;
+            }
+        }
+        self.observe(day)?;
+        if self.detail {
+            for (a, event, r) in &self.aggregate {
+                if r.iter().any(|v| *v != 0.) {
+                    self.sink.emit("ledger",json!({"scenario":self.scenario.name,"day":day,"account":self.accounts[*a].id,"event":event,"cash":r[0],"earnings":r[1],"aoci":r[2],"memo_amount":0.}))?;
+                }
+            }
+        }
+        self.aggregate.clear();
+        self.aggregate_index.clear();
+        Ok(())
+    }
     fn opening(&mut self) -> R<()> {
         for a in 0..self.accounts.len() {
             let mut e = vec![
@@ -485,12 +633,20 @@ impl<'a> Sim<'a> {
                     entry("book_adjustment", &p.id, sign(p) * p.book_adjustment),
                     entry("allowance", &p.id, -p.allowance),
                 ]);
-                if let Some((owner, state)) = self.dated.and_then(|source|source.position_owners[i])
-                    .zip(self.dated_state.as_ref()) {
-                    for (gl,value) in crate::dated_ledger::RIGHTS_GL.iter().zip(state.rights[owner]) {
-                        e.push(entry(gl,&p.id,value));
+                if let Some((owner, state)) = self
+                    .dated
+                    .and_then(|source| source.position_owners[i])
+                    .zip(self.dated_state.as_ref())
+                {
+                    for (gl, value) in crate::dated_ledger::RIGHTS_GL
+                        .iter()
+                        .zip(state.rights[owner])
+                    {
+                        e.push(entry(gl, &p.id, value));
                     }
-                } else { e.push(entry("accrued_interest",&p.id,sign(p)*self.accrued[i])); }
+                } else {
+                    e.push(entry("accrued_interest", &p.id, sign(p) * self.accrued[i]));
+                }
                 if p.kind == "security" && marked(p) {
                     e.push(entry(
                         "fair_value_adjustment",
@@ -508,11 +664,121 @@ impl<'a> Sim<'a> {
                     ]);
                 }
             }
+            e.extend(self.derivative_opening(a)?);
             self.raw_post(0, a, "opening", e)?;
         }
-        self.observe(0)
+        self.deposit_revision()?;
+        self.dated_acquisitions(0)?;
+        self.commercial_events(0)?;
+        self.consumer_acquisitions(0)?;
+        self.consumer_events(0)?;
+        self.mortgage_events(0)
+            .map_err(|e| format!("mortgage opening: {e}"))?;
+        self.dated_settlements(0)?;
+        self.source_principal_day(0)?;
+        self.derivative_events(0)?;
+        if self.dated.is_some() || self.commercials.is_some() {
+            self.close_day(0)
+        } else {
+            self.observe(0)
+        }
+    }
+    fn deposit_revision(&mut self) -> R<()> {
+        let Some(revisions) = self.deposit_revisions else {
+            return Ok(());
+        };
+        let run = self
+            .dated
+            .ok_or("deposit revision requires dated owner")?
+            .run_index(&self.scenario.name, self.severity)?;
+        let revision = revisions
+            .iter()
+            .find(|r| r.run_index == run)
+            .ok_or("missing once-only deposit run revision")?;
+        portfolio_compute_control::checkpoint()?;
+        let p = &self.positions[revision.position_index];
+        if (p.book_adjustment - revision.original_basis).abs() > 1e-9
+            || revision.position_index != 0
+            || revision.account_index != 0
+            || p.kind.as_str() != "deposit"
+        {
+            return Err("deposit revision opening ownership/basis mismatch".into());
+        }
+        let id = p.id.to_string();
+        let amount = revision.amount;
+        let next = p.book_adjustment + amount;
+        for x in [next, self.accounts[0].equity - amount, p.balance + next] {
+            if !x.is_finite() || x.abs() > 10_000. {
+                return Err("deposit revision runtime money admission".into());
+            }
+        }
+        // Separate reviewed catchup P&L, after original opening, before recognition.
+        // post() owns both balanced journal and earnings/equity mutation once.
+        self.post(
+            0,
+            0,
+            "deposit_basis_revision",
+            0.,
+            -amount,
+            0.,
+            vec![entry("book_adjustment", &id, -amount)],
+            &id,
+        )?;
+        self.positions[0].book_adjustment = next;
+        if self.detail {
+            self.sink.emit("deposit_revision",json!({"scenario":self.scenario.name,"run_id":self.dated.unwrap().store.runs()[run].run_id,"position_id":id,"ordinal":self.dated.unwrap().store.as_of_ordinal(),"original_basis":revision.original_basis,"revised_basis":next,"basis_revision":amount,"review":revision.review,"cash":0.,"original_yield_retained":true,"accounting_standard_approval":false,"capital_ftp_eligible":false}))?;
+        }
+        Ok(())
     }
     fn observe(&mut self, day: usize) -> R<()> {
+        if let Some(c) = self.mortgages {
+            use crate::mortgage_pending_owner::guardian;
+            guardian::gross(
+                self.accounts
+                    .iter()
+                    .flat_map(|a| [a.cash, a.equity, a.cash_floor, a.capital_deductions]),
+            )?;
+            let backbook = self
+                .positions
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| c.position_owners[*i].is_none())
+                .flat_map(|(i, p)| {
+                    [
+                        p.balance,
+                        p.book_adjustment,
+                        p.allowance,
+                        self.accrued[i],
+                        self.commitments[i],
+                    ]
+                });
+            let state = self
+                .mortgage_state
+                .as_ref()
+                .ok_or("mortgage money state absent")?;
+            let owned = c.run_paths[state.run]
+                .iter()
+                .filter_map(|&bi| {
+                    state.books[bi]
+                        .as_ref()
+                        .map(|book| (book, c.bindings[bi].factor))
+                })
+                .flat_map(|(book, f)| {
+                    book.slots
+                        .iter()
+                        .flat_map(move |x| {
+                            [x.principal * f, x.recognized_interest * f, x.basis * f]
+                        })
+                        .chain(book.claims.iter().flat_map(move |x| {
+                            [
+                                x.book.principal * f,
+                                x.book.recognized_interest * f,
+                                x.book.basis * f,
+                            ]
+                        }))
+                });
+            guardian::gross(backbook.chain(owned))?;
+        }
         let mut expected = self.earnings.clone();
         for a in 0..self.accounts.len() {
             for (g, v) in [
@@ -533,13 +799,55 @@ impl<'a> Sim<'a> {
             ] {
                 expected.insert((a, self.sink.intern(g), self.sink.intern(&p.id)), v);
             }
-            if let Some((owner,state)) = self.dated.and_then(|source|source.position_owners[i])
-                .zip(self.dated_state.as_ref()) {
-                for (gl,value) in crate::dated_ledger::RIGHTS_GL.iter().zip(state.rights[owner]) {
-                    expected.insert((a,self.sink.intern(gl),self.sink.intern(&p.id)),value);
+            if let Some((owner, state, source)) = self
+                .consumers
+                .and_then(|c| c.position_owners()[i].map(|o| (o, self.consumer_state.as_ref(), c)))
+                .and_then(|(o, s, c)| s.map(|s| (o, s, c)))
+            {
+                let v = state.owner_summary(source, owner)?;
+                for (g, value) in [
+                    ("dated_interest_receivable", v[3]),
+                    ("dated_deferred_income", v[4]),
+                    ("credit_default_principal", v[5]),
+                    ("credit_default_book_adjustment", v[6]),
+                    ("credit_default_interest_receivable", v[7]),
+                    ("credit_default_deferred_income", v[8]),
+                ] {
+                    expected.insert((a, self.sink.intern(g), self.sink.intern(&p.id)), value);
+                }
+                if let Some(rights) = state.owner_rights_summary(source, owner)? {
+                    for (g, value) in [
+                        ("live_interest_basis_adjustment", rights[0]),
+                        ("default_interest_basis_adjustment", rights[1]),
+                    ] {
+                        expected.insert((a, self.sink.intern(g), self.sink.intern(&p.id)), value);
+                    }
+                }
+            } else if self
+                .mortgages
+                .is_some_and(|c| c.position_owners[i].is_some())
+            {
+                // Dedicated native seven-slot rights are added below.
+            } else if let Some((owner, state)) = self
+                .dated
+                .and_then(|source| source.position_owners[i])
+                .zip(self.dated_state.as_ref())
+            {
+                for (gl, value) in crate::dated_ledger::RIGHTS_GL
+                    .iter()
+                    .zip(state.rights[owner])
+                {
+                    expected.insert((a, self.sink.intern(gl), self.sink.intern(&p.id)), value);
                 }
             } else {
-                expected.insert((a,self.sink.intern("accrued_interest"),self.sink.intern(&p.id)),sign(p)*self.accrued[i]);
+                expected.insert(
+                    (
+                        a,
+                        self.sink.intern("accrued_interest"),
+                        self.sink.intern(&p.id),
+                    ),
+                    sign(p) * self.accrued[i],
+                );
             }
             if p.kind == "security" && marked(p) {
                 expected.insert(
@@ -583,6 +891,10 @@ impl<'a> Sim<'a> {
                 -c.balance,
             );
         }
+        self.mortgage_expected(&mut expected)?;
+        self.derivative_expected(&mut expected)?;
+        self.commercial_expected(&mut expected)?;
+        self.commercial_snapshots(day)?;
         for (k, v) in &self.gl {
             if !near(*v, *expected.get(k).unwrap_or(&0.)) {
                 return Err(format!(
@@ -596,7 +908,14 @@ impl<'a> Sim<'a> {
                 return Err(format!("missing GL day {day}: {k:?}"));
             }
         }
-        if self.detail && (day == 0 || day.is_multiple_of(30) || day == self.spec.horizon_days) {
+        if self.detail
+            && (day == 0
+                || day.is_multiple_of(30)
+                || day == self.spec.horizon_days
+                || self.mortgages.is_some_and(|c| {
+                    c.raw.reporting_end_ordinal == c.raw.dated.dated.as_of_ordinal + day as i32
+                }))
+        {
             for (i, p) in self.positions.iter().enumerate() {
                 self.sink.emit("exposures",json!({"scenario":self.scenario.name,"day":day,"account":p.account,"position":p.id,"kind":p.kind,"balance":p.balance,"allowance":p.allowance,"watch_fraction":p.watch_fraction,"commitment":p.commitment,"market_factor":self.market[i],"encumbered_fraction":p.encumbered_fraction,"accrued_interest":self.accrued[i]}))?;
             }
@@ -605,6 +924,11 @@ impl<'a> Sim<'a> {
             let a = &self.accounts[ai];
             let mut assets = a.cash + self.restricted[ai] + self.extra_assets[ai];
             let mut liabilities = self.extra_debt[ai];
+            let (derivative_assets, derivative_liabilities) = self.derivative_gross(ai)?;
+            let (commercial_assets,commercial_liabilities)=self.commercial_gross(ai)?;
+            assets += commercial_assets;liabilities += commercial_liabilities;
+            assets += derivative_assets;
+            liabilities += derivative_liabilities;
             let (
                 mut rwa,
                 mut hqla,
@@ -639,7 +963,18 @@ impl<'a> Sim<'a> {
                         p.balance + p.book_adjustment - p.allowance
                     };
                     assets += carrying;
-                    if self.dated.is_none_or(|source|source.position_owners[i].is_none()) { assets += self.accrued[i]; }
+                    if self
+                        .consumers
+                        .is_none_or(|c| c.position_owners()[i].is_none())
+                        && self
+                            .mortgages
+                            .is_none_or(|c| c.position_owners[i].is_none())
+                        && self
+                            .dated
+                            .is_none_or(|source| source.position_owners[i].is_none())
+                    {
+                        assets += self.accrued[i];
+                    }
                     rwa += carrying.max(0.) * p.risk_weight * (1. + p.watch_fraction);
                     rsf += carrying.max(0.) * p.rsf_weight;
                     let free = p.balance * (1. - p.encumbered_fraction).max(0.) * self.market[i];
@@ -662,14 +997,51 @@ impl<'a> Sim<'a> {
                     rwa += p.commitment * p.risk_weight;
                 } else {
                     liabilities += p.balance + p.book_adjustment;
-                    if self.dated.is_none_or(|source|source.position_owners[i].is_none()) { liabilities += self.accrued[i]; }
+                    if self
+                        .dated
+                        .is_none_or(|source| source.position_owners[i].is_none())
+                    {
+                        liabilities += self.accrued[i];
+                    }
                     asf += p.balance * p.asf_weight;
                     outflow += p.balance * p.lcr_outflow_weight;
                 }
-                if let Some((owner,state)) = self.dated.and_then(|source|source.position_owners[i])
-                    .zip(self.dated_state.as_ref()) {
-                    let right=state.rights[owner];
-                    assets += right[0]+right[2]; liabilities -= right[1]+right[3];
+                if let Some((owner, state)) = self
+                    .dated
+                    .and_then(|source| source.position_owners[i])
+                    .zip(self.dated_state.as_ref())
+                {
+                    let right = state.rights[owner];
+                    assets += right[0] + right[2];
+                    liabilities -= right[1] + right[3];
+                }
+                if let Some(owner) = self.consumers.and_then(|c| c.position_owners()[i]) {
+                    let c = self.consumers.ok_or("consumer source disappeared")?;
+                    let s = self
+                        .consumer_state
+                        .as_ref()
+                        .ok_or("consumer state disappeared")?
+                        .owner_summary(c, owner)?;
+                    assets += s[3] + s[5] + s[6] + s[7];
+                    liabilities -= s[4] + s[8];
+                    if let Some(rights) = self
+                        .consumer_state
+                        .as_ref()
+                        .ok_or("product rights state disappeared")?
+                        .owner_rights_summary(c, owner)?
+                    {
+                        // Signed basis is a contra asset, separate from gross rights.
+                        assets += rights[0] + rights[1];
+                    }
+                }
+                if let Some(owner) = self.mortgages.and_then(|c| c.position_owners[i]) {
+                    let c = self.mortgages.ok_or("mortgage source disappeared")?;
+                    let summary = self
+                        .mortgage_state
+                        .as_ref()
+                        .ok_or("mortgage state disappeared")?
+                        .summary(c, owner);
+                    assets += summary[2] + summary[3];
                 }
                 if p.classification == "htm" {
                     htm += p.balance + p.book_adjustment;
@@ -713,7 +1085,19 @@ impl<'a> Sim<'a> {
                     }
                 }
             }
-            if self.detail && (day <= 30 || day.is_multiple_of(30) || day == self.spec.horizon_days)
+            if self.detail
+                && (day <= 30
+                    || day.is_multiple_of(30)
+                    || day == self.spec.horizon_days
+                    || self.mortgages.is_some_and(|c| {
+                        c.raw.reporting_end_ordinal == c.raw.dated.dated.as_of_ordinal + day as i32
+                    })
+                    || self
+                        .dated
+                        .as_ref()
+                        .and_then(|d| d.acquisitions.as_ref())
+                        .and_then(|a| a.reporting_day)
+                        == Some(day as u32))
             {
                 let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"day":day,"cash":a.cash,"restricted_cash":self.restricted[ai],"cash_floor":a.cash_floor,"assets":assets,"liabilities":liabilities,"equity":a.equity,"aoci":self.aoci[ai],"cet1":cet1,"rwa":rwa,"cet1_ratio":ratio(cet1,rwa),"leverage_ratio":ratio(cet1,exposure),"usable_collateral":collateral,"undrawn":undrawn,"hqla_proxy":hqla,"lcr_proxy":ratio(hqla,outflow),"nsfr_proxy":ratio(asf,rsf),"reconciliation_error":error});
                 for (m, v) in margins {
@@ -769,9 +1153,19 @@ impl Sim<'_> {
         migration_mult: f64,
         processed: &HashSet<usize>,
     ) -> R<()> {
-        if self.dated.is_some_and(|source|source.position_owners[i].is_some()) {
+        if self
+            .mortgages
+            .is_some_and(|c| c.position_owners[i].is_some())
+            || self
+                .consumers
+                .is_some_and(|c| c.position_owners()[i].is_some())
+            || self
+                .dated
+                .is_some_and(|source| source.position_owners[i].is_some())
+        {
             return Ok(());
         }
+        if self.commercials.is_some_and(|c|c.position_owners[i]) {return Ok(());}
         let mut p = self.positions[i].clone();
         let a = self.aid[p.account.as_str()];
         let rate_shift = self.scenario.rate_shift * stress;
@@ -1123,6 +1517,468 @@ impl Sim<'_> {
             }
         }
         self.positions[i] = p;
+        Ok(())
+    }
+    fn dated_lineage(
+        &mut self,
+        day: usize,
+        event_index: usize,
+        phase: &str,
+        transaction: Option<usize>,
+        values: [f64; 5],
+    ) -> R<()> {
+        if !self.detail {
+            return Ok(());
+        }
+        let source = self.dated.ok_or("missing dated source")?;
+        let state = self.dated_state.as_ref().ok_or("missing dated state")?;
+        let run = &source.store.runs()[state.run_index];
+        let event = &source.store.events()[event_index];
+        let owner = &source.store.owners()[event.owner_index];
+        self.sink.emit("event_lineage",json!({"scenario":self.scenario.name,"run_id":run.run_id,
+            "input_revision":run.input_revision,"day":day,"transaction_number":transaction,
+            "position_id":owner.position_id,"event_id":event.event_id,"phase":phase,
+            "source_id":owner.source_id,"source_revision":owner.source_revision,
+            "provenance_json":serde_json::to_string(&event.provenance).map_err(|e|e.to_string())?,
+            "measure":event.measure,"ownership":owner.ownership,
+            "policy_id":source.recognition_policy.policy_id,"policy_revision":source.recognition_policy.policy_revision,
+            "principal":values[0],"cash_interest":values[1],"accrued_interest":values[2],
+            "book_amortization":values[3],"fees":values[4]}))
+    }
+    fn dated_acquisitions(&mut self, day: usize) -> R<()> {
+        let Some(source) = self.dated else {
+            return Ok(());
+        };
+        let Some(acquisitions) = &source.acquisitions else {
+            return Ok(());
+        };
+        let ri = self
+            .dated_state
+            .as_ref()
+            .ok_or("missing acquisition dated state")?
+            .run_index;
+        for event in acquisitions.on(ri, day as u32) {
+            portfolio_compute_control::checkpoint()?;
+            let input = &event.input;
+            let i = event.position_index;
+            let mut p = self.positions[i].clone();
+            let a = self.aid[p.account.as_str()];
+            let s = sign(&p);
+            let basis = input.cost - input.principal;
+            p.balance += input.principal;
+            p.book_adjustment += basis;
+            if !p.balance.is_finite()
+                || p.balance.abs() > 1e15
+                || !p.book_adjustment.is_finite()
+                || p.book_adjustment.abs() > 1e15
+            {
+                return Err("acquisition live monetary state overflow".into());
+            }
+            let before = self.sequence;
+            self.post(
+                day,
+                a,
+                "dated_acquisition",
+                -s * input.cost,
+                0.,
+                0.,
+                vec![
+                    entry(principal(&p), &p.id, s * input.principal),
+                    entry("book_adjustment", &p.id, s * basis),
+                ],
+                &p.id,
+            )?;
+            self.positions[i] = p;
+            if self.detail {
+                self.sink.emit("acquisition_lineage",json!({"scenario":self.scenario.name,"severity":self.severity,"run_id":input.run_id,"day":day,"ordinal":input.ordinal,"position_id":input.position_id,"account":input.account_id,"event_id":input.event_id,"source":input.source,"path_id":input.path_id,"source_weight":input.source_weight,"allocation_factor":input.allocation_factor,"original_yield_anchor":input.original_yield_anchor,"measure":input.measure,"policy":acquisitions.policy,"principal":input.principal,"cost":input.cost,"basis":basis,"transaction_number":(self.sequence!=before).then_some(self.sequence)}))?;
+            }
+        }
+        Ok(())
+    }
+    fn dated_event(
+        &mut self,
+        day: usize,
+        event_index: usize,
+        interest: f64,
+        amort: f64,
+        settlement: bool,
+    ) -> R<()> {
+        let source = self.dated.ok_or("missing dated source")?;
+        let event = source.store.events()[event_index].clone();
+        let i = source.owner_positions[event.owner_index];
+        let mut p = self.positions[i].clone();
+        let a = self.aid[p.account.as_str()];
+        let s = sign(&p);
+        let state = self.dated_state.as_mut().ok_or("missing dated state")?;
+        let mut next = state.events[event_index];
+        if settlement && next.settled {
+            return Err("duplicate dated economic settlement".into());
+        }
+        next.earned += interest;
+        next.book += amort;
+        if settlement {
+            next.settled = true;
+        }
+        let delta = state.replace_event(&event, next)?;
+        self.accrued[i] = s * state.rights[event.owner_index].iter().sum::<f64>();
+        let principal_amount = if settlement {
+            event.components.principal.abs()
+        } else {
+            0.
+        };
+        if principal_amount > p.balance && !near(principal_amount, p.balance) {
+            return Err("dated principal exceeds live face".into());
+        }
+        // The source owner keeps the temporary cash-subtraction partition private.
+        // Actual principal is committed only from complete native atom after cash.
+        if self.source_principals.is_none() {
+            p.balance = (p.balance - principal_amount).max(0.);
+        }
+        p.book_adjustment += s * amort;
+        if !p.book_adjustment.is_finite() || p.book_adjustment.abs() > 1e15 {
+            return Err("dated carrying value overflow".into());
+        }
+        let mut changes = vec![
+            entry(principal(&p), &p.id, -s * principal_amount),
+            entry("book_adjustment", &p.id, amort),
+        ];
+        for (gl, value) in crate::dated_ledger::RIGHTS_GL.iter().zip(delta) {
+            changes.push(entry(gl, &p.id, value));
+        }
+        let cash_interest = if settlement {
+            event.components.cash_interest
+        } else {
+            0.
+        };
+        let fees = if settlement {
+            event.components.fees
+        } else {
+            0.
+        };
+        let cash = if settlement {
+            event.components.principal + cash_interest + fees
+        } else {
+            0.
+        };
+        let before = self.sequence;
+        self.post(
+            day,
+            a,
+            if settlement {
+                "dated_settlement"
+            } else {
+                "dated_recognition"
+            },
+            cash,
+            interest + amort + fees,
+            0.,
+            changes,
+            &p.id,
+        )?;
+        self.positions[i] = p;
+        self.dated_lineage(
+            day,
+            event_index,
+            if settlement {
+                "settlement"
+            } else {
+                "recognition"
+            },
+            (self.sequence != before).then_some(self.sequence),
+            [
+                if settlement {
+                    event.components.principal
+                } else {
+                    0.
+                },
+                cash_interest,
+                interest,
+                amort,
+                fees,
+            ],
+        )
+    }
+    fn source_principal_day(&mut self, day: usize) -> R<()> {
+        if let Some(DepositPrincipalOwner::Portfolio(p))=self.source_principals {return self.source_portfolio_day(day,p);}
+        let Some(DepositPrincipalOwner::Legacy(owner)) = self.source_principals else { return Ok(()) };
+        let path=owner.path(&self.scenario.name,self.severity)?;
+        let current=&path.native.current;
+        let ordinal=owner.dated.store.as_of_ordinal()+day as i32;
+        let id=self.positions[0].id.to_string();
+        // Each atom is complete native source output, never a supplied p_after.
+        // Cash already posts once in original native stable order. The private
+        // cash partition never becomes a subledger/observation/GL-check authority.
+        while self.source_atom_cursor<current.atoms.len() {
+            let atom=&current.atoms[self.source_atom_cursor];
+            if atom.ordinal>ordinal {break}
+            portfolio_compute_control::checkpoint()?;
+            if atom.ordinal!=ordinal||atom.principal_before.to_bits()!=self.positions[0].balance.to_bits() {
+                return Err("source atom date/once/principal continuity failed".into())
+            }
+            let t=&current.transitions[self.source_atom_cursor];
+            if atom.allocation_index!=self.source_atom_cursor||t.allocation_index!=atom.allocation_index {
+                return Err("source atom immutable identity mismatch".into())
+            }
+            let state=self.dated_state.as_ref().ok_or("source atom requires dated state")?;
+            for native_id in &atom.cash_event_ids {
+                let origin=owner.cash_origins.iter().find(|c|c.run_id==path.run_id&&c.native_event_id==*native_id).ok_or("source atom cash lineage missing")?;
+                let event=owner.dated.store.events().iter().find(|e|e.event_id.as_ref()==origin.event_id).ok_or("compiled source atom event missing")?;
+                if !state.events[event.index].settled {return Err("incomplete source atom cash settlement".into())}
+            }
+            let next_basis=self.positions[0].book_adjustment+t.basis_partition_delta;
+            for x in [atom.principal_after,next_basis,atom.principal_after+next_basis,t.principal_partition_delta,t.basis_partition_delta] {
+                crate::deposit_source_principal::money(x)?;
+            }
+            let before=self.sequence;
+            self.raw_post(day,0,"source_principal_basis_reclassification",vec![
+                entry("funding_principal",&id,-t.principal_partition_delta),
+                entry("book_adjustment",&id,-t.basis_partition_delta),
+            ])?;
+            self.positions[0].balance=atom.principal_after;
+            self.positions[0].book_adjustment=next_basis;
+            self.source_atom_cursor+=1;
+            if self.detail {
+                self.sink.emit("deposit_principal_lineage",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                    "ordinal":ordinal,"day":day,"position_id":id,"allocation_index":atom.allocation_index,
+                    "source_atom":atom,"transition":t,"review":path.native.raw_request.review,
+                    "transaction_number":(self.sequence!=before).then_some(self.sequence),"cash":0.,"income":0.,
+                    "source_owned_principal":true,"capital_ftp_eligible":false}))?;
+            }
+        }
+        if ordinal==path.native.raw_request.continuation.revision_ordinal {
+            let amount=path.native.basis_revision;
+            let next=self.positions[0].book_adjustment+amount;
+            for x in [next,self.accounts[0].equity-amount,self.positions[0].balance+next] {crate::deposit_source_principal::money(x)?}
+            self.post(day,0,"deposit_basis_revision",0.,-amount,0.,vec![entry("book_adjustment",&id,-amount)],&id)?;
+            self.positions[0].book_adjustment=next;
+            if self.detail {
+                self.sink.emit("deposit_revision",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                    "ordinal":ordinal,"day":day,"position_id":id,"basis_revision":amount,"revised_basis":next,
+                    "review":path.native.raw_request.continuation.policy.review,"cash":0.,"original_yield_retained":true,
+                    "accounting_standard_approval":false,"capital_ftp_eligible":false}))?;
+            }
+        }
+        if day>0 {
+            let row=current.income.rows.get(day-1).ok_or("complete original-EIR day missing")?;
+            let rights=self.dated_state.as_ref().ok_or("dated state missing")?.rights[0];
+            let accrued=-rights.iter().sum::<f64>();
+            let p=&self.positions[0];
+            for (actual,expected) in [(p.balance,row.closing_principal),(p.book_adjustment,row.closing_book_adjustment),
+                (accrued,row.closing_accrued_interest),(p.balance+p.book_adjustment+accrued,row.closing_gross_carrying_value)] {
+                if !crate::deposit_source_principal::near(actual,expected) {return Err(format!("source subledger/income day{day} {actual} != {expected}"))}
+            }
+            for (gl,value) in [("funding_principal",-p.balance),("book_adjustment",-p.book_adjustment)] {
+                let key=(0,self.sink.intern(gl),self.sink.intern(&id));
+                if !crate::deposit_source_principal::near(self.gl.get(&key).copied().unwrap_or(0.),value) {
+                    return Err("source principal/basis GL reconciliation failed".into())
+                }
+            }
+            if self.detail {self.sink.emit("deposit_continuation_state",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                "ordinal":ordinal,"day":day,"position_id":id,"principal":p.balance,"book_adjustment":p.book_adjustment,
+                "accrued_interest":accrued,"gross_carrying_value":p.balance+p.book_adjustment+accrued,"gross_rights":rights,
+                "source_income":row,"source_atom_cursor":self.source_atom_cursor,"original_yield_anchor":path.native.raw_request.continuation.anchor.original_yield_anchor,
+                "accounting_standard_approval":false,"capital_ftp_eligible":false}))?;}
+            if day==self.spec.horizon_days && (self.source_atom_cursor!=current.atoms.len()||p.balance!=0.||rights.iter().any(|v|!crate::deposit_source_principal::near(*v,0.))
+                ||!crate::deposit_source_principal::near(p.book_adjustment,0.)) {
+                return Err("complete unweighted source/atom/gross tail remains open".into())
+            }
+        }
+        Ok(())
+    }
+
+    fn source_portfolio_day(&mut self,day:usize,owner:&crate::deposit_source_portfolio::Prepared)->R<()> {
+        for (owner_index,owned) in owner.owners.iter().enumerate() {
+        let path=owner.path(owner_index,&self.scenario.name,self.severity)?;
+        let pi=owned.position_index; let ai=owned.account_index;
+        let oi=owner.dated.position_owners[pi].ok_or("source owner index missing")?;
+        let current=&path.native.native.current;
+        let ordinal=owner.dated.store.as_of_ordinal()+day as i32;
+        let id=self.positions[pi].id.to_string();
+        // Each atom is complete native source output, never a supplied p_after.
+        // Cash already posts once in original native stable order. The private
+        // cash partition never becomes a subledger/observation/GL-check authority.
+        while self.source_portfolio_cursors[owner_index]<current.atoms.len() {
+            let atom=&current.atoms[self.source_portfolio_cursors[owner_index]];
+            if atom.ordinal>ordinal {break}
+            portfolio_compute_control::checkpoint()?;
+            if atom.ordinal!=ordinal||atom.principal_before.to_bits()!=self.positions[pi].balance.to_bits() {
+                return Err("source atom date/once/principal continuity failed".into())
+            }
+            let t=&current.transitions[self.source_portfolio_cursors[owner_index]];
+            if atom.allocation_index!=self.source_portfolio_cursors[owner_index]||t.allocation_index!=atom.allocation_index {
+                return Err("source atom immutable identity mismatch".into())
+            }
+            let state=self.dated_state.as_ref().ok_or("source atom requires dated state")?;
+            for &event_index in path.atom_events.get(self.source_portfolio_cursors[owner_index]).ok_or("indexed atom missing")? {
+                if !state.events[event_index].settled {return Err("incomplete source atom cash settlement".into())}
+            }
+            let next_basis=self.positions[pi].book_adjustment+t.basis_partition_delta;
+            for x in [atom.principal_after,next_basis,atom.principal_after+next_basis,t.principal_partition_delta,t.basis_partition_delta] {
+                crate::deposit_source_principal::money(x)?;
+            }
+            let before=self.sequence;
+            self.raw_post(day,ai,"source_principal_basis_reclassification",vec![
+                entry("funding_principal",&id,-t.principal_partition_delta),
+                entry("book_adjustment",&id,-t.basis_partition_delta),
+            ])?;
+            self.positions[pi].balance=atom.principal_after;
+            self.positions[pi].book_adjustment=next_basis;
+            self.source_portfolio_cursors[owner_index]+=1;
+            if self.detail {
+                self.sink.emit("deposit_principal_lineage",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                    "ordinal":ordinal,"day":day,"position_id":id,"allocation_index":atom.allocation_index,
+                    "source_atom":atom,"transition":t,"review":path.native.native.raw_request.review,
+                    "transaction_number":(self.sequence!=before).then_some(self.sequence),"cash":0.,"income":0.,
+                    "source_owned_principal":true,"capital_ftp_eligible":false}))?;
+            }
+        }
+        if ordinal==path.native.native.raw_request.continuation.revision_ordinal {
+            let amount=path.native.native.basis_revision;
+            let next=self.positions[pi].book_adjustment+amount;
+            for x in [next,self.accounts[ai].equity-amount,self.positions[pi].balance+next] {crate::deposit_source_principal::money(x)?}
+            self.post(day,ai,"deposit_basis_revision",0.,-amount,0.,vec![entry("book_adjustment",&id,-amount)],&id)?;
+            self.positions[pi].book_adjustment=next;
+            if self.detail {
+                self.sink.emit("deposit_revision",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                    "ordinal":ordinal,"day":day,"position_id":id,"basis_revision":amount,"revised_basis":next,
+                    "review":path.native.native.raw_request.continuation.policy.review,"cash":0.,"original_yield_retained":true,
+                    "accounting_standard_approval":false,"capital_ftp_eligible":false}))?;
+            }
+        }
+        if day>0 {
+            let row=current.income.rows.get(day-1).ok_or("complete original-EIR day missing")?;
+            let rights=self.dated_state.as_ref().ok_or("dated state missing")?.rights[oi];
+            let accrued=-rights.iter().sum::<f64>();
+            let p=&self.positions[pi];
+            for (actual,expected) in [(p.balance,row.closing_principal),(p.book_adjustment,row.closing_book_adjustment),
+                (accrued,row.closing_accrued_interest),(p.balance+p.book_adjustment+accrued,row.closing_gross_carrying_value)] {
+                if !crate::deposit_source_principal::near(actual,expected) {return Err(format!("source subledger/income day{day} {actual} != {expected}"))}
+            }
+            for (gl,value) in [("funding_principal",-p.balance),("book_adjustment",-p.book_adjustment)] {
+                let key=(ai,self.sink.intern(gl),self.sink.intern(&id));
+                if !crate::deposit_source_principal::near(self.gl.get(&key).copied().unwrap_or(0.),value) {
+                    return Err("source principal/basis GL reconciliation failed".into())
+                }
+            }
+            if self.detail {self.sink.emit("deposit_continuation_state",json!({"scenario":self.scenario.name,"run_id":path.run_id,
+                "ordinal":ordinal,"day":day,"position_id":id,"principal":p.balance,"book_adjustment":p.book_adjustment,
+                "accrued_interest":accrued,"gross_carrying_value":p.balance+p.book_adjustment+accrued,"gross_rights":rights,
+                "source_income":row,"source_atom_cursor":self.source_portfolio_cursors[owner_index],"original_yield_anchor":path.native.native.raw_request.continuation.anchor.original_yield_anchor,
+                "accounting_standard_approval":false,"capital_ftp_eligible":false}))?;}
+            if day==self.spec.horizon_days && (self.source_portfolio_cursors[owner_index]!=current.atoms.len()||p.balance!=0.||rights.iter().any(|v|!crate::deposit_source_principal::near(*v,0.))
+                ||!crate::deposit_source_principal::near(p.book_adjustment,0.)) {
+                return Err("complete unweighted source/atom/gross tail remains open".into())
+            }
+        }
+        }
+        crate::deposit_source_portfolio::gross(self.positions.iter().flat_map(|p|[p.balance,p.book_adjustment]).chain(self.accounts.iter().flat_map(|a|[a.cash,a.equity])).chain(self.dated_state.as_ref().ok_or("dated state absent")?.rights.iter().flat_map(|r| r.iter().copied())))?;
+        crate::deposit_source_portfolio::gross(self.gl.values().copied())?;
+        Ok(())
+    }
+
+    fn dated_recognition(&mut self, day: usize) -> R<()> {
+        let Some(source) = self.dated else {
+            return Ok(());
+        };
+        let deltas = self
+            .dated_state
+            .as_mut()
+            .ok_or("missing dated state")?
+            .recognition(&source.store, day as u32)?;
+        for (sequence, (event, interest, amort)) in deltas.into_iter().enumerate() {
+            if sequence.is_multiple_of(256) {
+                portfolio_compute_control::checkpoint()?;
+            }
+            self.dated_event(day, event, interest, amort, false)?;
+        }
+        Ok(())
+    }
+    fn dated_settlements(&mut self, day: usize) -> R<()> {
+        let Some(source) = self.dated else {
+            return Ok(());
+        };
+        let ri = self
+            .dated_state
+            .as_ref()
+            .ok_or("missing dated state")?
+            .run_index;
+        let indices: Vec<_> = source
+            .store
+            .settlements_on(&source.store.runs()[ri].run_id, day as u32)?
+            .map(|e| e.index)
+            .collect();
+        for (sequence, event) in indices.into_iter().enumerate() {
+            if sequence.is_multiple_of(256) {
+                portfolio_compute_control::checkpoint()?;
+            }
+            self.dated_event(day, event, 0., 0., true)?;
+        }
+        Ok(())
+    }
+    fn dated_closing(&mut self) -> R<()> {
+        let Some(source) = self.dated else {
+            return Ok(());
+        };
+        if !self.detail {
+            return Ok(());
+        }
+        let state = self.dated_state.as_ref().ok_or("missing dated state")?;
+        let run = &source.store.runs()[state.run_index];
+        if source.acquisitions.is_some() {
+            for pool in &state.pools {
+                if pool.2.abs() > 1e-9 {
+                    return Err("acquisition full tail retains physical path rights".into());
+                }
+            }
+            for &i in &source.owner_positions {
+                let p = &self.positions[i];
+                if p.balance.abs() > 1e-9
+                    || p.book_adjustment.abs() > 1e-9
+                    || self.accrued[i].abs() > 1e-9
+                {
+                    return Err("mixed complete tail leaves principal/accrued/basis claims".into());
+                }
+            }
+        }
+        for event in source
+            .store
+            .events()
+            .iter()
+            .filter(|e| e.run_index.is_none_or(|r| r == state.run_index))
+        {
+            let owner = &source.store.owners()[event.owner_index];
+            let value = state.events[event.index];
+            let expected = source.store.rights_at(
+                &run.run_id,
+                event.index,
+                source.store.reporting_end_ordinal(),
+                crate::dated_store::Boundary::AfterEvents,
+            )?;
+            if !near(value.earned, expected.earned_interest_to_date)
+                || !near(value.book, expected.book_amortization_to_date)
+                || value.settled != expected.cash_settled
+            {
+                return Err("dated closing source/right reconciliation failed".into());
+            }
+            let mut row = json!({"scenario":self.scenario.name,"run_id":run.run_id,
+                "account":owner.account_id,"position_id":owner.position_id,"event_id":event.event_id,
+                "source_id":owner.source_id,"source_revision":owner.source_revision,
+                "payment_ordinal":event.payment_ordinal,"full_contract_end_ordinal":event.full_contract_end_ordinal,
+                "cash_settled":value.settled,"earned_interest":value.earned,"cash_interest_settled":expected.cash_interest_settled,
+                "signed_interest_right":expected.signed_interest_right,"recognized_book_amortization":value.book,
+                "remaining_principal_settlement":if value.settled{0.}else{event.components.principal},
+                "remaining_cash_interest":if value.settled{0.}else{event.components.cash_interest},
+                "remaining_fees":if value.settled{0.}else{event.components.fees},
+                "remaining_interest_recognition":event.components.accrued_interest-value.earned,
+                "remaining_book_recognition":event.components.book_amortization-value.book});
+            if let Some((right, path)) = state.path_right(event.index) {
+                row["right_ownership"] = json!("physical_path_net_rights-1");
+                row["path_id"] = json!(path);
+                row["event_right_contribution"] = json!(expected.signed_interest_right);
+                row["signed_interest_right"] = json!(right);
+            }
+            self.sink.emit("dated_rights", row)?;
+        }
         Ok(())
     }
     fn cashflow(&mut self, day: usize, f: Cashflow) -> R<()> {
@@ -1540,6 +2396,16 @@ impl Sim<'_> {
                 }
                 self.position_day(day, i, stress, credit_mult, migration_mult, &processed)?;
             }
+            self.dated_acquisitions(day)?;
+            self.consumer_acquisitions(day)?;
+            self.dated_recognition(day)?;
+            self.commercial_events(day)?;
+            self.consumer_events(day)?;
+            self.mortgage_events(day)
+                .map_err(|e| format!("mortgage day {day}: {e}"))?;
+            self.dated_settlements(day)?;
+            self.source_principal_day(day)?;
+            self.derivative_events(day)?;
             if let Some(source) = self.streamed_flows {
                 for f in source.day(day, &self.spec.positions) {
                     self.cashflow(day, f)?;
@@ -1634,28 +2500,7 @@ impl Sim<'_> {
                 }
             }
             self.policies(day, stress)?;
-            for a in 0..self.accounts.len() {
-                let income: f64 = self
-                    .aggregate
-                    .iter()
-                    .filter(|r| r.0 == a && r.1 != "dividend")
-                    .map(|r| r.2[1])
-                    .sum();
-                let tax = income.max(0.) * self.accounts[a].tax_rate;
-                if tax != 0. {
-                    self.post(day, a, "tax", -tax, -tax, 0., vec![], "")?;
-                }
-            }
-            self.observe(day)?;
-            if self.detail {
-                for (a, event, r) in &self.aggregate {
-                    if r.iter().any(|v| *v != 0.) {
-                        self.sink.emit("ledger",json!({"scenario":self.scenario.name,"day":day,"account":self.accounts[*a].id,"event":event,"cash":r[0],"earnings":r[1],"aoci":r[2],"memo_amount":0.}))?;
-                    }
-                }
-            }
-            self.aggregate.clear();
-            self.aggregate_index.clear();
+            self.close_day(day)?;
         }
         for (ai, a) in self.accounts.iter().enumerate() {
             let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"final_cash":a.cash,"final_equity":a.equity,"minimum_cash":self.minimum_cash[ai],"peak_cash_shortfall":(a.cash_floor-self.minimum_cash[ai]).max(0.),"max_reconciliation_error":self.max_error});
@@ -1682,6 +2527,9 @@ impl Sim<'_> {
                 row,
             )?;
         }
+        self.dated_closing()?;
+        self.mortgage_closing()
+            .map_err(|e| format!("mortgage full close: {e}"))?;
         if self.detail {
             let mut keys: Vec<_> = self.gl.keys().collect();
             keys.sort_by(|x, y| {
@@ -1729,17 +2577,128 @@ pub fn run_with_flows(
     flows: Option<crate::flow_store::FlowStore>,
     output: Box<dyn Write + Send>,
 ) -> R<()> {
-    crate::spec::validate(
-        &spec,
+    run_internal(&spec, flows.as_ref(), None, None, None, None, None, None, output)
+}
+
+pub fn run_dated(
+    source: crate::dated_ledger::CompiledDatedLedger,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(&source.spec, None, Some(&source), None, None, None, None, None, output)
+}
+
+pub fn run_dated_with_consumers(
+    source: crate::dated_ledger::CompiledDatedLedger,
+    consumers: crate::consumer_intent_owner::Compiled,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(
+        &source.spec,
+        None,
+        Some(&source),
+        Some(crate::product_event_owner::OwnerSources::Consumer(
+            &consumers,
+        )),
+        None,
+        None,
+        None,
+        None,
+        output,
+    )
+}
+
+pub fn run_dated_with_products(
+    source: crate::dated_ledger::CompiledDatedLedger,
+    products: crate::product_event_owner::Compiled,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(
+        &source.spec,
+        None,
+        Some(&source),
+        Some(crate::product_event_owner::OwnerSources::Product(&products)),
+        None,
+        None,
+        None,
+        None,
+        output,
+    )
+}
+
+pub fn run_dated_with_mortgages(
+    source: &crate::dated_ledger::CompiledDatedLedger,
+    mortgages: &crate::mortgage_pending_owner::Compiled,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(
+        &source.spec,
+        None,
+        Some(source),
+        None,
+        Some(mortgages),
+        None,
+        None,
+        None,
+        output,
+    )
+}
+
+pub fn run_dated_with_deposit_revision(
+    source: &crate::dated_ledger::CompiledDatedLedger,
+    revisions: &[crate::deposit_revision::Revision],
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(
+        &source.spec,
+        None,
+        Some(source),
+        None,
+        None,
+        Some(revisions),
+        None,
+        None,
+        output,
+    )
+}
+
+fn run_internal(
+    spec: &Spec,
+    flows: Option<&crate::flow_store::FlowStore>,
+    dated: Option<&crate::dated_ledger::CompiledDatedLedger>,
+    consumers: Option<crate::product_event_owner::OwnerSources<'_>>,
+    mortgages: Option<&crate::mortgage_pending_owner::Compiled>,
+    deposit_revisions: Option<&[crate::deposit_revision::Revision]>,
+    source_principals: Option<DepositPrincipalOwner<'_>>,
+    derivatives: Option<&crate::derivative_intent_owner::Compiled<'_>>,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal_selected(spec,flows,dated,consumers,mortgages,deposit_revisions,source_principals,derivatives,None,output)
+}
+
+fn run_internal_selected(
+    spec: &Spec,
+    flows: Option<&crate::flow_store::FlowStore>,
+    dated: Option<&crate::dated_ledger::CompiledDatedLedger>,
+    consumers: Option<crate::product_event_owner::OwnerSources<'_>>,
+    mortgages: Option<&crate::mortgage_pending_owner::Compiled>,
+    deposit_revisions: Option<&[crate::deposit_revision::Revision]>,
+    source_principals: Option<DepositPrincipalOwner<'_>>,
+    derivatives: Option<&crate::derivative_intent_owner::Compiled<'_>>,
+    commercials: Option<&crate::commercial_intent_owner::Compiled<'_>>,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    crate::spec::validate_with_native_opening(
+        spec,
         if flows.is_some() { 62000 } else { 60000 },
         if flows.is_some() {
             120_000_000
         } else {
             90_000_000
         },
+        dated.map_or(&[], |c|c.native_opening.as_slice()),
     )?;
     if let Some(source) = &flows {
-        source.validate(&spec)?;
+        source.validate(spec)?;
     }
     if spec.ruleset != "research-weights-v2"
         || spec.positions.len() > if flows.is_some() { 62000 } else { 60000 }
@@ -1766,17 +2725,39 @@ pub fn run_with_flows(
     };
     let mut sink = Sink::new(output);
     for scenario in std::iter::once(&baseline).chain(spec.scenarios.iter()) {
-        Sim::new(&spec, scenario.clone(), 1., true, &mut sink, flows.as_ref())?.run_days()?;
+        Sim::new(
+            spec,
+            scenario.clone(),
+            1.,
+            true,
+            &mut sink,
+            flows,
+            dated,
+            consumers,
+            mortgages,
+            deposit_revisions,
+            source_principals,
+            derivatives,
+            commercials,
+        )?
+        .run_days()?;
     }
     for scenario in &spec.scenarios {
         for &severity in &spec.reverse_severities {
             Sim::new(
-                &spec,
+                spec,
                 scenario.clone(),
                 severity,
                 false,
                 &mut sink,
-                flows.as_ref(),
+                flows,
+                dated,
+                consumers,
+                mortgages,
+                deposit_revisions,
+                source_principals,
+                derivatives,
+                commercials,
             )?
             .run_days()?;
         }
@@ -1785,8 +2766,56 @@ pub fn run_with_flows(
         sink.emit("attribution", row)?;
     }
     sink.flush()?;
-    serde_json::to_writer(&mut sink.out, &json!({"complete":true,"protocol":2}))
+    serde_json::to_writer(&mut sink.out, &json!({"complete":true,"protocol":if commercials.is_some_and(|c|!c.fees.is_empty()){crate::commercial_fee_owner::PROTOCOL}else if commercials.is_some_and(|c|!c.bindings.is_empty()){crate::commercial_intent_owner::PROTOCOL}else if dated.is_some(){crate::dated_ledger::PROTOCOL}else{2}}))
         .map_err(|e| e.to_string())?;
     sink.out.write_all(b"\n").map_err(|e| e.to_string())?;
     sink.out.flush().map_err(|e| e.to_string())
+}
+
+/// Additive research owner: existing financial Sim and protocols remain sole GL executor.
+pub fn run_dated_with_source_principal(
+    p: &crate::deposit_source_principal::Prepared,
+    output: Box<dyn Write+Send>,
+)->R<()> {
+    run_internal(&p.dated.spec,None,Some(&p.dated),None,None,None,Some(DepositPrincipalOwner::Legacy(p)),None,output)
+}
+
+/// Counted exclusive owners reuse the same Sim, reports and journal pipeline.
+pub fn run_dated_with_source_portfolio(p:&crate::deposit_source_portfolio::Prepared,output:Box<dyn Write+Send>)->R<()> {
+    run_internal(&p.dated.spec,None,Some(&p.dated),None,None,None,Some(DepositPrincipalOwner::Portfolio(p)),None,output)
+}
+
+/// Native coordinator supplies generated sources; all postings use the existing Sim.
+pub fn run_dated_with_derivatives(
+    dated: &crate::dated_ledger::CompiledDatedLedger,
+    derivatives: &crate::derivative_intent_owner::Compiled<'_>,
+    output: Box<dyn Write+Send>,
+) -> R<()> {
+    run_internal(&dated.spec,None,Some(dated),None,None,None,None,Some(derivatives),output)
+}
+
+/// Two sealed native owners share the existing cash, GL and chronological Sim.
+/// The coordinator must admit aggregate source/replay budgets before either projection.
+pub fn run_dated_with_source_portfolio_and_derivatives(
+    portfolio: &crate::deposit_source_portfolio::Prepared,
+    derivatives: &crate::derivative_intent_owner::Compiled<'_>,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal(&portfolio.dated.spec,None,Some(&portfolio.dated),None,None,None,
+        Some(DepositPrincipalOwner::Portfolio(portfolio)),Some(derivatives),output)
+}
+
+/// Copied-only selected owner proof; absent/empty delegation invokes unchanged
+/// historical run_internal. No second simulation or journal concatenation.
+pub fn run_with_commercial(
+    spec:&Spec,
+    dated:Option<&crate::dated_ledger::CompiledDatedLedger>,
+    commercials:&crate::commercial_intent_owner::Compiled<'_>,
+    output:Box<dyn Write+Send>,
+)->R<()> {
+    if commercials.bindings.is_empty(){return run_internal(spec,None,dated,None,None,None,None,None,output);}
+    if dated.is_some_and(|d|d.position_owners.iter().zip(&commercials.position_owners).any(|(a,b)|a.is_some()&&*b)){return Err("commercial position has a second contractual owner".into());}
+    let result=run_internal_selected(spec,None,dated,None,None,None,None,None,Some(commercials),output);
+    portfolio_compute_control::checkpoint()?;
+    result
 }

@@ -1,0 +1,123 @@
+{
+  "schema": "nonintegral-fee-accounting-1",
+  "measure": "physical",
+  "currency": "USD",
+  "monetary_unit": "USD",
+  "policy": {
+    "id": "fee-policy",
+    "revision": "review-1"
+  },
+  "asof_ordinal": 739898,
+  "reporting_end_ordinal": 739913,
+  "complete_end_ordinal": 739938,
+  "fees": [
+    {
+      "fee_id": "service-receipt",
+      "source": {
+        "id": "service-receipt-source",
+        "revision": "review-1"
+      },
+      "classification_review": {
+        "id": "nonintegral-classification",
+        "revision": "review-1"
+      },
+      "service": {
+        "id": "service-receipt-service",
+        "revision": "review-1"
+      },
+      "position_id": "commercial-loan-100",
+      "tranche_id": "original",
+      "entitlement": 5.0,
+      "prepaid_refunds_allowed": true
+    },
+    {
+      "fee_id": "service-payment",
+      "source": {
+        "id": "service-payment-source",
+        "revision": "review-1"
+      },
+      "classification_review": {
+        "id": "nonintegral-classification",
+        "revision": "review-1"
+      },
+      "service": {
+        "id": "service-payment-service",
+        "revision": "review-1"
+      },
+      "position_id": "commercial-loan-100",
+      "tranche_id": "original",
+      "entitlement": -5.0,
+      "prepaid_refunds_allowed": true
+    }
+  ],
+  "events": [
+    {
+      "event_id": "fee-event-0",
+      "fee_id": "service-payment",
+      "source": {
+        "id": "service-payment-source",
+        "revision": "review-1"
+      },
+      "review": {
+        "id": "event-review-0",
+        "revision": "review-1"
+      },
+      "ordinal": 739903,
+      "sequence": 0,
+      "action": "cash",
+      "reason": "settlement",
+      "amount": -5.0
+    },
+    {
+      "event_id": "fee-event-1",
+      "fee_id": "service-receipt",
+      "source": {
+        "id": "service-receipt-source",
+        "revision": "review-1"
+      },
+      "review": {
+        "id": "event-review-1",
+        "revision": "review-1"
+      },
+      "ordinal": 739908,
+      "sequence": 1,
+      "action": "earn",
+      "reason": "service",
+      "amount": 5.0
+    },
+    {
+      "event_id": "fee-event-2",
+      "fee_id": "service-payment",
+      "source": {
+        "id": "service-payment-source",
+        "revision": "review-1"
+      },
+      "review": {
+        "id": "event-review-2",
+        "revision": "review-1"
+      },
+      "ordinal": 739908,
+      "sequence": 2,
+      "action": "earn",
+      "reason": "service",
+      "amount": -5.0
+    },
+    {
+      "event_id": "fee-event-3",
+      "fee_id": "service-receipt",
+      "source": {
+        "id": "service-receipt-source",
+        "revision": "review-1"
+      },
+      "review": {
+        "id": "event-review-3",
+        "revision": "review-1"
+      },
+      "ordinal": 739918,
+      "sequence": 3,
+      "action": "cash",
+      "reason": "settlement",
+      "amount": 5.0
+    }
+  ]
+}

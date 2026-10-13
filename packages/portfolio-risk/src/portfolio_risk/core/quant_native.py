@@ -117,7 +117,7 @@ def mortgage_cache_statistics(*, clear=False):
     return dict(zip(('entries', 'bytes', 'hits', 'misses', 'evictions'), map(int, values)))
 
 
-def term_call(schema, request, *, _library=None):
+def term_call(schema, request, *, _library=None, runtime=None):
     """One bounded raw-contract batch; native code owns all financial stages."""
     import json
     import datetime
@@ -125,11 +125,16 @@ def term_call(schema, request, *, _library=None):
         if isinstance(value, datetime.date):
             return value.toordinal()
         raise TypeError(f'Unsupported term input {type(value).__name__}')
-    payload = json.dumps(dict(schema=schema, threads=get_num_threads(), request=request),
+    envelope=dict(schema=schema, threads=get_num_threads(), request=request)
+    if schema in {'commercial-product-graph-1','commercial-units-1','commercial-holding-continuation-1'}:
+        from .model_native import is_generated_oas_calibration
+        if schema=='commercial-holding-continuation-1' or is_generated_oas_calibration(schema,request):envelope['execution_timeout_ms']=1_800_000
+    payload = json.dumps(envelope,
                          default=encode, allow_nan=False, separators=(',', ':')).encode()
     if len(payload) > 64*1024*1024:
         raise ValueError('native term request exceeds 64 MiB')
     lib = _library if _library is not None else _load(str(library_path()))[0]
+    if runtime is not None and schema!='graph-1':raise ValueError('runtime control requires graph-1 indexed owner')
     numeric = schema == 'term-risk-1'
     invoke = lib.portfolio_term_risk_into if numeric else lib.portfolio_term_request
     release = lib.portfolio_term_free
@@ -147,7 +152,12 @@ def term_call(schema, request, *, _library=None):
             a.size, (ctypes.c_size_t * 3)(a.size,1,1)) for a in arrays))
         pointer = invoke(payload, len(payload), descriptors, 4)
     else:
-        pointer = invoke(payload, len(payload))
+        if runtime is None:
+            pointer = invoke(payload, len(payload))
+        else:
+            if schema!='graph-1':raise ValueError('runtime control requires graph-1 indexed owner')
+            from .graph_control_native import invoke_controlled
+            pointer, runtime_check = invoke_controlled(lib,payload,runtime)
     if not pointer:
         raise RuntimeError('Native term allocation failed; no fallback was used')
     try:
@@ -156,6 +166,12 @@ def term_call(schema, request, *, _library=None):
         release(pointer)
     if not response['ok']:
         raise ValueError(f"Rust term computation failed: {response['error']}; no fallback was used")
+    if runtime is not None:
+        try:runtime_check()
+        except BaseException:
+            from .graph_control_native import cleanup_created
+            cleanup_created(lib,payload,response)
+            raise
     return dict(zip(('oas','price','dv01','sensitivities'),arrays)) if numeric else response['result']
 
 
@@ -392,3 +408,24 @@ def monthly_inputs(a, delay, grid):
     s, t = a.shape
     times = np.broadcast_to(grid, (s,t)) if delay is None else grid + np.asarray(delay)[:,None]
     return np.arange(s+1,dtype=np.int64)*t, times.reshape(-1), a.reshape(-1)
+
+
+def funding_coefficients(coefficients,amounts):
+    """Transport prepared cash-demand coefficients; Rust performs the reduction."""
+    values=np.require(coefficients,dtype=np.float64,requirements=['C','A'])
+    allocations=np.require(amounts,dtype=np.float64,requirements=['C','A'])
+    if values.ndim!=2 or allocations.ndim!=1 or values.shape[0]!=len(allocations):
+        raise ValueError('dated funding coefficient shape mismatch')
+    lib,_=_load(str(library_path()))
+    try:
+        version=lib.portfolio_funding_coefficients_version
+        version.argtypes=[];version.restype=ctypes.c_uint32
+        invoke=lib.portfolio_funding_coefficients_call
+    except AttributeError as exc:raise RuntimeError('dated funding native contract missing; rebuild and restart') from exc
+    if version()!=1:raise RuntimeError('dated funding native contract mismatch; rebuild and restart')
+    pointer=ctypes.POINTER(ctypes.c_double)
+    invoke.argtypes=[pointer,pointer,ctypes.c_size_t,ctypes.c_size_t,pointer];invoke.restype=ctypes.c_int
+    result=np.empty(values.shape[1],dtype=np.float64)
+    status=invoke(values.ctypes.data_as(pointer),allocations.ctypes.data_as(pointer),values.shape[0],values.shape[1],result.ctypes.data_as(pointer))
+    if status:raise ValueError(f'native dated funding coefficient evaluation failed ({status})')
+    return result

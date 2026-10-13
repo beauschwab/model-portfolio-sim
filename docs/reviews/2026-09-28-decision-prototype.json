@@ -1,0 +1,309 @@
+{
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "python": "3.12.11",
+    "paths": 128,
+    "threads": 4,
+    "horizon": 27,
+    "positions": 375,
+    "scenarios": 3
+  },
+  "scope": "Real mixed-book engine plus Rust graph/HiGHS/independent replay. Synthetic 100k graph probe is separate. Existing Numba disk caches may be warm; initialization is not cold compilation.",
+  "initialization_and_first_solve_ms": 2759.57170012407,
+  "initial_feasible": true,
+  "constraint_update": {
+    "median_ms": 6.81379996240139,
+    "max_ms": 7.840000092983246,
+    "samples_ms": [
+      6.9725001230835915,
+      7.840000092983246,
+      6.805200129747391,
+      6.583099951967597,
+      6.81379996240139
+    ]
+  },
+  "constraint_work": {
+    "positions_repriced": 0,
+    "templates_rebuilt": 0,
+    "total_positions": 375,
+    "pricing_graph": [],
+    "ffi_request_bytes": 329
+  },
+  "single_instrument_update": {
+    "median_ms": 21.455500042065978,
+    "max_ms": 23.113399976864457,
+    "samples_ms": [
+      23.113399976864457,
+      21.455500042065978,
+      22.140600020065904,
+      20.33769991248846,
+      21.195600042119622
+    ]
+  },
+  "instrument_work": {
+    "positions_repriced": 1,
+    "templates_rebuilt": 0,
+    "total_positions": 375,
+    "pricing_graph": [
+      {
+        "cashflows:loans": {
+          "reused": 3,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 1,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      {
+        "cashflows:loans": {
+          "reused": 3,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 1,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      },
+      {
+        "cashflows:loans": {
+          "reused": 3,
+          "computed": 3,
+          "batches": 3
+        },
+        "calibration:loans": {
+          "reused": 1,
+          "computed": 0,
+          "batches": 0
+        },
+        "rate_paths": {
+          "reused": 3,
+          "computed": 0,
+          "batches": 0
+        },
+        "marks:loans": {
+          "reused": 0,
+          "computed": 3,
+          "batches": 3
+        },
+        "income:loans": {
+          "reused": 0,
+          "computed": 1,
+          "batches": 1
+        }
+      }
+    ],
+    "ffi_request_bytes": 515
+  },
+  "template_update": {
+    "median_ms": 729.5182999223471,
+    "max_ms": 734.7893000114709,
+    "samples_ms": [
+      721.6982000973076,
+      734.7893000114709,
+      729.5182999223471,
+      731.1113001778722,
+      728.8021000567824
+    ]
+  },
+  "template_work": {
+    "positions_repriced": 0,
+    "templates_rebuilt": 1,
+    "total_positions": 375,
+    "pricing_graph": [],
+    "ffi_request_bytes": 24964
+  },
+  "native_allocation_replay": {
+    "median_ms": 0.2906500594690442,
+    "max_ms": 0.37340004928410053,
+    "samples_ms": [
+      0.33740000799298286,
+      0.30720001086592674,
+      0.30140019953250885,
+      0.30470010824501514,
+      0.2989999484270811,
+      0.2948001492768526,
+      0.2911000046879053,
+      0.29339990578591824,
+      0.29380014166235924,
+      0.2902001142501831,
+      0.2882999833673239,
+      0.2842999529093504,
+      0.27840002439916134,
+      0.2856999635696411,
+      0.2902001142501831,
+      0.28319982811808586,
+      0.29630004428327084,
+      0.37299981340765953,
+      0.37340004928410053,
+      0.3203998785465956,
+      0.2951000351458788,
+      0.28440007008612156,
+      0.28820009902119637,
+      0.30159996822476387,
+      0.28460007160902023,
+      0.28799986466765404,
+      0.28779986314475536,
+      0.2827998250722885,
+      0.28689997270703316,
+      0.2850999590009451
+    ]
+  },
+  "python_allocation_replay": {
+    "median_ms": 0.24799990933388472,
+    "max_ms": 0.5243001505732536,
+    "samples_ms": [
+      0.514900078997016,
+      0.5243001505732536,
+      0.2560000866651535,
+      0.25200005620718,
+      0.24880003184080124,
+      0.24819979444146156,
+      0.3170999698340893,
+      0.3504001069813967,
+      0.2490000333636999,
+      0.24259998463094234,
+      0.24150009267032146,
+      0.242199981585145,
+      0.24110008962452412,
+      0.2999999560415745,
+      0.25070016272366047,
+      0.24780002422630787,
+      0.24589989334344864,
+      0.24839979596436024,
+      0.26059988886117935,
+      0.2454998902976513,
+      0.24279998615384102,
+      0.25589996948838234,
+      0.24480000138282776,
+      0.24310010485351086,
+      0.24610012769699097,
+      0.24349987506866455,
+      0.2421000972390175,
+      0.24419999681413174,
+      0.24530012160539627,
+      0.2547998446971178
+    ]
+  },
+  "fresh_scipy_solve_same_coefficients": {
+    "median_ms": 10.34460007213056,
+    "max_ms": 12.7834000159055,
+    "samples_ms": [
+      12.7834000159055,
+      10.34460007213056,
+      10.415999917313457,
+      10.226699989289045,
+      9.97519982047379
+    ]
+  },
+  "objective_difference_$": -2.384185791015625e-07,
+  "persistent_native_solve_same_coefficients": {
+    "median_ms": 6.952199852094054,
+    "max_ms": 7.398999994620681,
+    "samples_ms": [
+      7.092799991369247,
+      6.952199852094054,
+      6.576000014320016,
+      6.596999941393733,
+      7.398999994620681
+    ]
+  },
+  "final_solver": {
+    "backend": "Rust-owned HiGHS (C++)",
+    "changed_matrix_entries": 0,
+    "model_reused": true,
+    "simplex_iterations": 0
+  },
+  "cache": {
+    "entries": 8390,
+    "bytes": 74771475,
+    "max_bytes": 536870912,
+    "max_entries": 500000
+  },
+  "full_python_workflow_rebuild": {
+    "median_ms": 4501.311700092629,
+    "max_ms": 4507.919700117782,
+    "samples_ms": [
+      4507.919700117782,
+      4499.580200063065,
+      4501.311700092629
+    ]
+  },
+  "full_rebuild_initial_objective_difference_$": 0.0,
+  "synthetic_100k_graph": {
+    "scope": "Synthetic precomputed contributions, no product engines, no Python independent replay, 3 real-sized scenario/unit coefficient sets",
+    "initialization_ms": 963.1139000412077,
+    "single_record_update": {
+      "median_ms": 2.5315500097349286,
+      "max_ms": 3.7773000076413155,
+      "samples_ms": [
+        3.1355000101029873,
+        2.6281001046299934,
+        2.6956999208778143,
+        2.22250004298985,
+        1.5943998005241156,
+        2.356699900701642,
+        2.5627000723034143,
+        2.5188999716192484,
+        2.472399966791272,
+        2.370700007304549,
+        2.360499929636717,
+        2.3393998853862286,
+        2.7301001828163862,
+        2.5679999962449074,
+        2.4770000018179417,
+        2.65769986435771,
+        2.4253998417407274,
+        2.344300039112568,
+        2.344499807804823,
+        2.339400118216872,
+        2.8742998838424683,
+        2.862700028344989,
+        2.571800025179982,
+        3.128000069409609,
+        3.7773000076413155,
+        3.1840000301599503,
+        2.5692000053822994,
+        2.544200047850609,
+        2.508500125259161,
+        2.4045000318437815
+      ]
+    },
+    "average_request_bytes": 333.76666666666665
+  }
+}

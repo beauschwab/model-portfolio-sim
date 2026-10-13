@@ -84,12 +84,25 @@ impl Request {
         }
     }
 }
-fn driver_fit(
+pub(crate) fn driver_fit(
     dates: &[i32],
     values: &[[f64; 4]],
     cutoff: i32,
     count: Option<usize>,
 ) -> Result<Value, String> {
+    driver_fit_with_check(dates, values, cutoff, count, || {
+        portfolio_compute_control::checkpoint()
+    })
+}
+
+pub(crate) fn driver_fit_with_check(
+    dates: &[i32],
+    values: &[[f64; 4]],
+    cutoff: i32,
+    count: Option<usize>,
+    mut check: impl FnMut() -> Result<(), String>,
+) -> Result<Value, String> {
+    check()?;
     crate::conventions::Date::ordinal(cutoff)?;
     if dates.len() != values.len()
         || dates.len() > 1_000_000
@@ -98,6 +111,7 @@ fn driver_fit(
         return Err("history must have unique increasing dates and aligned observations".into());
     }
     for (&date, row) in dates.iter().zip(values) {
+        check()?;
         crate::conventions::Date::ordinal(date)?;
         finite(row)?;
     }
@@ -109,6 +123,7 @@ fn driver_fit(
     let mut mean = [0.; 4];
     let mut covariance = [[0.; 4]; 4];
     for row in &values[..n] {
+        check()?;
         for j in 0..4 {
             mean[j] += row[j];
         }
@@ -117,6 +132,7 @@ fn driver_fit(
         *v /= n as f64;
     }
     for row in &values[..n] {
+        check()?;
         for j in 0..4 {
             for k in 0..4 {
                 covariance[j][k] += (row[j] - mean[j]) * (row[k] - mean[k]);
@@ -132,6 +148,7 @@ fn driver_fit(
     let mut rmse = [0.; 4];
     let mut outside = [0.; 4];
     for row in &values[n..] {
+        check()?;
         for j in 0..4 {
             let d = row[j] - mean[j];
             bias[j] += row[j];
@@ -157,6 +174,7 @@ fn driver_fit(
         let inverse = svd.pseudo_inverse(tolerance).map_err(|e| e.to_string())?;
         let mut distances = Vec::with_capacity(n);
         for (i, row) in values[..n].iter().enumerate() {
+            check()?;
             let delta = nalgebra::Vector4::from_fn(|j, _| row[j] - mean[j]);
             let distance = delta.dot(&(inverse * delta));
             finite(&[distance])?;

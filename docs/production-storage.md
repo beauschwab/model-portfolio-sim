@@ -4,6 +4,11 @@ The default backend is SQLite plus local Parquet artifacts. PostgreSQL uses the
 same SQLAlchemy repository and schema. Production artifacts can use S3 through
 the standard AWS credential chain. No change to pricing mathematics is included.
 
+Local Windows object roots use absolute extended-length filesystem paths, including
+UNC roots, so atomic publication and later checksum/bounded reads can address long
+workspace artifact paths. Relative content-addressed keys, hashes and workspace
+scope are unchanged; no operating-system registry setting is required.
+
 ## Development
 
 From the repository root, run `bun run setup`, then `bun run db:init`. Start

@@ -1,0 +1,33 @@
+{
+  "instruments": 1920,
+  "paths": 128,
+  "months": 360,
+  "threads": 4,
+  "results": [
+    {
+      "name": "rust_f64_abi",
+      "seconds": [
+        0.6239122000988573,
+        0.6309320998843759,
+        0.6244751999620348,
+        0.631571400212124,
+        0.6451979000121355
+      ],
+      "median": 0.6309320998843759,
+      "parity": true
+    },
+    {
+      "name": "rust_candidate:scalar_inline",
+      "seconds": [
+        0.6333924999926239,
+        0.6340282999444753,
+        0.639109899988398,
+        0.646744100144133,
+        0.6359321000054479
+      ],
+      "median": 0.6359321000054479,
+      "parity": true
+    }
+  ],
+  "caveat": "Strict variants change outer-loop flags; shared inlined helpers retain their declared fastmath."
+}

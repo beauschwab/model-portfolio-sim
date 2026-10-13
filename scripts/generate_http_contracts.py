@@ -51,7 +51,7 @@ def artifacts():
                        ('HttpStressCapabilities','/balance-stress/capabilities')]:
         aliases[name] = document['paths'][path]['get']['responses']['200']['content']['application/json']['schema']
         if '$ref' not in aliases[name]: raise ValueError(f'{path} must declare a response model')
-    selected = ['ForecastRequest', 'MarketScenario', 'RunRequest', 'Allocation']
+    selected = ['ForecastRequest', 'MarketScenario', 'RunRequest', 'Allocation', 'DatedBalanceStressRequest', 'CreditBalanceStressRequest', 'CreditPathBalanceStressRequest','ModeledBalanceStressRequest', 'ModelRunRequest', 'PublishedHoldingRequest', 'MortgageClosingRequest', 'ModeledProductFTPRequest', 'ModeledFTPSourceMetadata', 'SavedDerivativeMixedRequest', 'SavedDerivativeDepositPortfolioRequest']
     pending = list(aliases.values()) + [{'$ref': '#/components/schemas/'+name} for name in selected]
     used = {}
     while pending:

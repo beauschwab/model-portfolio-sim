@@ -1,0 +1,16 @@
+{
+  "scope": "Native public optimizer from previously priced raw unit libraries; not full Rust calculation lifecycle completion",
+  "engine_version": "0.27.1",
+  "environment": "Local Windows checkout",
+  "engine_suite": {"passed": 332, "failed": 0, "skipped": 0, "seconds": 121.86},
+  "final_native_strategy_decision_product_suite": {"passed": 72, "failed": 0, "skipped": 0, "seconds": 47.29},
+  "api_default_suite": {"passed": 93, "failed": 0, "skipped": 0, "seconds": 65.37, "warnings": ["Existing Starlette/httpx deprecation"]},
+  "rust_release_unit_tests": {"passed": 5, "failed": 0},
+  "rust_clippy_warnings_denied": "passed",
+  "rust_format": "passed",
+  "standalone_execution": "Same raw request and output as native public optimizer; no Python interpreter in child executable",
+  "ownership_gate": "Python KPI coefficient construction, allocation_vectors, evaluate_strategy and SciPy linprog forbidden during native solve",
+  "parity": "Ten randomized three-scenario funded problems replayed through independent Python reference; existing product final-output and native decision tests retained",
+  "documentation": "25-chapter structure and local browser/architecture checks passed; packaged operator skill refreshed",
+  "not_claimed": ["full Rust lifecycle", "performance improvement", "new 60000-instrument benchmark", "dynamic HTM validation by the coefficient solver", "pure Rust numerical LP primitive", "live PostgreSQL or S3 deployment validation"]
+}

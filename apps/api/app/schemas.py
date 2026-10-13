@@ -144,6 +144,11 @@ class StateStatus(BaseModel):
     library_ready: bool
     library_horizon: int | None
     worker_ready: bool | None = None
+    library_schema: str | None = None
+    library_templates: list[str] | None = None
+    library_purchase_grid: list[int] | None = None
+    library_reporting_ordinals: list[int] | None = None
+    library_unit_grid: dict[str,list[int]] | None = None
 
 
 class StressCapabilities(BaseModel):
@@ -194,18 +199,9 @@ class JobStatus(BaseModel):
 
 
 class Allocation(BaseModel):
-    template: str
+    template: str = Field(min_length=1,max_length=200)
     purchase_m: int = Field(ge=0, le=359, strict=True)
     notional: FiniteFloat = Field(ge=0)
-
-    @field_validator("template")
-    @classmethod
-    def known_template(cls, value):
-        from portfolio_risk.strategy.unitlib import TEMPLATES
-        if value not in TEMPLATES:
-            raise ValueError("unknown template")
-        return value
-
 
 class CommercialConstraint(BaseModel):
     label: str = Field(min_length=1, max_length=100)
@@ -218,7 +214,9 @@ class CommercialConstraint(BaseModel):
     def known_template(cls, value):
         if value in ("ALL_ASSET", "ALL_LIAB"):
             return value
-        return Allocation.known_template(value)
+        from portfolio_risk.strategy.unitlib import TEMPLATES
+        if value not in TEMPLATES:raise ValueError('unknown template')
+        return value
 
 
 class OptimizeRequest(BaseModel):
@@ -290,3 +288,70 @@ class StreamedBalanceStressRequest(BaseModel):
         validate(self.specification, max_positions=60000 if self.large_book else 2000,
                  max_work=90_000_000 if self.large_book else 3_000_000)
         return self
+
+
+class DatedBalanceStressRequest(BaseModel):
+    """Explicit source-owned scheduled recognition; quant admission stays native."""
+    model_config = ConfigDict(extra='forbid')
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+    large_book: bool = False
+
+    @model_validator(mode='after')
+    def valid_specification(self):
+        from portfolio_risk.analytics.ledger_native import validate_spec
+        if self.specification.get('schema') != 'dated-ledger-1':
+            raise ValueError('Select the dated-ledger-1 contract explicitly')
+        validate_spec(self.specification, max_positions=60000 if self.large_book else 2000,
+                      max_work=90_000_000 if self.large_book else 3_000_000)
+        return self
+
+
+class CreditBalanceStressRequest(BaseModel):
+    """Explicit source-owned joint credit; native admission includes work bounds."""
+    model_config = ConfigDict(extra='forbid')
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+    large_book: bool = False
+
+    @model_validator(mode='after')
+    def valid_specification(self):
+        from portfolio_risk.analytics.ledger_native import validate_spec
+        if self.specification.get('schema') != 'credit-ledger-1':
+            raise ValueError('Select the credit-ledger-1 contract explicitly')
+        validate_spec(self.specification, max_positions=60000 if self.large_book else 2000,
+                      max_work=90_000_000 if self.large_book else 3_000_000)
+        return self
+
+
+class CreditPathBalanceStressRequest(BaseModel):
+    """Explicit realized credit path ownership with native structural admission."""
+    model_config = ConfigDict(extra='forbid')
+    expected_revision: int = Field(ge=0)
+    specification: dict[str, Any]
+    large_book: bool = False
+
+    @model_validator(mode='after')
+    def valid_specification(self):
+        from portfolio_risk.analytics.ledger_native import validate_spec
+        if self.specification.get('schema') != 'credit-path-ledger-1':
+            raise ValueError('Select the credit-path-ledger-1 contract explicitly')
+        validate_spec(self.specification,max_positions=60000 if self.large_book else 2000,
+            max_work=90_000_000 if self.large_book else 3_000_000)
+        return self
+
+
+class ModeledBalanceStressRequest(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    expected_revision:int=Field(ge=0)
+    specification:dict
+    large_book:bool=False
+
+    @field_validator('specification')
+    @classmethod
+    def finite_source(cls,value):
+        import json
+        if value.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1'}:raise ValueError('unsupported modeled source ledger schema')
+        bound=1024*1024 if value.get('schema') in {'deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1'} else 32*1024*1024
+        if len(json.dumps(value,allow_nan=False,separators=(',',':')).encode())>bound-1024:raise ValueError('modeled ledger input exceeds declared byte bound')
+        return value

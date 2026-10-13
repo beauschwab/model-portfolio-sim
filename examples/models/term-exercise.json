@@ -1,0 +1,60 @@
+{
+  "schema": "conditional-exercise-1",
+  "threads": 1,
+  "request": {
+    "schema": "term-enhancements-1",
+    "model_version": "term-contracts-1",
+    "contract": {"id": "callable-example", "revision": "r1"},
+    "policy": {"id": "exact-date-bellman", "revision": "r1"},
+    "tree": {"id": "conditional-example", "revision": "r1"},
+    "discount_source": {"id": "market-discounts", "revision": "r1"},
+    "oas_anchor": {"id": "fixed-base-oas", "revision": "r1"},
+    "common_random_numbers": {"id": "common-state-tape", "revision": "r1"},
+    "measure": "pricing",
+    "discount_basis": "market_without_oas",
+    "position_id": "callable:example",
+    "scenario_id": "base",
+    "currency": "USD",
+    "monetary_unit": "currency_units",
+    "direction": "receipt",
+    "asof_ordinal": 739617,
+    "reporting_end_ordinal": 739618,
+    "tail_end_ordinal": 739619,
+    "fixed_base_oas": 0,
+    "oas_day_count": "act365_fixed",
+    "simultaneous_priority": "issuer",
+    "exercise_dates": [{"ordinal": 739618, "timing": "after_scheduled_cash", "call_clean_price_factor": 1, "put_clean_price_factor": null, "call_fee": 0, "put_fee": 0}],
+    "nodes": [
+      {
+        "node_id": "root", "ordinal": 739617,
+        "information_set": {"id": "root-information", "revision": "r1"},
+        "principal_before_cash": 100,
+        "scheduled_cash": {"principal": 0, "cash_interest": 0, "accrued_interest": 0, "book_amortization": 0, "fees": 0},
+        "scheduled_accrual_period": null,
+        "exercise_accrued_interest": 0,
+        "accrued_right_source": {"id": "contractual-rights", "revision": "r1"},
+        "branches": [{"child": 1, "conditional_probability": 1, "market_discount_factor": 0.98}]
+      },
+      {
+        "node_id": "call-date", "ordinal": 739618,
+        "information_set": {"id": "call-information", "revision": "r1"},
+        "principal_before_cash": 100,
+        "scheduled_cash": {"principal": 0, "cash_interest": 5, "accrued_interest": 5, "book_amortization": 0, "fees": 0},
+        "scheduled_accrual_period": null,
+        "exercise_accrued_interest": 0,
+        "accrued_right_source": {"id": "post-coupon-rights", "revision": "r1"},
+        "branches": [{"child": 2, "conditional_probability": 1, "market_discount_factor": 1}]
+      },
+      {
+        "node_id": "maturity", "ordinal": 739619,
+        "information_set": {"id": "maturity-information", "revision": "r1"},
+        "principal_before_cash": 100,
+        "scheduled_cash": {"principal": 100, "cash_interest": 5, "accrued_interest": 5, "book_amortization": 0, "fees": 0},
+        "scheduled_accrual_period": null,
+        "exercise_accrued_interest": 0,
+        "accrued_right_source": {"id": "maturity-rights", "revision": "r1"},
+        "branches": []
+      }
+    ]
+  }
+}

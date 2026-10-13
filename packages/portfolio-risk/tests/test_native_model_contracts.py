@@ -4,6 +4,7 @@ Production ownership runs in a fresh process outside the reference conftest.
 Expected values below use closed forms; they never invoke a Rust reference.
 """
 import datetime as dt
+import json
 import math
 import os
 from pathlib import Path
@@ -20,8 +21,118 @@ from portfolio_risk.core.runtime import RunConfig, run_context
 from portfolio_risk.products.corp import CorpDeck
 from portfolio_risk.analytics.model_contracts import (
     evaluate_credit, evaluate_floating_coupons, fit_observed_credit,
-    generate_dated_term_flows, resolve_dated_cashflows,
+    evaluate_joint_state, evaluate_joint_market_credit, fit_market_drivers,
+    bootstrap_market_quotes,
+    fit_observed_deposit_behavior,
+    generate_dated_term_flows,
+    resolve_dated_cashflows,
 )
+
+
+def joint_state_fixture():
+    return {
+        "schema": "joint-state-1",
+        "identity": {
+            "source_id": "python-joint-fixture",
+            "source_revision": "v1",
+            "assumption_id": "hazard-v1",
+            "common_random_numbers_id": "crn-v1",
+            "measure": "physical",
+        },
+        "as_of_ordinal": 1,
+        "day_count": "act365_fixed",
+        "periods": [{
+            "start_ordinal": 1,
+            "end_ordinal": 366,
+            "market_discount_factor": .97,
+            "behavioral_exit_hazard_per_year": .1,
+            "credit_default_hazard_per_year": .2,
+            "prepayment_hazard_per_year": 0.,
+            "recovery_fraction": .4,
+            "recovery_lag_years": 1.,
+        }],
+        "paths": [{
+            "position_id": "loan-1",
+            "path_key": 11,
+            "principal": 100.,
+            "random_pairs": [{"waiting_uniform": .2, "destination_uniform": 0.}],
+        }],
+    }
+
+
+def test_joint_state_adapter_matches_competing_hazard_oracle_and_preserves_crn():
+    result = evaluate_joint_state(joint_state_fixture())
+    p_exit = 1. - math.exp(-.3)
+    assert result["schema"] == "joint-state-1"
+    assert result["identity"]["common_random_numbers_id"] == "crn-v1"
+    assert result["work_units"] == 1
+    path = result["paths"][0]
+    assert path["total_credit_default"] == 100.
+    assert path["total_recovery_cash"] == 40.
+    assert path["total_economic_loss"] == 60.
+    event = path["events"][0]
+    assert event["credit_default_probability"] == pytest.approx(p_exit * 2 / 3, abs=1e-15)
+    assert event["behavioral_exit_probability"] == pytest.approx(p_exit / 3, abs=1e-15)
+    assert event["prepayment_probability"] == 0.
+
+
+def test_market_driver_calibration_keeps_holdout_out_of_training_fit():
+    root = Path(__file__).resolve().parents[3]
+    raw = json.loads((root / "examples" / "models" / "market-driver-calibration-1.json").read_text())
+    result = fit_market_drivers(raw)
+    diagnostics = result["diagnostics"]
+    assert result["schema"] == "market-driver-calibration-1"
+    assert diagnostics["training_rows"] == 30
+    assert diagnostics["holdout_rows"] == 10
+    assert result["adoption_eligible"] is False
+    assert diagnostics["uncertainty"]["lag"] == 2
+    assert diagnostics["uncertainty"]["serial_dependence_adjusted"] is True
+    revised = json.loads(json.dumps(raw))
+    revised["values"][-1][0] = 0.4
+    changed = fit_market_drivers(revised)
+    assert changed["diagnostics"]["mean"] == diagnostics["mean"]
+    assert changed["diagnostics"]["covariance"] == diagnostics["covariance"]
+    assert changed["diagnostics"]["uncertainty"] == diagnostics["uncertainty"]
+
+
+def test_joint_market_credit_reuses_market_tape_for_hazard_paths():
+    root = Path(__file__).resolve().parents[3]
+    raw = json.loads((root / "examples" / "models" / "joint-market-credit-1.json").read_text())
+    result = evaluate_joint_market_credit(raw)
+    assert result["schema"] == "joint-market-credit-1"
+    assert result["adoption_eligible"] is False
+    assert result["market"]["shape"] == [4, 2, 3]
+    assert result["work_units"] == 8
+    assert len(result["paths"]) == 4
+
+
+def test_market_quote_bootstrap_replays_explicit_schedule_and_residuals():
+    root = Path(__file__).resolve().parents[3]
+    raw = json.loads((root / "examples" / "models" / "market-quote-bootstrap-1.json").read_text())
+    result = bootstrap_market_quotes(raw)
+    assert result["schema"] == "market-quote-bootstrap-1"
+    assert result["pillar_times_years"] == [0.0, 1.0, 2.0, 3.0]
+    assert result["diagnostics"]["converged"] is True
+    assert result["adoption_eligible"] is False
+    assert result["quote_diagnostics"][-1]["kind"] == "validation"
+    assert abs(result["quote_diagnostics"][-1]["residual"]) > 1e-5
+
+
+def test_observed_deposit_behavior_fit_keeps_holdout_out_of_mle():
+    root = Path(__file__).resolve().parents[3]
+    raw = json.loads((root / "examples" / "models" / "observed-deposit-calibration-1.json").read_text())
+    result = fit_observed_deposit_behavior(raw)
+    assert result["schema"] == "observed-deposit-calibration-1"
+    assert result["segment_hazards"][0]["estimate_origin"] == {"kind": "observed_mle"}
+    assert result["sampling_unit"] == "account_full_exit"
+    assert abs(result["segment_hazards"][0]["withdrawal_per_year"] - 365.0 / 830.0) < 1e-12
+    assert result["training"]["migration_counts"][0][1] == 1
+    assert result["holdout"]["closure_counts"][0] == 1
+    assert result["adoption_eligible"] is False
+    revised = json.loads(json.dumps(raw))
+    revised["spells"][-1]["ending"] = {"kind": "withdrawal"}
+    changed = fit_observed_deposit_behavior(revised)
+    assert changed["segment_hazards"] == result["segment_hazards"]
 
 
 def level_payment_book(amort="level_payment", coupon=.06):
@@ -232,6 +343,9 @@ def test_observed_credit_mle_matches_exposure_counts_and_excludes_holdout_fit():
     assert result["measure"] == "physical"
     np.testing.assert_allclose(result["transition_hazards_per_year"][0],
                                [0., 0., 0., 1 / 3, 1 / 3], rtol=0., atol=1e-15)
+    np.testing.assert_allclose(result["hazard_standard_errors_per_year"][0][3:],
+                               [1 / 3, 1 / 3], rtol=0., atol=1e-15)
+    assert result["hazard_standard_errors_per_year"][1] == [None] * 5
     assert result["training"]["exposure_years_by_origin"] == [3., 0., 0.]
     assert result["holdout"]["exposure_years_by_origin"] == [1., 0., 0.]
     assert result["training"]["log_likelihood"] == pytest.approx(2 * math.log(1 / 3) - 2)

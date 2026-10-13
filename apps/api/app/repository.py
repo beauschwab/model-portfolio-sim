@@ -192,6 +192,31 @@ class Repository:
                 raise KeyError("unknown job")
             return dict(row)
 
+    def list_jobs(self, *, status=None, kind=None, idempotency_key=None, offset=0, limit=100):
+        """Bounded metadata only; requests/results remain immutable artifact references."""
+        if not 0 <= offset or not 1 <= limit <= 1000:
+            raise ValueError('invalid job page')
+        query = sa.select(*(jobs.c[k] for k in ('id', 'kind', 'status', 'revision',
+            'attempt', 'created_at', 'finished_at'))).where(self.scoped(jobs))
+        if status is not None:
+            query = query.where(jobs.c.status == status)
+        if kind is not None:
+            query = query.where(jobs.c.kind == kind)
+        if idempotency_key is not None:
+            query = query.where(jobs.c.idempotency_key == idempotency_key)
+        with self.engine.connect() as conn:
+            return [dict(r) for r in conn.execute(query.order_by(jobs.c.created_at.desc(),
+                jobs.c.id.desc()).offset(offset).limit(limit)).mappings()]
+
+    def list_sessions(self, *, offset=0, limit=100):
+        """Include closed/stale sessions so reconnecting clients can explain recovery."""
+        if not 0 <= offset or not 1 <= limit <= 1000:
+            raise ValueError('invalid session page')
+        query = sa.select(*(sessions.c[k] for k in ('id', 'revision', 'version', 'closed'))).where(
+            self.scoped(sessions)).order_by(sessions.c.id).offset(offset).limit(limit)
+        with self.engine.connect() as conn:
+            return [dict(r) for r in conn.execute(query).mappings()]
+
     def acquire(self, owner, seconds=60):
         now = time.time()
         with self.engine.begin() as conn:
@@ -245,7 +270,7 @@ class Repository:
             conn.execute(jobs.update().where(self.scoped(jobs), jobs.c.id == job["id"],
                 jobs.c.token == job["token"], jobs.c.status == "running").values(progress=progress))
 
-    def complete(self, job, *, result=None, error=None, session=None, library=None):
+    def complete(self, job, *, result=None, error=None, session=None, library=None, guard=None):
         with self.engine.begin() as conn:
             self._lock(conn)
             owner = conn.execute(sa.select(workspaces.c.owner).where(self.scoped(workspaces),
@@ -255,6 +280,8 @@ class Repository:
             current = conn.execute(sa.select(workspaces.c.revision).where(self.scoped(workspaces))).scalar_one()
             if (session or library) and current != job["revision"]:
                 raise Conflict("inputs changed; interactive publication discarded")
+            if guard is not None:
+                guard(conn)
             updated = conn.execute(jobs.update().where(self.scoped(jobs), jobs.c.id == job["id"],
                 jobs.c.token == job["token"], jobs.c.status == "running")
                 .values(status="error" if error else "done", result=result, detail=error, finished_at=time.time()))

@@ -1,0 +1,77 @@
+{
+  "scope": "submission through durable completion; one sample/backend in Python-then-Rust order on a persistent worker; includes HTTP, request persistence and object publication; excludes startup and post-run parity reads",
+  "environment": "isolated local SQLite/API/worker",
+  "storage": "local S3 HTTP emulator (not live AWS)",
+  "positions": 60000,
+  "days": 30,
+  "scenarios": 2,
+  "samples": [
+    {
+      "backend": "python",
+      "seconds": 119.486891400069,
+      "job_id": "fe2ac3caf92c4999860dbc367246b557",
+      "api_worker_native_peak_rss_mib": 1788.2578125,
+      "result_manifest_bytes": 85783,
+      "request_manifest_bytes": 16952127,
+      "journal_rows": 11050715,
+      "identity": {
+        "engine_version": "0.26.0",
+        "source_sha256": "3924b6a528b8d1dfcc37edb36276d99366e07957e188e995d23947b99f2e1bc6",
+        "python": "3.12.11",
+        "platform": "Windows",
+        "machine": "AMD64",
+        "native_sha256": "aee422bbf744f2bbb13e1891c75a5c93e0b3749bfc544ef010b70dafac9d31c2",
+        "risk_native_sha256": "329ce32a1e8818328d2a74c1b2cd438131dce038f850ec76cce4122b93777cb2",
+        "balance_native_sha256": "d4e59d251481c91ecf7a4c65c3f44430f4ae623923855fdeb7061b40ad7e0b4c",
+        "packages": {
+          "numpy": "2.4.6",
+          "numba": "0.65.1",
+          "polars": "1.41.2",
+          "scipy": "1.17.1"
+        }
+      }
+    },
+    {
+      "backend": "rust",
+      "seconds": 64.35417570010759,
+      "job_id": "2b05626a3f494335882bd9699f3c6b5f",
+      "api_worker_native_peak_rss_mib": 1893.9453125,
+      "result_manifest_bytes": 94282,
+      "request_manifest_bytes": 16952187,
+      "journal_rows": 11050715,
+      "identity": {
+        "engine_version": "0.26.0",
+        "source_sha256": "3924b6a528b8d1dfcc37edb36276d99366e07957e188e995d23947b99f2e1bc6",
+        "python": "3.12.11",
+        "platform": "Windows",
+        "machine": "AMD64",
+        "native_sha256": "aee422bbf744f2bbb13e1891c75a5c93e0b3749bfc544ef010b70dafac9d31c2",
+        "risk_native_sha256": "329ce32a1e8818328d2a74c1b2cd438131dce038f850ec76cce4122b93777cb2",
+        "balance_native_sha256": "d4e59d251481c91ecf7a4c65c3f44430f4ae623923855fdeb7061b40ad7e0b4c",
+        "packages": {
+          "numpy": "2.4.6",
+          "numba": "0.65.1",
+          "polars": "1.41.2",
+          "scipy": "1.17.1"
+        }
+      }
+    }
+  ],
+  "raw_parity_rows": {
+    "/journal": 11050715,
+    "/summary": 4,
+    "/reverse_grid": 0,
+    "/path": 124,
+    "/ledger": 3702,
+    "/actions": 22,
+    "/breaches": 3,
+    "/exposures": 240000,
+    "/trial_balance": 368337,
+    "/funding_claims": 2,
+    "/attribution": 30,
+    "/closing_statements": 4,
+    "/consolidated": 2
+  },
+  "parity": "all saved/downloaded financial rows in order at rtol=1e-12, atol=1e-8",
+  "memory": "combined API+worker+native RSS, plus emulator when selected, sampled at 25ms; excludes harness/download comparison process; remote RSS unavailable"
+}

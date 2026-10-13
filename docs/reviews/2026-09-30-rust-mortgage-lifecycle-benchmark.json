@@ -1,0 +1,193 @@
+{
+  "scope": "Mortgage risk and forward stress only; excludes other books, strategy solver and daily ledger",
+  "synthetic": true,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "results": [
+    {
+      "backend": "python",
+      "version": "0.27.6",
+      "positions": 256,
+      "sensitivity_paths": 8,
+      "base_paths": 16,
+      "horizon": 3,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "risk_seconds": 3.1750644999556243,
+          "stress_seconds": 0.30272479983977973,
+          "total_seconds": 3.477789299795404,
+          "python_market_cache_hits": 4,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_1",
+          "risk_seconds": 0.5575436998624355,
+          "stress_seconds": 0.10689560021273792,
+          "total_seconds": 0.6644393000751734,
+          "python_market_cache_hits": 106,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_2",
+          "risk_seconds": 0.5394395999610424,
+          "stress_seconds": 0.10048689995892346,
+          "total_seconds": 0.6399264999199659,
+          "python_market_cache_hits": 208,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_3",
+          "risk_seconds": 0.5425809000153095,
+          "stress_seconds": 0.1102746999822557,
+          "total_seconds": 0.6528555999975652,
+          "python_market_cache_hits": 310,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "edited",
+          "risk_seconds": 0.5052843000739813,
+          "stress_seconds": 0.09553689998574555,
+          "total_seconds": 0.6008212000597268,
+          "python_market_cache_hits": 412,
+          "python_market_cache_misses": 98
+        }
+      ],
+      "warm_median_seconds": 0.6528555999975652,
+      "baseline_memory": {
+        "rss_mb": 124.40625,
+        "process_peak_rss_mb": 124.40625
+      },
+      "final_memory": {
+        "rss_mb": 204.484375,
+        "process_peak_rss_mb": 205.625
+      }
+    },
+    {
+      "backend": "rust",
+      "version": "0.27.6",
+      "positions": 256,
+      "sensitivity_paths": 8,
+      "base_paths": 16,
+      "horizon": 3,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "risk_seconds": 0.8075755999889225,
+          "stress_seconds": 0.09781800000928342,
+          "total_seconds": 0.9053935999982059,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 63,
+            "bytes": 4301344,
+            "hits": 6,
+            "misses": 63,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_1",
+          "risk_seconds": 0.25169760012067854,
+          "stress_seconds": 0.08534380001947284,
+          "total_seconds": 0.3370414001401514,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 63,
+            "bytes": 4301344,
+            "hits": 75,
+            "misses": 63,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_2",
+          "risk_seconds": 0.25313850003294647,
+          "stress_seconds": 0.08179789991118014,
+          "total_seconds": 0.3349363999441266,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 63,
+            "bytes": 4301344,
+            "hits": 144,
+            "misses": 63,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_3",
+          "risk_seconds": 0.24722300004214048,
+          "stress_seconds": 0.08306009997613728,
+          "total_seconds": 0.33028310001827776,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 63,
+            "bytes": 4301344,
+            "hits": 213,
+            "misses": 63,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "edited",
+          "risk_seconds": 0.3625117000192404,
+          "stress_seconds": 0.1369979998562485,
+          "total_seconds": 0.4995096998754889,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 63,
+            "bytes": 4301344,
+            "hits": 282,
+            "misses": 63,
+            "evictions": 0
+          }
+        }
+      ],
+      "warm_median_seconds": 0.3349363999441266,
+      "baseline_memory": {
+        "rss_mb": 124.23828125,
+        "process_peak_rss_mb": 124.23828125
+      },
+      "final_memory": {
+        "rss_mb": 147.8984375,
+        "process_peak_rss_mb": 151.41015625
+      },
+      "native_library_sha256": "2e70a54098f5938b9306ad39012fa79fae630b10f09e6a4aa289f00cf647f935"
+    }
+  ],
+  "tolerance": {
+    "rtol": 1e-07,
+    "atol": 1e-05
+  },
+  "parity": true,
+  "max_absolute_errors": {
+    "cold/risk": 1.1255178833380342e-07,
+    "cold/positions": 8.279457688331604e-07,
+    "cold/aggregate": 2.86102294921875e-06,
+    "cold/profile": 4.190951585769653e-09,
+    "warm_1/risk": 1.1255178833380342e-07,
+    "warm_1/positions": 8.279457688331604e-07,
+    "warm_1/aggregate": 2.86102294921875e-06,
+    "warm_1/profile": 4.190951585769653e-09,
+    "warm_2/risk": 1.1255178833380342e-07,
+    "warm_2/positions": 8.279457688331604e-07,
+    "warm_2/aggregate": 2.86102294921875e-06,
+    "warm_2/profile": 4.190951585769653e-09,
+    "warm_3/risk": 1.1255178833380342e-07,
+    "warm_3/positions": 8.279457688331604e-07,
+    "warm_3/aggregate": 2.86102294921875e-06,
+    "warm_3/profile": 4.190951585769653e-09,
+    "edited/risk": 1.1255178833380342e-07,
+    "edited/positions": 8.279457688331604e-07,
+    "edited/aggregate": 1.9073486328125e-06,
+    "edited/profile": 4.6566128730773926e-09
+  },
+  "script_sha256": "8381b8d235c32d02521007be343d779213f1c4bddeae091e700bddf2ee259751",
+  "memory_note": "OS peak process memory includes imports, JIT, output retention and transport, not just Rust allocation; not a standalone-Rust memory benchmark"
+}

@@ -17,7 +17,7 @@ const env = {
   WORKBENCH_WORKER_URL: `http://127.0.0.1:${workerPort}`,
 };
 export default defineConfig({
-  testDir: './tests', testMatch: ['streamed-balance.spec.ts', 'balance-stress.spec.ts'],
+  testDir: './tests', testMatch: ['streamed-balance.spec.ts', 'balance-stress.spec.ts','model-contracts.spec.ts','market-indexed.spec.ts','mortgage-closing-capital.spec.ts','modeled-product-ftp.spec.ts','saved-derivative-mixed.spec.ts','joint-deposit-derivative.spec.ts'],
   workers: 1, timeout: 60_000,
   use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1680, height: 1100 },
     channel: process.platform === 'win32' ? 'msedge' : undefined, trace: 'retain-on-failure' },

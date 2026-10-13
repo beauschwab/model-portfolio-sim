@@ -145,6 +145,15 @@ visible in the diagnostics. Rare-event uncertainty requires independent interval
 or posterior analysis before economic use; no confidence intervals or safety
 floors are implied by these point estimates.
 
+The result also reports `hazard_standard_errors_per_year` for positive observed
+transition counts. For count `N_ij` and exposure `T_i` years, the reported
+Wald value is `sqrt(N_ij) / T_i`, the inverse-information standard error of
+the Poisson row-rate MLE. Diagonal entries are structurally zero. A `null`
+entry marks a zero-event cause or a supplied row: it is missing information,
+not a zero-risk confidence claim. These local asymptotic errors do not replace
+profile likelihood, Bayesian intervals, rare-event bounds, source censoring
+audits or held-out predictive validation.
+
 For `T_i = 0`, rates are unidentified. Each origin therefore requires an explicit
 `UnobservedRowPolicy`:
 

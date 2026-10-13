@@ -2,10 +2,17 @@
 //! Product pricing is external; policy/events execute in daily, transport persists.
 //! Reduction calls retain no pointers or global state.
 
-pub mod daily;
 pub mod credit_accounting;
-pub mod dated_store;
+pub mod consumer_intent_owner;
+pub mod product_event_owner;
+pub mod credit_path_replay;
+pub mod credit_replay;
+pub mod credit_state;
+pub mod daily;
+pub mod driven_credit;
 pub mod dated_ledger;
+pub mod acquisition;
+pub mod dated_store;
 pub mod flow_store;
 pub mod spec;
 #[path = "bin/types.rs"]
@@ -34,6 +41,48 @@ pub unsafe extern "C" fn portfolio_balance_validate(
         }
         let request: Request = serde_json::from_slice(std::slice::from_raw_parts(input, length))
             .map_err(|e| e.to_string())?;
+        if request
+            .raw
+            .get("schema")
+            .and_then(serde_json::Value::as_str)
+            == Some(credit_path_replay::SCHEMA)
+        {
+            let raw = serde_json::from_value(request.raw).map_err(|e| e.to_string())?;
+            let compiled = credit_path_replay::CompiledPathLedger::compile_with_limits(
+                raw,
+                request.max_positions,
+                request.max_work,
+            )?;
+            return serde_json::to_value(compiled.normalized_spec()).map_err(|e| e.to_string());
+        }
+        if request
+            .raw
+            .get("schema")
+            .and_then(serde_json::Value::as_str)
+            == Some(credit_replay::SCHEMA)
+        {
+            let raw = serde_json::from_value(request.raw).map_err(|e| e.to_string())?;
+            let compiled = credit_replay::CompiledCreditReplay::compile_with_limits(
+                raw,
+                request.max_positions,
+                request.max_work,
+            )?;
+            return serde_json::to_value(compiled.normalized_spec()).map_err(|e| e.to_string());
+        }
+        if request
+            .raw
+            .get("schema")
+            .and_then(serde_json::Value::as_str)
+            == Some(dated_ledger::SCHEMA)
+        {
+            let raw = serde_json::from_value(request.raw).map_err(|e| e.to_string())?;
+            let source = dated_ledger::CompiledDatedLedger::compile(
+                raw,
+                request.max_positions,
+                request.max_work,
+            )?;
+            return serde_json::to_value(source.spec).map_err(|e| e.to_string());
+        }
         serde_json::to_value(spec::normalize(
             request.raw,
             request.max_positions,
@@ -267,3 +316,20 @@ mod tests {
         apply(&[], &[0], &[], &[], &[], &mut []).unwrap();
     }
 }
+
+pub mod mortgage_pending_owner;
+pub mod deposit_revision;
+mod deposit_revision_json;
+
+pub mod deposit_source_principal;
+mod deposit_source_principal_json;
+
+#[cfg(feature="historical-output-control")]
+#[doc(hidden)] pub mod historical_daily;
+pub mod deposit_fifo_derivation;
+pub mod deposit_source_portfolio;
+mod deposit_portfolio_money;
+
+pub mod derivative_intent_owner;
+pub mod commercial_intent_owner;
+pub mod commercial_fee_owner;

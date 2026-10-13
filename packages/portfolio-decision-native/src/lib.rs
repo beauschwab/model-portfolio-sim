@@ -1,6 +1,22 @@
 //! Versioned actor sessions: native solver pointers stay on their owner thread.
+pub mod mortgage_closing_capital;
+pub mod commercial_ledger;
+pub mod commercial_fee_journal;
+pub mod commercial_holding_journal;
+pub mod commercial_treasury;
+pub mod commercial_library;
+pub mod commercial_candidate_journal;
+pub mod commercial_intake;
+pub mod advanced_ledger;
+mod aged_library;
+pub mod deposit_ledger;
 mod library;
 mod owned;
+pub mod product_library;
+pub mod product_candidate_journal;
+pub mod product_mixed_dated;
+pub mod product_mixed_consumer_credit;
+pub mod product_mixed_product_credit;
 mod solver;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -301,8 +317,54 @@ impl Session {
         }
     }
 }
-type Message = (Value, mpsc::SyncSender<Result<Value, String>>);
-static REGISTRY: OnceLock<Mutex<HashMap<u64, mpsc::SyncSender<Message>>>> = OnceLock::new();
+type Message = (Value, mpsc::SyncSender<Result<Value, String>>, Option<portfolio_compute_control::Control>);
+enum Actor {
+    Legacy(Box<Session>, Option<Box<owned::Owner>>),
+    Aged(Box<aged_library::Session>),
+    Product(Box<product_library::Session>),
+    Commercial(Box<commercial_library::Session>),
+}
+impl Actor {
+    fn call(&mut self, msg: Value) -> Result<Value, String> {
+        match self {
+            Self::Product(session) => session.call(msg),
+            Self::Commercial(session) => session.call(msg),
+            Self::Aged(session) => session.call(msg),
+            Self::Legacy(session, owner) => {
+                if let Some(owner) = owner.as_mut() {
+                    match msg["op"].as_str() {
+                        Some("update_owned") => owner.update(session, msg),
+                        Some("publish") => {
+                            let result = session.call(msg)?;
+                            owner.publish();
+                            Ok(result)
+                        }
+                        Some("abort") => {
+                            let result = session.call(msg)?;
+                            owner.abort();
+                            Ok(result)
+                        }
+                        Some("eval" | "status") => session.call(msg),
+                        _ => Err("owned session requires native orchestration".into()),
+                    }
+                } else {
+                    session.call(msg)
+                }
+            }
+        }
+    }
+}
+#[derive(Clone)]
+struct ActorHandle {
+    sender: mpsc::SyncSender<Message>,
+    commercial: bool,
+}
+static REGISTRY: OnceLock<Mutex<HashMap<u64, ActorHandle>>> = OnceLock::new();
+fn commercial_handle(handle: u64) -> Result<bool, String> {
+    let Some(registry) = REGISTRY.get() else { return Ok(false) };
+    Ok(registry.lock().map_err(|_| "registry unavailable")?
+        .get(&handle).is_some_and(|actor| actor.commercial))
+}
 static NEXT: AtomicU64 = AtomicU64::new(1);
 pub fn dispatch(v: Value) -> Result<Value, String> {
     let registry = REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
@@ -313,10 +375,19 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
     if op == "optimize_library" {
         return library::optimize(&v);
     }
+    if op == "optimize_aged" {
+        return aged_library::optimize(&v);
+    }
+    if op == "optimize_product" {
+        return product_library::optimize(&v);
+    }
+    if op == "optimize_commercial" {
+        return commercial_library::optimize(&v);
+    }
     if op == "linear_program" {
         return solver::linear_program(&v);
     }
-    if op == "create" || op == "create_owned" {
+    if op == "create" || op == "create_owned" || op == "create_aged" || op == "create_product" || op == "create_commercial" {
         let mut slots = registry.lock().map_err(|_| "registry unavailable")?;
         if slots.len() >= 8 {
             return Err("native session capacity reached (8); close a session".into());
@@ -329,50 +400,51 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
         let (ready_tx, ready_rx) = mpsc::sync_channel(1);
         // Reserve capacity atomically, then release the registry before pricing.
         // Opening a book must not block evaluation/close on unrelated sessions.
-        slots.insert(handle, tx);
+        slots.insert(handle, ActorHandle { sender: tx, commercial: op == "create_commercial" });
         drop(slots);
+        // A creation deadline belongs to this call, never to the retained actor.
+        let creation_control = if op=="create_commercial" {portfolio_compute_control::active()} else {None};
         let spawned = std::thread::Builder::new()
             .name(format!("decision-{handle}"))
             .spawn(move || {
                 let mut v = v;
-                let created = if v["op"] == "create_owned" {
-                    owned::Owner::new(&mut v)
-                        .map(|(owner, session, snapshot)| (Some(owner), session, snapshot))
+                let created = if v["op"] == "create_commercial" {
+                    portfolio_compute_control::scope(creation_control,||commercial_library::Session::new(&v))
+                        .map(|(session, snapshot)| (Actor::Commercial(Box::new(session)), snapshot))
+                } else if v["op"] == "create_product" {
+                    product_library::Session::new(&v)
+                        .map(|(session, snapshot)| (Actor::Product(Box::new(session)), snapshot))
+                } else if v["op"] == "create_aged" {
+                    aged_library::Session::new(&v)
+                        .map(|(session, snapshot)| (Actor::Aged(Box::new(session)), snapshot))
+                } else if v["op"] == "create_owned" {
+                    owned::Owner::new(&mut v).map(|(owner, session, snapshot)| {
+                        (
+                            Actor::Legacy(Box::new(session), Some(Box::new(owner))),
+                            snapshot,
+                        )
+                    })
                 } else {
-                    Session::new(&v).map(|session| (None, session, json!({})))
+                    Session::new(&v)
+                        .map(|session| (Actor::Legacy(Box::new(session), None), json!({})))
                 };
-                let (mut owner, mut s) = match created {
-                    Ok((owner, session, snapshot)) => {
+                let mut actor = match created {
+                    Ok((actor, snapshot)) => {
                         let _ = ready_tx.send(Ok(snapshot));
-                        (owner, session)
+                        actor
                     }
                     Err(e) => {
                         let _ = ready_tx.send(Err(e));
                         return;
                     }
                 };
-                while let Ok((msg, reply)) = rx.recv() {
+                while let Ok((msg, reply, control)) = rx.recv() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        if let Some(owner) = owner.as_mut() {
-                            match msg["op"].as_str() {
-                                Some("update_owned") => owner.update(&mut s, msg),
-                                Some("publish") => {
-                                    let result = s.call(msg)?;
-                                    owner.publish();
-                                    Ok(result)
-                                }
-                                Some("abort") => {
-                                    let result = s.call(msg)?;
-                                    owner.abort();
-                                    Ok(result)
-                                }
-                                Some("eval" | "status") => s.call(msg),
-                                _ => Err("owned session requires native orchestration".into()),
-                            }
-                        } else {
-                            s.call(msg)
-                        }
-                    })) {
+                        if matches!(actor,Actor::Commercial(_)) {
+                            portfolio_compute_control::scope(control,||actor.call(msg))
+                        } else {actor.call(msg)}
+                    }))
+                    {
                         Ok(r) => {
                             let _ = reply.send(r);
                         }
@@ -418,7 +490,7 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
         .cloned()
         .ok_or("unknown session")?;
     let (reply, rx) = mpsc::sync_channel(1);
-    tx.try_send((v, reply)).map_err(|e| e.to_string())?;
+    tx.sender.try_send((v, reply, portfolio_compute_control::active())).map_err(|e| e.to_string())?;
     rx.recv().map_err(|e| e.to_string())?
 }
 /// Caller owns the returned string and releases it with decision_free.
@@ -435,7 +507,7 @@ pub unsafe extern "C" fn decision_request(input: *const c_char) -> *mut c_char {
         if bytes.len() > 128 * 1024 * 1024 {
             return Err("request exceeds 128 MiB".into());
         }
-        let v = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
+        let v = commercial_intake::parse(bytes)?;
         dispatch(v)
     })
     .unwrap_or_else(|_| Err("native request failed".into()));
@@ -454,6 +526,11 @@ pub unsafe extern "C" fn decision_free(pointer: *mut c_char) {
     if !pointer.is_null() {
         drop(CString::from_raw(pointer));
     }
+}
+
+/// Full raw graph/unit/solve/accounting/mapping/daily-ledger stream, no callbacks.
+pub fn run_workflow(request: Value, output: Box<dyn std::io::Write + Send>) -> Result<(), String> {
+    owned::run_streamed(request, output)
 }
 
 #[cfg(test)]
@@ -578,7 +655,9 @@ mod tests {
     }
 }
 
-/// Full raw graph/unit/solve/accounting/mapping/daily-ledger stream, no callbacks.
-pub fn run_workflow(request: Value, output: Box<dyn std::io::Write + Send>) -> Result<(), String> {
-    owned::run_streamed(request, output)
-}
+pub mod modeled_product_ftp_source;
+
+pub mod modeled_product_ftp;
+
+pub mod saved_derivative_mixed;
+pub mod joint_deposit_derivative;

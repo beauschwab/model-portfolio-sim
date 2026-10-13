@@ -32,6 +32,8 @@
           "type": "integer"
         },
         "template": {
+          "maxLength": 200,
+          "minLength": 1,
           "title": "Template",
           "type": "string"
         }
@@ -42,6 +44,87 @@
         "notional"
       ],
       "title": "Allocation",
+      "type": "object"
+    },
+    "CreditBalanceStressRequest": {
+      "additionalProperties": false,
+      "description": "Explicit source-owned joint credit; native admission includes work bounds.",
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "large_book": {
+          "default": false,
+          "title": "Large Book",
+          "type": "boolean"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "CreditBalanceStressRequest",
+      "type": "object"
+    },
+    "CreditPathBalanceStressRequest": {
+      "additionalProperties": false,
+      "description": "Explicit realized credit path ownership with native structural admission.",
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "large_book": {
+          "default": false,
+          "title": "Large Book",
+          "type": "boolean"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "CreditPathBalanceStressRequest",
+      "type": "object"
+    },
+    "DatedBalanceStressRequest": {
+      "additionalProperties": false,
+      "description": "Explicit source-owned scheduled recognition; quant admission stays native.",
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "large_book": {
+          "default": false,
+          "title": "Large Book",
+          "type": "boolean"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "DatedBalanceStressRequest",
       "type": "object"
     },
     "ForecastRequest": {
@@ -346,6 +429,292 @@
       "title": "MarketView",
       "type": "object"
     },
+    "ModelRunRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "request": {
+          "additionalProperties": true,
+          "title": "Request",
+          "type": "object"
+        },
+        "schema_name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Schema Name",
+          "type": "string"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1800.0,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "schema_name",
+        "request"
+      ],
+      "title": "ModelRunRequest",
+      "type": "object"
+    },
+    "ModeledBalanceStressRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "large_book": {
+          "default": false,
+          "title": "Large Book",
+          "type": "boolean"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "ModeledBalanceStressRequest",
+      "type": "object"
+    },
+    "ModeledFTPPathMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "owner_index": {
+          "title": "Owner Index",
+          "type": "integer"
+        },
+        "path_index": {
+          "title": "Path Index",
+          "type": "integer"
+        },
+        "position_id": {
+          "title": "Position Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "run_index": {
+          "title": "Run Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "owner_index",
+        "run_index",
+        "path_index",
+        "position_id",
+        "run_id"
+      ],
+      "title": "ModeledFTPPathMetadata",
+      "type": "object"
+    },
+    "ModeledFTPSourceMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "accounting_standard_approval": {
+          "const": false,
+          "title": "Accounting Standard Approval",
+          "type": "boolean"
+        },
+        "capital_ftp_eligible": {
+          "const": false,
+          "title": "Capital Ftp Eligible",
+          "type": "boolean"
+        },
+        "compatibility_metadata_checked": {
+          "const": true,
+          "title": "Compatibility Metadata Checked",
+          "type": "boolean"
+        },
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "card_v2",
+            "deposit_performing",
+            "deposit_portfolio"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "model_schema": {
+          "title": "Model Schema",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "$ref": "#/components/schemas/ModeledFTPPathMetadata"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "scope": {
+          "title": "Scope",
+          "type": "string"
+        },
+        "source_journal_verified": {
+          "const": false,
+          "title": "Source Journal Verified",
+          "type": "boolean"
+        },
+        "status": {
+          "const": "done",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id",
+        "kind",
+        "status",
+        "revision",
+        "model_schema",
+        "scope",
+        "paths",
+        "compatibility_metadata_checked",
+        "source_journal_verified",
+        "capital_ftp_eligible",
+        "accounting_standard_approval"
+      ],
+      "title": "ModeledFTPSourceMetadata",
+      "type": "object"
+    },
+    "ModeledProductFTPRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "maximum": 1800.0,
+          "minimum": 0.001,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "ModeledProductFTPRequest",
+      "type": "object"
+    },
+    "MortgageClosingRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "closing_review": {
+          "additionalProperties": true,
+          "title": "Closing Review",
+          "type": "object"
+        },
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "source_job": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Source Job",
+          "type": "string"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "maximum": 1800.0,
+          "minimum": 0.001,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification",
+        "source_job",
+        "closing_review"
+      ],
+      "title": "MortgageClosingRequest",
+      "type": "object"
+    },
+    "PublishedHoldingRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "cut_ordinal": {
+          "title": "Cut Ordinal",
+          "type": "integer"
+        },
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "revised_sources": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxItems": 512,
+          "minItems": 1,
+          "title": "Revised Sources",
+          "type": "array"
+        },
+        "source_job_id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Source Job Id",
+          "type": "string"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "maximum": 1800.0,
+          "minimum": 0.001,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "source_job_id",
+        "cut_ordinal",
+        "revised_sources"
+      ],
+      "title": "PublishedHoldingRequest",
+      "type": "object"
+    },
     "RiskSettings": {
       "properties": {
         "compute_backend": {
@@ -543,6 +912,62 @@
       "title": "RunRequest",
       "type": "object"
     },
+    "SavedDerivativeDepositPortfolioRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1800.0,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "SavedDerivativeDepositPortfolioRequest",
+      "type": "object"
+    },
+    "SavedDerivativeMixedRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "minimum": 0.0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "specification": {
+          "additionalProperties": true,
+          "title": "Specification",
+          "type": "object"
+        },
+        "timeout": {
+          "default": 1800.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1800.0,
+          "title": "Timeout",
+          "type": "number"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "specification"
+      ],
+      "title": "SavedDerivativeMixedRequest",
+      "type": "object"
+    },
     "StateStatus": {
       "properties": {
         "library_horizon": {
@@ -556,9 +981,79 @@
           ],
           "title": "Library Horizon"
         },
+        "library_purchase_grid": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Library Purchase Grid"
+        },
         "library_ready": {
           "title": "Library Ready",
           "type": "boolean"
+        },
+        "library_reporting_ordinals": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Library Reporting Ordinals"
+        },
+        "library_schema": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Library Schema"
+        },
+        "library_templates": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Library Templates"
+        },
+        "library_unit_grid": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Library Unit Grid"
         },
         "revision": {
           "title": "Revision",

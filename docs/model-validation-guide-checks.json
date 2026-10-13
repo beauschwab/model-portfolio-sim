@@ -1,0 +1,459 @@
+{
+  "verified_at_utc": "2026-10-01T01:14:33.305196+00:00",
+  "scope": "Documentation structure, repository references, explanatory numerical arithmetic and browser behavior only. Runtime validation is recorded separately in the native state and streaming report; these documentation checks do not establish engine or live-provider correctness.",
+  "guide_sha256": "d9b2c6fa15110d757a06cec1c56eb67e23b019bf636365b8ccee6147c62c1b88",
+  "structure": {
+    "chapter_count": 25,
+    "feature_count": 13,
+    "equation_blocks": 42,
+    "word_count_approx": 24950,
+    "duplicate_ids": [],
+    "broken_internal_links": [],
+    "broken_local_links": [],
+    "external_runtime_dependencies": [],
+    "balanced_html_tags": true
+  },
+  "illustrative_examples": {
+    "one_year_df": 0.9615384615384615,
+    "cpr_12pct_smm_pct": 1.0596241035318976,
+    "mortgage_prepay_dollars": 1057504.855324834,
+    "mortgage_ending_balance": 98742495.14467517,
+    "mortgage_total_cash": 1674171.5219915006,
+    "single_payment_oas_bp": 180.1850550267843,
+    "spread_shock_price_per_100": 98.50623544007556,
+    "parallel_dv01": 1600.0000000000014,
+    "eve_change_dollars": -20000000,
+    "l2a_eligible_millions": 40,
+    "lcr_pct": 800,
+    "effective_income_dollars": 3400,
+    "ending_carrying_value": 1018400,
+    "retained_capital_millions": 7.095000000000001,
+    "twist_2y_bp": -37.5,
+    "twist_10y_bp": 62.5
+  },
+  "references": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "1a3ee5d281e9b4b084225f3a81a170e7aa3b07fa2f7cf0f4a7fea52ddfb32544"
+    },
+    {
+      "path": "apps/api/AGENTS.md",
+      "sha256": "5ff4b220fd7ee2b45f905f221eb4329cb0475e64ab3a0721f0edc29232dc8ace"
+    },
+    {
+      "path": "apps/api/app/books.py",
+      "sha256": "72b28d544ade0e670fbb152148ad4170288426a01052a0bfbed955991dba06f6"
+    },
+    {
+      "path": "apps/api/app/decision_store.py",
+      "sha256": "d9d12bc11303078d62b55ae747253b5650f0cbf40616fda80f3c5c2ea7b1c3cd"
+    },
+    {
+      "path": "apps/api/app/forecast_data.py",
+      "sha256": "93fd69e019aedcfbeaa89190beb92c2b890a4e8d369d86a0d40d09e40ce40a5e"
+    },
+    {
+      "path": "apps/api/app/main.py",
+      "sha256": "c928482442c24d4966c02b10da15f92fe06466cd8cfdfb75212fef6e04fc830c"
+    },
+    {
+      "path": "apps/api/app/market_data.py",
+      "sha256": "f6f83503b92e7b6c345d07816b8d5b3d54df3b0ea64fca0c2a6210f035625a93"
+    },
+    {
+      "path": "apps/api/app/persistence.py",
+      "sha256": "f49037a7d36cae073fc502300997e6cd0981e707a0f9026413e411149d6d1145"
+    },
+    {
+      "path": "apps/api/app/schemas.py",
+      "sha256": "b5e24016ad541d5379026bb19cbbe7e464c32e03b080cfb59aa425a7da1890a3"
+    },
+    {
+      "path": "apps/api/app/store.py",
+      "sha256": "35dafb39522e9a66a58532c062b9752f2ff78136902045f06fb3c89d9f67d7a0"
+    },
+    {
+      "path": "apps/api/app/worker.py",
+      "sha256": "95da8534f9c82ee9e9c7fcf1bd9dc11f4349ea1d674ce7c4599010c2fdf81dfe"
+    },
+    {
+      "path": "apps/api/tests/test_contracts.py",
+      "sha256": "dfdadbc8984bf14f1787ebbb900512f8167a658c096d47efa43f8c19a1ff9c45"
+    },
+    {
+      "path": "apps/api/tests/test_decision.py",
+      "sha256": "96d14f6d22e5e434cd78e6c56ecf13dbdfa0195d6f82973a9fc0174228f97fe9"
+    },
+    {
+      "path": "apps/api/tests/test_forecasts.py",
+      "sha256": "1cdddc5bc14bd1d1ce5b62722fc724859bac635ae4599da07902617e33dd4bd6"
+    },
+    {
+      "path": "apps/api/tests/test_market_data.py",
+      "sha256": "28166532031b3664a452aa7955ff7330aaf4c99e2d35d5d3972ce8b774c95fea"
+    },
+    {
+      "path": "apps/web/src/components/PipelineMonitor.tsx",
+      "sha256": "087e18656e385cd471b930bba931c858f85c1329dd6a688699df4f85de986c51"
+    },
+    {
+      "path": "apps/web/src/lib/engine.tsx",
+      "sha256": "a098555210184d2d95971ad268ebc31998422a7320be37c30a5ffa49c289d70a"
+    },
+    {
+      "path": "apps/web/src/pages/BalanceSheet.tsx",
+      "sha256": "1d6e8992d3cefa288c5268ddf1c60d038fa263f7c5f1e166508dca08597c0227"
+    },
+    {
+      "path": "apps/web/src/pages/BalanceStress.tsx",
+      "sha256": "75187e3d55a0e229993acf1d9aa426ee437842f875e29b67bcde0d0fe90fed93"
+    },
+    {
+      "path": "apps/web/src/pages/DecisionLab.tsx",
+      "sha256": "ebd2f369c710d6464416d0e2e82f63c60736e52a33162b13cb1e07802accb7e4"
+    },
+    {
+      "path": "apps/web/src/pages/Kpis.tsx",
+      "sha256": "913caaaad4db0af38cff458c0e0e798e653e9dbb43382bfc517b5e3cffc186fa"
+    },
+    {
+      "path": "apps/web/src/pages/MorningSheet.tsx",
+      "sha256": "38f8c30f2e09d104ea1203beffd09cf6a6a970d5d36549158a5e60b197131d08"
+    },
+    {
+      "path": "apps/web/src/pages/Optimizer.tsx",
+      "sha256": "73309e7d9126adbd46b64d23235f8a83c0851b77b7b9f926b63bf1438ca53a49"
+    },
+    {
+      "path": "apps/web/src/pages/Positions.tsx",
+      "sha256": "1289539ac4d42d6ec6138080773ad7473e7c5210a1ff04a32dc47087cb6919ab"
+    },
+    {
+      "path": "apps/web/src/pages/Strategy.tsx",
+      "sha256": "32ce88a95c77fd3a6e674ee22704a6b71d8fc7a2d717968cf63b14ad67906c48"
+    },
+    {
+      "path": "apps/web/src/pages/WhatIf.tsx",
+      "sha256": "b6dadfd82cb7fa81bc5a87b2227dc1aca82af80b46547a07be1aad01b0134ed3"
+    },
+    {
+      "path": "apps/web/src/workspace/panels.tsx",
+      "sha256": "d947134babfea191e8aba929697e100c600ecf47e0857350b0abe9d6c0376eb8"
+    },
+    {
+      "path": "docs/balance-sheet-ledger.md",
+      "sha256": "f1c5297b61b117af69396191b0629d6e6a88c8139d33daca81288b828df33f9e"
+    },
+    {
+      "path": "docs/forecast-scenarios.md",
+      "sha256": "5195c2eeeff43ec872dd022ab8099c6f2747ddefd51323e0d910e49b79173d73"
+    },
+    {
+      "path": "docs/market-data.md",
+      "sha256": "91a1150a1dbb654ad2f7ed8b1a783a0608d5a057de18b00d14c7e83303c9d8a5"
+    },
+    {
+      "path": "docs/production-storage.md",
+      "sha256": "66e867b62be364e599b0e989e7f7fafd2571b9027cc3808473b0aa59e659ca3c"
+    },
+    {
+      "path": "docs/reviews/2026-09-28-decision-prototype.md",
+      "sha256": "74e2a4b8d8f22c92d5881acd1508fd82f379c88201d185786edccf2be2eff403"
+    },
+    {
+      "path": "docs/reviews/2026-09-28-five-step-comparison.md",
+      "sha256": "b6f459b938583244c47fecfaec0d14c6767e998d886b90be03b40d227f268b20"
+    },
+    {
+      "path": "docs/reviews/2026-09-28-incremental-pricing.md",
+      "sha256": "049dcddf3e12a71c6cfec8917afa5d55261c43b5c4e8471212a9bc5ba6063375"
+    },
+    {
+      "path": "docs/reviews/2026-09-28-remediation.md",
+      "sha256": "1f329618f0baed5e069d5aeb8a7bdf68ced1925d0c15fce03470ff822b0e88b6"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-native-ledger-pilot.md",
+      "sha256": "d32907c33437cccc865ad399f5374d3626f538e161ab2ed92854c1d8d45cd61c"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-native-state-streaming.md",
+      "sha256": "04adc146112b1ae45a2cb5ee5baf98467f923d398d86ee6141ef29289cc6b6d2"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-operations-and-parity.md",
+      "sha256": "f691a82d39c5c997e74f7b973e7887237594a21d2f79e41f2289eab9658c34a9"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-partitioned-ui.md",
+      "sha256": "86432bfa3f34cc5018332313bcafe95592a352613827fd5f5060d45120dc5ef9"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-rust-ledger-decision.md",
+      "sha256": "b4f955b6197751b6d0fb4152e8667832dd3021b657cd01c110b06776367702e6"
+    },
+    {
+      "path": "docs/reviews/2026-09-29-streamed-worker-integration.md",
+      "sha256": "a7718fa4834b89f9e3b26c2df3f00717daff95711b3cf0d64d64b8ea33e45771"
+    },
+    {
+      "path": "docs/reviews/2026-09-30-native-product-coverage.md",
+      "sha256": "cc4afd54c897f5b8198837004ed32affe7731211954481b94021fae772a10e3a"
+    },
+    {
+      "path": "docs/reviews/2026-09-30-rust-lifecycle-migration.md",
+      "sha256": "ce7369e5eef4c533fa078abf340ccfbd2a0e60feeebbb4fd1d53671da5a6fb9e"
+    },
+    {
+      "path": "docs/reviews/2026-09-30-rust-mortgage-lifecycle-benchmark.json",
+      "sha256": "3a8bcb09c73445698545f95c55634e5af40d9a6685ce28e05ffd7e2402b73d6b"
+    },
+    {
+      "path": "docs/reviews/2026-09-30-rust-term-lifecycle-review.md",
+      "sha256": "f851a0ad257b838d8f6a97c3f2033594dbe1300eae301b016d9cbca99ee8db74"
+    },
+    {
+      "path": "packages/portfolio-decision-native/README.md",
+      "sha256": "ecc8ed008072f1453d349f57e767eca5ff40d6ef055b900bad779034c235a334"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/AGENTS.md",
+      "sha256": "a270f1b171211a789f9c453fa09201d6d1c86a0bb718b1e87b9445871fe6c44d"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/accounting.py",
+      "sha256": "7a021e691eefba9110fb81ca74c9fca9cd5bb16dca509cf407d06a09d4e7cfaf"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/balance_stress.py",
+      "sha256": "9750334ebfababd28c4ff97b61c41e9b3064ffa44001ae9b395bd8ef89f27088"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/forecast.py",
+      "sha256": "8aa5b5fc5b9d94d732f7d012bcf62459fa3ee99a30d84e1d9f592d4a27e0dc7d"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/incremental.py",
+      "sha256": "8202bb5b503893177788614f42de169989c3b773cafa1023d1edfcf1150d4d22"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/kpis.py",
+      "sha256": "c5f3c5652fe8e96ed501481e1329a41e76dc9661d42161a083f1a66855965be1"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/risk.py",
+      "sha256": "34cd04e6af191ae3a4ba692afba138defca7ab975efa4070422cedd023a47d87"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/stress.py",
+      "sha256": "aabf071677fb2c7066f725471e44b736a80269f788d177343e06531b0301a5b1"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/analytics/whatif.py",
+      "sha256": "8a4a74c1b2d1adae37208b3a31e1c9b1de51dfb647509cede368266b5dc34053"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/config.py",
+      "sha256": "52ca18571d57235c00ccea13e9857f96c9bee7491372523b06aee16b9fa13368"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/conventions.py",
+      "sha256": "678993d0ef5ff3c63e2848e081556f637c104556b048320e459eb77586e48897"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/curve.py",
+      "sha256": "fe21cf5dd5f7d770275c467f37667f1fc7165e70b1071fd489031ad34bb5c44f"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/kernels.py",
+      "sha256": "fcfe5a8a09dd0fba1568f64daba512187f9e32e1023052b6125f41e97e3503e3"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/lmm.py",
+      "sha256": "9d0d61501be05567e0c6f497e4c72f6ac85cdf348ddd5ef7235a95caa825df6d"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/pricing.py",
+      "sha256": "7bd35475328ef708c6b9caf87950aa01269ebab2ab05cebfc697977002d00486"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/quant_native.py",
+      "sha256": "68aeafc6ea316d68fcabf64ce9ed44d105c0c39ec0bb36c964358e852c158851"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/runtime.py",
+      "sha256": "a227642b569e929703b7a35557ac5577ef2617696d789ec4db1b7c6befa8acc2"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/scenarios.py",
+      "sha256": "38a04d02e3955023d3d43b2c9547c56a971225e2a72472c2b5d45e73f852bcd0"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/core/vol.py",
+      "sha256": "ba33745fb32c2b3d33e0f295bbd6db81a089a21bc0936c1d50c47e50aee7c11c"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/models/models.py",
+      "sha256": "9c434995ea5fe87676f4dd913713db45b900e1673fb1d5930ee0780be8eec254"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/models/prepay.py",
+      "sha256": "9901230a545a4e74a36d68a2b5603813c0b255c9e85be2abe05a7f00fdac7ba0"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/products/cds.py",
+      "sha256": "461c6d33cde4e8535dab44985dd954e822fc2060b4cd511be62100af9c0a2163"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/products/corp.py",
+      "sha256": "4b148f6b33a2534f73393e952296529db067db1c84c7fb6407317613d76e8e5f"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/products/deposits.py",
+      "sha256": "58cd0ee78bf72994908517df69675c638d8fa11ce190d452e5fe18be22f322da"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/products/hedges.py",
+      "sha256": "9634b10255a1f887a5fa6d55236ce6a1950f6190e0c9c14cf22a65bc2e28b7b7"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/products/mm.py",
+      "sha256": "1c11ae0f34dc8ee056be0d29989a6d3fe5b9ec59624b6197b7daa90435fd9af5"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/strategy/decision.py",
+      "sha256": "ea34b6be9aa0669139e59b0733ff6598a2420216a5b3304a3c36e1c8ef528f49"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/strategy/optimizer.py",
+      "sha256": "d602a29031650ac019453aa6c474180464e996a58bac59f7713600c040e47ff5"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/strategy/strategies.py",
+      "sha256": "0dbfb900b0ab95e7856c410a3db743c0f7a20680514940297a5707cc7de09dd9"
+    },
+    {
+      "path": "packages/portfolio-risk/src/portfolio_risk/strategy/unitlib.py",
+      "sha256": "fa25328b812be4fb1fcf6d08fad28ce507d53bb08c689a3d2c8fcc7a2355e680"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/AGENTS.md",
+      "sha256": "94a1df7e06bddebf1d0d804a28035c18c7c7dda031c6c4386a32714d9c836751"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_balance_stress.py",
+      "sha256": "99b636800a20312e1ab05c0fb5ab25aa3c7da2192597c9f3618281e313204e76"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_conventions_corp.py",
+      "sha256": "abcf7c8b4fd77ce78bf71791b77892fef89278d73cc24606d5bc8841d50c7d1b"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_decision.py",
+      "sha256": "433c5737012f1d0d4a0148e095220bfc6dc51422d47b74035a0fc7101faf1250"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_deposits.py",
+      "sha256": "07b92fc77d7004068fdb40b4ec2fed79677615b78a13402cc74e6de3c310214a"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_engine.py",
+      "sha256": "1aa9e71d6afadc6350b404ebcc7ffbaa152b6d7093b1f4ff70fec7e285b315fa"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_forecast.py",
+      "sha256": "6cefc5dbca2faa64a6e62b7b7e3eff47e0bc45e159ceb6b427dc791579b4bc50"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_incremental.py",
+      "sha256": "5188a959dbf7fe50f95a16302aad3903f923ff9d6933130b07e1b00f19108662"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_market_curve.py",
+      "sha256": "7312b72f4c9435c8e8d8908a00ced2aa84c2b2072f26ce0a968ac245ab4fd2db"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_native.py",
+      "sha256": "57da05ebc9863ad248689224df59426b1e9253bd1536557c43cff05fdde0a9e7"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_review_regressions.py",
+      "sha256": "9574a074541ebb96c5e1d09aae38818542350fbb106a38a2f2fe594ba9235e96"
+    },
+    {
+      "path": "packages/portfolio-risk/tests/test_whatif.py",
+      "sha256": "34cad56fc2a698fdeddb123e5468507d323c7d405bd1a5de21ee0a0f8e296e58"
+    },
+    {
+      "path": "packages/portfolio-risk-native/src/calibration.rs",
+      "sha256": "6c97a041d6eb3c38bdd599ca862b97d96ada3d66b92e8ffad352aedd7a6495e6"
+    },
+    {
+      "path": "packages/portfolio-risk-native/src/market.rs",
+      "sha256": "3af37950149d67c2b24be2be0618f5613160446eb2353aa272248614cd198739"
+    },
+    {
+      "path": "packages/portfolio-risk-native/src/term_risk.rs",
+      "sha256": "c2fc59667e672803b712df54cee61f5ecf4bd8b70895fdfe009b938dcbc68644"
+    }
+  ],
+  "browser": {
+    "status": "passed",
+    "verified_at_utc": "2026-10-01T01:14:36.828Z",
+    "browser": "153.0.4234.32",
+    "transport": "local file URL; no API or network calls",
+    "desktop_viewport": [
+      1440,
+      1000
+    ],
+    "mobile_viewport": [
+      390,
+      844
+    ],
+    "checks": [
+      "25 chapters render",
+      "default calculator arithmetic",
+      "multi-term-ready chapter search and no-results state",
+      "Show all resets filter",
+      "cross-reference reveals hidden target",
+      "EVE calculator input response and zero-denominator guard",
+      "LCR cap response and zero-denominator guard",
+      "desktop has no document horizontal overflow",
+      "390px mobile has no document horizontal overflow",
+      "print reveals all chapters despite active search",
+      "print hides navigation",
+      "A4 print PDF generated for layout check",
+      "no browser script errors",
+      "no remote runtime requests"
+    ],
+    "page_errors": [],
+    "remote_requests": [],
+    "latex": {
+      "total": 263,
+      "display": 161,
+      "inline": 102,
+      "groups": 42,
+      "valid": true,
+      "displayOverflow": 0,
+      "renderer": "KaTeX 0.16.22 precompiled native MathML",
+      "original_latex_preserved": true,
+      "print_math_overflow": []
+    }
+  },
+  "architecture": {
+    "verified_at_utc": "2026-10-01T01:14:40.288Z",
+    "status": "passed",
+    "diagrams": 3,
+    "node_text_overflows": [],
+    "checks": [
+      "SVG diagrams have accessible titles and descriptions",
+      "node labels fit their shapes",
+      "chapter links work",
+      "cross-link reveals hidden ancestor chapter",
+      "mobile diagrams scroll within page",
+      "print diagrams fit available width",
+      "no network dependencies or script errors"
+    ],
+    "scope": "Documentation rendering and source review; no production or model execution validation"
+  }
+}

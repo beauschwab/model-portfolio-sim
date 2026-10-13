@@ -76,22 +76,23 @@ def source_identity():
 
 
 class PartitionWriter:
-    def __init__(self, root, partition_rows=65536):
+    def __init__(self, root, partition_rows=65536, *, schemas=None):
         self.root = Path(root)
         self.partition_rows = partition_rows
         self.buffers = defaultdict(list)
         self.counts = defaultdict(int)
         self.parts = defaultdict(list)
+        self.schemas = SCHEMAS if schemas is None else schemas
 
     def add(self, table, rows):
-        if table not in SCHEMAS:
+        if table not in self.schemas:
             raise ValueError(f'unknown native output table: {table}')
         if isinstance(rows, pl.DataFrame):
-            frame = rows.select(list(SCHEMAS[table])).cast(SCHEMAS[table]) if rows.height else pl.DataFrame(schema=SCHEMAS[table])
+            frame = rows.select(list(self.schemas[table])).cast(self.schemas[table]) if rows.height else pl.DataFrame(schema=self.schemas[table])
         else:
-            if any(set(r) != set(SCHEMAS[table]) for r in rows):
+            if any(set(r) != set(self.schemas[table]) for r in rows):
                 raise ValueError(f'invalid output columns: {table}')
-            frame = pl.DataFrame(rows, schema=SCHEMAS[table], infer_schema_length=None)
+            frame = pl.DataFrame(rows, schema=self.schemas[table], infer_schema_length=None)
         if frame.height:
             self.buffers[table].append(frame)
             self.counts[table] += frame.height
@@ -124,7 +125,7 @@ class PartitionWriter:
             if _hash(path) != part['sha256']:
                 raise ValueError('partition checksum mismatch')
             frame = pl.read_parquet(path)
-            if frame.height != part['rows'] or frame.schema != SCHEMAS[table]:
+            if frame.height != part['rows'] or frame.schema != self.schemas[table]:
                 raise ValueError('partition rows/schema mismatch')
             yield frame
 
@@ -217,7 +218,7 @@ def _python(spec, writer, progress, cancelled):
             writer.add('reverse_grid', [dict(r, severity=severity, breached=any(v is not None for k,v in r.items() if k.startswith('first_'))) for r in result['summary']])
 
 
-def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workflow=None, consume_input=False):
+def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workflow=None, consume_input=False, completion_protocol=2, retain_input=False, journal_rows=False, completion=None):
     binary = executable or binary_path()
     if not binary.is_file():
         raise RuntimeError('Rust state engine is not built; run scripts/build_ledger_native.py. No fallback was used.')
@@ -265,8 +266,13 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
                     raise TimeoutError('native simulation timed out')
                 message = json.loads(line)
                 if 'complete' in message:
-                    if complete or message != {'complete':True, 'protocol':2}:
+                    if complete or message != {'complete':True, 'protocol':completion_protocol}:
                         raise ValueError('invalid completion message')
+                    if completion is not None:
+                        from .mortgage_mixed_identity import exact_json_identity
+                        if not exact_json_identity(message,{'complete':True,'protocol':completion_protocol}):raise ValueError('retained native completion type/value differs')
+                        if completion:raise ValueError('duplicate retained native completion')
+                        completion.update(message)
                     complete = True
                 elif complete:
                     raise ValueError('native output follows completion')
@@ -276,7 +282,7 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
                     workflow.update(message['workflow'])
                 else:
                     if workflow is not None and not workflow: raise ValueError('missing workflow header')
-                    if message['table']=='journal':
+                    if message['table']=='journal' and not journal_rows:
                         dictionary.extend(message['dictionary'])
                         columns=message['columns']
                         labels=pl.Series(dictionary,dtype=pl.String)
@@ -304,7 +310,8 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
                 process.kill()
             process.wait()
             process.stdout.close()
-    if workflow is None: request.unlink()
+    if retain_input: request.rename(writer.root/'dated-input.json')
+    elif workflow is None: request.unlink()
     else: request.rename(writer.root/'workflow-input.json')
     (writer.root/'native-stderr.log').unlink()
 

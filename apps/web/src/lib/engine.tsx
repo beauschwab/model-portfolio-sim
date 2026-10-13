@@ -43,6 +43,7 @@ interface EngineState {
   revision: number;
   libraryReady: boolean;
   libraryHorizon: number;
+  libraryDetails: { schema?: string|null; templates: string[]; grid: Record<string,number[]>; ordinals: number[] };
   // live run telemetry
   running: boolean;
   activeKind: string | null;
@@ -63,7 +64,7 @@ interface EngineState {
 }
 
 const Ctx = createContext<EngineState | null>(null);
-type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "kpis" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run">;
+type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "kpis" | "revision" | "libraryReady" | "libraryHorizon" | "libraryDetails" | "running" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run">;
 const DataCtx = createContext<EngineData | null>(null);
 
 export function EngineProvider({ children }: { children: ReactNode }) {
@@ -86,6 +87,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [revision, setRevision] = useState(0);
   const [libraryReady, setLibraryReady] = useState(false);
   const [libraryHorizon, setLibraryHorizon] = useState(27);
+  const [libraryDetails,setLibraryDetails]=useState<EngineState['libraryDetails']>({templates:[],grid:{},ordinals:[]});
   const revisionRef = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef(new Map<string, Promise<Job>>());
@@ -96,6 +98,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     setRevision(state.revision);
     setLibraryReady(state.library_ready);
     setLibraryHorizon(state.library_horizon ?? 27);
+    setLibraryDetails({schema:state.library_schema,templates:state.library_templates??[],
+      grid:state.library_unit_grid??{},ordinals:state.library_reporting_ordinals??[]});
     return state;
   }, []);
 
@@ -185,14 +189,14 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   }, [execute]);
 
   const data = useMemo<EngineData>(() => ({ market, settings, scenarios, active, kpis, revision,
-    libraryReady, libraryHorizon, running, setActive, setSettings, refreshMarket, refreshScenarios, run }),
-    [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running,
+    libraryReady, libraryHorizon, libraryDetails, running, setActive, setSettings, refreshMarket, refreshScenarios, run }),
+    [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, libraryDetails, running,
       setSettings, refreshMarket, refreshScenarios, run]);
   const value = useMemo<EngineState>(() => ({
-    market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon,
+    market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, libraryDetails,
     running, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run,
-  }), [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, running, activeKind, stage, pct, elapsed, samples,
+  }), [market, settings, scenarios, active, kpis, revision, libraryReady, libraryHorizon, libraryDetails, running, activeKind, stage, pct, elapsed, samples,
        nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run]);
 
   return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;

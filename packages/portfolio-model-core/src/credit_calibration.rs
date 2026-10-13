@@ -1,5 +1,4 @@
 //! Exact-observation CTMC hazard MLE. Interval-censored bank snapshots are unsupported.
-use crate::cashflow::validate_ordinal;
 use crate::credit::{CreditMeasure, CreditState, MAX_ROW_HAZARD};
 use crate::limits::MAX_DATED_METADATA_BYTES;
 use serde::{Deserialize, Serialize};
@@ -8,37 +7,8 @@ use std::collections::HashSet;
 pub const SCHEMA: &str = "observed-credit-calibration-1";
 pub const MAX_SPELLS: usize = 200_000;
 pub const MAX_ACCOUNTS: usize = 100_000;
-const SECONDS_PER_YEAR: f64 = 365.0 * 86_400.0;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ObservationTime {
-    pub ordinal: i32,
-    pub seconds_of_day: u32,
-}
-
-impl ObservationTime {
-    fn seconds(self) -> Result<i64, String> {
-        validate_ordinal(self.ordinal)?;
-        if self.seconds_of_day >= 86_400 {
-            return Err("seconds_of_day must be in 0..86399".into());
-        }
-        Ok(i64::from(self.ordinal) * 86_400 + i64::from(self.seconds_of_day))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ObservationMode {
-    ExactTransitionTimes,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DataKind {
-    Observed,
-    Synthetic,
-}
+use crate::observation::SECONDS_PER_YEAR;
+pub use crate::observation::{DataKind, ObservationMode, ObservationTime};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -132,6 +102,10 @@ pub struct CreditCalibrationResult {
     pub account_count: usize,
     pub spell_count: usize,
     pub transition_hazards_per_year: [[f64; 5]; 3],
+    /// Wald standard errors for observed positive transition counts. `None`
+    /// means there is no event information (zero count or supplied row), and
+    /// is deliberately not treated as evidence of zero future risk.
+    pub hazard_standard_errors_per_year: [[Option<f64>; 5]; 3],
     pub estimate_origins: [RowEstimateOrigin; 3],
     pub training: WindowDiagnostics,
     pub holdout: WindowDiagnostics,
@@ -338,6 +312,7 @@ pub fn fit(request: &CreditCalibrationRequest) -> Result<CreditCalibrationResult
         RowEstimateOrigin::ObservedMle {},
         RowEstimateOrigin::ObservedMle {},
     ];
+    let mut standard_errors = [[None; 5]; 3];
     for origin in 0..3 {
         let seconds = training.exposure_seconds[origin];
         if seconds == 0 {
@@ -356,6 +331,14 @@ pub fn fit(request: &CreditCalibrationRequest) -> Result<CreditCalibrationResult
                 *hazard = training.event_counts[origin][destination] as f64 / years;
             }
             validate_hazard_row(&hazards[origin], origin)?; // Never clamp a fit to production limits.
+            for (destination, standard_error) in standard_errors[origin].iter_mut().enumerate() {
+                if destination == origin {
+                    *standard_error = Some(0.0);
+                } else if training.event_counts[origin][destination] > 0 {
+                    *standard_error =
+                        Some((training.event_counts[origin][destination] as f64).sqrt() / years);
+                }
+            }
             if training.event_counts[origin].iter().sum::<u64>() == 0 {
                 origins[origin] = RowEstimateOrigin::ObservedNoEvents {};
             }
@@ -378,6 +361,7 @@ pub fn fit(request: &CreditCalibrationRequest) -> Result<CreditCalibrationResult
         account_count: accounts,
         spell_count: request.spells.len(),
         transition_hazards_per_year: hazards,
+        hazard_standard_errors_per_year: standard_errors,
         estimate_origins: origins,
         training: training.diagnostics(&hazards),
         holdout: holdout.diagnostics(&hazards),

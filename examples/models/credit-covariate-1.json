@@ -1,0 +1,353 @@
+{
+  "observation_mode": "exact_transition_times",
+  "holdout_source": {
+    "revision": "1",
+    "id": "holdout-observations"
+  },
+  "train_start": {
+    "ordinal": 730120,
+    "seconds_of_day": 0
+  },
+  "segments": [
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        0.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "transition",
+        "destination": "default"
+      },
+      "segment_id": "g0a0",
+      "account_id": "g0a0",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        0.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "right_censored"
+      },
+      "segment_id": "g0a1",
+      "account_id": "g0a1",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        0.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "right_censored"
+      },
+      "segment_id": "g0a2",
+      "account_id": "g0a2",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        0.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "right_censored"
+      },
+      "segment_id": "g0a3",
+      "account_id": "g0a3",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        1.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "transition",
+        "destination": "default"
+      },
+      "segment_id": "g1a0",
+      "account_id": "g1a0",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        1.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "transition",
+        "destination": "default"
+      },
+      "segment_id": "g1a1",
+      "account_id": "g1a1",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        1.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "right_censored"
+      },
+      "segment_id": "g1a2",
+      "account_id": "g1a2",
+      "origin": "performing"
+    },
+    {
+      "end": {
+        "ordinal": 730485,
+        "seconds_of_day": 0
+      },
+      "available_time": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "start": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "revision": "1",
+        "id": "training-observations"
+      },
+      "covariates": [
+        1.0
+      ],
+      "term_level": "reference",
+      "ending": {
+        "kind": "right_censored"
+      },
+      "segment_id": "g1a3",
+      "account_id": "g1a3",
+      "origin": "performing"
+    }
+  ],
+  "schema": "credit-covariate-1",
+  "holdout_end": {
+    "ordinal": 730850,
+    "seconds_of_day": 0
+  },
+  "model_policy": {
+    "revision": "1",
+    "id": "reviewed-fit-policy"
+  },
+  "measure": "physical",
+  "optimizer": {
+    "relative_information_tolerance": 1E-08,
+    "timeout_ms": 60000,
+    "projected_gradient_tolerance": 1E-09,
+    "max_iterations": 100,
+    "max_backtracks": 32
+  },
+  "training_split": {
+    "revision": "1",
+    "id": "train"
+  },
+  "term_levels": [
+    "reference"
+  ],
+  "population": {
+    "revision": "1",
+    "id": "synthetic-population"
+  },
+  "rows": [
+    {
+      "kind": "log_linear",
+      "edges": [
+        {
+          "term_coefficients": [],
+          "intercept": {
+            "ridge_weight": 0.0,
+            "initial": -2.0,
+            "upper": 0.0,
+            "ridge_center": 0.0,
+            "lower": -5.0
+          },
+          "covariate_coefficients": [
+            {
+              "ridge_weight": 0.0,
+              "initial": 0.0,
+              "upper": 2.0,
+              "ridge_center": 0.0,
+              "lower": -2.0
+            }
+          ],
+          "destination": "default"
+        }
+      ]
+    },
+    {
+      "hazards_per_year": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rationale": "Explicit zero transition assumption for unavailable watch origin",
+      "kind": "fixed_row",
+      "review": {
+        "revision": "1",
+        "id": "unobserved-origin-assumption"
+      }
+    },
+    {
+      "hazards_per_year": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rationale": "Explicit zero transition assumption for unavailable delinquent origin",
+      "kind": "fixed_row",
+      "review": {
+        "revision": "1",
+        "id": "unobserved-origin-assumption"
+      }
+    }
+  ],
+  "data_kind": "synthetic",
+  "columns": [
+    {
+      "scale": 1.0,
+      "offset": 0.0,
+      "role": "macro",
+      "raw_upper": 1.0,
+      "raw_lower": 0.0,
+      "name": "unemployment",
+      "scaling_review": {
+        "revision": "1",
+        "id": "frozen-supplied-transform"
+      },
+      "unit": "fraction"
+    }
+  ],
+  "train_end": {
+    "ordinal": 730485,
+    "seconds_of_day": 0
+  },
+  "training_source": {
+    "revision": "1",
+    "id": "training-observations"
+  },
+  "holdout_split": {
+    "revision": "1",
+    "id": "holdout"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": "0.27.8",
+  "product_abi": 8,
+  "ledger_protocol": 2,
+  "status": "partial migration validated; full lifecycle still open",
+  "validation": {
+    "engine": {
+      "passed": 620,
+      "seconds": 288.98
+    },
+    "api": {
+      "passed": 94,
+      "seconds": 86.54,
+      "warnings": 1
+    },
+    "rust_product_tests": 17,
+    "rust_ledger_tests": 3,
+    "strict_clippy": [
+      "portfolio-risk-native",
+      "portfolio-ledger-native"
+    ],
+    "rustfmt": true,
+    "skill_mirrors": true,
+    "whitespace_check": true
+  },
+  "boundaries": {
+    "platform": "local Windows",
+    "storage": "SQLite and isolated mocked object storage; no live PostgreSQL/S3/Iceberg claim",
+    "source_stable_during_durable_tests": true,
+    "native_stable_during_durable_tests": true
+  },
+  "binaries": {
+    "product": "c4b9e56ef3e7ac8045795bc9159b7dd0aa1f6573909035194e6ba9677d3aa8a7",
+    "ledger": "8a2a8830d7ab88cc81b8c8d6e8bbb5e24e1afe7b4028210ce70e01477f7f9664",
+    "decision": "47f206c37bdb99668dc6c825dfb741cccf28cb3f3083066d562b9d447ace584a"
+  }
+}

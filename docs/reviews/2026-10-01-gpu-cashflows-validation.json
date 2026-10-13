@@ -1,0 +1,129 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "product": "mortgage",
+      "gate": "odd_paths_separate_seed",
+      "cells": 8768,
+      "max_absolute_error": 6.22973894692791e-14,
+      "rtol": 1e-10,
+      "atol": 1e-10,
+      "passed": true
+    },
+    {
+      "product": "mortgage",
+      "gate": "repeat_exact",
+      "cells": 8768,
+      "max_absolute_error": 0.0,
+      "rtol": 0,
+      "atol": 0,
+      "passed": true
+    },
+    {
+      "product": "mortgage",
+      "gate": "exact_sigmoid",
+      "cells": 8768,
+      "max_absolute_error": 6.229912419275507e-14,
+      "rtol": 1e-10,
+      "atol": 1e-10,
+      "passed": true
+    },
+    {
+      "product": "mortgage",
+      "gate": "wrong_operation",
+      "error": "only base mortgage/deposit cashflows are supported"
+    },
+    {
+      "product": "mortgage",
+      "gate": "bad_output_shape",
+      "error": "output shape mismatch"
+    },
+    {
+      "product": "mortgage",
+      "gate": "contract_admission",
+      "error": "admission: 1..256 contracts, 1..2048 paths, 1..360 months"
+    },
+    {
+      "product": "mortgage",
+      "gate": "path_admission",
+      "error": "admission: 1..256 contracts, 1..2048 paths, 1..360 months"
+    },
+    {
+      "product": "mortgage",
+      "gate": "path_shape",
+      "error": "path shape mismatch"
+    },
+    {
+      "product": "mortgage",
+      "gate": "seasonality_index",
+      "error": "invalid mortgage domain"
+    },
+    {
+      "product": "deposit",
+      "gate": "odd_paths_separate_seed",
+      "cells": 8712,
+      "max_absolute_error": 0.0,
+      "rtol": 1e-10,
+      "atol": 1e-10,
+      "passed": true
+    },
+    {
+      "product": "deposit",
+      "gate": "repeat_exact",
+      "cells": 8712,
+      "max_absolute_error": 0.0,
+      "rtol": 0,
+      "atol": 0,
+      "passed": true
+    },
+    {
+      "product": "deposit",
+      "gate": "wrong_operation",
+      "error": "only base mortgage/deposit cashflows are supported"
+    },
+    {
+      "product": "deposit",
+      "gate": "bad_output_shape",
+      "error": "output shape mismatch"
+    },
+    {
+      "product": "deposit",
+      "gate": "contract_admission",
+      "error": "admission: 1..256 contracts, 1..2048 paths, 1..360 months"
+    },
+    {
+      "product": "deposit",
+      "gate": "path_admission",
+      "error": "admission: 1..256 contracts, 1..2048 paths, 1..360 months"
+    },
+    {
+      "product": "deposit",
+      "gate": "path_shape",
+      "error": "path shape mismatch"
+    },
+    {
+      "gate": "cancel_after_actual_launch",
+      "launches": 1,
+      "error": "cancelled; output unpublished"
+    },
+    {
+      "gate": "process_watchdog_after_actual_launch",
+      "passed": true,
+      "no_result_published": true
+    },
+    {
+      "gate": "healthy_after_cancel",
+      "cells": 539136,
+      "max_absolute_error": 7.107203714440402e-12,
+      "rtol": 1e-10,
+      "atol": 1e-10,
+      "passed": true
+    },
+    {
+      "gate": "bounded_numeric_device_allocation",
+      "bytes": 11326952.0
+    }
+  ],
+  "gpu_binary_sha256": "e6191f2d17e627a8dee957ce1cf1f835ab880615ba4afae2b99c5ce94c15250a",
+  "caveat": "Cancellation observed after a real launch; cooperative checks wait for the current bounded kernel. No production manifest or API integration."
+}

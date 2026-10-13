@@ -42,7 +42,7 @@ class PreparedLibraryBundle(TypedDict, total=False):
     """Cold/invalidated cache is empty; publication writes all keys atomically."""
     revision: int
     library: PreparedLibrary
-    base: dict[str, Any]
+    base: dict[str, Any] | None
     compute_backend: str
 
 
@@ -55,6 +55,7 @@ class ModelIdentity(TypedDict):
     native_sha256: str | None
     risk_native_sha256: str | None
     balance_native_sha256: str | None
+    ledger_validation_native_sha256: NotRequired[str | None]
     workflow_native_sha256: str | None
     packages: dict[str, str]
 
@@ -69,6 +70,7 @@ class DurableRequest(TypedDict):
     args: tuple
     state: WorkspaceSnapshot
     identity: ModelIdentity
+    http_request_sha256: NotRequired[str]
 
 
 class WorkspacePort(Protocol):
@@ -80,3 +82,4 @@ class WorkspacePort(Protocol):
     def snapshot_local(self) -> WorkspaceSnapshot: ...
     def restore_snapshot(self, state: WorkspaceSnapshot) -> None: ...
     def seed_demo(self) -> None: ...
+

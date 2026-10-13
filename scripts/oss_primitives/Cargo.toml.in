@@ -1,0 +1,24 @@
+[package]
+name = "rates-workbench-oss-probe"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+convex-core = { path = "@ROOT@/convex/crates/convex-core" }
+convex-bonds = { path = "@ROOT@/convex/crates/convex-bonds" }
+convex-curves = { path = "@ROOT@/convex/crates/convex-curves" }
+convex-analytics = { path = "@ROOT@/convex/crates/convex-analytics" }
+finstack-quant-core = { path = "@ROOT@/finstack-quant/finstack-quant/core", default-features = false }
+finstack-quant-models = { path = "@ROOT@/finstack-quant/finstack-quant/models", default-features = false }
+stochastic-rs-quant = { path = "@ROOT@/stochastic-rs/stochastic-rs-quant", default-features = false }
+stochastic-rs-stochastic = { path = "@ROOT@/stochastic-rs/stochastic-rs-stochastic", default-features = false }
+stochastic-rs-core = { path = "@ROOT@/stochastic-rs/stochastic-rs-core", default-features = false }
+chrono = "0.4"
+time = { version = "0.3", features = ["macros"] }
+rust_decimal = "1"
+rayon = "1"
+serde_json = "1"
+
+[profile.release]
+debug = false

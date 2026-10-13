@@ -1,0 +1,18 @@
+{
+  "schema": "graph-call-control-1",
+  "capability_version": 1,
+  "product_abi_numeric_layouts_changed": false,
+  "timeout_ms": {"minimum": 1, "maximum": 3600000},
+  "token_limit": 256,
+  "retained_token_registry_allowance_bytes": 131072,
+  "symbols": [
+    {"name": "portfolio_graph_runtime_version", "signature": "uint32_t portfolio_graph_runtime_version(void)", "result": "1 identifies this additive capability"},
+    {"name": "portfolio_graph_cancel_new", "signature": "uint64_t portfolio_graph_cancel_new(void)", "result": "Nonzero inert one-shot token; zero is refusal"},
+    {"name": "portfolio_graph_cancel_signal", "signature": "int32_t portfolio_graph_cancel_signal(uint64_t token)", "result": "1 succeeds for Fresh or Running; 0 refuses"},
+    {"name": "portfolio_graph_cancel_release", "signature": "int32_t portfolio_graph_cancel_release(uint64_t token)", "result": "1 removes Fresh or Finished; Running and unknown refuse"},
+    {"name": "portfolio_term_graph_controlled", "signature": "char* portfolio_term_graph_controlled(const uint8_t* input, size_t length, uint64_t token, uint64_t timeout_ms)", "result": "Owned JSON status/result allocation freed exactly once with portfolio_term_free"}
+  ],
+  "caller_contract": "The input range stays live during the synchronous call. All token, graph, invocation and free operations use the originating captured library. Bare u64 IDs may coincide across libraries; native cross-library collision rejection is not claimed.",
+  "execution_scope": "Only explicit indexed graph/book creation, matching indexed pricing, info and clear are controlled. Each call receives a fresh deadline and one-shot flag; a graph retains neither. Runtime fields are not financial input or cache/source identity.",
+  "outer_scope": "Bounded thread-safe IO callback, whole-job deadline, durable lease/cancellation and atomic publication fences remain caller-owned. A cold book operation may make two calls. This capability provides cooperative checkpoints, not a hard interrupt or aggregate RSS/scale acceptance."
+}

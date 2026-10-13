@@ -35,6 +35,18 @@ class _RequiredPreparedLibrary(TypedDict):
 
 
 class PreparedLibrary(_RequiredPreparedLibrary, total=False):
+    preparation_schema: str
+    reporting_ordinals: list[int]
+    scenario_id: str
+    model_identity: dict[str,str]
+    unit_sources: list[dict]
+    interpolation_diagnostics: list[dict]
+    source_request: dict
+    model_scope: str
+    funding_ordinals:list[int]
+    funding_policy:str
+    funding_vectors:dict[tuple[str,int],np.ndarray]
+    funding_sources:dict
     runoff: np.ndarray
     cash_interest: np.ndarray
     vectors: dict[tuple[str, int], np.ndarray]

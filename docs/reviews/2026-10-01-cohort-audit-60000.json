@@ -1,0 +1,72 @@
+{
+  "version": "0.29.1",
+  "configuration": {
+    "loans": 60000,
+    "paths": 8,
+    "months": 3,
+    "threads": 4,
+    "output": "docs/reviews/2026-10-01-cohort-audit-60000.json"
+  },
+  "seconds": 65.90224870014936,
+  "build_seconds": 1.4954613000154495,
+  "peak_rss_mib": 891.33203125,
+  "parquet_mib": 6.4004364013671875,
+  "input_bytes": 13265235,
+  "cohorts": {
+    "loans": 60000,
+    "cohorts": 240,
+    "balance": 6090000000.0,
+    "compression": 250.0,
+    "backend": "rust"
+  },
+  "audit": {
+    "loans": 60000,
+    "cohorts": 240,
+    "checks": 5040,
+    "failed_checks": 360,
+    "failed_cohorts": 120,
+    "shocks_bp": [
+      0.0,
+      -200.0,
+      200.0
+    ],
+    "cashflow_scenarios": "base only",
+    "calculation_basis": "individual_model_reprice",
+    "backend": "rust",
+    "tolerances": {},
+    "default_tolerance": {
+      "absolute": 0.01,
+      "relative": 0.01
+    },
+    "calibration_validated": false,
+    "max_absolute_error": {
+      "dv01": 15.316671539778326,
+      "market_value": 1621.3953935466707,
+      "nii": 48.804493563307915,
+      "accrual_interest": 15.311395351862302,
+      "book_amortization": 2.8410624547392516e-09,
+      "cash_interest": 15.311395351862302,
+      "principal": 1692.2996304486878
+    },
+    "passed": false
+  },
+  "rows": {
+    "loan_risk": 180000,
+    "loan_cashflows": 180000,
+    "errors": 5040,
+    "suggestions": 120
+  },
+  "partitions": {
+    "loan_risk": 708,
+    "loan_cashflows": 236,
+    "errors": 4,
+    "suggestions": 4
+  },
+  "exclusions": [
+    "dedicated consumer credit models",
+    "solver/daily ledger",
+    "HTTP",
+    "live PostgreSQL/S3",
+    "empirical model validation"
+  ]
+}

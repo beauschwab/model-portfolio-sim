@@ -1,0 +1,12 @@
+{
+  "schema": "model-market-1",
+  "identity": {"model_id": "synthetic-market", "model_version": "model-market-1", "input_revision": "synthetic-v1", "assumption_id": "mechanics-example", "rationale": "Synthetic curve, smile and covariance mechanics; no empirical calibration", "as_of_ordinal": 738916, "currency": "USD"},
+  "curves": [
+    {"curve_id": "collateral", "source_id": "synthetic", "source_revision": "v1", "currency": "USD", "role": {"kind": "collateral", "collateral_index": "SOFR"}, "times_years": [0, 1, 2], "discount_factors": [1, 0.95, 0.90], "right_tail": "flat_forward"},
+    {"curve_id": "index", "source_id": "synthetic", "source_revision": "v1", "currency": "USD", "role": {"kind": "index", "index_id": "TERM-SOFR-3M"}, "times_years": [0, 1, 2], "discount_factors": [1, 0.94, 0.88], "right_tail": "flat_forward"}
+  ],
+  "curve_queries": [{"collateral_curve_id": "collateral", "index_curve_id": "index", "start_year": 0, "end_year": 1, "accrual_fraction": 1}],
+  "smile": {"surface_id": "synthetic-normal-smile", "source_id": "synthetic", "source_revision": "v1", "convention": {"kind": "normal"}, "expiries_years": [1], "tenors_years": [1], "strikes": [-0.01, 0, 0.01], "volatilities": [0.012, 0.01, 0.015], "expiry_tail": "reject", "tenor_tail": "reject", "strike_tail": "reject"},
+  "option_queries": [{"expiry_years": 1, "tenor_years": 1, "strike": 0, "forward": 0, "payoff_unit": 1, "side": "call"}],
+  "joint": {"source_revision": "synthetic-covariance-v1", "shared_draw_id": "seed-zero-quarter-3drivers", "drivers": [{"driver_id": "rate-1y", "kind": {"kind": "rate_factor", "tenor_years": 1}}, {"driver_id": "mortgage-spread", "kind": {"kind": "mortgage_spread"}}, {"driver_id": "hpi-region-a", "kind": {"kind": "regional_log_hpi", "region_id": "region-a"}}], "annual_covariance": [0.0001, 0, 0, 0, 0.0004, 0, 0, 0, 0.01], "durations_years": [0.25], "paths": 4, "retained_factors": 3, "draws": {"kind": "native_seed", "seed": [0]}}
+}

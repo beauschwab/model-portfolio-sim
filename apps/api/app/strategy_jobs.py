@@ -38,6 +38,10 @@ def eval_strategy_sync(owner, allocations: list[dict]):
     from portfolio_risk.strategy.unitlib import evaluate_strategy
     from portfolio_risk.core.runtime import RunConfig, run_context
     with owner._LOCK:
+        from portfolio_risk.strategy.unitlib import TEMPLATES
+        known=(owner.CACHE.get('library',{}).get('templates',{}) if owner.CACHE else TEMPLATES)
+        if any(row['template'] not in known for row in allocations):
+            raise ValueError('unknown template in the selected allocation library')
         if not owner.CACHE or owner.CACHE["revision"] != owner.STATE_META["revision"]:
             raise RuntimeError("REBUILD_REQUIRED: build the unit library for the current inputs")
         lib, base, revision = owner.CACHE["library"], owner.CACHE["base"], owner.CACHE["revision"]
@@ -135,3 +139,4 @@ def run_optimize_job(owner, sr, vp, opt: dict):
     owner.report(stage="LP solved", pct=99.0, binding_constraints=nb,
            log=f"{'feasible' if isinstance(out, dict) and out.get('feasible') else 'infeasible'} \u00b7 {nb} binding")
     return out
+

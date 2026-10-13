@@ -1,0 +1,158 @@
+{
+  "scope": "Mortgage risk and forward stress only; excludes other books, strategy solver and daily ledger",
+  "synthetic": true,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "results": [
+    {
+      "backend": "python",
+      "version": "0.27.6",
+      "positions": 256,
+      "sensitivity_paths": 8,
+      "base_paths": 16,
+      "horizon": 3,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "risk_seconds": 2.7824046001769602,
+          "stress_seconds": 0.12031159992329776,
+          "total_seconds": 2.902716200100258,
+          "python_market_cache_hits": 4,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_1",
+          "risk_seconds": 0.4883929998613894,
+          "stress_seconds": 0.09483540011569858,
+          "total_seconds": 0.583228399977088,
+          "python_market_cache_hits": 106,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_2",
+          "risk_seconds": 0.4972935998812318,
+          "stress_seconds": 0.0946846001315862,
+          "total_seconds": 0.591978200012818,
+          "python_market_cache_hits": 208,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "warm_3",
+          "risk_seconds": 0.5049628000706434,
+          "stress_seconds": 0.09963009995408356,
+          "total_seconds": 0.604592900024727,
+          "python_market_cache_hits": 310,
+          "python_market_cache_misses": 98
+        },
+        {
+          "phase": "edited",
+          "risk_seconds": 0.50899269990623,
+          "stress_seconds": 0.10344680002890527,
+          "total_seconds": 0.6124394999351352,
+          "python_market_cache_hits": 412,
+          "python_market_cache_misses": 98
+        }
+      ],
+      "warm_median_seconds": 0.591978200012818,
+      "baseline_memory": {
+        "rss_mb": 124.2421875,
+        "process_peak_rss_mb": 124.2421875
+      },
+      "final_memory": {
+        "rss_mb": 203.53515625,
+        "process_peak_rss_mb": 204.8828125
+      }
+    },
+    {
+      "backend": "rust",
+      "version": "0.27.6",
+      "positions": 256,
+      "sensitivity_paths": 8,
+      "base_paths": 16,
+      "horizon": 3,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "risk_seconds": 0.6888013000134379,
+          "stress_seconds": 0.12423580000177026,
+          "total_seconds": 0.8130371000152081,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0
+        },
+        {
+          "phase": "warm_1",
+          "risk_seconds": 0.7417699000798166,
+          "stress_seconds": 0.10490979999303818,
+          "total_seconds": 0.8466797000728548,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0
+        },
+        {
+          "phase": "warm_2",
+          "risk_seconds": 0.966665199957788,
+          "stress_seconds": 0.20535359997302294,
+          "total_seconds": 1.172018799930811,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0
+        },
+        {
+          "phase": "warm_3",
+          "risk_seconds": 1.416579500073567,
+          "stress_seconds": 0.19535289984196424,
+          "total_seconds": 1.6119323999155313,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0
+        },
+        {
+          "phase": "edited",
+          "risk_seconds": 1.4641080000437796,
+          "stress_seconds": 0.19188519986346364,
+          "total_seconds": 1.6559931999072433,
+          "python_market_cache_hits": 0,
+          "python_market_cache_misses": 0
+        }
+      ],
+      "warm_median_seconds": 1.172018799930811,
+      "baseline_memory": {
+        "rss_mb": 124.59765625,
+        "process_peak_rss_mb": 124.59765625
+      },
+      "final_memory": {
+        "rss_mb": 144.59765625,
+        "process_peak_rss_mb": 148.24609375
+      },
+      "native_library_sha256": "053407d928661c9fc824fbc74cf86b84bc6c2fa92e5a669f167f5cd1f8a136ab"
+    }
+  ],
+  "tolerance": {
+    "rtol": 1e-07,
+    "atol": 1e-05
+  },
+  "parity": true,
+  "max_absolute_errors": {
+    "cold/risk": 1.1255178833380342e-07,
+    "cold/positions": 8.279457688331604e-07,
+    "cold/aggregate": 3.814697265625e-06,
+    "cold/profile": 4.190951585769653e-09,
+    "warm_1/risk": 1.1255178833380342e-07,
+    "warm_1/positions": 8.279457688331604e-07,
+    "warm_1/aggregate": 2.86102294921875e-06,
+    "warm_1/profile": 4.190951585769653e-09,
+    "warm_2/risk": 1.1255178833380342e-07,
+    "warm_2/positions": 8.279457688331604e-07,
+    "warm_2/aggregate": 2.86102294921875e-06,
+    "warm_2/profile": 4.190951585769653e-09,
+    "warm_3/risk": 1.1255178833380342e-07,
+    "warm_3/positions": 8.279457688331604e-07,
+    "warm_3/aggregate": 1.9073486328125e-06,
+    "warm_3/profile": 4.190951585769653e-09,
+    "edited/risk": 1.1255178833380342e-07,
+    "edited/positions": 8.279457688331604e-07,
+    "edited/aggregate": 2.86102294921875e-06,
+    "edited/profile": 4.6566128730773926e-09
+  },
+  "script_sha256": "97a71fc4a20307f86d08e304c7a899b84db5a062f991b31c5d2061a60ec952b5",
+  "memory_note": "OS peak process memory includes imports, JIT, output retention and transport, not just Rust allocation; not a standalone-Rust memory benchmark"
+}

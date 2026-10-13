@@ -1,0 +1,295 @@
+{
+  "scope": "Full corporate and CD spot-risk only; excludes other drivers, solver and ledger",
+  "synthetic": true,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.11",
+  "results": [
+    {
+      "backend": "python",
+      "product": "corporate",
+      "version": "0.28.0",
+      "positions": 60000,
+      "paths": 8,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": 3.654326999792829,
+          "python_cache_hits": 0,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_1",
+          "seconds": 4.9357696999795735,
+          "python_cache_hits": 58,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_2",
+          "seconds": 4.757107899989933,
+          "python_cache_hits": 116,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_3",
+          "seconds": 4.855471099959686,
+          "python_cache_hits": 174,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "edited",
+          "seconds": 4.7763964999467134,
+          "python_cache_hits": 232,
+          "python_cache_misses": 58
+        }
+      ],
+      "warm_median_seconds": 4.855471099959686,
+      "baseline_memory": {
+        "rss_mb": 147.02734375,
+        "process_peak_rss_mb": 147.02734375
+      },
+      "final_memory": {
+        "rss_mb": 278.5390625,
+        "process_peak_rss_mb": 503.59765625
+      }
+    },
+    {
+      "backend": "rust",
+      "product": "corporate",
+      "version": "0.28.0",
+      "positions": 60000,
+      "paths": 8,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": 1.2802208999637514,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 0,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_1",
+          "seconds": 1.4212308002170175,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 60,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_2",
+          "seconds": 2.3554543999489397,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 120,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_3",
+          "seconds": 2.40024370001629,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 180,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "edited",
+          "seconds": 2.4101539000403136,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 240,
+            "misses": 60,
+            "evictions": 0
+          }
+        }
+      ],
+      "warm_median_seconds": 2.3554543999489397,
+      "baseline_memory": {
+        "rss_mb": 147.06640625,
+        "process_peak_rss_mb": 147.06640625
+      },
+      "final_memory": {
+        "rss_mb": 244.453125,
+        "process_peak_rss_mb": 302.49609375
+      },
+      "native_library_sha256": "4d309b8c3b1ded8caede665c8c5fb364751538efca8c0d26d8ba2eafb2c631fb"
+    },
+    {
+      "backend": "python",
+      "product": "cd",
+      "version": "0.28.0",
+      "positions": 60000,
+      "paths": 8,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": 1.2497223000973463,
+          "python_cache_hits": 0,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_1",
+          "seconds": 1.2567251999862492,
+          "python_cache_hits": 58,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_2",
+          "seconds": 1.51845520013012,
+          "python_cache_hits": 116,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "warm_3",
+          "seconds": 1.5386921998579055,
+          "python_cache_hits": 174,
+          "python_cache_misses": 58
+        },
+        {
+          "phase": "edited",
+          "seconds": 1.3747483000624925,
+          "python_cache_hits": 232,
+          "python_cache_misses": 58
+        }
+      ],
+      "warm_median_seconds": 1.51845520013012,
+      "baseline_memory": {
+        "rss_mb": 166.68359375,
+        "process_peak_rss_mb": 191.0703125
+      },
+      "final_memory": {
+        "rss_mb": 258.859375,
+        "process_peak_rss_mb": 319.875
+      }
+    },
+    {
+      "backend": "rust",
+      "product": "cd",
+      "version": "0.28.0",
+      "positions": 60000,
+      "paths": 8,
+      "threads": 4,
+      "timings": [
+        {
+          "phase": "cold",
+          "seconds": 0.7497138001490384,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 0,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_1",
+          "seconds": 0.6686871000565588,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 60,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_2",
+          "seconds": 1.3414472001604736,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 120,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "warm_3",
+          "seconds": 1.4487297001760453,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 180,
+            "misses": 60,
+            "evictions": 0
+          }
+        },
+        {
+          "phase": "edited",
+          "seconds": 1.3657253000419587,
+          "python_cache_hits": 0,
+          "python_cache_misses": 0,
+          "native_market_cache": {
+            "entries": 60,
+            "bytes": 3188352,
+            "hits": 240,
+            "misses": 60,
+            "evictions": 0
+          }
+        }
+      ],
+      "warm_median_seconds": 1.3414472001604736,
+      "baseline_memory": {
+        "rss_mb": 166.93359375,
+        "process_peak_rss_mb": 191.15625
+      },
+      "final_memory": {
+        "rss_mb": 228.5390625,
+        "process_peak_rss_mb": 321.26171875
+      },
+      "native_library_sha256": "4d309b8c3b1ded8caede665c8c5fb364751538efca8c0d26d8ba2eafb2c631fb"
+    }
+  ],
+  "tolerance": {
+    "rtol": 1e-07,
+    "atol": 1e-05
+  },
+  "parity": true,
+  "max_absolute_errors": {
+    "corporate/cold": 1.1626889317994937e-07,
+    "corporate/warm_1": 1.1626889317994937e-07,
+    "corporate/warm_2": 1.1626889317994937e-07,
+    "corporate/warm_3": 1.1626889317994937e-07,
+    "corporate/edited": 1.1626889317994937e-07,
+    "cd/cold": 1.1744050425477326e-06,
+    "cd/warm_1": 1.1744050425477326e-06,
+    "cd/warm_2": 1.1744050425477326e-06,
+    "cd/warm_3": 1.1744050425477326e-06,
+    "cd/edited": 1.1744050425477326e-06
+  },
+  "script_sha256": "6cc9fd49c51de6b3598bd796f8050856ad2dbc055789e41159566cb9225022a5",
+  "memory_note": "OS process peak includes Python imports, Numba load/JIT, JSON/FFI transport and retained results; not standalone-Rust RSS. Warm runs use the same process and run context."
+}

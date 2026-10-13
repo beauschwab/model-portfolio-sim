@@ -34,7 +34,7 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
                 dep_hist=None, scenario_market=None, spread_shift=0.0,
                 spread_overrides_bp=None, backend: DiscountBackend | None = None,
                 valuation_books=None, include_analytics=False, balance_sheet_extras=None,
-                include_key_rates=True):
+                include_key_rates=True, market_indexed_bindings=None, graph_runtime=None):
     """Return ordered position prices, scope totals and actual graph work counts.
 
     spread_shift is a decimal scenario shift on securities (not NMDs), matching
@@ -47,6 +47,9 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
     from ..products.deposits import SEGMENTS
 
     config = config or RunConfig()
+    if graph_runtime is not None and market_indexed_bindings is None:raise ValueError('graph runtime requires explicit indexed book selection')
+    if market_indexed_bindings is not None and (backend is not None or config.compute_backend != 'rust'):
+        raise ValueError('explicit market indexed books require Rust without a custom discount backend')
     valuation_books = books if valuation_books is None else valuation_books
     if set(valuation_books) != set(books):
         raise ValueError('valuation books must match the calibration scope')
@@ -80,7 +83,8 @@ def price_books(books, *, asof, swap_rates, vol_pts, cache: DependencyCache,
             vol_pts=vol_pts, cache=cache, config=config, seed=seed, mbs_hists=mbs_hists, dep_hist=dep_hist,
             scenario_market=scenario_market, spread_shift=spread_shift, spread_overrides_bp=overrides,
             include_analytics=include_analytics, balance_sheet_extras=balance_sheet_extras,
-            include_key_rates=include_key_rates, backend_identity=backend.identity, model_revision=MODEL_REVISION)
+            include_key_rates=include_key_rates, backend_identity=backend.identity, model_revision=MODEL_REVISION,
+            market_indexed_bindings=market_indexed_bindings, graph_runtime=graph_runtime)
 
     with cache._lock:
         if cache._native is not None:
