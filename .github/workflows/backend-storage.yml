@@ -1,9 +1,9 @@
 name: Backend storage contracts
 on:
   push:
-    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
+    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
   pull_request:
-    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
+    paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
 permissions:
   contents: read
 jobs:

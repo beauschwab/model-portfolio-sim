@@ -1,0 +1,120 @@
+{
+  "asof_ordinal": 738886,
+  "contract": {
+    "id": "swap-contract",
+    "revision": "r1"
+  },
+  "currency": "USD",
+  "discount_curve": {
+    "asof_ordinal": 738886,
+    "basis": "collateralized_clean",
+    "collateral_discount_policy": {
+      "id": "discount-policy",
+      "revision": "r1"
+    },
+    "currency": "USD",
+    "information_unix_seconds": 1704099600,
+    "points": [
+      {
+        "discount_factor": 1.0,
+        "ordinal": 738886
+      },
+      {
+        "discount_factor": 1.0,
+        "ordinal": 738896
+      }
+    ],
+    "source": {
+      "id": "discount",
+      "revision": "r1"
+    }
+  },
+  "fixed_periods": [
+    {
+      "day_count": "act360",
+      "end_ordinal": 738896,
+      "payment_ordinal": 738896,
+      "period_id": "f1",
+      "start_ordinal": 738886
+    }
+  ],
+  "fixed_rate": 0.05,
+  "floating_periods": [
+    {
+      "coupon": {
+        "all_in_bounds": {
+          "cap": null,
+          "floor": null
+        },
+        "calculation": "term_simple",
+        "calendar": {
+          "id": "calendar",
+          "revision": "r1"
+        },
+        "complete_calendar_mapping": true,
+        "index": {
+          "average_calendar_days": null,
+          "index_id": "term-1m",
+          "kind": "term",
+          "tenor_months": 1
+        },
+        "index_bounds": {
+          "cap": null,
+          "floor": null
+        },
+        "kind": "indexed",
+        "lookback_business_days": 0,
+        "margin": 0.0,
+        "margin_treatment": "simple",
+        "observation_shift": false,
+        "observations": [
+          {
+            "fixing_ordinal": 738886,
+            "interest_end_ordinal": 738896,
+            "interest_start_ordinal": 738886,
+            "observation_end_ordinal": 738896,
+            "observation_start_ordinal": 738886,
+            "rate": 0.1,
+            "selection_cutoff_unix_seconds": 1704099600,
+            "source": {
+              "information_unix_seconds": 1704099600,
+              "kind": "conditional_projection",
+              "measure": "pricing",
+              "model": {
+                "id": "index-model",
+                "revision": "r1"
+              },
+              "path": {
+                "id": "index-path",
+                "revision": "r1"
+              }
+            }
+          }
+        ],
+        "reset_cutoff_unix_seconds": 1704099600
+      },
+      "day_count": "act360",
+      "end_ordinal": 738896,
+      "fee": 0.0,
+      "payment_ordinal": 738896,
+      "period_id": "l1",
+      "start_ordinal": 738886
+    }
+  ],
+  "index_basis": {
+    "id": "index-basis",
+    "revision": "r1"
+  },
+  "monetary_unit": "currency_units",
+  "notional": 360.0,
+  "payment_timing": "after_scheduled_payments",
+  "position_id": "swap",
+  "rate_path": {
+    "id": "index-path",
+    "revision": "r1"
+  },
+  "scenario_id": "p",
+  "side": "payer",
+  "tail_end_ordinal": 738896,
+  "valuation_cutoff_unix_seconds": 1704099600
+}

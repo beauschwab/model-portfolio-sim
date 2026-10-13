@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 autobins = false
 license = "MIT"
-description = "Batched transactional ledger reduction pilot"
+description = "Native specification validation, daily ledger execution and ordered closing reduction"
 
 [[bin]]
 name = "portfolio-balance"
@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 portfolio-compute-control = { path = "../portfolio-compute-control" }
+portfolio-model-core = { path = "../portfolio-model-core" }
 serde = { version = "=1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
 
@@ -22,3 +23,9 @@ serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+
+[workspace]
+
+[features]
+# Test-only historical whole-output controls, never a production runtime.
+historical-output-control = []

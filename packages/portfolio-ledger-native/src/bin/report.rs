@@ -83,6 +83,14 @@ impl Reports {
                     | "secured_funding"
                     | "received_margin"
                     | "intercompany_payable"
+                    | "dated_interest_payable"
+                    | "dated_deferred_income"
+                    | "credit_default_deferred_income"
+                    | "commercial_fee_payable"
+                    | "commercial_deferred_fee_income"
+                    | "derivative_liability"
+                    | "derivative_unpaid_payable"
+                    | "derivative_received_vm_liability"
             ) || (matches!(gl, "book_adjustment" | "accrued_interest")
                 && funding.contains(&(&key.0, &key.2)))
                 || (gl == "derivative_value" && value < 0.)

@@ -1,0 +1,61 @@
+{
+  "schema": "indexed-contract-1",
+  "threads": 1,
+  "request": {
+    "schema": "term-enhancements-1",
+    "model_version": "term-contracts-1",
+    "contract": {"id": "loan-example", "revision": "r1"},
+    "assumption": {"id": "contract-example", "revision": "r1"},
+    "path": {"id": "conditional-path-example", "revision": "r1"},
+    "position_id": "loan:example",
+    "scenario_id": "base",
+    "currency": "USD",
+    "monetary_unit": "currency_units",
+    "direction": "receipt",
+    "measure": "pricing",
+    "asof_ordinal": 738917,
+    "reporting_end_ordinal": 738917,
+    "tail_end_ordinal": 738946,
+    "observed_publication_cutoff_unix_seconds": 1706774400,
+    "opening_principal": 100,
+    "principal_plan": {"kind": "supplied", "principal_payments": [100]},
+    "periods": [{
+      "period_id": "2024-february",
+      "start_ordinal": 738917,
+      "end_ordinal": 738946,
+      "payment_ordinal": 738946,
+      "day_count": "act360",
+      "fee": 0,
+      "coupon": {
+        "kind": "indexed",
+        "index": {"index_id": "explicit-one-month-index", "kind": "term", "tenor_months": 1, "average_calendar_days": null},
+        "calendar": {"id": "supplied-calendar", "revision": "r1"},
+        "complete_calendar_mapping": true,
+        "calculation": "term_simple",
+        "margin_treatment": "simple",
+        "margin": 0.01,
+        "index_bounds": {"floor": null, "cap": null},
+        "all_in_bounds": {"floor": null, "cap": null},
+        "reset_cutoff_unix_seconds": 1706778000,
+        "lookback_business_days": 0,
+        "observation_shift": false,
+        "observations": [{
+          "interest_start_ordinal": 738917,
+          "interest_end_ordinal": 738946,
+          "observation_start_ordinal": 738917,
+          "observation_end_ordinal": 738946,
+          "fixing_ordinal": 738917,
+          "selection_cutoff_unix_seconds": 1706778000,
+          "rate": 0.02,
+          "source": {
+            "kind": "conditional_projection",
+            "model": {"id": "supplied-conditional-index-model", "revision": "r1"},
+            "path": {"id": "conditional-path-example", "revision": "r1"},
+            "information_unix_seconds": 1706778000,
+            "measure": "pricing"
+          }
+        }]
+      }
+    }]
+  }
+}

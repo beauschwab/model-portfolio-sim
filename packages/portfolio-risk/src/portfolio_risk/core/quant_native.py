@@ -12,6 +12,7 @@ from numba import get_num_threads
 
 from .native import library_path
 from .runtime import run_cached
+from .abi_generated import ABI_VERSION, LAYOUTS, Op
 
 
 class Buffer(ctypes.Structure):
@@ -43,7 +44,7 @@ def _load(path):
         raise RuntimeError('Native product ABI unavailable; rebuild scripts/build_native.py and restart') from exc
     version.argtypes = []
     version.restype = ctypes.c_uint32
-    if version() != 10:
+    if version() != ABI_VERSION:
         raise RuntimeError('Unsupported native product ABI; rebuild and restart')
     call.argtypes = [ctypes.c_uint32, ctypes.POINTER(Buffer), ctypes.c_size_t,
                      ctypes.POINTER(Buffer), ctypes.c_size_t, ctypes.c_size_t]
@@ -52,6 +53,12 @@ def _load(path):
 
 
 def call(op, inputs, shapes):
+    layout = LAYOUTS.get(int(op))
+    if layout is None:
+        raise ValueError('unknown native operation')
+    counts = {len(v['inputs']) for v in layout.get('variants', [layout])}
+    if len(inputs) not in counts or len(shapes) != len(layout['outputs']):
+        raise ValueError('native operation buffer count does not match its ABI layout')
     path = library_path()
     _, invoke = _load(str(path))
     arrays = [np.require(np.atleast_1d(v), dtype=np.float64, requirements=['C', 'A']) for v in inputs]
@@ -65,6 +72,23 @@ def call(op, inputs, shapes):
     if status:
         raise ValueError(f'Rust product computation failed (status {status}); no fallback was used')
     return tuple(outputs)
+
+
+def call_named(op, inputs, shapes, *, variant=None):
+    """Named boundary conversion; preserves declared buffer order and ownership."""
+    layout = LAYOUTS[int(op)]
+    if 'variants' in layout:
+        if variant is None:
+            raise ValueError('behavioral calls require an explicit named variant')
+        layout_inputs = next(v['inputs'] for v in layout['variants'] if v['name'] == variant)
+    else:
+        layout_inputs = layout['inputs']
+    input_names = [f['name'] for f in layout_inputs]
+    output_names = [f['name'] for f in layout['outputs']]
+    if set(inputs) != set(input_names) or set(shapes) != set(output_names):
+        raise ValueError('named buffers do not match the native ABI layout')
+    values = call(op, [inputs[n] for n in input_names], [shapes[n] for n in output_names])
+    return dict(zip(output_names, values))
 
 
 def shared_draws(n_paths, seed, months, factors):
@@ -82,17 +106,18 @@ def shared_draws(n_paths, seed, months, factors):
     while seed:
         words.append(seed & 0xffffffff)
         seed >>= 32
-    return call(27, [words, [n_paths, months, factors]],
-                [(n_paths, months, factors), (n_paths, months), (n_paths, months)])
+    result = call_named(Op.SHARED_DRAWS, {'seed_words': words, 'dimensions': [n_paths, months, factors]},
+                        {'rates': (n_paths, months, factors), 'spread': (n_paths, months), 'hpi': (n_paths, months)})
+    return result['rates'], result['spread'], result['hpi']
 
 
 def mortgage_cache_statistics(*, clear=False):
     """Native market-stage retention only; active buffers and output copies are extra."""
-    values, = call(30, [[int(clear)]], [(5,)])
+    values, = call(Op.MORTGAGE_CACHE, [[int(clear)]], [(5,)])
     return dict(zip(('entries', 'bytes', 'hits', 'misses', 'evictions'), map(int, values)))
 
 
-def term_call(schema, request, *, _library=None):
+def term_call(schema, request, *, _library=None, runtime=None):
     """One bounded raw-contract batch; native code owns all financial stages."""
     import json
     import datetime
@@ -100,11 +125,16 @@ def term_call(schema, request, *, _library=None):
         if isinstance(value, datetime.date):
             return value.toordinal()
         raise TypeError(f'Unsupported term input {type(value).__name__}')
-    payload = json.dumps(dict(schema=schema, threads=get_num_threads(), request=request),
+    envelope=dict(schema=schema, threads=get_num_threads(), request=request)
+    if schema in {'commercial-product-graph-1','commercial-units-1','commercial-holding-continuation-1'}:
+        from .model_native import is_generated_oas_calibration
+        if schema=='commercial-holding-continuation-1' or is_generated_oas_calibration(schema,request):envelope['execution_timeout_ms']=1_800_000
+    payload = json.dumps(envelope,
                          default=encode, allow_nan=False, separators=(',', ':')).encode()
     if len(payload) > 64*1024*1024:
         raise ValueError('native term request exceeds 64 MiB')
     lib = _library if _library is not None else _load(str(library_path()))[0]
+    if runtime is not None and schema!='graph-1':raise ValueError('runtime control requires graph-1 indexed owner')
     numeric = schema == 'term-risk-1'
     invoke = lib.portfolio_term_risk_into if numeric else lib.portfolio_term_request
     release = lib.portfolio_term_free
@@ -122,7 +152,12 @@ def term_call(schema, request, *, _library=None):
             a.size, (ctypes.c_size_t * 3)(a.size,1,1)) for a in arrays))
         pointer = invoke(payload, len(payload), descriptors, 4)
     else:
-        pointer = invoke(payload, len(payload))
+        if runtime is None:
+            pointer = invoke(payload, len(payload))
+        else:
+            if schema!='graph-1':raise ValueError('runtime control requires graph-1 indexed owner')
+            from .graph_control_native import invoke_controlled
+            pointer, runtime_check = invoke_controlled(lib,payload,runtime)
     if not pointer:
         raise RuntimeError('Native term allocation failed; no fallback was used')
     try:
@@ -131,6 +166,12 @@ def term_call(schema, request, *, _library=None):
         release(pointer)
     if not response['ok']:
         raise ValueError(f"Rust term computation failed: {response['error']}; no fallback was used")
+    if runtime is not None:
+        try:runtime_check()
+        except BaseException:
+            from .graph_control_native import cleanup_created
+            cleanup_created(lib,payload,response)
+            raise
     return dict(zip(('oas','price','dv01','sensitivities'),arrays)) if numeric else response['result']
 
 
@@ -260,7 +301,7 @@ def mortgage_risk(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, oas)
     from . import config as cfg
     inputs = _mortgage_inputs(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, oas)
     n = len(port)
-    spreads, prices, dv01, sensitivities = call(28, inputs + [prepay_speed(port)], [(n,), (n,), (n,), (len(cfg.SWAP_TENORS)+len(vol_pts), n)])
+    spreads, prices, dv01, sensitivities = call(Op.MORTGAGE_RISK, inputs + [prepay_speed(port)], [(n,), (n,), (n,), (len(cfg.SWAP_TENORS)+len(vol_pts), n)])
     labels = [f'krd01_{int(t)}y' for t in cfg.SWAP_TENORS] + [f'vega_{int(e)}x{int(t)}' for e,t,_ in vol_pts]
     return port.with_columns(pl.Series('oas_bps', spreads*1e4), pl.Series('model_price', prices*100), pl.Series('dv01', dv01),
                             *[pl.Series(name, values) for name, values in zip(labels, sensitivities)])
@@ -279,7 +320,7 @@ def mortgage_stress(port, swap_rates, vol_pts, cc_hist, ps_hist, shocks_bp, seed
         raise ValueError('mortgage stress outputs exceed 1 GiB admission limit')
     has_profile = -100. in shocks and 100. in shocks
     base, price, shocked, pnl, agg_base, agg_pnl, profile, _ = call(
-        29, inputs + [hz, shocks, prepay_speed(port)], [(nh,n)]*2 + [(nj,nh,n)]*2 + [(nj,nh)]*2 + [(nh if has_profile else 0,), (n,)])
+        Op.MORTGAGE_FORWARD_STRESS, inputs + [hz, shocks, prepay_speed(port)], [(nh,n)]*2 + [(nj,nh,n)]*2 + [(nj,nh)]*2 + [(nh if has_profile else 0,), (n,)])
     frames = [pl.DataFrame(dict(cusip=port['cusip'], horizon_m=np.full(n,h,dtype=np.int64),
                 shock_bp=np.full(n,shock), fwd_value_base=base[hi], fwd_price_base=price[hi],
                 fwd_value_shock=shocked[j,hi], stress_pnl=pnl[j,hi]))
@@ -301,29 +342,29 @@ def dispatch(name, reference):
         a = list(bound.arguments.values())
         if name == 'lmm':
             from .config import DT, TENOR
-            result = call(1, a[:5] + [DT, TENOR], [x.shape for x in a[5:]])
+            result = call(Op.LMM, a[:5] + [DT, TENOR], [x.shape for x in a[5:]])
             for dst, src in zip(a[5:], result): dst[...] = src
             return None
         if name in ('corp', 'cd'):
             size = len(a[4 if name == 'corp' else 3])
-            return call(2 if name == 'corp' else 3, a, [(size,)]*3)
+            return call(Op.CORPORATE if name == 'corp' else Op.CD, a, [(size,)]*3)
         p, t = a[0].shape
         if name == 'mbs':
             s, h = len(a[13]), len(a[23])   # horizons follow the nine per-pool vectors and OAS
-            out = list(call(4, a, [(s,t),(s,h),(s,h),(s,p,h),(s,p,h),(s,t),(s,t)]))
+            out = list(call(Op.MORTGAGE, a, [(s,t),(s,h),(s,h),(s,p,h),(s,p,h),(s,t),(s,t)]))
             out[3], out[4] = out[3].astype(np.float32), out[4].astype(np.float32)
             return tuple(out)
         if name == 'mbs_stress':
-            return call(5, a, [(len(a[13]),)])[0]
+            return call(Op.MORTGAGE_STRESS, a, [(len(a[13]),)])[0]
         if name == 'deposit':
             s, h = len(a[6]), len(a[17])
-            out = list(call(6, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t),(s,)]))
+            out = list(call(Op.DEPOSIT, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t),(s,)]))
             out[4] = out[4].astype(np.float32)
             return tuple(out)
         if name == 'deposit_stress':
-            return call(7, a, [(len(a[6]),)])[0]
+            return call(Op.DEPOSIT_STRESS, a, [(len(a[6]),)])[0]
         if name == 'mbs_batch':
-            return call(10, a, [(a[5],len(a[15]))])[0]
+            return call(Op.MORTGAGE_BATCH, a, [(a[5],len(a[15]))])[0]
         raise ValueError(f'unsupported native product operation {name}')
     return wrapped
 
@@ -333,7 +374,7 @@ def kernel(name):
 
 
 def csr_price(offsets, times, sums, spread, paths):
-    return call(9, [offsets,times,sums,spread,paths], [(len(offsets)-1,)])[0]
+    return call(Op.CSR_PV, [offsets,times,sums,spread,paths], [(len(offsets)-1,)])[0]
 
 
 @run_cached
@@ -354,22 +395,43 @@ def market_paths(swap_rates, abcd_p, loadings, crn, models=None):
     inputs = [SWAP_TENORS, swap_rates, abcd_p, loadings, crn.Z, [DT,TENOR,SHIFT]]
     shapes = [(p,t),(p,4,t),(p,t)]
     if models is None:
-        df,swaps,short = _market_call(19, inputs, shapes)
+        df,swaps,short = _market_call(Op.RATE_PATHS, inputs, shapes)
         return dict(df=df,swaps=swaps,short=short)
     ps = models['ps']
     inputs += [CC_VOL_POINTS,models['cc']['beta'],models['cc']['lam'],
                [ps['kappa'],ps['theta'],ps['sigma'],models['ps_spot']],
                crn.eps_ps,crn.eps_h,[HPI_MU,HPI_BETA,HPI_SIG],INC_LAG]
-    df,swaps,short,mtg,hpi,yoy = _market_call(20,inputs,shapes+[(p,t)]*3)
+    df,swaps,short,mtg,hpi,yoy = _market_call(Op.MORTGAGE_PATHS,inputs,shapes+[(p,t)]*3)
     return dict(df=df.astype(ADT),swaps=swaps,short=short.astype(ADT),
                 mtg=mtg.astype(ADT),hpi=hpi.astype(ADT),yoy=yoy.astype(ADT))
 
 
 def csr_solve(offsets, times, sums, target, paths, tol=1e-8, max_iter=40, lo=-.05, hi=.30):
-    return call(8, [offsets,times,sums,target,paths,tol,max_iter,lo,hi], [(len(target),)]*2)
+    return call(Op.CSR_OAS, [offsets,times,sums,target,paths,tol,max_iter,lo,hi], [(len(target),)]*2)
 
 
 def monthly_inputs(a, delay, grid):
     s, t = a.shape
     times = np.broadcast_to(grid, (s,t)) if delay is None else grid + np.asarray(delay)[:,None]
     return np.arange(s+1,dtype=np.int64)*t, times.reshape(-1), a.reshape(-1)
+
+
+def funding_coefficients(coefficients,amounts):
+    """Transport prepared cash-demand coefficients; Rust performs the reduction."""
+    values=np.require(coefficients,dtype=np.float64,requirements=['C','A'])
+    allocations=np.require(amounts,dtype=np.float64,requirements=['C','A'])
+    if values.ndim!=2 or allocations.ndim!=1 or values.shape[0]!=len(allocations):
+        raise ValueError('dated funding coefficient shape mismatch')
+    lib,_=_load(str(library_path()))
+    try:
+        version=lib.portfolio_funding_coefficients_version
+        version.argtypes=[];version.restype=ctypes.c_uint32
+        invoke=lib.portfolio_funding_coefficients_call
+    except AttributeError as exc:raise RuntimeError('dated funding native contract missing; rebuild and restart') from exc
+    if version()!=1:raise RuntimeError('dated funding native contract mismatch; rebuild and restart')
+    pointer=ctypes.POINTER(ctypes.c_double)
+    invoke.argtypes=[pointer,pointer,ctypes.c_size_t,ctypes.c_size_t,pointer];invoke.restype=ctypes.c_int
+    result=np.empty(values.shape[1],dtype=np.float64)
+    status=invoke(values.ctypes.data_as(pointer),allocations.ctypes.data_as(pointer),values.shape[0],values.shape[1],result.ctypes.data_as(pointer))
+    if status:raise ValueError(f'native dated funding coefficient evaluation failed ({status})')
+    return result

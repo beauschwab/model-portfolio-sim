@@ -1,0 +1,61 @@
+{
+  "schema": "joint-market-credit-1",
+  "model_version": "joint-market-credit-1",
+  "identity": {
+    "source_id": "synthetic-joint-market-credit",
+    "source_revision": "v1",
+    "assumption_id": "supplied-hazard-elasticities-v1",
+    "common_random_numbers_id": "joint-crn-seed-zero",
+    "measure": "physical"
+  },
+  "as_of_ordinal": 738916,
+  "day_count": "act365_fixed",
+  "market": {
+    "source_revision": "v1",
+    "shared_draw_id": "joint-crn-seed-zero",
+    "drivers": [
+      {"driver_id": "rate-1y", "kind": {"kind": "rate_factor", "tenor_years": 1}},
+      {"driver_id": "mortgage-spread", "kind": {"kind": "mortgage_spread"}},
+      {"driver_id": "hpi-region-a", "kind": {"kind": "regional_log_hpi", "region_id": "region-a"}}
+    ],
+    "annual_covariance": [0.0001, 0, 0, 0, 0.0004, 0, 0, 0, 0.01],
+    "durations_years": [1, 1],
+    "paths": 4,
+    "retained_factors": 3,
+    "draws": {"kind": "native_seed", "seed": [0]}
+  },
+  "periods": [
+    {
+      "start_ordinal": 738916,
+      "end_ordinal": 739281,
+      "market_discount_factor": 0.97,
+      "behavioral_baseline_hazard_per_year": 0.05,
+      "behavioral_beta": [2, 1, 0.5],
+      "credit_baseline_hazard_per_year": 0.02,
+      "credit_beta": [1, 2, 0.2],
+      "prepayment_baseline_hazard_per_year": 0.03,
+      "prepayment_beta": [-1, 0.5, 1],
+      "recovery_fraction": 0.4,
+      "recovery_lag_years": 1
+    },
+    {
+      "start_ordinal": 739281,
+      "end_ordinal": 739646,
+      "market_discount_factor": 0.94,
+      "behavioral_baseline_hazard_per_year": 0.05,
+      "behavioral_beta": [2, 1, 0.5],
+      "credit_baseline_hazard_per_year": 0.02,
+      "credit_beta": [1, 2, 0.2],
+      "prepayment_baseline_hazard_per_year": 0.03,
+      "prepayment_beta": [-1, 0.5, 1],
+      "recovery_fraction": 0.4,
+      "recovery_lag_years": 1
+    }
+  ],
+  "positions": [
+    {"position_id": "loan-1", "path_key": 1, "principal": 100, "random_pairs": [{"waiting_uniform": 0.99, "destination_uniform": 0.1}, {"waiting_uniform": 0.99, "destination_uniform": 0.1}]},
+    {"position_id": "loan-2", "path_key": 2, "principal": 100, "random_pairs": [{"waiting_uniform": 0.01, "destination_uniform": 0.2}, {"waiting_uniform": 0.99, "destination_uniform": 0.2}]},
+    {"position_id": "loan-3", "path_key": 3, "principal": 100, "random_pairs": [{"waiting_uniform": 0.99, "destination_uniform": 0.3}, {"waiting_uniform": 0.99, "destination_uniform": 0.3}]},
+    {"position_id": "loan-4", "path_key": 4, "principal": 100, "random_pairs": [{"waiting_uniform": 0.99, "destination_uniform": 0.4}, {"waiting_uniform": 0.99, "destination_uniform": 0.4}]}
+  ]
+}

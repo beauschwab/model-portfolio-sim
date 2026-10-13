@@ -9,7 +9,7 @@ def test_worker_rejects_legacy_python_snapshot_without_publication(durable):
     saved=db.CODEC.dump(state)
     assert db.CODEC.load(saved)['settings'].compute_backend=='python'
     # Bypass new-request admission to emulate an already queued historical job.
-    jid=db.submit('pricing',store.run_pricing,(['loans'],state['market']['swap_rates'],state['market']['vol_pts']),None,state)
+    jid=db.submit('pricing','store.run_pricing',(['loans'],state['market']['swap_rates'],state['market']['vol_pts']),None,state)
     db.WORKER='deprecated-backend-test';worker.STOP.clear()
     assert db.REPO.acquire(db.WORKER)
     worker.execute(db.REPO.claim(db.WORKER))

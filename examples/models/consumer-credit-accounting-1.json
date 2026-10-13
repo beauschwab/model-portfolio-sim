@@ -1,0 +1,18 @@
+{
+  "schema": "consumer-credit-accounting-1",
+  "contract": {
+    "schema": "consumer-installment-1",
+    "identity": {"position_id":"personal-1","original_loan_id":"loan-1","cohort_id":"cohort-1","currency":"USD","source_revision":"tape-1","model_version":"consumer-installment-1","assumption_id":"supplied-1","run_id":"base","measure":"physical"},
+    "product": {"kind":"personal","vintage_ordinal":738916,"dti":0.4,"dti_definition":"monthly-debt/gross-monthly-income","channel":"branch","collection_fraction":0.6,"collection_cost":10.0,"recovery_delay_days":20},
+    "as_of_ordinal":738916,"horizon_days":40,"original_principal":100.0,"opening_principal":100.0,"opening_accrued_interest":0.0,"opening_unrecognized_interest":0.0,"opening_fees":0.0,"initial_state":"performing","note_rate":0.36,"disclosed_apr":0.36,"day_count":"act360","original_payment":100.0,"payment_dates":[738926,738946],"prepayment_penalty_fraction":0.0,"accrue_contract_interest_in_nonaccrual":true,"steps":[{"ordinal":738926,"action":{"kind":"default"}}]
+  },
+  "path_id":"supplied-default-path",
+  "economic_source":{"id":"supplied-personal-history","revision":"tape-1"},
+  "acquisition":{"identity":{"id":"actual-purchase","revision":"r1"},"original_yield_anchor":{"id":"original-purchase-yield","revision":"r1"},"income_review":{"id":"original-income-policy","revision":"r1"},"accounting_basis":"supplied_non_pcd_gross_cost-1","purchase_ordinal":738916,"principal":100.0,"cost":100.0,"original_annual_effective_rate":0.0},
+  "policy":{"accounting":{"identity":{"id":"reviewed-credit-policy","revision":"r1"},"accrued":"reverse_income_at_default","basis":"recognize_in_earnings_at_default","allowance_shortfall":"reject","excess_cash_recovery":"credit_allowance"},"recovery_review":{"id":"gross-principal-only-recovery","revision":"r1"},"cost_review":{"id":"reviewed-collection-cost","revision":"r1"},"original_income":"frozen_original_eir_until_exit-1","terminal_basis":"recognize_in_earnings_at_payoff-1","recovery_cost":"gross_recovery_with_credit_loss_cost-1"},
+  "claim_id":"personal-default-claim",
+  "reporting_end_ordinal":738931,
+  "opening_allowance":40.0,
+  "allowance_reviews":[],
+  "chargeoffs":[{"review":{"id":"reviewed-principal-chargeoff","revision":"r1"},"claim_id":"personal-default-claim","recognition_ordinal":738947,"principal_amount":40.0,"book_adjustment_amount":0.0,"accrued_interest_reversal":0.0}]
+}

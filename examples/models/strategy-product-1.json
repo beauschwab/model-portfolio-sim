@@ -1,0 +1,1018 @@
+{
+  "schema": "strategy-product-1",
+  "op": "optimize_product",
+  "product": {
+    "schema": "product-units-1",
+    "identity": {
+      "model_revision": "supplied-product-units-v1",
+      "grid_revision": "actual-two-day-v1",
+      "crn_id": "supplied-paired-1",
+      "input_revision": "synthetic-two-unit-strategy-v1"
+    },
+    "currency": "USD",
+    "monetary_unit": "currency_units",
+    "reporting_ordinals": [
+      738916,
+      738945,
+      738976
+    ],
+    "base_scenario_id": "base",
+    "units": [
+      {
+        "unit_id": "loan-unit-1",
+        "template_id": "loan-template-1",
+        "purchase_ordinal": 738916,
+        "unit_face": 1000.0,
+        "quote_price_per_face_unit": 1.0419930063526421,
+        "accounting_category": "supplied-amortized-cost",
+        "capital_policy_revision": "synthetic-weights-v1",
+        "weights": {
+          "hqla_l2a": 0.0,
+          "outflow30": 0.1,
+          "asf": 0.9,
+          "rsf": 0.0,
+          "rwa": 0.0
+        },
+        "purchase_graph": {
+          "kind": "consumer_installment",
+          "request": {
+            "schema": "advanced-product-graph-1",
+            "identity": {
+              "model_revision": "consumer-supplied-v1",
+              "input_revision": "graph-input-v1",
+              "paired_history_source": "explicit-controlled-actions",
+              "paired_history_revision": "paired-v1",
+              "randomness_domain": "supplied_paired_histories-1"
+            },
+            "as_of_ordinal": 738916,
+            "currency": "USD",
+            "reporting_ordinals": [
+              738916,
+              738945,
+              738976
+            ],
+            "base_scenario_id": "base",
+            "bump_bp": 25,
+            "scenarios": [
+              {
+                "scenario_id": "base",
+                "run_id": "base-run",
+                "severity": 1,
+                "collateral_curve": {
+                  "curve_id": "zero-collateral",
+                  "source_id": "supplied-synthetic",
+                  "source_revision": "v1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0,
+                    1,
+                    2
+                  ],
+                  "discount_factors": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "right_tail": "reject"
+                }
+              }
+            ],
+            "positions": [
+              {
+                "position_id": "loan-unit-1",
+                "oas_target": {
+                  "kind": "locked",
+                  "base_oas": 0.019802627296179712,
+                  "source_id": "reviewed-oas",
+                  "source_revision": "v1"
+                },
+                "product": {
+                  "kind": "consumer_installment",
+                  "contract": {
+                    "schema": "consumer-installment-1",
+                    "identity": {
+                      "position_id": "loan-unit-1",
+                      "original_loan_id": "loan-1",
+                      "cohort_id": "cohort-1",
+                      "currency": "USD",
+                      "source_revision": "tape-1",
+                      "model_version": "consumer-installment-1",
+                      "assumption_id": "known-contract",
+                      "run_id": "known-opening",
+                      "measure": "contractual"
+                    },
+                    "product": {
+                      "kind": "personal",
+                      "vintage_ordinal": 738551,
+                      "dti": 0.4,
+                      "dti_definition": "monthly-debt/gross-monthly-income",
+                      "channel": "branch",
+                      "collection_fraction": 0.5,
+                      "collection_cost": 50,
+                      "recovery_delay_days": 20
+                    },
+                    "as_of_ordinal": 738916,
+                    "horizon_days": 120,
+                    "original_principal": 1000,
+                    "opening_principal": 1000,
+                    "opening_accrued_interest": 0,
+                    "opening_unrecognized_interest": 0,
+                    "opening_fees": 0,
+                    "initial_state": "performing",
+                    "note_rate": 0.365,
+                    "disclosed_apr": 0.5,
+                    "day_count": "act365_fixed",
+                    "original_payment": 529,
+                    "payment_dates": [
+                      738945,
+                      738976
+                    ],
+                    "prepayment_penalty_fraction": 0,
+                    "accrue_contract_interest_in_nonaccrual": true,
+                    "steps": []
+                  },
+                  "histories": [
+                    {
+                      "scenario_id": "base",
+                      "physical": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "physical-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing_down": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-down-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing_up": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-up-scheduled",
+                          "steps": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "income_policy": {
+          "review": {
+            "id": "synthetic-reviewed-performing-loan-1",
+            "revision": "1"
+          },
+          "original_yield_anchor": {
+            "id": "synthetic-original-yield",
+            "revision": "1"
+          },
+          "original_annual_effective_rate": 0.02
+        },
+        "age_branches": [
+          {
+            "ordinal": 738916,
+            "scenario_id": "base",
+            "physical_path_id": "paired-0",
+            "graph": {
+              "kind": "consumer_installment",
+              "request": {
+                "schema": "advanced-product-graph-1",
+                "identity": {
+                  "model_revision": "consumer-supplied-v1",
+                  "input_revision": "graph-input-v1",
+                  "paired_history_source": "explicit-controlled-actions",
+                  "paired_history_revision": "paired-v1",
+                  "randomness_domain": "supplied_paired_histories-1"
+                },
+                "as_of_ordinal": 738916,
+                "currency": "USD",
+                "reporting_ordinals": [
+                  738916,
+                  738945,
+                  738976
+                ],
+                "base_scenario_id": "base",
+                "bump_bp": 25,
+                "scenarios": [
+                  {
+                    "scenario_id": "base",
+                    "run_id": "base-run",
+                    "severity": 1,
+                    "collateral_curve": {
+                      "curve_id": "zero-collateral",
+                      "source_id": "supplied-synthetic",
+                      "source_revision": "v1",
+                      "currency": "USD",
+                      "role": {
+                        "kind": "collateral",
+                        "collateral_index": "SOFR"
+                      },
+                      "times_years": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "discount_factors": [
+                        1,
+                        1,
+                        1
+                      ],
+                      "right_tail": "reject"
+                    }
+                  }
+                ],
+                "positions": [
+                  {
+                    "position_id": "loan-unit-1",
+                    "oas_target": {
+                      "kind": "locked",
+                      "base_oas": 0.019802627296179712,
+                      "source_id": "reviewed-oas",
+                      "source_revision": "v1"
+                    },
+                    "product": {
+                      "kind": "consumer_installment",
+                      "contract": {
+                        "schema": "consumer-installment-1",
+                        "identity": {
+                          "position_id": "loan-unit-1",
+                          "original_loan_id": "loan-1",
+                          "cohort_id": "cohort-1",
+                          "currency": "USD",
+                          "source_revision": "tape-1",
+                          "model_version": "consumer-installment-1",
+                          "assumption_id": "known-contract",
+                          "run_id": "known-opening",
+                          "measure": "contractual"
+                        },
+                        "product": {
+                          "kind": "personal",
+                          "vintage_ordinal": 738551,
+                          "dti": 0.4,
+                          "dti_definition": "monthly-debt/gross-monthly-income",
+                          "channel": "branch",
+                          "collection_fraction": 0.5,
+                          "collection_cost": 50,
+                          "recovery_delay_days": 20
+                        },
+                        "as_of_ordinal": 738916,
+                        "horizon_days": 120,
+                        "original_principal": 1000,
+                        "opening_principal": 1000,
+                        "opening_accrued_interest": 0,
+                        "opening_unrecognized_interest": 0,
+                        "opening_fees": 0,
+                        "initial_state": "performing",
+                        "note_rate": 0.365,
+                        "disclosed_apr": 0.5,
+                        "day_count": "act365_fixed",
+                        "original_payment": 529,
+                        "payment_dates": [
+                          738945,
+                          738976
+                        ],
+                        "prepayment_penalty_fraction": 0,
+                        "accrue_contract_interest_in_nonaccrual": true,
+                        "steps": []
+                      },
+                      "histories": [
+                        {
+                          "scenario_id": "base",
+                          "physical": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "physical-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_down": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-down-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_up": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-up-scheduled",
+                              "steps": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "ordinal": 738945,
+            "scenario_id": "base",
+            "physical_path_id": "paired-0",
+            "graph": {
+              "kind": "consumer_installment",
+              "request": {
+                "schema": "advanced-product-graph-1",
+                "identity": {
+                  "model_revision": "consumer-supplied-v1",
+                  "input_revision": "graph-input-v1",
+                  "paired_history_source": "explicit-controlled-actions",
+                  "paired_history_revision": "paired-v1",
+                  "randomness_domain": "supplied_paired_histories-1"
+                },
+                "as_of_ordinal": 738916,
+                "currency": "USD",
+                "reporting_ordinals": [
+                  738916,
+                  738945,
+                  738976
+                ],
+                "base_scenario_id": "base",
+                "bump_bp": 25,
+                "scenarios": [
+                  {
+                    "scenario_id": "base",
+                    "run_id": "base-run",
+                    "severity": 1,
+                    "collateral_curve": {
+                      "curve_id": "zero-collateral",
+                      "source_id": "supplied-synthetic",
+                      "source_revision": "v1",
+                      "currency": "USD",
+                      "role": {
+                        "kind": "collateral",
+                        "collateral_index": "SOFR"
+                      },
+                      "times_years": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "discount_factors": [
+                        1,
+                        1,
+                        1
+                      ],
+                      "right_tail": "reject"
+                    }
+                  }
+                ],
+                "positions": [
+                  {
+                    "position_id": "loan-unit-1",
+                    "oas_target": {
+                      "kind": "locked",
+                      "base_oas": 0.019802627296179712,
+                      "source_id": "reviewed-oas",
+                      "source_revision": "v1"
+                    },
+                    "product": {
+                      "kind": "consumer_installment",
+                      "contract": {
+                        "schema": "consumer-installment-1",
+                        "identity": {
+                          "position_id": "loan-unit-1",
+                          "original_loan_id": "loan-1",
+                          "cohort_id": "cohort-1",
+                          "currency": "USD",
+                          "source_revision": "tape-1",
+                          "model_version": "consumer-installment-1",
+                          "assumption_id": "known-contract",
+                          "run_id": "known-opening",
+                          "measure": "contractual"
+                        },
+                        "product": {
+                          "kind": "personal",
+                          "vintage_ordinal": 738551,
+                          "dti": 0.4,
+                          "dti_definition": "monthly-debt/gross-monthly-income",
+                          "channel": "branch",
+                          "collection_fraction": 0.5,
+                          "collection_cost": 50,
+                          "recovery_delay_days": 20
+                        },
+                        "as_of_ordinal": 738916,
+                        "horizon_days": 120,
+                        "original_principal": 1000,
+                        "opening_principal": 1000,
+                        "opening_accrued_interest": 0,
+                        "opening_unrecognized_interest": 0,
+                        "opening_fees": 0,
+                        "initial_state": "performing",
+                        "note_rate": 0.365,
+                        "disclosed_apr": 0.5,
+                        "day_count": "act365_fixed",
+                        "original_payment": 529,
+                        "payment_dates": [
+                          738945,
+                          738976
+                        ],
+                        "prepayment_penalty_fraction": 0,
+                        "accrue_contract_interest_in_nonaccrual": true,
+                        "steps": []
+                      },
+                      "histories": [
+                        {
+                          "scenario_id": "base",
+                          "physical": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "physical-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_down": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-down-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_up": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-up-scheduled",
+                              "steps": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "unit_id": "loan-unit-2",
+        "template_id": "loan-template-2",
+        "purchase_ordinal": 738916,
+        "unit_face": 1000.0,
+        "quote_price_per_face_unit": 1.0407603679495483,
+        "accounting_category": "supplied-amortized-cost",
+        "capital_policy_revision": "synthetic-weights-v1",
+        "weights": {
+          "hqla_l2a": 0.0,
+          "outflow30": 0.1,
+          "asf": 0.9,
+          "rsf": 0.0,
+          "rwa": 0.0
+        },
+        "purchase_graph": {
+          "kind": "consumer_installment",
+          "request": {
+            "schema": "advanced-product-graph-1",
+            "identity": {
+              "model_revision": "consumer-supplied-v1",
+              "input_revision": "graph-input-v1",
+              "paired_history_source": "explicit-controlled-actions",
+              "paired_history_revision": "paired-v1",
+              "randomness_domain": "supplied_paired_histories-1"
+            },
+            "as_of_ordinal": 738916,
+            "currency": "USD",
+            "reporting_ordinals": [
+              738916,
+              738945,
+              738976
+            ],
+            "base_scenario_id": "base",
+            "bump_bp": 25,
+            "scenarios": [
+              {
+                "scenario_id": "base",
+                "run_id": "base-run",
+                "severity": 1,
+                "collateral_curve": {
+                  "curve_id": "zero-collateral",
+                  "source_id": "supplied-synthetic",
+                  "source_revision": "v1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0,
+                    1,
+                    2
+                  ],
+                  "discount_factors": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "right_tail": "reject"
+                }
+              }
+            ],
+            "positions": [
+              {
+                "position_id": "loan-unit-2",
+                "oas_target": {
+                  "kind": "locked",
+                  "base_oas": 0.0295588022415444,
+                  "source_id": "reviewed-oas",
+                  "source_revision": "v1"
+                },
+                "product": {
+                  "kind": "consumer_installment",
+                  "contract": {
+                    "schema": "consumer-installment-1",
+                    "identity": {
+                      "position_id": "loan-unit-2",
+                      "original_loan_id": "loan-1",
+                      "cohort_id": "cohort-1",
+                      "currency": "USD",
+                      "source_revision": "tape-1",
+                      "model_version": "consumer-installment-1",
+                      "assumption_id": "known-contract",
+                      "run_id": "known-opening",
+                      "measure": "contractual"
+                    },
+                    "product": {
+                      "kind": "personal",
+                      "vintage_ordinal": 738551,
+                      "dti": 0.4,
+                      "dti_definition": "monthly-debt/gross-monthly-income",
+                      "channel": "branch",
+                      "collection_fraction": 0.5,
+                      "collection_cost": 50,
+                      "recovery_delay_days": 20
+                    },
+                    "as_of_ordinal": 738916,
+                    "horizon_days": 120,
+                    "original_principal": 1000,
+                    "opening_principal": 1000,
+                    "opening_accrued_interest": 0,
+                    "opening_unrecognized_interest": 0,
+                    "opening_fees": 0,
+                    "initial_state": "performing",
+                    "note_rate": 0.365,
+                    "disclosed_apr": 0.5,
+                    "day_count": "act365_fixed",
+                    "original_payment": 529,
+                    "payment_dates": [
+                      738945,
+                      738976
+                    ],
+                    "prepayment_penalty_fraction": 0,
+                    "accrue_contract_interest_in_nonaccrual": true,
+                    "steps": []
+                  },
+                  "histories": [
+                    {
+                      "scenario_id": "base",
+                      "physical": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "physical-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing_down": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-down-scheduled",
+                          "steps": []
+                        }
+                      ],
+                      "pricing_up": [
+                        {
+                          "path_id": "paired-0",
+                          "weight": 1,
+                          "assumption_id": "pricing-up-scheduled",
+                          "steps": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "income_policy": {
+          "review": {
+            "id": "synthetic-reviewed-performing-loan-2",
+            "revision": "1"
+          },
+          "original_yield_anchor": {
+            "id": "synthetic-original-yield",
+            "revision": "1"
+          },
+          "original_annual_effective_rate": 0.03
+        },
+        "age_branches": [
+          {
+            "ordinal": 738916,
+            "scenario_id": "base",
+            "physical_path_id": "paired-0",
+            "graph": {
+              "kind": "consumer_installment",
+              "request": {
+                "schema": "advanced-product-graph-1",
+                "identity": {
+                  "model_revision": "consumer-supplied-v1",
+                  "input_revision": "graph-input-v1",
+                  "paired_history_source": "explicit-controlled-actions",
+                  "paired_history_revision": "paired-v1",
+                  "randomness_domain": "supplied_paired_histories-1"
+                },
+                "as_of_ordinal": 738916,
+                "currency": "USD",
+                "reporting_ordinals": [
+                  738916,
+                  738945,
+                  738976
+                ],
+                "base_scenario_id": "base",
+                "bump_bp": 25,
+                "scenarios": [
+                  {
+                    "scenario_id": "base",
+                    "run_id": "base-run",
+                    "severity": 1,
+                    "collateral_curve": {
+                      "curve_id": "zero-collateral",
+                      "source_id": "supplied-synthetic",
+                      "source_revision": "v1",
+                      "currency": "USD",
+                      "role": {
+                        "kind": "collateral",
+                        "collateral_index": "SOFR"
+                      },
+                      "times_years": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "discount_factors": [
+                        1,
+                        1,
+                        1
+                      ],
+                      "right_tail": "reject"
+                    }
+                  }
+                ],
+                "positions": [
+                  {
+                    "position_id": "loan-unit-2",
+                    "oas_target": {
+                      "kind": "locked",
+                      "base_oas": 0.0295588022415444,
+                      "source_id": "reviewed-oas",
+                      "source_revision": "v1"
+                    },
+                    "product": {
+                      "kind": "consumer_installment",
+                      "contract": {
+                        "schema": "consumer-installment-1",
+                        "identity": {
+                          "position_id": "loan-unit-2",
+                          "original_loan_id": "loan-1",
+                          "cohort_id": "cohort-1",
+                          "currency": "USD",
+                          "source_revision": "tape-1",
+                          "model_version": "consumer-installment-1",
+                          "assumption_id": "known-contract",
+                          "run_id": "known-opening",
+                          "measure": "contractual"
+                        },
+                        "product": {
+                          "kind": "personal",
+                          "vintage_ordinal": 738551,
+                          "dti": 0.4,
+                          "dti_definition": "monthly-debt/gross-monthly-income",
+                          "channel": "branch",
+                          "collection_fraction": 0.5,
+                          "collection_cost": 50,
+                          "recovery_delay_days": 20
+                        },
+                        "as_of_ordinal": 738916,
+                        "horizon_days": 120,
+                        "original_principal": 1000,
+                        "opening_principal": 1000,
+                        "opening_accrued_interest": 0,
+                        "opening_unrecognized_interest": 0,
+                        "opening_fees": 0,
+                        "initial_state": "performing",
+                        "note_rate": 0.365,
+                        "disclosed_apr": 0.5,
+                        "day_count": "act365_fixed",
+                        "original_payment": 529,
+                        "payment_dates": [
+                          738945,
+                          738976
+                        ],
+                        "prepayment_penalty_fraction": 0,
+                        "accrue_contract_interest_in_nonaccrual": true,
+                        "steps": []
+                      },
+                      "histories": [
+                        {
+                          "scenario_id": "base",
+                          "physical": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "physical-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_down": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-down-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_up": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-up-scheduled",
+                              "steps": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "ordinal": 738945,
+            "scenario_id": "base",
+            "physical_path_id": "paired-0",
+            "graph": {
+              "kind": "consumer_installment",
+              "request": {
+                "schema": "advanced-product-graph-1",
+                "identity": {
+                  "model_revision": "consumer-supplied-v1",
+                  "input_revision": "graph-input-v1",
+                  "paired_history_source": "explicit-controlled-actions",
+                  "paired_history_revision": "paired-v1",
+                  "randomness_domain": "supplied_paired_histories-1"
+                },
+                "as_of_ordinal": 738916,
+                "currency": "USD",
+                "reporting_ordinals": [
+                  738916,
+                  738945,
+                  738976
+                ],
+                "base_scenario_id": "base",
+                "bump_bp": 25,
+                "scenarios": [
+                  {
+                    "scenario_id": "base",
+                    "run_id": "base-run",
+                    "severity": 1,
+                    "collateral_curve": {
+                      "curve_id": "zero-collateral",
+                      "source_id": "supplied-synthetic",
+                      "source_revision": "v1",
+                      "currency": "USD",
+                      "role": {
+                        "kind": "collateral",
+                        "collateral_index": "SOFR"
+                      },
+                      "times_years": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "discount_factors": [
+                        1,
+                        1,
+                        1
+                      ],
+                      "right_tail": "reject"
+                    }
+                  }
+                ],
+                "positions": [
+                  {
+                    "position_id": "loan-unit-2",
+                    "oas_target": {
+                      "kind": "locked",
+                      "base_oas": 0.0295588022415444,
+                      "source_id": "reviewed-oas",
+                      "source_revision": "v1"
+                    },
+                    "product": {
+                      "kind": "consumer_installment",
+                      "contract": {
+                        "schema": "consumer-installment-1",
+                        "identity": {
+                          "position_id": "loan-unit-2",
+                          "original_loan_id": "loan-1",
+                          "cohort_id": "cohort-1",
+                          "currency": "USD",
+                          "source_revision": "tape-1",
+                          "model_version": "consumer-installment-1",
+                          "assumption_id": "known-contract",
+                          "run_id": "known-opening",
+                          "measure": "contractual"
+                        },
+                        "product": {
+                          "kind": "personal",
+                          "vintage_ordinal": 738551,
+                          "dti": 0.4,
+                          "dti_definition": "monthly-debt/gross-monthly-income",
+                          "channel": "branch",
+                          "collection_fraction": 0.5,
+                          "collection_cost": 50,
+                          "recovery_delay_days": 20
+                        },
+                        "as_of_ordinal": 738916,
+                        "horizon_days": 120,
+                        "original_principal": 1000,
+                        "opening_principal": 1000,
+                        "opening_accrued_interest": 0,
+                        "opening_unrecognized_interest": 0,
+                        "opening_fees": 0,
+                        "initial_state": "performing",
+                        "note_rate": 0.365,
+                        "disclosed_apr": 0.5,
+                        "day_count": "act365_fixed",
+                        "original_payment": 529,
+                        "payment_dates": [
+                          738945,
+                          738976
+                        ],
+                        "prepayment_penalty_fraction": 0,
+                        "accrue_contract_interest_in_nonaccrual": true,
+                        "steps": []
+                      },
+                      "histories": [
+                        {
+                          "scenario_id": "base",
+                          "physical": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "physical-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_down": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-down-scheduled",
+                              "steps": []
+                            }
+                          ],
+                          "pricing_up": [
+                            {
+                              "path_id": "paired-0",
+                              "weight": 1,
+                              "assumption_id": "pricing-up-scheduled",
+                              "steps": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "bases": [
+    {
+      "scenario_id": "base",
+      "base": {
+        "nii": 20.0,
+        "dv01": 0.0,
+        "eve": 1000000.0,
+        "l1": 10000.0,
+        "l2": 0.0,
+        "nco": 1.0,
+        "asf": 10000.0,
+        "rsf": 1.0,
+        "cet1": 10000.0,
+        "rwa": 1.0,
+        "ni": 0.7,
+        "mv_assets": 1000000.0
+      }
+    }
+  ],
+  "constraints": {
+    "lcr_min": 0.0,
+    "nsfr_min": 0.0,
+    "cet1_min": 0.0,
+    "eve_limit": 1.0,
+    "cash_budget": 10000.0,
+    "max_total_assets": 100.0,
+    "commercial": [],
+    "capital_limits": []
+  },
+  "max_purchase_cost_assets": null,
+  "face_limits": [
+    {
+      "label": "reviewed-first-minimum",
+      "policy_id": "synthetic-policy-v1",
+      "selector": {
+        "kind": "unit",
+        "unit_id": "loan-unit-1"
+      },
+      "sense": ">=",
+      "amount": 20.0
+    },
+    {
+      "label": "reviewed-second-cap",
+      "policy_id": "synthetic-policy-v1",
+      "selector": {
+        "kind": "unit",
+        "unit_id": "loan-unit-2"
+      },
+      "sense": "<=",
+      "amount": 80.0
+    }
+  ],
+  "capital_dependency": null
+}

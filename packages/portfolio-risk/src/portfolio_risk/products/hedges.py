@@ -30,6 +30,7 @@ All designations contribute identically to EVE/duration/dv01 -- the
 economics don't care about the accounting; the capital path does.
 """
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 from ..core.runtime import path_count
 
@@ -116,7 +117,7 @@ def swaption_value(book: pl.DataFrame, paths, n_paths: int) -> np.ndarray:
                 raise ValueError(f'tenor {tenor} not in emitted paths {SWPN_TENORS}')
             terms.append([SWPN_TENORS.index(tenor),int(row['expiry_m']),int(tenor*2),
                           1 if row['side']=='payer' else -1,row['strike']])
-        return native.call(12,[paths['swaps'],paths['df'],np.asarray(terms).reshape(-1,5),n_paths],[(len(book),)])[0]
+        return native.call(Op.SWAPTION,[paths['swaps'],paths['df'],np.asarray(terms).reshape(-1,5),n_paths],[(len(book),)])[0]
     sw = paths["swaps"]            # (P, 4, T) array: [s2, s5, s10, s30]
     df = paths["df"]
     out = np.empty(len(book))

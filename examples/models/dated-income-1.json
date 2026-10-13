@@ -1,0 +1,27 @@
+{
+  "schema": "dated-income-1",
+  "contract": {"id": "synthetic-loan", "revision": "v1"},
+  "original_yield_anchor": {"id": "original-yield", "revision": "supplied-v1"},
+  "policy": {"id": "synthetic-income-policy", "revision": "v1"},
+  "currency": "USD",
+  "monetary_unit": "currency_units",
+  "measure": "contractual",
+  "as_of_ordinal": 738886,
+  "full_contract_end_ordinal": 739251,
+  "opening_principal": 100.0,
+  "opening_accrued_interest": 0.0,
+  "opening_gross_carrying_value": 100.0,
+  "original_annual_effective_rate": 0.1,
+  "opening_annual_effective_rate": 0.1,
+  "events": [{
+    "event_id": "maturity",
+    "source": {"id": "contractual-cash", "revision": "v1"},
+    "payment_ordinal": 739251,
+    "contractual_interest_earned": 10.0,
+    "principal_cash": 100.0,
+    "interest_cash": 10.0,
+    "integral_fee_cash": 0.0,
+    "nonintegral_fee_cash": 0.0,
+    "yield_change": null
+  }]
+}

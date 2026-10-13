@@ -1,0 +1,5002 @@
+{
+  "model_contracts": [
+    "advanced-product-graph-1",
+    "aged-units-1",
+    "card-credit-accounting-1",
+    "card-credit-accounting-2",
+    "card-product-graph-1",
+    "cd-election-1",
+    "commercial-candidate-journal-1",
+    "commercial-fee-journal-1",
+    "commercial-generated-exercise-1",
+    "commercial-holding-continuation-1",
+    "commercial-holding-journal-1",
+    "commercial-product-graph-1",
+    "commercial-treasury-1",
+    "commercial-units-1",
+    "conditional-exercise-1",
+    "consumer-card-1",
+    "consumer-credit-accounting-1",
+    "consumer-installment-1",
+    "credit-covariate-1",
+    "credit-path-1",
+    "credit-path-accounting-1",
+    "credit-snapshot-calibration-1",
+    "dated-income-1",
+    "deposit-product-graph-1",
+    "deposit-state-1",
+    "derivative-accounting-1",
+    "derivative-contract-1",
+    "funding-contract-1",
+    "funding-product-graph-1",
+    "graph-cohort-audit-1",
+    "indexed-contract-1",
+    "joint-market-credit-1",
+    "joint-state-1",
+    "market-driver-calibration-1",
+    "market-indexed-adapter-1",
+    "market-indexed-books-1",
+    "market-quote-bootstrap-1",
+    "model-market-1",
+    "mortgage-credit-accounting-1",
+    "mortgage-product-graph-1",
+    "mortgage-state-1",
+    "nonintegral-fee-accounting-1",
+    "observed-deposit-calibration-1",
+    "product-candidate-journal-1",
+    "product-mixed-consumer-credit-1",
+    "product-mixed-dated-1",
+    "product-mixed-product-credit-1",
+    "product-units-1",
+    "strategy-product-1",
+    "term-product-graph-1",
+    "term-product-graph-2",
+    "term-product-reprice-2"
+  ],
+  "operations": {
+    "delete_decision_sessions_sid": {
+      "description": "Close Decision [DELETE /decision/sessions/{sid}; permission=cancel].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "DELETE",
+      "path": "/decision/sessions/{sid}",
+      "permission": "cancel"
+    },
+    "delete_jobs_jid": {
+      "description": "Cancel Job [DELETE /jobs/{jid}; permission=cancel].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "DELETE",
+      "path": "/jobs/{jid}",
+      "permission": "cancel"
+    },
+    "delete_programs_name": {
+      "description": "Del Program [DELETE /programs/{name}; permission=edit].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "DELETE",
+      "path": "/programs/{name}",
+      "permission": "edit"
+    },
+    "delete_scenarios_name": {
+      "description": "Del Scenario [DELETE /scenarios/{name}; permission=edit].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "DELETE",
+      "path": "/scenarios/{name}",
+      "permission": "edit"
+    },
+    "get_assumptions": {
+      "description": "Get Assumptions [GET /assumptions; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/assumptions",
+      "permission": "read"
+    },
+    "get_balance_stress_capabilities": {
+      "description": "Balance Stress Capabilities [GET /balance-stress/capabilities; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/capabilities",
+      "permission": "read"
+    },
+    "get_balance_stress_credit_example": {
+      "description": "Credit Balance Stress Example [GET /balance-stress/credit/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/credit/example",
+      "permission": "read"
+    },
+    "get_balance_stress_credit_path_example": {
+      "description": "Credit Path Balance Stress Example [GET /balance-stress/credit-path/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/credit-path/example",
+      "permission": "read"
+    },
+    "get_balance_stress_dated_example": {
+      "description": "Dated Balance Stress Example [GET /balance-stress/dated/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/dated/example",
+      "permission": "read"
+    },
+    "get_balance_stress_example": {
+      "description": "Balance Stress Example [GET /balance-stress/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/example",
+      "permission": "read"
+    },
+    "get_balance_stress_inventory": {
+      "description": "Balance Stress Inventory [GET /balance-stress/inventory; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/inventory",
+      "permission": "read"
+    },
+    "get_balance_stress_modeled_schema_example": {
+      "description": "Modeled Balance Stress Example [GET /balance-stress/modeled/{schema}/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "schema": {
+                "title": "Schema",
+                "type": "string"
+              }
+            },
+            "required": [
+              "schema"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/balance-stress/modeled/{schema}/example",
+      "permission": "read"
+    },
+    "get_books": {
+      "description": "List Books [GET /books; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/books",
+      "permission": "read"
+    },
+    "get_books_name": {
+      "description": "Get Book [GET /books/{name}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "view": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/books/{name}",
+      "permission": "read",
+      "transport": "arrow"
+    },
+    "get_books_name_rows": {
+      "description": "Read a bounded JSON book page and schema at one input revision. [GET /books/{name}/rows; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "columns": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Columns"
+              },
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Offset",
+                "type": "integer"
+              },
+              "position_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Position Id"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/books/{name}/rows",
+      "permission": "read"
+    },
+    "get_cohorts_audits_jid_summary": {
+      "description": "Audit Summary [GET /cohorts/audits/{jid}/summary; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/cohorts/audits/{jid}/summary",
+      "permission": "read"
+    },
+    "get_cohorts_builds_jid_lineage": {
+      "description": "Lineage [GET /cohorts/builds/{jid}/lineage; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "cohort_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cohort Id"
+              },
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "loan_id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Loan Id"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Offset",
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/cohorts/builds/{jid}/lineage",
+      "permission": "read"
+    },
+    "get_cohorts_builds_jid_summary": {
+      "description": "Summary [GET /cohorts/builds/{jid}/summary; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/cohorts/builds/{jid}/summary",
+      "permission": "read"
+    },
+    "get_cohorts_example": {
+      "description": "Example [GET /cohorts/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/cohorts/example",
+      "permission": "read"
+    },
+    "get_cohorts_presets": {
+      "description": "Presets [GET /cohorts/presets; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/cohorts/presets",
+      "permission": "read"
+    },
+    "get_decision_sessions": {
+      "description": "Discover persisted sessions, including stale and closed sessions. [GET /decision/sessions; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Offset",
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/decision/sessions",
+      "permission": "read"
+    },
+    "get_decision_sessions_sid": {
+      "description": "Inspect durable identity/version without recovering or repricing the session. [GET /decision/sessions/{sid}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/decision/sessions/{sid}",
+      "permission": "read"
+    },
+    "get_derivatives_deposit_portfolio_example": {
+      "description": "Example [GET /derivatives/deposit-portfolio/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/derivatives/deposit-portfolio/example",
+      "permission": "read"
+    },
+    "get_derivatives_mixed_example": {
+      "description": "Example [GET /derivatives/mixed/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/derivatives/mixed/example",
+      "permission": "read"
+    },
+    "get_health": {
+      "description": "Health [GET /health; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/health",
+      "permission": "read"
+    },
+    "get_hedges": {
+      "description": "Get Hedges [GET /hedges; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "view": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/hedges",
+      "permission": "read",
+      "transport": "arrow"
+    },
+    "get_jobs": {
+      "description": "Discover prior jobs after reconnecting; returns metadata without result hydration. [GET /jobs; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "idempotency_key": {
+                "anyOf": [
+                  {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Idempotency Key"
+              },
+              "kind": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Kind"
+              },
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Offset",
+                "type": "integer"
+              },
+              "status": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "queued",
+                      "running",
+                      "done",
+                      "error"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Status"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs",
+      "permission": "read"
+    },
+    "get_jobs_jid": {
+      "description": "Job [GET /jobs/{jid}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs/{jid}",
+      "permission": "read"
+    },
+    "get_jobs_jid_manifest": {
+      "description": "Run Manifest [GET /jobs/{jid}/manifest; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs/{jid}/manifest",
+      "permission": "read"
+    },
+    "get_jobs_jid_parquet": {
+      "description": "Result Parquet [GET /jobs/{jid}/parquet; permission=read]. Returns an authenticated download reference; does not inline binary exports.",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "partition": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Partition"
+              },
+              "path": {
+                "title": "Path",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "query"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs/{jid}/parquet",
+      "permission": "read",
+      "transport": "artifact"
+    },
+    "get_jobs_jid_result": {
+      "description": "Computed frames for a finished job, as an Arrow IPC envelope. Polling\nGET /jobs/{jid} stays cheap JSON; the heavy result is fetched once here. [GET /jobs/{jid}/result; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "view": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs/{jid}/result",
+      "permission": "read",
+      "transport": "arrow"
+    },
+    "get_jobs_jid_table": {
+      "description": "Result Table [GET /jobs/{jid}/table; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "title": "Offset",
+                "type": "integer"
+              },
+              "path": {
+                "title": "Path",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "query"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/jobs/{jid}/table",
+      "permission": "read"
+    },
+    "get_market": {
+      "description": "Get Market [GET /market; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/market",
+      "permission": "read"
+    },
+    "get_market_data_snapshots": {
+      "description": "Research Snapshots [GET /market-data/snapshots; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/market-data/snapshots",
+      "permission": "read"
+    },
+    "get_market_data_snapshots_sid": {
+      "description": "Research Snapshot [GET /market-data/snapshots/{sid}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "title": "Limit",
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "title": "Offset",
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/market-data/snapshots/{sid}",
+      "permission": "read"
+    },
+    "get_market_data_snapshots_sid_export": {
+      "description": "Export Research Snapshot [GET /market-data/snapshots/{sid}/export; permission=read]. Returns an authenticated download reference; does not inline binary exports.",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/market-data/snapshots/{sid}/export",
+      "permission": "read",
+      "transport": "artifact"
+    },
+    "get_market_data_sources": {
+      "description": "Research Sources [GET /market-data/sources; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/market-data/sources",
+      "permission": "read"
+    },
+    "get_models_contracts": {
+      "description": "Contracts [GET /models/contracts; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/models/contracts",
+      "permission": "read"
+    },
+    "get_models_examples_schema": {
+      "description": "Example [GET /models/examples/{schema}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "schema": {
+                "title": "Schema",
+                "type": "string"
+              }
+            },
+            "required": [
+              "schema"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/models/examples/{schema}",
+      "permission": "read"
+    },
+    "get_pricing_assumptions": {
+      "description": "Pricing Assumptions [GET /pricing/assumptions; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/pricing/assumptions",
+      "permission": "read"
+    },
+    "get_programs": {
+      "description": "List Programs [GET /programs; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/programs",
+      "permission": "read"
+    },
+    "get_revisions": {
+      "description": "Revision History [GET /revisions; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/revisions",
+      "permission": "read"
+    },
+    "get_scenarios": {
+      "description": "List Scenarios [GET /scenarios; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/scenarios",
+      "permission": "read"
+    },
+    "get_settings": {
+      "description": "Get Settings [GET /settings; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/settings",
+      "permission": "read"
+    },
+    "get_state": {
+      "description": "State Status [GET /state; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/state",
+      "permission": "read"
+    },
+    "get_treasury_example": {
+      "description": "Example [GET /treasury/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/treasury/example",
+      "permission": "read"
+    },
+    "get_treasury_modeled_product_ftp_example": {
+      "description": "Modeled Product Ftp Example [GET /treasury/modeled-product-ftp/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/treasury/modeled-product-ftp/example",
+      "permission": "read"
+    },
+    "get_treasury_modeled_product_ftp_sources_jid": {
+      "description": "Bounded compatibility metadata only; the NEW worker independently replays sources. [GET /treasury/modeled-product-ftp/sources/{jid}; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "card_v2",
+                  "deposit_performing",
+                  "deposit_portfolio"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "query"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/treasury/modeled-product-ftp/sources/{jid}",
+      "permission": "read"
+    },
+    "get_treasury_sources_jid_template": {
+      "description": "Source Template [GET /treasury/sources/{jid}/template; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "ledger",
+                  "credit_ledger",
+                  "cashflows"
+                ],
+                "title": "Kind",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "query"
+        ],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/treasury/sources/{jid}/template",
+      "permission": "read"
+    },
+    "patch_books_name_rows": {
+      "description": "Commit validated targeted edits atomically; invalidate prepared coefficients. [PATCH /books/{name}/rows; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "BookEdit": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "updates": {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxProperties": 1000,
+                "minProperties": 1,
+                "title": "Updates",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "updates"
+            ],
+            "title": "BookEdit",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/BookEdit"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PATCH",
+      "path": "/books/{name}/rows",
+      "permission": "edit"
+    },
+    "post_balance_stress_credit": {
+      "description": "Credit Balance Stress [POST /balance-stress/credit; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "CreditBalanceStressRequest": {
+            "additionalProperties": false,
+            "description": "Explicit source-owned joint credit; native admission includes work bounds.",
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "large_book": {
+                "default": false,
+                "title": "Large Book",
+                "type": "boolean"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "CreditBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/CreditBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/credit",
+      "permission": "compute"
+    },
+    "post_balance_stress_credit_path": {
+      "description": "Credit Path Balance Stress [POST /balance-stress/credit-path; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "CreditPathBalanceStressRequest": {
+            "additionalProperties": false,
+            "description": "Explicit realized credit path ownership with native structural admission.",
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "large_book": {
+                "default": false,
+                "title": "Large Book",
+                "type": "boolean"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "CreditPathBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/CreditPathBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/credit-path",
+      "permission": "compute"
+    },
+    "post_balance_stress_dated": {
+      "description": "Dated Balance Stress [POST /balance-stress/dated; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "DatedBalanceStressRequest": {
+            "additionalProperties": false,
+            "description": "Explicit source-owned scheduled recognition; quant admission stays native.",
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "large_book": {
+                "default": false,
+                "title": "Large Book",
+                "type": "boolean"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "DatedBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/DatedBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/dated",
+      "permission": "compute"
+    },
+    "post_balance_stress_modeled": {
+      "description": "Modeled Balance Stress [POST /balance-stress/modeled; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ModeledBalanceStressRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "large_book": {
+                "default": false,
+                "title": "Large Book",
+                "type": "boolean"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "ModeledBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ModeledBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/modeled",
+      "permission": "compute"
+    },
+    "post_balance_stress_run": {
+      "description": "Run Balance Stress [POST /balance-stress/run; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "BalanceStressRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "BalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/BalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/run",
+      "permission": "compute"
+    },
+    "post_balance_stress_saved_book": {
+      "description": "Saved Balance Stress [POST /balance-stress/saved-book; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "Allocation": {
+            "properties": {
+              "notional": {
+                "minimum": 0.0,
+                "title": "Notional",
+                "type": "number"
+              },
+              "purchase_m": {
+                "maximum": 359.0,
+                "minimum": 0.0,
+                "title": "Purchase M",
+                "type": "integer"
+              },
+              "template": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "template",
+              "purchase_m",
+              "notional"
+            ],
+            "title": "Allocation",
+            "type": "object"
+          },
+          "SavedBalanceStressRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "allocation": {
+                "items": {
+                  "$ref": "#/$defs/Allocation"
+                },
+                "maxItems": 2000,
+                "title": "Allocation",
+                "type": "array"
+              },
+              "amount_scale": {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000000.0,
+                "title": "Amount Scale",
+                "type": "number"
+              },
+              "calibration": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Calibration"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "observations": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxItems": 10000,
+                "title": "Observations",
+                "type": "array"
+              },
+              "position_mapping": {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxProperties": 2000,
+                "title": "Position Mapping",
+                "type": "object"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "template_mapping": {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxProperties": 100,
+                "title": "Template Mapping",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification",
+              "position_mapping",
+              "amount_scale"
+            ],
+            "title": "SavedBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/SavedBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/saved-book",
+      "permission": "compute"
+    },
+    "post_balance_stress_stream": {
+      "description": "Streamed Balance Stress [POST /balance-stress/stream; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "StreamedBalanceStressRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "backend": {
+                "const": "rust",
+                "default": "rust",
+                "title": "Backend",
+                "type": "string"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "large_book": {
+                "default": false,
+                "title": "Large Book",
+                "type": "boolean"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "StreamedBalanceStressRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/StreamedBalanceStressRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/balance-stress/stream",
+      "permission": "compute"
+    },
+    "post_books_name_preview": {
+      "description": "Validate targeted edits and show the diff without committing or pricing. [POST /books/{name}/preview; permission=read].",
+      "inputSchema": {
+        "$defs": {
+          "BookEdit": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "updates": {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxProperties": 1000,
+                "minProperties": 1,
+                "title": "Updates",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "updates"
+            ],
+            "title": "BookEdit",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/BookEdit"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/books/{name}/preview",
+      "permission": "read"
+    },
+    "post_cohorts_builds": {
+      "description": "Build [POST /cohorts/builds; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "Build": {
+            "additionalProperties": false,
+            "properties": {
+              "baseline_job": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Baseline Job"
+              },
+              "config": {
+                "additionalProperties": true,
+                "title": "Config",
+                "type": "object"
+              },
+              "expected_revision": {
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "previous_job": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Previous Job"
+              },
+              "tape_id": {
+                "title": "Tape Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tape_id",
+              "config",
+              "expected_revision"
+            ],
+            "title": "Build",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Build"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/cohorts/builds",
+      "permission": "compute"
+    },
+    "post_cohorts_builds_jid_analytics": {
+      "description": "Analytics [POST /cohorts/builds/{jid}/analytics; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "Analyze": {
+            "additionalProperties": false,
+            "properties": {
+              "loan_ids": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 256,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Loan Ids"
+              },
+              "products": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "minItems": 1,
+                "title": "Products",
+                "type": "array"
+              }
+            },
+            "required": [
+              "products"
+            ],
+            "title": "Analyze",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Analyze"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/cohorts/builds/{jid}/analytics",
+      "permission": "compute"
+    },
+    "post_cohorts_builds_jid_attribution": {
+      "description": "Attribution [POST /cohorts/builds/{jid}/attribution; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "Attribution": {
+            "additionalProperties": false,
+            "properties": {
+              "analytics_job": {
+                "title": "Analytics Job",
+                "type": "string"
+              }
+            },
+            "required": [
+              "analytics_job"
+            ],
+            "title": "Attribution",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Attribution"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/cohorts/builds/{jid}/attribution",
+      "permission": "compute"
+    },
+    "post_cohorts_builds_jid_audit": {
+      "description": "Audit [POST /cohorts/builds/{jid}/audit; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "Audit": {
+            "additionalProperties": false,
+            "properties": {
+              "products": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "minItems": 1,
+                "title": "Products",
+                "type": "array"
+              },
+              "shocks": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 9,
+                "minItems": 1,
+                "title": "Shocks",
+                "type": "array"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 3600.0,
+                "title": "Timeout",
+                "type": "number"
+              },
+              "tolerances": {
+                "additionalProperties": true,
+                "title": "Tolerances",
+                "type": "object"
+              }
+            },
+            "required": [
+              "products"
+            ],
+            "title": "Audit",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Audit"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/cohorts/builds/{jid}/audit",
+      "permission": "compute"
+    },
+    "post_cohorts_imports": {
+      "description": "Import Tape [POST /cohorts/imports; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "TapeImport": {
+            "additionalProperties": false,
+            "properties": {
+              "content_base64": {
+                "anyOf": [
+                  {
+                    "maxLength": 44739244,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Content Base64"
+              },
+              "format": {
+                "pattern": "^(csv|parquet)$",
+                "title": "Format",
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Name",
+                "type": "string"
+              },
+              "uri": {
+                "anyOf": [
+                  {
+                    "maxLength": 2000,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Uri"
+              }
+            },
+            "required": [
+              "name",
+              "format"
+            ],
+            "title": "TapeImport",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/TapeImport"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/cohorts/imports",
+      "permission": "compute"
+    },
+    "post_decision_sessions": {
+      "description": "Build Decision [POST /decision/sessions; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "CommercialConstraint": {
+            "properties": {
+              "label": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Label",
+                "type": "string"
+              },
+              "rhs": {
+                "minimum": 0.0,
+                "title": "Rhs",
+                "type": "number"
+              },
+              "sense": {
+                "enum": [
+                  ">=",
+                  "<="
+                ],
+                "title": "Sense",
+                "type": "string"
+              },
+              "template": {
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "template",
+              "sense",
+              "rhs"
+            ],
+            "title": "CommercialConstraint",
+            "type": "object"
+          },
+          "DecisionBuildRequest": {
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "options": {
+                "$ref": "#/$defs/OptimizeRequest"
+              }
+            },
+            "required": [
+              "expected_revision"
+            ],
+            "title": "DecisionBuildRequest",
+            "type": "object"
+          },
+          "OptimizeRequest": {
+            "properties": {
+              "capital_limits": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxItems": 2048,
+                "title": "Capital Limits",
+                "type": "array"
+              },
+              "cash_budget": {
+                "default": 0,
+                "minimum": 0.0,
+                "title": "Cash Budget",
+                "type": "number"
+              },
+              "cet1_min": {
+                "default": 0.1,
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Cet1 Min",
+                "type": "number"
+              },
+              "commercial": {
+                "items": {
+                  "$ref": "#/$defs/CommercialConstraint"
+                },
+                "maxItems": 100,
+                "title": "Commercial",
+                "type": "array"
+              },
+              "eve_limit": {
+                "default": 0.15,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1.0,
+                "title": "Eve Limit",
+                "type": "number"
+              },
+              "lcr_min": {
+                "default": 1.1,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Lcr Min",
+                "type": "number"
+              },
+              "max_total_assets": {
+                "default": 30000000000.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Max Total Assets",
+                "type": "number"
+              },
+              "nsfr_min": {
+                "default": 1.05,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Nsfr Min",
+                "type": "number"
+              },
+              "scenarios": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Scenarios",
+                "type": "array"
+              }
+            },
+            "title": "OptimizeRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/DecisionBuildRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/decision/sessions",
+      "permission": "compute"
+    },
+    "post_decision_sessions_sid_eval": {
+      "description": "Evaluate Decision [POST /decision/sessions/{sid}/eval; permission=compute].",
+      "inputSchema": {
+        "$defs": {
+          "Allocation": {
+            "properties": {
+              "notional": {
+                "minimum": 0.0,
+                "title": "Notional",
+                "type": "number"
+              },
+              "purchase_m": {
+                "maximum": 359.0,
+                "minimum": 0.0,
+                "title": "Purchase M",
+                "type": "integer"
+              },
+              "template": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "template",
+              "purchase_m",
+              "notional"
+            ],
+            "title": "Allocation",
+            "type": "object"
+          },
+          "DecisionEvalRequest": {
+            "properties": {
+              "allocation": {
+                "items": {
+                  "$ref": "#/$defs/Allocation"
+                },
+                "maxItems": 4096,
+                "title": "Allocation",
+                "type": "array"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "version": {
+                "minimum": 0.0,
+                "title": "Version",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "version",
+              "allocation"
+            ],
+            "title": "DecisionEvalRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/DecisionEvalRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          },
+          "view": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/decision/sessions/{sid}/eval",
+      "permission": "compute",
+      "transport": "arrow"
+    },
+    "post_decision_sessions_sid_update": {
+      "description": "Update Decision [POST /decision/sessions/{sid}/update; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "CommercialConstraint": {
+            "properties": {
+              "label": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Label",
+                "type": "string"
+              },
+              "rhs": {
+                "minimum": 0.0,
+                "title": "Rhs",
+                "type": "number"
+              },
+              "sense": {
+                "enum": [
+                  ">=",
+                  "<="
+                ],
+                "title": "Sense",
+                "type": "string"
+              },
+              "template": {
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "template",
+              "sense",
+              "rhs"
+            ],
+            "title": "CommercialConstraint",
+            "type": "object"
+          },
+          "DecisionUpdateRequest": {
+            "properties": {
+              "constraints": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/OptimizeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "edits": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "maxProperties": 10000,
+                "title": "Edits",
+                "type": "object"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "templates": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                "maxProperties": 7,
+                "title": "Templates",
+                "type": "object"
+              },
+              "version": {
+                "minimum": 0.0,
+                "title": "Version",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "version"
+            ],
+            "title": "DecisionUpdateRequest",
+            "type": "object"
+          },
+          "OptimizeRequest": {
+            "properties": {
+              "capital_limits": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxItems": 2048,
+                "title": "Capital Limits",
+                "type": "array"
+              },
+              "cash_budget": {
+                "default": 0,
+                "minimum": 0.0,
+                "title": "Cash Budget",
+                "type": "number"
+              },
+              "cet1_min": {
+                "default": 0.1,
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Cet1 Min",
+                "type": "number"
+              },
+              "commercial": {
+                "items": {
+                  "$ref": "#/$defs/CommercialConstraint"
+                },
+                "maxItems": 100,
+                "title": "Commercial",
+                "type": "array"
+              },
+              "eve_limit": {
+                "default": 0.15,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1.0,
+                "title": "Eve Limit",
+                "type": "number"
+              },
+              "lcr_min": {
+                "default": 1.1,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Lcr Min",
+                "type": "number"
+              },
+              "max_total_assets": {
+                "default": 30000000000.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Max Total Assets",
+                "type": "number"
+              },
+              "nsfr_min": {
+                "default": 1.05,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Nsfr Min",
+                "type": "number"
+              },
+              "scenarios": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Scenarios",
+                "type": "array"
+              }
+            },
+            "title": "OptimizeRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/DecisionUpdateRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "sid": {
+                "title": "Sid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/decision/sessions/{sid}/update",
+      "permission": "compute"
+    },
+    "post_derivatives_deposit_portfolio_runs": {
+      "description": "Submit [POST /derivatives/deposit-portfolio/runs; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "SavedDerivativeDepositPortfolioRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1800.0,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "SavedDerivativeDepositPortfolioRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/SavedDerivativeDepositPortfolioRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/derivatives/deposit-portfolio/runs",
+      "permission": "compute"
+    },
+    "post_derivatives_mixed_runs": {
+      "description": "Submit [POST /derivatives/mixed/runs; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "SavedDerivativeMixedRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1800.0,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "SavedDerivativeMixedRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/SavedDerivativeMixedRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/derivatives/mixed/runs",
+      "permission": "compute"
+    },
+    "post_forecasts_preview": {
+      "description": "Preview Forecast [POST /forecasts/preview; permission=read].",
+      "inputSchema": {
+        "$defs": {
+          "ForecastRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "alignment": {
+                "const": "relative_replay",
+                "default": "relative_replay",
+                "title": "Alignment",
+                "type": "string"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "horizon_months": {
+                "default": 27,
+                "maximum": 120.0,
+                "minimum": 3.0,
+                "title": "Horizon Months",
+                "type": "integer"
+              },
+              "scenario": {
+                "enum": [
+                  "baseline",
+                  "adverse",
+                  "median"
+                ],
+                "title": "Scenario",
+                "type": "string"
+              },
+              "snapshot_id": {
+                "pattern": "^[a-f0-9]{64}$",
+                "title": "Snapshot Id",
+                "type": "string"
+              },
+              "start_period": {
+                "format": "date",
+                "title": "Start Period",
+                "type": "string"
+              }
+            },
+            "required": [
+              "snapshot_id",
+              "scenario",
+              "start_period",
+              "expected_revision"
+            ],
+            "title": "ForecastRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ForecastRequest"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/forecasts/preview",
+      "permission": "read"
+    },
+    "post_forecasts_run": {
+      "description": "Run Forecast [POST /forecasts/run; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ForecastRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "alignment": {
+                "const": "relative_replay",
+                "default": "relative_replay",
+                "title": "Alignment",
+                "type": "string"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "horizon_months": {
+                "default": 27,
+                "maximum": 120.0,
+                "minimum": 3.0,
+                "title": "Horizon Months",
+                "type": "integer"
+              },
+              "scenario": {
+                "enum": [
+                  "baseline",
+                  "adverse",
+                  "median"
+                ],
+                "title": "Scenario",
+                "type": "string"
+              },
+              "snapshot_id": {
+                "pattern": "^[a-f0-9]{64}$",
+                "title": "Snapshot Id",
+                "type": "string"
+              },
+              "start_period": {
+                "format": "date",
+                "title": "Start Period",
+                "type": "string"
+              }
+            },
+            "required": [
+              "snapshot_id",
+              "scenario",
+              "start_period",
+              "expected_revision"
+            ],
+            "title": "ForecastRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ForecastRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/forecasts/run",
+      "permission": "compute"
+    },
+    "post_market_data_fetch": {
+      "description": "Fetch Research [POST /market-data/fetch; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "FetchRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "as_of": {
+                "format": "date",
+                "title": "As Of",
+                "type": "string"
+              },
+              "dataset": {
+                "title": "Dataset",
+                "type": "string"
+              },
+              "identifier": {
+                "default": "",
+                "maxLength": 40,
+                "pattern": "^[A-Za-z0-9_-]*$",
+                "title": "Identifier",
+                "type": "string"
+              },
+              "series": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Series",
+                "type": "array"
+              },
+              "start": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Start"
+              }
+            },
+            "required": [
+              "dataset"
+            ],
+            "title": "FetchRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/FetchRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/market-data/fetch",
+      "permission": "compute"
+    },
+    "post_market_data_import": {
+      "description": "Import Research [POST /market-data/import; permission=compute].",
+      "inputSchema": {
+        "$defs": {
+          "ImportRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "as_of": {
+                "format": "date",
+                "title": "As Of",
+                "type": "string"
+              },
+              "dataset": {
+                "title": "Dataset",
+                "type": "string"
+              },
+              "observations": {
+                "items": {
+                  "$ref": "#/$defs/ImportedObservation"
+                },
+                "maxItems": 100000,
+                "minItems": 1,
+                "title": "Observations",
+                "type": "array"
+              },
+              "source_description": {
+                "maxLength": 1000,
+                "minLength": 1,
+                "title": "Source Description",
+                "type": "string"
+              }
+            },
+            "required": [
+              "dataset",
+              "as_of",
+              "source_description",
+              "observations"
+            ],
+            "title": "ImportRequest",
+            "type": "object"
+          },
+          "ImportedObservation": {
+            "additionalProperties": false,
+            "properties": {
+              "classification": {
+                "pattern": "^(observed|derived|assumed)$",
+                "title": "Classification",
+                "type": "string"
+              },
+              "date": {
+                "format": "date",
+                "title": "Date",
+                "type": "string"
+              },
+              "series": {
+                "maxLength": 160,
+                "minLength": 1,
+                "title": "Series",
+                "type": "string"
+              },
+              "unit": {
+                "maxLength": 80,
+                "minLength": 1,
+                "title": "Unit",
+                "type": "string"
+              },
+              "value": {
+                "title": "Value",
+                "type": "number"
+              }
+            },
+            "required": [
+              "date",
+              "series",
+              "value",
+              "unit",
+              "classification"
+            ],
+            "title": "ImportedObservation",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ImportRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/market-data/import",
+      "permission": "compute"
+    },
+    "post_models_aged_library": {
+      "description": "Aged Library [POST /models/aged-library; permission=publish]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ModelRunRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "request": {
+                "additionalProperties": true,
+                "title": "Request",
+                "type": "object"
+              },
+              "schema_name": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Schema Name",
+                "type": "string"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1800.0,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "schema_name",
+              "request"
+            ],
+            "title": "ModelRunRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ModelRunRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/models/aged-library",
+      "permission": "publish"
+    },
+    "post_models_holding_journals": {
+      "description": "Published Holding [POST /models/holding-journals; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "PublishedHoldingRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "cut_ordinal": {
+                "title": "Cut Ordinal",
+                "type": "integer"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "revised_sources": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxItems": 512,
+                "minItems": 1,
+                "title": "Revised Sources",
+                "type": "array"
+              },
+              "source_job_id": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Source Job Id",
+                "type": "string"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "source_job_id",
+              "cut_ordinal",
+              "revised_sources"
+            ],
+            "title": "PublishedHoldingRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/PublishedHoldingRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/models/holding-journals",
+      "permission": "compute"
+    },
+    "post_models_runs": {
+      "description": "Submit [POST /models/runs; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ModelRunRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "request": {
+                "additionalProperties": true,
+                "title": "Request",
+                "type": "object"
+              },
+              "schema_name": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Schema Name",
+                "type": "string"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1800.0,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "schema_name",
+              "request"
+            ],
+            "title": "ModelRunRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ModelRunRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/models/runs",
+      "permission": "compute"
+    },
+    "post_optimize": {
+      "description": "Robust balance-sheet optimization (job): base market + named\nMarketScenarios; absolute ratio floors + commercial plan rows; LP\nwith worst-case-NII objective; returns allocation + binding\nconstraints with shadow prices. [POST /optimize; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "CommercialConstraint": {
+            "properties": {
+              "label": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Label",
+                "type": "string"
+              },
+              "rhs": {
+                "minimum": 0.0,
+                "title": "Rhs",
+                "type": "number"
+              },
+              "sense": {
+                "enum": [
+                  ">=",
+                  "<="
+                ],
+                "title": "Sense",
+                "type": "string"
+              },
+              "template": {
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "template",
+              "sense",
+              "rhs"
+            ],
+            "title": "CommercialConstraint",
+            "type": "object"
+          },
+          "OptimizeRequest": {
+            "properties": {
+              "capital_limits": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "maxItems": 2048,
+                "title": "Capital Limits",
+                "type": "array"
+              },
+              "cash_budget": {
+                "default": 0,
+                "minimum": 0.0,
+                "title": "Cash Budget",
+                "type": "number"
+              },
+              "cet1_min": {
+                "default": 0.1,
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Cet1 Min",
+                "type": "number"
+              },
+              "commercial": {
+                "items": {
+                  "$ref": "#/$defs/CommercialConstraint"
+                },
+                "maxItems": 100,
+                "title": "Commercial",
+                "type": "array"
+              },
+              "eve_limit": {
+                "default": 0.15,
+                "exclusiveMinimum": 0.0,
+                "maximum": 1.0,
+                "title": "Eve Limit",
+                "type": "number"
+              },
+              "lcr_min": {
+                "default": 1.1,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Lcr Min",
+                "type": "number"
+              },
+              "max_total_assets": {
+                "default": 30000000000.0,
+                "exclusiveMinimum": 0.0,
+                "title": "Max Total Assets",
+                "type": "number"
+              },
+              "nsfr_min": {
+                "default": 1.05,
+                "exclusiveMinimum": 0.0,
+                "maximum": 10.0,
+                "title": "Nsfr Min",
+                "type": "number"
+              },
+              "scenarios": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "title": "Scenarios",
+                "type": "array"
+              }
+            },
+            "title": "OptimizeRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/OptimizeRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/optimize",
+      "permission": "compute"
+    },
+    "post_run": {
+      "description": "Run [POST /run; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "RunRequest": {
+            "properties": {
+              "assumption_overrides": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "type": "number"
+                    },
+                    "type": "object"
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "mbs",
+                    "loans",
+                    "debt",
+                    "deposits",
+                    "cds",
+                    "mm"
+                  ]
+                },
+                "title": "Assumption Overrides",
+                "type": "object"
+              },
+              "backend": {
+                "const": "rust",
+                "default": "rust",
+                "title": "Backend",
+                "type": "string"
+              },
+              "books": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "enum": [
+                        "mbs",
+                        "loans",
+                        "debt",
+                        "deposits",
+                        "cds",
+                        "mm"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Books"
+              },
+              "calibration_mode": {
+                "default": "hold",
+                "enum": [
+                  "hold",
+                  "recalibrate"
+                ],
+                "title": "Calibration Mode",
+                "type": "string"
+              },
+              "expected_revision": {
+                "anyOf": [
+                  {
+                    "minimum": 0.0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Expected Revision"
+              },
+              "include_analytics": {
+                "default": false,
+                "title": "Include Analytics",
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "risk",
+                  "stress",
+                  "nii",
+                  "deposit_stress",
+                  "kpis",
+                  "strategy",
+                  "unitlib",
+                  "pricing",
+                  "whatif"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "priority": {
+                "default": "interactive",
+                "enum": [
+                  "interactive",
+                  "background"
+                ],
+                "title": "Priority",
+                "type": "string"
+              },
+              "scenario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Scenario"
+              },
+              "spread_overrides_bp": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "mbs",
+                    "loans",
+                    "debt",
+                    "deposits",
+                    "cds",
+                    "mm"
+                  ]
+                },
+                "title": "Spread Overrides Bp",
+                "type": "object"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "title": "RunRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/RunRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/run",
+      "permission": "compute"
+    },
+    "post_strategy_eval": {
+      "description": "SYNCHRONOUS interactive evaluation (~sub-ms): time-shifted unit\ntensor dot product + closed-form KPI recalc. Requires the unit\nlibrary (POST /run kind='unitlib', ~20s one-time). [POST /strategy/eval; permission=compute].",
+      "inputSchema": {
+        "$defs": {
+          "Allocation": {
+            "properties": {
+              "notional": {
+                "minimum": 0.0,
+                "title": "Notional",
+                "type": "number"
+              },
+              "purchase_m": {
+                "maximum": 359.0,
+                "minimum": 0.0,
+                "title": "Purchase M",
+                "type": "integer"
+              },
+              "template": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Template",
+                "type": "string"
+              }
+            },
+            "required": [
+              "template",
+              "purchase_m",
+              "notional"
+            ],
+            "title": "Allocation",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "items": {
+              "$ref": "#/$defs/Allocation"
+            },
+            "title": "Allocations",
+            "type": "array"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "view": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "default": 100,
+                "maximum": 1000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "offset": {
+                "default": 0,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/strategy/eval",
+      "permission": "compute",
+      "transport": "arrow"
+    },
+    "post_treasury_bridges": {
+      "description": "Bridge [POST /treasury/bridges; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "BridgeRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "source_job": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Source Job",
+                "type": "string"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification",
+              "source_job"
+            ],
+            "title": "BridgeRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/BridgeRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/treasury/bridges",
+      "permission": "compute"
+    },
+    "post_treasury_modeled_product_ftp": {
+      "description": "Modeled Product Ftp [POST /treasury/modeled-product-ftp; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ModeledProductFTPRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "ModeledProductFTPRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ModeledProductFTPRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/treasury/modeled-product-ftp",
+      "permission": "compute"
+    },
+    "post_treasury_modeled_product_ftp_sources": {
+      "description": "Modeled Product Ftp Sources [POST /treasury/modeled-product-ftp/sources; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "ModeledProductFTPRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "ModeledProductFTPRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ModeledProductFTPRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/treasury/modeled-product-ftp/sources",
+      "permission": "compute"
+    },
+    "post_treasury_mortgage_closing_capital": {
+      "description": "Mortgage Closing Capital [POST /treasury/mortgage-closing-capital; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "MortgageClosingRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "closing_review": {
+                "additionalProperties": true,
+                "title": "Closing Review",
+                "type": "object"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "source_job": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Source Job",
+                "type": "string"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification",
+              "source_job",
+              "closing_review"
+            ],
+            "title": "MortgageClosingRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/MortgageClosingRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/treasury/mortgage-closing-capital",
+      "permission": "compute"
+    },
+    "post_treasury_runs": {
+      "description": "Submit [POST /treasury/runs; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "TreasuryRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "specification": {
+                "additionalProperties": true,
+                "title": "Specification",
+                "type": "object"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "specification"
+            ],
+            "title": "TreasuryRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/TreasuryRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/treasury/runs",
+      "permission": "compute"
+    },
+    "put_assumptions": {
+      "description": "Put Assumptions [PUT /assumptions; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "AssumptionPatch": {
+            "description": "Targeted model-assumption overrides (catalog at GET /assumptions).",
+            "properties": {
+              "cd_ew_params": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "number"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Cd Ew Params"
+              },
+              "deposit_segments": {
+                "anyOf": [
+                  {
+                    "additionalProperties": {
+                      "additionalProperties": {
+                        "type": "number"
+                      },
+                      "type": "object"
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Deposit Segments"
+              },
+              "prepay": {
+                "anyOf": [
+                  {
+                    "additionalProperties": {
+                      "type": "number"
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Prepay"
+              }
+            },
+            "title": "AssumptionPatch",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/AssumptionPatch"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/assumptions",
+      "permission": "edit"
+    },
+    "put_books_name": {
+      "description": "Put Book [PUT /books/{name}; permission=edit].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/books/{name}",
+      "permission": "edit"
+    },
+    "put_cohorts_builds_jid_publish": {
+      "description": "Publish [PUT /cohorts/builds/{jid}/publish; permission=publish].",
+      "inputSchema": {
+        "$defs": {
+          "Publish": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "mode": {
+                "default": "replace_books",
+                "pattern": "^(replace_books|replace_tape)$",
+                "title": "Mode",
+                "type": "string"
+              },
+              "products": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 5,
+                "minItems": 1,
+                "title": "Products",
+                "type": "array"
+              }
+            },
+            "required": [
+              "products",
+              "expected_revision"
+            ],
+            "title": "Publish",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Publish"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "jid": {
+                "title": "Jid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "jid"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/cohorts/builds/{jid}/publish",
+      "permission": "publish"
+    },
+    "put_cohorts_tapes_tape_id": {
+      "description": "Adopt [PUT /cohorts/tapes/{tape_id}; permission=publish].",
+      "inputSchema": {
+        "$defs": {
+          "Adopt": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "job_id": {
+                "title": "Job Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "job_id",
+              "expected_revision"
+            ],
+            "title": "Adopt",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Adopt"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "tape_id": {
+                "title": "Tape Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "tape_id"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/cohorts/tapes/{tape_id}",
+      "permission": "publish"
+    },
+    "put_market": {
+      "description": "Put Market [PUT /market; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "Market": {
+            "description": "Par swap curve (10 pillars) + ATM vol surface rows [expiry, tenor, vol].",
+            "properties": {
+              "swap_rates": {
+                "items": {
+                  "type": "number"
+                },
+                "title": "Swap Rates",
+                "type": "array"
+              },
+              "swap_tenors": {
+                "default": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  10,
+                  15,
+                  20,
+                  30
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "title": "Swap Tenors",
+                "type": "array"
+              },
+              "vol_pts": {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "minItems": 1,
+                "title": "Vol Pts",
+                "type": "array"
+              }
+            },
+            "required": [
+              "swap_rates",
+              "vol_pts"
+            ],
+            "title": "Market",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Market"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/market",
+      "permission": "edit"
+    },
+    "put_market_data_active_curve": {
+      "description": "Apply Research Curve [PUT /market-data/active-curve; permission=publish].",
+      "inputSchema": {
+        "$defs": {
+          "ApplyRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "snapshot_id": {
+                "pattern": "^[a-f0-9]{64}$",
+                "title": "Snapshot Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "snapshot_id",
+              "expected_revision"
+            ],
+            "title": "ApplyRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/ApplyRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/market-data/active-curve",
+      "permission": "publish"
+    },
+    "put_programs_name": {
+      "description": "Put Program [PUT /programs/{name}; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "Program": {
+            "properties": {
+              "amort": {
+                "default": "bullet",
+                "enum": [
+                  "bullet",
+                  "annuity",
+                  "cpr"
+                ],
+                "title": "Amort",
+                "type": "string"
+              },
+              "cpr_annual": {
+                "default": 0.06,
+                "exclusiveMaximum": 1.0,
+                "minimum": 0.0,
+                "title": "Cpr Annual",
+                "type": "number"
+              },
+              "end_m": {
+                "maximum": 359.0,
+                "minimum": 0.0,
+                "title": "End M",
+                "type": "integer"
+              },
+              "is_float": {
+                "default": false,
+                "title": "Is Float",
+                "type": "boolean"
+              },
+              "monthly_notional": {
+                "anyOf": [
+                  {
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Monthly Notional"
+              },
+              "name": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Name",
+                "type": "string"
+              },
+              "product": {
+                "default": "custom",
+                "title": "Product",
+                "type": "string"
+              },
+              "rate_ref": {
+                "enum": [
+                  "short",
+                  "s2",
+                  "s5",
+                  "s10",
+                  "s30"
+                ],
+                "title": "Rate Ref",
+                "type": "string"
+              },
+              "reinvest_frac": {
+                "anyOf": [
+                  {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reinvest Frac"
+              },
+              "reinvest_source": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "mbs",
+                      "loans",
+                      "debt",
+                      "deposits",
+                      "cds",
+                      "mm"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Reinvest Source"
+              },
+              "side": {
+                "enum": [
+                  "asset",
+                  "liability"
+                ],
+                "title": "Side",
+                "type": "string"
+              },
+              "spread_bp": {
+                "maximum": 2000.0,
+                "minimum": -2000.0,
+                "title": "Spread Bp",
+                "type": "number"
+              },
+              "start_m": {
+                "maximum": 359.0,
+                "minimum": 0.0,
+                "title": "Start M",
+                "type": "integer"
+              },
+              "term_m": {
+                "maximum": 360.0,
+                "minimum": 1.0,
+                "title": "Term M",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "side",
+              "rate_ref",
+              "spread_bp",
+              "term_m",
+              "start_m",
+              "end_m"
+            ],
+            "title": "Program",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/Program"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/programs/{name}",
+      "permission": "edit"
+    },
+    "put_scenarios_name": {
+      "description": "Put Scenario [PUT /scenarios/{name}; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "MarketScenario": {
+            "description": "Named 9Q market-path scenario in trader terms; each leg is a\nper-quarter list (<=9 values; last value extends to Q9).",
+            "properties": {
+              "name": {
+                "maxLength": 100,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "title": "Name",
+                "type": "string"
+              },
+              "spread_bp": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 9,
+                "title": "Spread Bp",
+                "type": "array"
+              },
+              "twos_tens_bp": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 9,
+                "title": "Twos Tens Bp",
+                "type": "array"
+              },
+              "ust10y_bp": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 9,
+                "title": "Ust10Y Bp",
+                "type": "array"
+              },
+              "vol_bp": {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 9,
+                "title": "Vol Bp",
+                "type": "array"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "title": "MarketScenario",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/MarketScenario"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/scenarios/{name}",
+      "permission": "edit"
+    },
+    "put_settings": {
+      "description": "Put Settings [PUT /settings; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "RiskSettings": {
+            "properties": {
+              "compute_backend": {
+                "default": "rust",
+                "enum": [
+                  "python",
+                  "rust"
+                ],
+                "title": "Compute Backend",
+                "type": "string"
+              },
+              "horizon_months": {
+                "default": 27,
+                "maximum": 120.0,
+                "minimum": 3.0,
+                "title": "Horizon Months",
+                "type": "integer"
+              },
+              "n_paths": {
+                "default": 128,
+                "maximum": 2048.0,
+                "minimum": 32.0,
+                "title": "N Paths",
+                "type": "integer"
+              },
+              "n_paths_base": {
+                "default": 512,
+                "maximum": 2048.0,
+                "minimum": 32.0,
+                "title": "N Paths Base",
+                "type": "integer"
+              },
+              "n_threads": {
+                "default": 0,
+                "maximum": 256.0,
+                "minimum": 0.0,
+                "title": "N Threads",
+                "type": "integer"
+              },
+              "seed": {
+                "default": 7,
+                "maximum": 4294967093.0,
+                "minimum": 0.0,
+                "title": "Seed",
+                "type": "integer"
+              },
+              "shocks_bp": {
+                "default": [
+                  -100,
+                  100,
+                  200,
+                  300
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 16,
+                "minItems": 1,
+                "title": "Shocks Bp",
+                "type": "array"
+              }
+            },
+            "title": "RiskSettings",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/RiskSettings"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/settings",
+      "permission": "edit"
+    }
+  },
+  "version": 1
+}

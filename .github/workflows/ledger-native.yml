@@ -4,16 +4,12 @@ on:
   push:
     paths:
       - 'packages/portfolio-ledger-native/**'
-      - 'packages/portfolio-model-core/**'
-      - 'packages/portfolio-compute-control/**'
       - 'packages/portfolio-risk/**'
       - 'scripts/build_ledger_native.py'
       - '.github/workflows/ledger-native.yml'
   pull_request:
     paths:
       - 'packages/portfolio-ledger-native/**'
-      - 'packages/portfolio-model-core/**'
-      - 'packages/portfolio-compute-control/**'
       - 'packages/portfolio-risk/**'
       - 'scripts/build_ledger_native.py'
       - '.github/workflows/ledger-native.yml'

@@ -1,0 +1,660 @@
+{
+  "schema": "mortgage-mixed-accounting-1",
+  "dated": {
+    "dated": {
+      "accrual_plans": [
+        {
+          "event_id": "coupon",
+          "position_id": "p",
+          "run": {
+            "kind": "all"
+          },
+          "segments": [
+            {
+              "accrued_interest": 0.05,
+              "book_amortization": 0.0,
+              "end_ordinal": 739627,
+              "start_ordinal": 739617
+            }
+          ]
+        }
+      ],
+      "as_of_ordinal": 739617,
+      "owners": [
+        {
+          "account_id": "a",
+          "currency": "USD",
+          "direction": "receipt",
+          "ownership": "contractual_dated_native_state",
+          "position_id": "p",
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ],
+      "reporting_horizon_days": 60,
+      "runs": [
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "baseline",
+          "scenario_id": "baseline",
+          "severity": 1.0
+        },
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "unchanged-run",
+          "scenario_id": "unchanged",
+          "severity": 1.0
+        }
+      ],
+      "schema": "dated-store-1",
+      "sources": [
+        {
+          "coverage": [
+            {
+              "position_id": "p",
+              "run": {
+                "kind": "all"
+              },
+              "status": {
+                "kind": "complete_event_set"
+              }
+            }
+          ],
+          "schedule": {
+            "as_of_ordinal": 739617,
+            "events": [
+              {
+                "accrual_period": {
+                  "end_ordinal": 739627,
+                  "start_ordinal": 739617
+                },
+                "adjustment": {
+                  "kind": "none"
+                },
+                "components": {
+                  "accrued_interest": 0.05,
+                  "book_amortization": 0.0,
+                  "cash_interest": 0.05,
+                  "fees": 0.0,
+                  "principal": 50.0
+                },
+                "currency": "USD",
+                "day_offset": 10,
+                "event_id": "coupon",
+                "measure": "contractual",
+                "payment_ordinal": 739627,
+                "position_id": "p",
+                "provenance": {
+                  "kind": "contractual",
+                  "source_id": "synthetic-fixed-loan",
+                  "source_revision": "terms-1"
+                },
+                "scenario": {
+                  "kind": "all"
+                }
+              }
+            ],
+            "horizon_days": 60,
+            "scenarios": [
+              "baseline",
+              "unchanged-run"
+            ],
+            "schema": "dated-cashflow-1"
+          },
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ]
+    },
+    "monetary_unit": "currency_units",
+    "recognition_policy": {
+      "fees": "immediate_earnings",
+      "policy_id": "supplied-coupon",
+      "policy_revision": "r1",
+      "recognition_model": "supplied_calendar_segments-1"
+    },
+    "schema": "dated-ledger-1",
+    "specification": {
+      "accounts": [
+        {
+          "cash": 1000.0,
+          "cet1_floor": 0.0,
+          "currency": "USD",
+          "entity": "bank",
+          "equity": 1050.0,
+          "id": "a",
+          "leverage_floor": 0.0
+        }
+      ],
+      "horizon_days": 60,
+      "positions": [
+        {
+          "account": "a",
+          "balance": 50.0,
+          "id": "p",
+          "kind": "loan",
+          "maturity_day": 0,
+          "rate": 0.0
+        },
+        {
+          "id": "mortgage",
+          "account": "a",
+          "kind": "loan",
+          "classification": "ac",
+          "balance": 0.0,
+          "book_adjustment": 0.0,
+          "opening_accrued": 0.0,
+          "allowance": 0.0,
+          "start_day": 0,
+          "rate": 0.0,
+          "maturity_day": 0,
+          "risk_weight": 0.0,
+          "rsf_weight": 0.0,
+          "asf_weight": 0.0,
+          "hqla_weight": 0.0,
+          "lcr_outflow_weight": 0.0,
+          "lcr_inflow_weight": 0.0
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "unchanged",
+          "rate_shift": 0.0
+        }
+      ],
+      "version": "balance-stress-2"
+    }
+  },
+  "owners": [
+    {
+      "unit_id": "native-mortgage-unit",
+      "position_id": "mortgage",
+      "account_id": "a",
+      "unit_face": 100.0,
+      "allocated_face": 100.0,
+      "source_identity": {
+        "id": "current-physical-source",
+        "revision": "synthetic-v1"
+      },
+      "original_yield_anchor": {
+        "id": "original-purchase-yield",
+        "revision": "synthetic-v1"
+      },
+      "runs": [
+        {
+          "ledger_run_id": "baseline",
+          "scenario_id": "baseline",
+          "severity": 1.0,
+          "paths": [
+            {
+              "path_id": "physical-sequential-path",
+              "source_weight": 1.0,
+              "source_id": "immutable-native-source-1"
+            }
+          ]
+        },
+        {
+          "ledger_run_id": "unchanged-run",
+          "scenario_id": "unchanged",
+          "severity": 1.0,
+          "paths": [
+            {
+              "path_id": "physical-sequential-path",
+              "source_weight": 1.0,
+              "source_id": "immutable-native-source-1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reporting_end_ordinal": 739662,
+  "policy": {
+    "identity": {
+      "id": "reviewed-mixed-pending-policy",
+      "revision": "research-1"
+    },
+    "phase": "native_pending_groups_before_dated_settlement-1",
+    "ownership": "exclusive_native_seven_slot_owner-1",
+    "tail": "complete_unweighted_tail-1",
+    "source_usage": "explicit_immutable_source_registry-1",
+    "money_domain": "combined_gross_state_10k-1"
+  },
+  "sources": [
+    {
+      "source_id": "immutable-native-source-1",
+      "request": {
+        "policy": {
+          "checkpoint": "cached_native_interval_checkpoint-1",
+          "identity": {
+            "revision": "proof-1",
+            "id": "synthetic-pending-review"
+          },
+          "income": "original_eir_reward_only-1",
+          "pending": "pending_exit_assets_until_native_boundary-1",
+          "unsupported": "reject_added_cost_nonaccrual_allowance-1",
+          "boundary": "source_boundary_dispositions_only-1"
+        },
+        "schema": "mortgage-pending-accounting-1",
+        "source": {
+          "schema": "mortgage-credit-accounting-1",
+          "contract": {
+            "schema": "mortgage-state-1",
+            "identity": {
+              "position_id": "mortgage",
+              "original_loan_id": "synthetic-loan",
+              "cohort_id": "synthetic-cohort",
+              "currency": "USD",
+              "source_revision": "synthetic-v1",
+              "model_version": "mortgage-state-1",
+              "assumption_id": "synthetic-supplied-coefficients",
+              "run_id": "baseline",
+              "measure": "physical"
+            },
+            "monetary_unit": "currency_units",
+            "as_of_ordinal": 739617,
+            "horizon_days": 30,
+            "origination_ordinal": 737425,
+            "original_principal": 100.0,
+            "original_payment": 101.0,
+            "opening_contractual_principal": 100.0,
+            "opening_contractual_interest": 0.0,
+            "current_payment": 101.0,
+            "current_note_rate": 0.0365,
+            "opening_probability": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "opening_borrower_principal": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "opening_borrower_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "opening_investor_principal": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "opening_investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "opening_burnout_incentive_years": 0.02,
+            "day_count": "act365_fixed",
+            "rate": {
+              "kind": "fixed"
+            },
+            "ownership": {
+              "kind": "whole_loan",
+              "remittance_lag_days": 0,
+              "recognized_accrual_fraction": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "publication_cutoff_unix_seconds": 1767225600,
+            "payment_dates": [
+              739647
+            ],
+            "borrower_collection_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "refinance": {
+              "incentive_slope": 0.0,
+              "incentive_threshold": 0.005,
+              "turnover_seasoning_days": 730,
+              "refinance_seasoning_days": 365,
+              "burnout_sensitivity": 1.0,
+              "prepay_eligibility": [
+                1.0,
+                1.0,
+                0.0
+              ]
+            },
+            "path": [
+              {
+                "start_ordinal": 739617,
+                "refinancing_market_rate": 0.01,
+                "turnover_hazard_per_year": 0.0,
+                "credit_hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ]
+              }
+            ],
+            "loss_given_default": [
+              0.4,
+              0.5,
+              0.6
+            ],
+            "complete_recovery_tails": [
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ],
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ],
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ]
+            ]
+          },
+          "original_contract": {
+            "schema": "mortgage-state-1",
+            "identity": {
+              "position_id": "mortgage",
+              "original_loan_id": "synthetic-loan",
+              "cohort_id": "synthetic-cohort",
+              "currency": "USD",
+              "source_revision": "synthetic-v1",
+              "model_version": "mortgage-state-1",
+              "assumption_id": "synthetic-supplied-coefficients",
+              "run_id": "baseline",
+              "measure": "physical"
+            },
+            "monetary_unit": "currency_units",
+            "as_of_ordinal": 739617,
+            "horizon_days": 30,
+            "origination_ordinal": 737425,
+            "original_principal": 100.0,
+            "original_payment": 101.0,
+            "opening_contractual_principal": 100.0,
+            "opening_contractual_interest": 0.0,
+            "current_payment": 101.0,
+            "current_note_rate": 0.0365,
+            "opening_probability": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "opening_borrower_principal": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "opening_borrower_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "opening_investor_principal": [
+              100.0,
+              0.0,
+              0.0
+            ],
+            "opening_investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "opening_burnout_incentive_years": 0.02,
+            "day_count": "act365_fixed",
+            "rate": {
+              "kind": "fixed"
+            },
+            "ownership": {
+              "kind": "whole_loan",
+              "remittance_lag_days": 0,
+              "recognized_accrual_fraction": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "publication_cutoff_unix_seconds": 1767225600,
+            "payment_dates": [
+              739647
+            ],
+            "borrower_collection_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "refinance": {
+              "incentive_slope": 0.0,
+              "incentive_threshold": 0.005,
+              "turnover_seasoning_days": 730,
+              "refinance_seasoning_days": 365,
+              "burnout_sensitivity": 1.0,
+              "prepay_eligibility": [
+                1.0,
+                1.0,
+                0.0
+              ]
+            },
+            "path": [
+              {
+                "start_ordinal": 739617,
+                "refinancing_market_rate": 0.01,
+                "turnover_hazard_per_year": 0.0,
+                "credit_hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ]
+              }
+            ],
+            "loss_given_default": [
+              0.4,
+              0.5,
+              0.6
+            ],
+            "complete_recovery_tails": [
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ],
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ],
+              [
+                {
+                  "lag_days": 15,
+                  "weight": 0.25
+                },
+                {
+                  "lag_days": 30,
+                  "weight": 0.75
+                }
+              ]
+            ]
+          },
+          "original_economic_source": {
+            "id": "original-physical-source",
+            "revision": "synthetic-v1"
+          },
+          "pairing": {
+            "review": {
+              "id": "paired-contract-review",
+              "revision": "synthetic-v1"
+            },
+            "original_run_id": "baseline",
+            "current_run_id": "baseline",
+            "policy": "supplied_physical_original_contract_unchanged-1"
+          },
+          "path_id": "physical-sequential-path",
+          "economic_source": {
+            "id": "current-physical-source",
+            "revision": "synthetic-v1"
+          },
+          "acquisition": {
+            "identity": {
+              "id": "actual-purchase",
+              "revision": "synthetic-v1"
+            },
+            "original_yield_anchor": {
+              "id": "original-purchase-yield",
+              "revision": "synthetic-v1"
+            },
+            "income_review": {
+              "id": "original-income-review",
+              "revision": "synthetic-v1"
+            },
+            "purchase_ordinal": 739617,
+            "actual_cost": 100.13688317735347,
+            "original_annual_effective_rate": 0.02,
+            "opening_gross_carrying": [
+              100.13688317735347,
+              0.0,
+              0.0
+            ],
+            "accounting_basis": "supplied_non_pcd_gross_cost-1"
+          },
+          "policy": {
+            "identity": {
+              "id": "reviewed-sequential-policy",
+              "revision": "synthetic-v1"
+            },
+            "original_income": "stop_at_exit-1",
+            "remittance_float": "reject_nonzero_remittance_lag-1",
+            "live_cash": "actual_native_cash_reduces_carry-1",
+            "exit_basis": "signed_native_exit_cash_minus_exact_carry-1",
+            "default_basis": "dispose_signed_basis_at_default-1",
+            "default_principal_book": "chargeoff_native_loss_at_default-1",
+            "default_principal_book_review": {
+              "id": "reviewed-principal-book-loss",
+              "revision": "synthetic-v1"
+            },
+            "economic_principal_disposal_review": {
+              "id": "reviewed-economic-principal-waiver",
+              "revision": "synthetic-v1"
+            },
+            "economic_principal_disposal_lag_days": 30,
+            "interest": {
+              "review": {
+                "id": "reviewed-economic-interest-cash",
+                "revision": "synthetic-v1"
+              },
+              "accounting_accrued": "reverse_income_at_default",
+              "collection_fraction": [
+                0.5,
+                0.5,
+                0.5
+              ],
+              "complete_collection_tails": [
+                [
+                  {
+                    "lag_days": 5,
+                    "weight": 0.25
+                  },
+                  {
+                    "lag_days": 10,
+                    "weight": 0.75
+                  }
+                ],
+                [
+                  {
+                    "lag_days": 5,
+                    "weight": 0.25
+                  },
+                  {
+                    "lag_days": 10,
+                    "weight": 0.75
+                  }
+                ],
+                [
+                  {
+                    "lag_days": 5,
+                    "weight": 0.25
+                  },
+                  {
+                    "lag_days": 10,
+                    "weight": 0.75
+                  }
+                ]
+              ],
+              "economic_remainder": "reviewed_economic_disposal",
+              "economic_disposal_review": {
+                "id": "reviewed-economic-interest-waiver",
+                "revision": "synthetic-v1"
+              },
+              "disposal_lag_days": 10
+            },
+            "tail": "reject_unclosed_gross_rights-1"
+          }
+        }
+      }
+    }
+  ]
+}

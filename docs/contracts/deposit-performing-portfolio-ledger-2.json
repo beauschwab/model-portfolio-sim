@@ -1,0 +1,22 @@
+{
+  "schema": "deposit-performing-portfolio-ledger-2",
+  "native_entrypoint": "portfolio-model-ledger",
+  "envelope_keys": ["request", "execution_timeout_ms"],
+  "request_keys": ["schema", "runs", "positions", "recognition_policy", "interest_rights_policy", "specification"],
+  "workflow_schema": "deposit-performing-portfolio-workflow-2",
+  "workflow_keys": ["schema", "model_schema", "prepared_request", "source_receipt"],
+  "rights_policy": "native_earned_counted_fifo_cash_origin-2",
+  "source_schema": "deposit-source-income-2",
+  "continuation_schema": "deposit-performing-continuation-2",
+  "production_backend": "rust",
+  "bounds": {"source_days_ceiling": 365, "joined_work": 8000000, "joined_bytes": 33554432, "raw_bytes": 1048576, "positions_ceiling": 256, "runs_ceiling": 8, "absolute_gross_money": 10000},
+  "complete_run_coverage_required": true,
+  "unweighted_full_original_current_tails_required": true,
+  "weights_or_implicit_source_registry": false,
+  "accounting_standard_approval": false,
+  "saved_book_adoption": false,
+  "capital_ftp_eligible": false,
+  "empirical_validation": false,
+  "historical_source1_schema": "deposit-performing-income-ledger-1",
+  "product_abi_numeric_layouts_changed": false
+}

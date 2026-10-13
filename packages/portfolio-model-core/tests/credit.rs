@@ -24,6 +24,7 @@ fn period() -> CreditPeriod {
 fn request(periods: Vec<CreditPeriod>) -> CreditRequest {
     CreditRequest {
         schema: SCHEMA.into(),
+        measure: CreditMeasure::Physical,
         monetary_unit: "USD".into(),
         initial_live_probability: [1.0, 0.0, 0.0],
         periods,
@@ -256,6 +257,30 @@ fn serde_rejects_ambiguous_unversioned_pd_fields_and_unknown_fields() {
     let mut input = serde_json::to_value(request(vec![period()])).unwrap();
     input["periods"][0]["default_probability"] = serde_json::json!(0.2);
     assert!(serde_json::from_value::<CreditRequest>(input).is_err());
+}
+
+#[test]
+fn measure_is_mandatory_and_preserved_without_converting_economics() {
+    let mut term = period();
+    term.transition_hazards_per_year[0][3] = 0.2;
+    let physical_input = request(vec![term]);
+    let physical = evaluate(&physical_input).unwrap();
+    assert_eq!(physical.measure, CreditMeasure::Physical);
+    let mut pricing_input = physical_input.clone();
+    pricing_input.measure = CreditMeasure::Pricing;
+    let pricing = evaluate(&pricing_input).unwrap();
+    assert_eq!(pricing.measure, CreditMeasure::Pricing);
+    assert_eq!(physical.total_expected_loss, pricing.total_expected_loss);
+    assert_eq!(
+        physical.periods[0].state_probability,
+        pricing.periods[0].state_probability
+    );
+    let mut missing = serde_json::to_value(&physical_input).unwrap();
+    missing.as_object_mut().unwrap().remove("measure");
+    assert!(serde_json::from_value::<CreditRequest>(missing).is_err());
+    let mut unknown = serde_json::to_value(&physical_input).unwrap();
+    unknown["measure"] = serde_json::json!("unspecified");
+    assert!(serde_json::from_value::<CreditRequest>(unknown).is_err());
 }
 
 #[test]

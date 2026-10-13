@@ -14,7 +14,14 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-type Handles = HashMap<u64, Arc<Mutex<Cache>>>;
+// Tagged owner registry: new pricing graphs never coerce into quarterly legacy flows.
+#[derive(Clone)]
+enum Owner {
+    Legacy(Arc<Mutex<Cache>>),
+    MarketIndexed(Arc<Mutex<crate::market_indexed_graph::Graph>>),
+    MarketIndexedBooks(Arc<Mutex<crate::market_indexed_books::Portfolio>>),
+}
+type Handles = HashMap<u64, Owner>;
 static HANDLES: OnceLock<Mutex<Handles>> = OnceLock::new();
 static NEXT: AtomicU64 = AtomicU64::new(1);
 #[derive(Deserialize)]
@@ -23,6 +30,24 @@ pub enum Request {
     Create {
         max_bytes: usize,
         max_entries: usize,
+    },
+    CreateMarketIndexed {
+        max_bytes: usize,
+        max_entries: usize,
+        request: Box<crate::market_indexed_graph::Request>,
+    },
+    PriceMarketIndexed {
+        handle: u64,
+        request: Box<crate::market_indexed_graph::Request>,
+    },
+    CreateMarketIndexedBooks {
+        max_bytes: usize,
+        max_entries: usize,
+        request: Box<crate::market_indexed_books::Request>,
+    },
+    PriceMarketIndexedBooks {
+        handle: u64,
+        request: Box<crate::market_indexed_books::Request>,
     },
     Clear {
         handle: u64,
@@ -44,7 +69,129 @@ pub enum Request {
         request: Box<PriceRequest>,
     },
 }
+fn register(owner: Owner, controlled: bool) -> Result<u64, String> {
+    let registry = HANDLES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut handles = registry.lock().map_err(|_| "graph registry poisoned")?;
+    if handles.len() >= 128 {
+        return Err("too many active graph caches".into());
+    }
+    if controlled {
+        portfolio_compute_control::checkpoint()?;
+    }
+    let handle = NEXT.fetch_add(1, Ordering::Relaxed);
+    if handle == 0 {
+        return Err("graph handle exhausted".into());
+    }
+    handles.insert(handle, owner);
+    Ok(handle)
+}
+pub(crate) fn retire_unpublished(handle: u64) -> Result<(), String> {
+    HANDLES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .map_err(|_| "graph registry poisoned")?
+        .remove(&handle);
+    Ok(())
+}
+fn controlled_lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, String> {
+    if portfolio_compute_control::active().is_none() {
+        return mutex.lock().map_err(|_| "graph owner poisoned".into());
+    }
+    loop {
+        portfolio_compute_control::checkpoint()?;
+        match mutex.try_lock() {
+            Ok(guard) => {
+                portfolio_compute_control::checkpoint()?;
+                return Ok(guard);
+            }
+            Err(std::sync::TryLockError::Poisoned(_)) => return Err("graph owner poisoned".into()),
+            Err(std::sync::TryLockError::WouldBlock) => {
+                std::thread::sleep(std::time::Duration::from_millis(1))
+            }
+        }
+    }
+}
 impl Request {
+    pub(crate) fn is_creation(&self) -> bool {
+        matches!(
+            self,
+            Self::CreateMarketIndexed { .. } | Self::CreateMarketIndexedBooks { .. }
+        )
+    }
+    pub(crate) fn admit_runtime(&self) -> Result<(), String> {
+        if self.is_creation() {
+            return Ok(());
+        }
+        let handle = match self {
+            Self::Info { handle }
+            | Self::Clear { handle }
+            | Self::PriceMarketIndexed { handle, .. }
+            | Self::PriceMarketIndexedBooks { handle, .. } => *handle,
+            _ => return Err("GRAPH_CONTROL_EXPLICIT_INDEXED_OPERATION_REQUIRED".into()),
+        };
+        let owner = HANDLES
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .map_err(|_| "graph registry poisoned")?
+            .get(&handle)
+            .cloned()
+            .ok_or("unknown graph cache handle")?;
+        let admitted = matches!(
+            (&owner, self),
+            (Owner::MarketIndexed(_), Self::PriceMarketIndexed { .. })
+                | (
+                    Owner::MarketIndexedBooks(_),
+                    Self::PriceMarketIndexedBooks { .. }
+                )
+                | (
+                    Owner::MarketIndexed(_) | Owner::MarketIndexedBooks(_),
+                    Self::Info { .. } | Self::Clear { .. }
+                )
+        );
+        if !admitted {
+            return Err(
+                "GRAPH_OWNER_MISMATCH: controlled operation requires matching indexed owner".into(),
+            );
+        }
+        Ok(())
+    }
+    pub fn is_market_indexed(&self) -> bool {
+        matches!(
+            self,
+            Self::CreateMarketIndexed { .. }
+                | Self::PriceMarketIndexed { .. }
+                | Self::CreateMarketIndexedBooks { .. }
+                | Self::PriceMarketIndexedBooks { .. }
+        )
+    }
+    pub fn run_with_control(
+        self,
+        control: Option<portfolio_compute_control::Control>,
+    ) -> Result<Value, String> {
+        // If scope's final checkpoint rejects creation, do not leak the unpublished handle.
+        let creation = matches!(
+            self,
+            Self::CreateMarketIndexed { .. } | Self::CreateMarketIndexedBooks { .. }
+        );
+        let mut created = None;
+        let result = portfolio_compute_control::scope(control, || {
+            let value = self.run()?;
+            if creation {
+                created = value.get("handle").and_then(Value::as_u64);
+            }
+            Ok(value)
+        });
+        if result.is_err() {
+            if let Some(handle) = created {
+                HANDLES
+                    .get_or_init(|| Mutex::new(HashMap::new()))
+                    .lock()
+                    .map_err(|_| "graph registry poisoned")?
+                    .remove(&handle);
+            }
+        }
+        result
+    }
     pub fn run(self) -> Result<Value, String> {
         let registry = HANDLES.get_or_init(|| Mutex::new(HashMap::new()));
         match self {
@@ -52,17 +199,62 @@ impl Request {
                 max_bytes,
                 max_entries,
             } => {
-                let cache = Cache::new(max_bytes, max_entries)?;
-                let mut handles = registry.lock().map_err(|_| "graph registry poisoned")?;
-                if handles.len() >= 128 {
+                let handle = register(
+                    Owner::Legacy(Arc::new(Mutex::new(Cache::new(max_bytes, max_entries)?))),
+                    false,
+                )?;
+                Ok(json!({"handle":handle}))
+            }
+            Self::CreateMarketIndexed {
+                max_bytes,
+                max_entries,
+                request,
+            } => {
+                portfolio_compute_control::checkpoint()?;
+                // Cheap precheck before pricing; registration repeats it after concurrent creates.
+                if registry
+                    .lock()
+                    .map_err(|_| "graph registry poisoned")?
+                    .len()
+                    >= 128
+                {
                     return Err("too many active graph caches".into());
                 }
-                let handle = NEXT.fetch_add(1, Ordering::Relaxed);
-                if handle == 0 {
-                    return Err("graph handle exhausted".into());
+                // Initial actual pricing occurs outside the global registry lock; no calibration.
+                let mut graph =
+                    crate::market_indexed_graph::Graph::new(&request, max_bytes, max_entries)?;
+                let initial = graph.price(&request)?;
+                let initial = serde_json::to_value(initial).map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                let handle = register(Owner::MarketIndexed(Arc::new(Mutex::new(graph))), true)?;
+                Ok(
+                    json!({"handle":handle,"owner":crate::market_indexed_graph::SCHEMA,"initial":initial}),
+                )
+            }
+            Self::CreateMarketIndexedBooks {
+                max_bytes,
+                max_entries,
+                request,
+            } => {
+                portfolio_compute_control::checkpoint()?;
+                if registry
+                    .lock()
+                    .map_err(|_| "graph registry poisoned")?
+                    .len()
+                    >= 128
+                {
+                    return Err("too many active graph caches".into());
                 }
-                handles.insert(handle, Arc::new(Mutex::new(cache)));
-                Ok(json!({"handle":handle}))
+                let mut portfolio =
+                    crate::market_indexed_books::Portfolio::new(&request, max_bytes, max_entries)?;
+                let initial = portfolio.price(&request)?;
+                let handle = register(
+                    Owner::MarketIndexedBooks(Arc::new(Mutex::new(portfolio))),
+                    true,
+                )?;
+                Ok(
+                    json!({"handle":handle,"owner":crate::market_indexed_books::SCHEMA,"initial":initial}),
+                )
             }
             Self::Drop { handle } => {
                 registry
@@ -76,36 +268,79 @@ impl Request {
                     Self::Clear { handle }
                     | Self::Info { handle }
                     | Self::Compare { handle, .. }
-                    | Self::Price { handle, .. } => *handle,
+                    | Self::Price { handle, .. }
+                    | Self::PriceMarketIndexed { handle, .. }
+                    | Self::PriceMarketIndexedBooks { handle, .. } => *handle,
                     _ => unreachable!(),
                 };
-                let cache = registry
+                let owner = registry
                     .lock()
                     .map_err(|_| "graph registry poisoned")?
                     .get(&handle)
                     .cloned()
                     .ok_or("unknown graph cache handle")?;
-                let mut cache = cache.lock().map_err(|_| "graph cache poisoned")?;
-                match other {
-                    Self::Clear { .. } => {
-                        cache.clear();
-                        Ok(cache.info())
+                match owner {
+                    Owner::Legacy(cache) => {
+                        let mut cache = cache.lock().map_err(|_| "graph cache poisoned")?;
+                        match other {
+                            Self::Clear { .. } => {
+                                cache.clear();
+                                Ok(cache.info())
+                            }
+                            Self::Info { .. } => Ok(cache.info()),
+                            Self::Price { request, .. } => request.run(&mut cache),
+                            Self::Compare {
+                                request,
+                                patches,
+                                calibration_mode,
+                                ..
+                            } => compare(*request, patches, &calibration_mode, &mut cache),
+                            Self::PriceMarketIndexed { .. }
+                            | Self::PriceMarketIndexedBooks { .. } => Err(
+                                "GRAPH_OWNER_MISMATCH: legacy handle requires legacy operation"
+                                    .into(),
+                            ),
+                            _ => unreachable!(),
+                        }
                     }
-                    Self::Info { .. } => Ok(cache.info()),
-                    Self::Price { request, .. } => request.run(&mut cache),
-                    Self::Compare {
-                        request,
-                        patches,
-                        calibration_mode,
-                        ..
-                    } => compare(*request, patches, &calibration_mode, &mut cache),
-                    _ => unreachable!(),
+                    Owner::MarketIndexedBooks(portfolio) => {
+                        let mut portfolio = if portfolio_compute_control::active().is_some() {
+                            controlled_lock(&portfolio)?
+                        } else {
+                            portfolio.lock().map_err(|_| "portfolio graph poisoned")?
+                        };
+                        match other {
+                            Self::Clear {..} => {portfolio.clear();Ok(portfolio.info())},
+                            Self::Info {..} => Ok(portfolio.info()),
+                            Self::PriceMarketIndexedBooks {request,..} => portfolio.price(&request),
+                            Self::Price{..}|Self::Compare{..}|Self::PriceMarketIndexed{..} => Err("GRAPH_OWNER_MISMATCH: portfolio requires versioned portfolio operation".into()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    Owner::MarketIndexed(graph) => {
+                        let mut graph = if portfolio_compute_control::active().is_some() {
+                            controlled_lock(&graph)?
+                        } else {
+                            graph.lock().map_err(|_| "market indexed graph poisoned")?
+                        };
+                        match other {
+                            Self::Clear { .. } => { graph.clear(); Ok(graph.info()) }
+                            Self::Info { .. } => Ok(graph.info()),
+                            Self::PriceMarketIndexed { request, .. } => {
+                                let result = graph.price(&request)?;
+                                portfolio_compute_control::checkpoint()?;
+                                serde_json::to_value(result).map_err(|e| e.to_string())
+                            }
+                            Self::Price { .. } | Self::Compare { .. } | Self::PriceMarketIndexedBooks { .. } => Err("GRAPH_OWNER_MISMATCH: market handle requires versioned market operation".into()),
+                            _ => unreachable!(),
+                        }
+                    }
                 }
             }
         }
     }
 }
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PriceRequest {
     pub base: AccountingRequest,
@@ -580,7 +815,7 @@ struct Position {
     analytics: BTreeMap<String, f64>,
 }
 impl PriceRequest {
-    fn run(mut self, cache: &mut Cache) -> Result<Value, String> {
+    pub(crate) fn run(mut self, cache: &mut Cache) -> Result<Value, String> {
         self.base.validate()?;
         self.current.validate()?;
         finite(&[self.spread_shift])?;
@@ -1151,4 +1386,23 @@ fn compare(
     Ok(
         json!({"baseline":baseline,"revised":revised,"comparison":comparison,"net_value_change":delta,"calibration_mode":mode}),
     )
+}
+
+#[cfg(test)]
+pub(crate) fn with_test_indexed_owner_lock(handle: u64, call: impl FnOnce()) {
+    let owner = HANDLES
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .get(&handle)
+        .unwrap()
+        .clone();
+    match owner {
+        Owner::MarketIndexedBooks(owner) => {
+            let _guard = owner.lock().unwrap();
+            call()
+        }
+        _ => panic!("expected indexed books"),
+    }
 }

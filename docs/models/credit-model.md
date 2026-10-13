@@ -50,6 +50,7 @@ watch back to a better live state before default.
 | Field | Required meaning |
 |---|---|
 | `schema` | Exactly `credit-model-1`; unsupported or omitted schema fails. |
+| `measure` | Mandatory `physical` or `pricing`, retained in the result. No default, measure inference or P/Q conversion. |
 | `monetary_unit` | Explicit 1–64 byte unit/currency label. Retained without conversion. |
 | `initial_live_probability` | Three nonnegative probabilities summing to one, tolerance `1e-12`. Existing defaults and their recovery inventory are outside this contract. |
 | `periods` | Ordered contiguous terms beginning at model year zero; each has explicit duration, hazards, EAD, LGD and recovery distribution. |
@@ -69,6 +70,16 @@ The input structure uses `deny_unknown_fields` throughout. An `annual_pd` or
 Every numeric input must be finite. Conditional EAD and each drawn/undrawn amount
 are bounded to `1e15` monetary units. Inputs are validated in full before any
 transition computation or output allocation.
+
+Supplied transition hazards, conditional exposure and loss/recovery assumptions
+are interpreted in the declared measure. A physical expectation and a pricing
+expectation require appropriate separately supplied inputs. Changing only the
+measure label does not transform intensities, LGD or expected losses; the model
+retains the label to prevent downstream consumers from silently combining
+incompatible assumptions. Observed-history calibration supplies physical
+estimates and provides no empirical-to-pricing conversion. A physical expected
+loss is not automatically an accounting allowance, and a pricing expected loss
+is not automatically a calibrated market price.
 
 ## Probability model and equations
 

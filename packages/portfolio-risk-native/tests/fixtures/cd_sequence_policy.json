@@ -1,0 +1,29 @@
+{
+  "position_id": "cd:example",
+  "contract": {
+    "id": "cd-original",
+    "revision": "r1"
+  },
+  "policy": {
+    "identity": {
+      "id": "cd-contract-policy",
+      "revision": "r1"
+    },
+    "channel": "retail",
+    "early_withdrawal_permitted": true,
+    "partial_withdrawal_permitted": true,
+    "brokered_contract_allows_withdrawal": false,
+    "earliest_withdrawal_ordinal": 739617,
+    "minimum_remaining_principal": 0,
+    "penalty": {
+      "kind": "none"
+    },
+    "penalty_limit": "principal_and_accrued_interest",
+    "penalty_cap": null,
+    "penalty_waivers": [],
+    "maturity_grace_days": 2,
+    "grace_annual_rate": 0.1825,
+    "renewal_permitted": true,
+    "switching_permitted": true
+  }
+}

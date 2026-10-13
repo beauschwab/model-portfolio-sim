@@ -1,0 +1,29 @@
+{
+  "schema": "credit-path-1",
+  "measure": "physical",
+  "monetary_unit": "USD currency_units",
+  "source_id": "synthetic-example",
+  "source_revision": "1",
+  "model_policy_id": "supplied-example-hazards",
+  "origin_time": {"ordinal": 739890, "seconds_of_day": 0},
+  "max_jumps_per_path": 10,
+  "intervals": [{
+    "end_year": 1.0,
+    "hazards_per_year": [[0, 0, 0, 0.2, 0.3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+    "accrual_rates": [0.1, 0, 0],
+    "loss_given_default": [0.4, 0.4, 0.4],
+    "credit_conversion_factor": [0.5, 0.5, 0.5],
+    "interest_recovery_fraction": [1, 1, 1],
+    "complete_recovery_tails": [
+      [{"lag_years": 2, "weight": 1}],
+      [{"lag_years": 2, "weight": 1}],
+      [{"lag_years": 2, "weight": 1}]
+    ]
+  }],
+  "boundaries": [{"event_id": "contractual-maturity", "policy_id": "supplied-terms", "year": 1, "action": {"kind": "maturity"}}],
+  "draw_stream": {
+    "kind": "supplied", "stream_id": "hand-example", "stream_revision": "1",
+    "paths": [{"path_key": 17, "pairs": [{"waiting_uniform": 0.8607079764250578, "destination_uniform": 0.25}]}]
+  },
+  "paths": [{"path_id": "example-loan", "path_key": 17, "initial_live_state": "performing", "principal": 100, "undrawn_commitment": 20, "accrued_interest": 0, "book_adjustment": -3}]
+}

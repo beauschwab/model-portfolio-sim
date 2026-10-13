@@ -1,0 +1,557 @@
+{
+  "dated": {
+    "dated": {
+      "accrual_plans": [
+        {
+          "event_id": "coupon",
+          "position_id": "p",
+          "run": {
+            "kind": "all"
+          },
+          "segments": [
+            {
+              "accrued_interest": 0.05,
+              "book_amortization": 0.0,
+              "end_ordinal": 738926,
+              "start_ordinal": 738916
+            }
+          ]
+        }
+      ],
+      "as_of_ordinal": 738916,
+      "owners": [
+        {
+          "account_id": "a",
+          "currency": "USD",
+          "direction": "receipt",
+          "ownership": "contractual_dated_native_state",
+          "position_id": "p",
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ],
+      "reporting_horizon_days": 40,
+      "runs": [
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "base",
+          "scenario_id": "baseline",
+          "severity": 1.0
+        },
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "stress",
+          "scenario_id": "shock",
+          "severity": 1.0
+        }
+      ],
+      "schema": "dated-store-1",
+      "sources": [
+        {
+          "coverage": [
+            {
+              "position_id": "p",
+              "run": {
+                "kind": "all"
+              },
+              "status": {
+                "kind": "complete_event_set"
+              }
+            }
+          ],
+          "schedule": {
+            "as_of_ordinal": 738916,
+            "events": [
+              {
+                "accrual_period": {
+                  "end_ordinal": 738926,
+                  "start_ordinal": 738916
+                },
+                "adjustment": {
+                  "kind": "none"
+                },
+                "components": {
+                  "accrued_interest": 0.05,
+                  "book_amortization": 0.0,
+                  "cash_interest": 0.05,
+                  "fees": 0.0,
+                  "principal": 50.0
+                },
+                "currency": "USD",
+                "day_offset": 10,
+                "event_id": "coupon",
+                "measure": "contractual",
+                "payment_ordinal": 738926,
+                "position_id": "p",
+                "provenance": {
+                  "kind": "contractual",
+                  "source_id": "synthetic-fixed-loan",
+                  "source_revision": "terms-1"
+                },
+                "scenario": {
+                  "kind": "all"
+                }
+              }
+            ],
+            "horizon_days": 40,
+            "scenarios": [
+              "base",
+              "stress"
+            ],
+            "schema": "dated-cashflow-1"
+          },
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ]
+    },
+    "monetary_unit": "currency_units",
+    "recognition_policy": {
+      "fees": "immediate_earnings",
+      "policy_id": "supplied-coupon",
+      "policy_revision": "r1",
+      "recognition_model": "supplied_calendar_segments-1"
+    },
+    "schema": "dated-ledger-1",
+    "specification": {
+      "accounts": [
+        {
+          "cash": 1000.0,
+          "cet1_floor": 0.0,
+          "currency": "USD",
+          "entity": "bank",
+          "equity": 1050.0,
+          "id": "a",
+          "leverage_floor": 0.0
+        }
+      ],
+      "horizon_days": 40,
+      "positions": [
+        {
+          "account": "a",
+          "balance": 50.0,
+          "id": "p",
+          "kind": "loan",
+          "maturity_day": 0,
+          "rate": 0.0
+        },
+        {
+          "id": "credit-loan",
+          "account": "a",
+          "kind": "loan",
+          "classification": "ac",
+          "balance": 0.0,
+          "book_adjustment": 0.0,
+          "opening_accrued": 0.0,
+          "allowance": 0.0,
+          "start_day": 0,
+          "rate": 0.0,
+          "maturity_day": 0,
+          "risk_weight": 0.0,
+          "rsf_weight": 0.0,
+          "asf_weight": 0.0,
+          "hqla_weight": 0.0,
+          "lcr_outflow_weight": 0.0,
+          "lcr_inflow_weight": 0.0
+        },
+        {
+          "id": "credit-card",
+          "account": "a",
+          "kind": "loan",
+          "classification": "ac",
+          "balance": 0.0,
+          "book_adjustment": 0.0,
+          "opening_accrued": 0.0,
+          "allowance": 0.0,
+          "start_day": 0,
+          "rate": 0.0,
+          "maturity_day": 0,
+          "risk_weight": 0.0,
+          "rsf_weight": 0.0,
+          "asf_weight": 0.0,
+          "hqla_weight": 0.0,
+          "lcr_outflow_weight": 0.0,
+          "lcr_inflow_weight": 0.0
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "shock",
+          "rate_shift": 0.02
+        }
+      ],
+      "version": "balance-stress-2"
+    }
+  },
+  "reporting_end_ordinal": 738924,
+  "schema": "product-event-owner-check-1",
+  "product_owners": [
+    {
+      "unit_id": "card-v2-unit",
+      "position_id": "credit-card",
+      "account_id": "a",
+      "unit_face": 100.0,
+      "allocated_face": 100.0,
+      "accounting_category": "ac",
+      "source_identity": {
+        "id": "supplied-card-history",
+        "revision": "panel-1"
+      },
+      "original_yield_anchor": {
+        "id": "original-card-yield",
+        "revision": "r1"
+      },
+      "initial_allowance_review": null,
+      "runs": [
+        {
+          "ledger_run_id": "base",
+          "scenario_id": "baseline",
+          "severity": 1.0,
+          "paths": [
+            {
+              "path_id": "card-v2-physical",
+              "source_weight": 1.0,
+              "request": {
+                "kind": "card_v2",
+                "request": {
+                  "schema": "card-credit-accounting-2",
+                  "contract": {
+                    "schema": "consumer-card-1",
+                    "identity": {
+                      "position_id": "credit-card",
+                      "original_loan_id": "account-1",
+                      "cohort_id": "cohort-card",
+                      "currency": "USD",
+                      "source_revision": "panel-1",
+                      "model_version": "consumer-card-1",
+                      "assumption_id": "supplied-1",
+                      "run_id": "base",
+                      "measure": "physical"
+                    },
+                    "as_of_ordinal": 738916,
+                    "horizon_days": 40,
+                    "opening_principal": [
+                      0.0,
+                      100.0,
+                      0.0
+                    ],
+                    "opening_billed_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_unbilled_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_unrecognized_billed_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_fees": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_contingent_purchase_interest": 0.0,
+                    "opening_statement_remaining": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_minimum_remaining": 0.0,
+                    "opening_due_ordinal": null,
+                    "initial_limit": 200.0,
+                    "initial_state": "performing",
+                    "rates": {
+                      "purchase": 0.36,
+                      "cash_advance": 0.36,
+                      "promotional": 0.0,
+                      "promotional_expiry_ordinal": 738936,
+                      "post_promotion": 0.36
+                    },
+                    "day_count": "act360",
+                    "initial_purchase_grace": false,
+                    "regain_grace_after_full_statement_payment": false,
+                    "compound_billed_interest": false,
+                    "minimum": {
+                      "floor": 5.0,
+                      "principal_fraction": 0.01,
+                      "include_billed_interest": true,
+                      "include_fees": true,
+                      "allocation_order": [
+                        "purchase",
+                        "cash_advance",
+                        "promotional"
+                      ]
+                    },
+                    "cycles": [
+                      {
+                        "statement_ordinal": 738926,
+                        "due_ordinal": 738941
+                      }
+                    ],
+                    "steps": [
+                      {
+                        "ordinal": 738926,
+                        "action": {
+                          "kind": "payment",
+                          "amount": 100.0
+                        }
+                      },
+                      {
+                        "ordinal": 738936,
+                        "action": {
+                          "kind": "payment",
+                          "amount": 1.0
+                        }
+                      },
+                      {
+                        "ordinal": 738936,
+                        "action": {
+                          "kind": "set_limit",
+                          "amount": 0.0
+                        }
+                      }
+                    ],
+                    "collection_fraction": 0.0,
+                    "collection_cost": 0.0,
+                    "recovery_delay_days": 20
+                  },
+                  "review": {
+                    "identity": {
+                      "id": "basis-yield-review",
+                      "revision": "r1"
+                    },
+                    "original_yield_anchor": {
+                      "id": "original-card-yield",
+                      "revision": "r1"
+                    },
+                    "economic_source": {
+                      "id": "supplied-card-history",
+                      "revision": "panel-1"
+                    },
+                    "position_id": "credit-card",
+                    "currency": "USD",
+                    "principal": 100.0,
+                    "cost": 100.0,
+                    "original_annual_effective_rate": 0.0,
+                    "acquisition_ordinal": 738916,
+                    "policy": {
+                      "identity": {
+                        "id": "reviewed-default-right-policy",
+                        "revision": "r1"
+                      },
+                      "accrued": "reverse_income_at_default",
+                      "basis": "recognize_in_earnings_at_default",
+                      "allowance_shortfall": "reject",
+                      "excess_cash_recovery": "credit_allowance"
+                    },
+                    "accounting_basis": "supplied_non_pcd_gross_cost-1"
+                  },
+                  "policy": {
+                    "review": {
+                      "id": "reviewed-yield-right-channel-policy",
+                      "revision": "r1"
+                    },
+                    "principal_basis": "actual_terminal_principal_transfer_to_unpaid_interest-1",
+                    "live_original_yield": "frozen_original_yield_on_whole_live_carrying-1",
+                    "interest_cash_basis": "proportional_basis_realization_separate_from_original_eir-1",
+                    "default_original_yield": "stop_at_source_default_no_claim_eir-1"
+                  },
+                  "termination": {
+                    "kind": "reviewed_zero_rights_closure",
+                    "ordinal": 738936,
+                    "review": {
+                      "id": "actual-zero-right-close",
+                      "revision": "r1"
+                    }
+                  },
+                  "claim_id": "interest-claim",
+                  "reporting_ordinal": 738924,
+                  "interest_recoveries": []
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ledger_run_id": "stress",
+          "scenario_id": "shock",
+          "severity": 1.0,
+          "paths": [
+            {
+              "path_id": "card-v2-physical",
+              "source_weight": 1.0,
+              "request": {
+                "kind": "card_v2",
+                "request": {
+                  "schema": "card-credit-accounting-2",
+                  "contract": {
+                    "schema": "consumer-card-1",
+                    "identity": {
+                      "position_id": "credit-card",
+                      "original_loan_id": "account-1",
+                      "cohort_id": "cohort-card",
+                      "currency": "USD",
+                      "source_revision": "panel-1",
+                      "model_version": "consumer-card-1",
+                      "assumption_id": "supplied-1",
+                      "run_id": "stress",
+                      "measure": "physical"
+                    },
+                    "as_of_ordinal": 738916,
+                    "horizon_days": 40,
+                    "opening_principal": [
+                      0.0,
+                      100.0,
+                      0.0
+                    ],
+                    "opening_billed_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_unbilled_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_unrecognized_billed_interest": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_fees": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_contingent_purchase_interest": 0.0,
+                    "opening_statement_remaining": [
+                      0.0,
+                      0.0,
+                      0.0
+                    ],
+                    "opening_minimum_remaining": 0.0,
+                    "opening_due_ordinal": null,
+                    "initial_limit": 200.0,
+                    "initial_state": "performing",
+                    "rates": {
+                      "purchase": 0.36,
+                      "cash_advance": 0.36,
+                      "promotional": 0.0,
+                      "promotional_expiry_ordinal": 738936,
+                      "post_promotion": 0.36
+                    },
+                    "day_count": "act360",
+                    "initial_purchase_grace": false,
+                    "regain_grace_after_full_statement_payment": false,
+                    "compound_billed_interest": false,
+                    "minimum": {
+                      "floor": 5.0,
+                      "principal_fraction": 0.01,
+                      "include_billed_interest": true,
+                      "include_fees": true,
+                      "allocation_order": [
+                        "purchase",
+                        "cash_advance",
+                        "promotional"
+                      ]
+                    },
+                    "cycles": [
+                      {
+                        "statement_ordinal": 738926,
+                        "due_ordinal": 738941
+                      }
+                    ],
+                    "steps": [
+                      {
+                        "ordinal": 738926,
+                        "action": {
+                          "kind": "payment",
+                          "amount": 100.0
+                        }
+                      },
+                      {
+                        "ordinal": 738936,
+                        "action": {
+                          "kind": "payment",
+                          "amount": 1.0
+                        }
+                      },
+                      {
+                        "ordinal": 738936,
+                        "action": {
+                          "kind": "set_limit",
+                          "amount": 0.0
+                        }
+                      }
+                    ],
+                    "collection_fraction": 0.0,
+                    "collection_cost": 0.0,
+                    "recovery_delay_days": 20
+                  },
+                  "review": {
+                    "identity": {
+                      "id": "basis-yield-review",
+                      "revision": "r1"
+                    },
+                    "original_yield_anchor": {
+                      "id": "original-card-yield",
+                      "revision": "r1"
+                    },
+                    "economic_source": {
+                      "id": "supplied-card-history",
+                      "revision": "panel-1"
+                    },
+                    "position_id": "credit-card",
+                    "currency": "USD",
+                    "principal": 100.0,
+                    "cost": 100.0,
+                    "original_annual_effective_rate": 0.0,
+                    "acquisition_ordinal": 738916,
+                    "policy": {
+                      "identity": {
+                        "id": "reviewed-default-right-policy",
+                        "revision": "r1"
+                      },
+                      "accrued": "reverse_income_at_default",
+                      "basis": "recognize_in_earnings_at_default",
+                      "allowance_shortfall": "reject",
+                      "excess_cash_recovery": "credit_allowance"
+                    },
+                    "accounting_basis": "supplied_non_pcd_gross_cost-1"
+                  },
+                  "policy": {
+                    "review": {
+                      "id": "reviewed-yield-right-channel-policy",
+                      "revision": "r1"
+                    },
+                    "principal_basis": "actual_terminal_principal_transfer_to_unpaid_interest-1",
+                    "live_original_yield": "frozen_original_yield_on_whole_live_carrying-1",
+                    "interest_cash_basis": "proportional_basis_realization_separate_from_original_eir-1",
+                    "default_original_yield": "stop_at_source_default_no_claim_eir-1"
+                  },
+                  "termination": {
+                    "kind": "reviewed_zero_rights_closure",
+                    "ordinal": 738936,
+                    "review": {
+                      "id": "actual-zero-right-close",
+                      "revision": "r1"
+                    }
+                  },
+                  "claim_id": "interest-claim",
+                  "reporting_ordinal": 738924,
+                  "interest_recoveries": []
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

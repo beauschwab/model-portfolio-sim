@@ -1,0 +1,5769 @@
+{
+  "case_index": 1,
+  "installed_independent_verification": false,
+  "native_result": {
+    "actions": [
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.00027297384304297715,
+        "income": -0.00027297384304297715,
+        "interval_index": 0,
+        "kind": "default_accrued_reversal",
+        "ordinal": 739627,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-0"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0006233479386723042,
+        "income": -0.0006233479386723042,
+        "interval_index": 0,
+        "kind": "default_signed_basis_disposal",
+        "ordinal": 739627,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-0"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.21857868957611548,
+        "income": -0.21857868957611548,
+        "interval_index": 0,
+        "kind": "default_native_principal_loss_book_chargeoff",
+        "ordinal": 739627,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-0"
+      },
+      {
+        "actual_cash": 0.00003412173038037214,
+        "gross_carry_disposed": 0.0,
+        "income": 0.00003412173038037214,
+        "interval_index": 0,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739632,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-0:reviewed-interest:0"
+      },
+      {
+        "actual_cash": 0.00010236519114111643,
+        "gross_carry_disposed": 0.0,
+        "income": 0.00010236519114111643,
+        "interval_index": 0,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739637,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-0:reviewed-interest:1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0008149428701396929,
+        "income": -0.0008149428701396929,
+        "interval_index": 1,
+        "kind": "default_accrued_reversal",
+        "ordinal": 739637,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0003718926783329605,
+        "income": -0.0003718926783329605,
+        "interval_index": 1,
+        "kind": "default_signed_basis_disposal",
+        "ordinal": 739637,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.21738427348769518,
+        "income": -0.21738427348769518,
+        "interval_index": 1,
+        "kind": "default_native_principal_loss_book_chargeoff",
+        "ordinal": 739637,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-1"
+      },
+      {
+        "actual_cash": 0.0819670085910433,
+        "gross_carry_disposed": 0.0819670085910433,
+        "income": 0.0,
+        "interval_index": 0,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739642,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-0"
+      },
+      {
+        "actual_cash": 0.00010186785876746161,
+        "gross_carry_disposed": 0.0,
+        "income": 0.00010186785876746161,
+        "interval_index": 1,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739642,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-1:reviewed-interest:0"
+      },
+      {
+        "actual_cash": 0.0003056035763023848,
+        "gross_carry_disposed": 0.0,
+        "income": 0.0003056035763023848,
+        "interval_index": 1,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-1:reviewed-interest:1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0013509806021409804,
+        "income": -0.0013509806021409804,
+        "interval_index": 2,
+        "kind": "default_accrued_reversal",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-2"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.00012332638207171172,
+        "income": -0.00012332638207171172,
+        "interval_index": 2,
+        "kind": "default_signed_basis_disposal",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-2"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.2161963842468603,
+        "income": -0.2161963842468603,
+        "interval_index": 2,
+        "kind": "default_native_principal_loss_book_chargeoff",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-2"
+      },
+      {
+        "actual_cash": 98.66471043661849,
+        "gross_carry_disposed": 98.66471043661849,
+        "income": 0.0,
+        "interval_index": 2,
+        "kind": "scheduled_native_cash",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "scheduled_investor_entitlement-1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0,
+        "income": -0.0,
+        "interval_index": 2,
+        "kind": "scheduled_full_exit_signed_basis",
+        "ordinal": 739647,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "scheduled:2:0"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0,
+        "income": -0.0,
+        "interval_index": 2,
+        "kind": "scheduled_full_exit_signed_basis",
+        "ordinal": 739647,
+        "origin": 1,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "scheduled:2:1"
+      },
+      {
+        "actual_cash": 0.0,
+        "gross_carry_disposed": 0.0,
+        "income": -0.0,
+        "interval_index": 2,
+        "kind": "scheduled_full_exit_signed_basis",
+        "ordinal": 739647,
+        "origin": 2,
+        "review": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "scheduled:2:2"
+      },
+      {
+        "actual_cash": 0.08151910255788569,
+        "gross_carry_disposed": 0.08151910255788569,
+        "income": 0.0,
+        "interval_index": 1,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739652,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-2"
+      },
+      {
+        "actual_cash": 0.00016887257526762255,
+        "gross_carry_disposed": 0.0,
+        "income": 0.00016887257526762255,
+        "interval_index": 2,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739652,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-2:reviewed-interest:0"
+      },
+      {
+        "actual_cash": 0.24590102577312992,
+        "gross_carry_disposed": 0.24590102577312992,
+        "income": 0.0,
+        "interval_index": 0,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739657,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-3"
+      },
+      {
+        "actual_cash": 0.0005066177258028677,
+        "gross_carry_disposed": 0.0,
+        "income": 0.0005066177258028677,
+        "interval_index": 2,
+        "kind": "reviewed_default_interest_cash_income",
+        "ordinal": 739657,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "mortgage-default-2:reviewed-interest:1"
+      },
+      {
+        "actual_cash": 0.08107364409257262,
+        "gross_carry_disposed": 0.08107364409257262,
+        "income": 0.0,
+        "interval_index": 2,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739662,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-4"
+      },
+      {
+        "actual_cash": 0.24455730767365708,
+        "gross_carry_disposed": 0.24455730767365708,
+        "income": 0.0,
+        "interval_index": 1,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739667,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-5"
+      },
+      {
+        "actual_cash": 0.24322093227771785,
+        "gross_carry_disposed": 0.24322093227771785,
+        "income": 0.0,
+        "interval_index": 2,
+        "kind": "native_default_principal_cash",
+        "ordinal": 739677,
+        "origin": 0,
+        "review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "source_id": "whole_loan_default_recovery-6"
+      }
+    ],
+    "actual_acquisition_cost": 100.13688317735347,
+    "admission": {
+      "interval_count": 3,
+      "original_interval_count": 1,
+      "retained_byte_bound": 4627388,
+      "retained_row_bound": 800,
+      "work_bound": 5168864
+    },
+    "closing_live_gross_carrying": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "closing_reconciliation_error": -2.842170943040401e-14,
+    "cumulative_earned_eir_conservation_error": 0.0,
+    "current_source_raw_hash": "9400a1d747f28d6ac8eef05ff2b052892d90df930964dbf0c345ff461622f434",
+    "current_source_receipt_hash": "c0223bd9fe9ad6580ce34b9a48adad709cc09b35a174e22a1fe65665967c33ce",
+    "default_closeouts": [
+      {
+        "claim_id": "mortgage-default-0",
+        "closing_book_accrued": 0.0,
+        "closing_book_basis": 0.0,
+        "closing_book_principal": 0.0,
+        "closing_economic_interest": 0.0,
+        "closing_economic_principal": 0.0,
+        "default_ordinal": 739627,
+        "exact_default_carry": 0.547343045722004,
+        "gross_contract_interest": 0.00027297384304297715,
+        "gross_principal": 0.5464467239402887,
+        "interest_cash": 0.00013648692152148857,
+        "interest_disposal_ordinal": 739637,
+        "interest_disposal_review": {
+          "id": "reviewed-economic-interest-waiver",
+          "revision": "synthetic-v1"
+        },
+        "interest_economic_disposal": 0.00013648692152148857,
+        "native_principal_cash_ids": [
+          "whole_loan_default_recovery-0",
+          "whole_loan_default_recovery-3"
+        ],
+        "origin": 0,
+        "principal_cash": 0.3278680343641732,
+        "principal_disposal_ordinal": 739657,
+        "principal_disposal_review": {
+          "id": "reviewed-economic-principal-waiver",
+          "revision": "synthetic-v1"
+        },
+        "principal_economic_disposal": 0.21857868957611548,
+        "recognized_interest": 0.00027297384304297715,
+        "reviewed_interest_cash_ids": [
+          "mortgage-default-0:reviewed-interest:0",
+          "mortgage-default-0:reviewed-interest:1"
+        ],
+        "signed_default_basis": 0.0006233479386723042
+      },
+      {
+        "claim_id": "mortgage-default-1",
+        "closing_book_accrued": 0.0,
+        "closing_book_basis": 0.0,
+        "closing_book_principal": 0.0,
+        "closing_economic_interest": 0.0,
+        "closing_economic_principal": 0.0,
+        "default_ordinal": 739637,
+        "exact_default_carry": 0.5446475192677106,
+        "gross_contract_interest": 0.0008149428701396929,
+        "gross_principal": 0.543460683719238,
+        "interest_cash": 0.00040747143506984643,
+        "interest_disposal_ordinal": 739647,
+        "interest_disposal_review": {
+          "id": "reviewed-economic-interest-waiver",
+          "revision": "synthetic-v1"
+        },
+        "interest_economic_disposal": 0.00040747143506984643,
+        "native_principal_cash_ids": [
+          "whole_loan_default_recovery-2",
+          "whole_loan_default_recovery-5"
+        ],
+        "origin": 0,
+        "principal_cash": 0.32607641023154277,
+        "principal_disposal_ordinal": 739667,
+        "principal_disposal_review": {
+          "id": "reviewed-economic-principal-waiver",
+          "revision": "synthetic-v1"
+        },
+        "principal_economic_disposal": 0.21738427348769518,
+        "recognized_interest": 0.0008149428701396929,
+        "reviewed_interest_cash_ids": [
+          "mortgage-default-1:reviewed-interest:0",
+          "mortgage-default-1:reviewed-interest:1"
+        ],
+        "signed_default_basis": 0.0003718926783329605
+      },
+      {
+        "claim_id": "mortgage-default-2",
+        "closing_book_accrued": 0.0,
+        "closing_book_basis": 0.0,
+        "closing_book_principal": 0.0,
+        "closing_economic_interest": 0.0,
+        "closing_economic_principal": 0.0,
+        "default_ordinal": 739647,
+        "exact_default_carry": 0.5419652676013634,
+        "gross_contract_interest": 0.0013509806021409804,
+        "gross_principal": 0.5404909606171507,
+        "interest_cash": 0.0006754903010704902,
+        "interest_disposal_ordinal": 739657,
+        "interest_disposal_review": {
+          "id": "reviewed-economic-interest-waiver",
+          "revision": "synthetic-v1"
+        },
+        "interest_economic_disposal": 0.0006754903010704902,
+        "native_principal_cash_ids": [
+          "whole_loan_default_recovery-4",
+          "whole_loan_default_recovery-6"
+        ],
+        "origin": 0,
+        "principal_cash": 0.32429457637029047,
+        "principal_disposal_ordinal": 739677,
+        "principal_disposal_review": {
+          "id": "reviewed-economic-principal-waiver",
+          "revision": "synthetic-v1"
+        },
+        "principal_economic_disposal": 0.21619638424686027,
+        "recognized_interest": 0.0013509806021409804,
+        "reviewed_interest_cash_ids": [
+          "mortgage-default-2:reviewed-interest:0",
+          "mortgage-default-2:reviewed-interest:1"
+        ],
+        "signed_default_basis": 0.00012332638207171172
+      }
+    ],
+    "full_end_ordinal": 739677,
+    "installed_independent_verification": false,
+    "intervals": [
+      {
+        "closing_live_basis": [
+          0.09072745398363619,
+          0.0,
+          0.0
+        ],
+        "closing_live_earned_eir": [
+          0.054045823544501444,
+          0.0,
+          0.0
+        ],
+        "closing_live_gross_carrying": [
+          99.6437342833194,
+          0.0,
+          0.0
+        ],
+        "interval_index": 0,
+        "native_carry_request": {
+          "duration_years": 0.0273972602739726,
+          "generator": [
+            [
+              -0.2,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "generator_source": {
+            "id": "synthetic-mortgage:stress:interval:0",
+            "revision": "synthetic-v1"
+          },
+          "measure": "physical",
+          "original_annual_effective_rate": 0.02,
+          "policy": {
+            "identity": {
+              "id": "reviewed-sequential-policy",
+              "revision": "synthetic-v1"
+            },
+            "original_income": "stop_at_exit-1",
+            "remittance_float": "external_explicit_owner_required-1"
+          },
+          "recognized_contractual_rates": [
+            0.0365,
+            0.0365,
+            0.0365
+          ],
+          "schema": "mortgage-coupled-carry-draft-1"
+        },
+        "opening": {
+          "accrued_interest": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "earned_eir": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gross_carrying": [
+            100.13688317735347,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measure": "physical",
+          "monetary_unit": "currency_units",
+          "principal": [
+            100.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "probability": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "operator": {
+          "absolute_reward": [
+            [
+              0.0005397194503126318,
+              0.0,
+              0.0,
+              1.4812538470897837e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "base": {
+            "duration_years": 0.0273972602739726,
+            "earned_interest": [
+              [
+                0.000994535532760597,
+                0.0,
+                0.0,
+                2.7297384304297716e-6,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition": [
+              [
+                0.9945355327605971,
+                0.0,
+                0.0,
+                0.005464467239402887,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "growth": [
+            [
+              0.9950752522109098,
+              0.0,
+              0.0,
+              0.005465948493249976,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "growth_bound": 1.0005426849343577,
+          "request": {
+            "duration_years": 0.0273972602739726,
+            "generator": [
+              [
+                -0.2,
+                0.0,
+                0.0,
+                0.2,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "generator_source": {
+              "id": "synthetic-mortgage:stress:interval:0",
+              "revision": "synthetic-v1"
+            },
+            "measure": "physical",
+            "original_annual_effective_rate": 0.02,
+            "policy": {
+              "identity": {
+                "id": "reviewed-sequential-policy",
+                "revision": "synthetic-v1"
+              },
+              "original_income": "stop_at_exit-1",
+              "remittance_float": "external_explicit_owner_required-1"
+            },
+            "recognized_contractual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "schema": "mortgage-coupled-carry-draft-1"
+          },
+          "reward_sign": 1.0,
+          "work_multiplications": 7
+        },
+        "transport": {
+          "book_adjustment": [
+            0.09072745398363619,
+            0.0,
+            0.0,
+            0.0006233479386723042,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "closing": {
+            "accrued_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0,
+              0.00027297384304297715,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "earned_eir": [
+              0.054045823544501444,
+              0.0,
+              0.0,
+              0.00014832814344203506,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "gross_carrying": [
+              99.6437342833194,
+              0.0,
+              0.0,
+              0.547343045722004,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "measure": "physical",
+            "monetary_unit": "currency_units",
+            "principal": [
+              99.45355327605971,
+              0.0,
+              0.0,
+              0.5464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "probability": [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "gross_conservation_error": -5.856426454897701e-15,
+          "interval_earned_eir": [
+            0.054045823544501444,
+            0.0,
+            0.0,
+            0.00014832814344203506,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "native_mortgage_generator_verified": false,
+          "total_interval_earned_eir": 0.054194151687943476
+        }
+      },
+      {
+        "closing_live_basis": [
+          0.04510124568577209,
+          0.0,
+          0.0
+        ],
+        "closing_live_earned_eir": [
+          0.10753015340680706,
+          0.0,
+          0.0
+        ],
+        "closing_live_gross_carrying": [
+          99.15301402321093,
+          0.0,
+          0.0
+        ],
+        "interval_index": 1,
+        "native_carry_request": {
+          "duration_years": 0.0273972602739726,
+          "generator": [
+            [
+              -0.2,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "generator_source": {
+            "id": "synthetic-mortgage:stress:interval:1",
+            "revision": "synthetic-v1"
+          },
+          "measure": "physical",
+          "original_annual_effective_rate": 0.02,
+          "policy": {
+            "identity": {
+              "id": "reviewed-sequential-policy",
+              "revision": "synthetic-v1"
+            },
+            "original_income": "stop_at_exit-1",
+            "remittance_float": "external_explicit_owner_required-1"
+          },
+          "recognized_contractual_rates": [
+            0.0365,
+            0.0365,
+            0.0365
+          ],
+          "schema": "mortgage-coupled-carry-draft-1"
+        },
+        "opening": {
+          "accrued_interest": [
+            0.0994535532760597,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "earned_eir": [
+            0.054045823544501444,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gross_carrying": [
+            99.6437342833194,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measure": "physical",
+          "monetary_unit": "currency_units",
+          "principal": [
+            99.45355327605971,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "probability": [
+            0.9945355327605971,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "operator": {
+          "absolute_reward": [
+            [
+              0.0005397194503126318,
+              0.0,
+              0.0,
+              1.4812538470897837e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "base": {
+            "duration_years": 0.0273972602739726,
+            "earned_interest": [
+              [
+                0.000994535532760597,
+                0.0,
+                0.0,
+                2.7297384304297716e-6,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition": [
+              [
+                0.9945355327605971,
+                0.0,
+                0.0,
+                0.005464467239402887,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "growth": [
+            [
+              0.9950752522109098,
+              0.0,
+              0.0,
+              0.005465948493249976,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "growth_bound": 1.0005426849343577,
+          "request": {
+            "duration_years": 0.0273972602739726,
+            "generator": [
+              [
+                -0.2,
+                0.0,
+                0.0,
+                0.2,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "generator_source": {
+              "id": "synthetic-mortgage:stress:interval:1",
+              "revision": "synthetic-v1"
+            },
+            "measure": "physical",
+            "original_annual_effective_rate": 0.02,
+            "policy": {
+              "identity": {
+                "id": "reviewed-sequential-policy",
+                "revision": "synthetic-v1"
+              },
+              "original_income": "stop_at_exit-1",
+              "remittance_float": "external_explicit_owner_required-1"
+            },
+            "recognized_contractual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "schema": "mortgage-coupled-carry-draft-1"
+          },
+          "reward_sign": 1.0,
+          "work_multiplications": 7
+        },
+        "transport": {
+          "book_adjustment": [
+            0.04510124568577209,
+            0.0,
+            0.0,
+            0.0003718926783329605,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "closing": {
+            "accrued_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0,
+              0.0008149428701396929,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "earned_eir": [
+              0.10753015340680706,
+              0.0,
+              0.0,
+              0.0004429292969310364,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "gross_carrying": [
+              99.15301402321093,
+              0.0,
+              0.0,
+              0.5446475192677106,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "measure": "physical",
+            "monetary_unit": "currency_units",
+            "principal": [
+              98.91009259234048,
+              0.0,
+              0.0,
+              0.543460683719238,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "probability": [
+              0.9891009259234048,
+              0.0,
+              0.0,
+              0.0054346068371923795,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "gross_conservation_error": 1.2559397966072083e-15,
+          "interval_earned_eir": [
+            0.05377966149449109,
+            0.0,
+            0.0,
+            0.00014759766474555904,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "native_mortgage_generator_verified": false,
+          "total_interval_earned_eir": 0.05392725915923665
+        }
+      },
+      {
+        "closing_live_basis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "closing_live_earned_eir": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "closing_live_gross_carrying": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "interval_index": 2,
+        "native_carry_request": {
+          "duration_years": 0.0273972602739726,
+          "generator": [
+            [
+              -0.2,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              -0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "generator_source": {
+            "id": "synthetic-mortgage:stress:interval:2",
+            "revision": "synthetic-v1"
+          },
+          "measure": "physical",
+          "original_annual_effective_rate": 0.02,
+          "policy": {
+            "identity": {
+              "id": "reviewed-sequential-policy",
+              "revision": "synthetic-v1"
+            },
+            "original_income": "stop_at_exit-1",
+            "remittance_float": "external_explicit_owner_required-1"
+          },
+          "recognized_contractual_rates": [
+            0.0365,
+            0.0365,
+            0.0365
+          ],
+          "schema": "mortgage-coupled-carry-draft-1"
+        },
+        "opening": {
+          "accrued_interest": [
+            0.19782018518468095,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "earned_eir": [
+            0.10753015340680706,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gross_carrying": [
+            99.15301402321093,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measure": "physical",
+          "monetary_unit": "currency_units",
+          "principal": [
+            98.91009259234048,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "probability": [
+            0.9891009259234048,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "operator": {
+          "absolute_reward": [
+            [
+              0.0005397194503126318,
+              0.0,
+              0.0,
+              1.4812538470897837e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0005426849343577472,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "base": {
+            "duration_years": 0.0273972602739726,
+            "earned_interest": [
+              [
+                0.000994535532760597,
+                0.0,
+                0.0,
+                2.7297384304297716e-6,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0009999999999999998,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition": [
+              [
+                0.9945355327605971,
+                0.0,
+                0.0,
+                0.005464467239402887,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "growth": [
+            [
+              0.9950752522109098,
+              0.0,
+              0.0,
+              0.005465948493249976,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0005426849343575,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "growth_bound": 1.0005426849343577,
+          "request": {
+            "duration_years": 0.0273972602739726,
+            "generator": [
+              [
+                -0.2,
+                0.0,
+                0.0,
+                0.2,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                -0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "generator_source": {
+              "id": "synthetic-mortgage:stress:interval:2",
+              "revision": "synthetic-v1"
+            },
+            "measure": "physical",
+            "original_annual_effective_rate": 0.02,
+            "policy": {
+              "identity": {
+                "id": "reviewed-sequential-policy",
+                "revision": "synthetic-v1"
+              },
+              "original_income": "stop_at_exit-1",
+              "remittance_float": "external_explicit_owner_required-1"
+            },
+            "recognized_contractual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "schema": "mortgage-coupled-carry-draft-1"
+          },
+          "reward_sign": 1.0,
+          "work_multiplications": 7
+        },
+        "transport": {
+          "book_adjustment": [
+            -5.329070518200751e-15,
+            0.0,
+            0.0,
+            0.00012332638207171172,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "closing": {
+            "accrued_interest": [
+              0.29510880489517,
+              0.0,
+              0.0,
+              0.0013509806021409804,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "earned_eir": [
+              0.16045736863171567,
+              0.0,
+              0.0,
+              0.0007344657840118924,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "gross_carrying": [
+              98.66471043661849,
+              0.0,
+              0.0,
+              0.5419652676013634,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "measure": "physical",
+            "monetary_unit": "currency_units",
+            "principal": [
+              98.36960163172333,
+              0.0,
+              0.0,
+              0.5404909606171507,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "probability": [
+              0.9836960163172334,
+              0.0,
+              0.0,
+              0.005404909606171507,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "gross_conservation_error": 1.2254086634300165e-14,
+          "interval_earned_eir": [
+            0.05351481022544808,
+            0.0,
+            0.0,
+            0.00014687078347242846,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "native_mortgage_generator_verified": false,
+          "total_interval_earned_eir": 0.053661681008920506
+        }
+      }
+    ],
+    "mixed_ledger_adoption": false,
+    "original_economic_closeouts": [],
+    "original_full_end_ordinal": 739647,
+    "original_quote_pv": 100.13688317735347,
+    "original_reviewed_interest_cash": [],
+    "original_source": {
+      "capture": {
+        "boundaries": [
+          {
+            "closing_investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "closing_investor_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "default_claim_end": 0,
+            "default_claim_start": 0,
+            "default_recoveries": [],
+            "interval_index": 0,
+            "ordinal": 739647,
+            "prepayments": [],
+            "scheduled": [
+              {
+                "entitlement_id": "scheduled_investor_entitlement-0",
+                "interest": 0.3,
+                "origin": 0,
+                "principal": 100.0,
+                "recognized_interest": 0.3
+              },
+              {
+                "entitlement_id": null,
+                "interest": 0.0,
+                "origin": 1,
+                "principal": 0.0,
+                "recognized_interest": 0.0
+              },
+              {
+                "entitlement_id": null,
+                "interest": 0.0,
+                "origin": 2,
+                "principal": 0.0,
+                "recognized_interest": 0.0
+              }
+            ],
+            "transported_investor_interest": [
+              0.3,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_investor_principal": [
+              100.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_interest": [
+              0.3,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_principal": [
+              100.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "cash_links": [
+          {
+            "cash_event_id": "scheduled_investor_entitlement-0",
+            "entitlement_id": "scheduled_investor_entitlement-0"
+          }
+        ]
+      },
+      "intervals": [
+        {
+          "arm_reset_is_boundary": false,
+          "burnout_before_interval": 0.02,
+          "contractual_day_fraction": 0.0821917808219178,
+          "default_claim_start_index": 0,
+          "duration_years_act365f": 0.0821917808219178,
+          "end_ordinal": 739647,
+          "event_order": "interval_transport_default_capture_prepayment_payment_arm_reset_snapshot-1",
+          "financial_source_sha256": "3BBCECC486DE438A3C6C7586337ED292B2ABBED96156102A4CE5BE327E867E71",
+          "identity": {
+            "assumption_id": "synthetic-supplied-coefficients",
+            "cohort_id": "synthetic-cohort",
+            "currency": "USD",
+            "measure": "physical",
+            "model_version": "mortgage-state-1",
+            "original_loan_id": "synthetic-loan",
+            "position_id": "synthetic-mortgage",
+            "run_id": "baseline",
+            "source_revision": "synthetic-v1"
+          },
+          "interval_index": 0,
+          "investor_coupon_before_boundary": 0.0365,
+          "investor_earned_interest": [
+            [
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "investor_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0821917808219178,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "investor_transition": [
+            [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "loan_earned_interest": [
+            [
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0029999999999999996,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "loan_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0821917808219178,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "loan_transition": [
+            [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "note_rate_before_boundary": 0.0365,
+          "opening_borrower_interest": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "opening_borrower_principal": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "opening_investor_interest": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "opening_investor_principal": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "opening_probability": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ownership": {
+            "kind": "whole_loan",
+            "recognized_accrual_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "remittance_lag_days": 0
+          },
+          "path_start_ordinal": 739617,
+          "payment_before_boundary": 101.0,
+          "payment_is_boundary": true,
+          "reset_count_before_boundary": 0,
+          "schema": "mortgage-interval-receipt-draft-1",
+          "start_ordinal": 739617
+        }
+      ],
+      "native_projection": {
+        "borrower_cashflows": [
+          {
+            "event_id": "scheduled_borrower_collection-0",
+            "fees": 0.0,
+            "interest": 0.3,
+            "kind": "scheduled_borrower_collection",
+            "ordinal": 739647,
+            "principal": 100.0
+          }
+        ],
+        "borrower_principal_conservation_error": 0.0,
+        "borrower_refinance_principal": 0.0,
+        "borrower_scheduled_principal": 100.0,
+        "borrower_turnover_principal": 0.0,
+        "calendar_mapping_verified": false,
+        "cashflows": [
+          {
+            "event_id": "scheduled_investor_entitlement-0",
+            "fees": 0.0,
+            "interest": 0.3,
+            "kind": "scheduled_investor_entitlement",
+            "ordinal": 739647,
+            "principal": 100.0
+          }
+        ],
+        "defaults": [],
+        "entitlements": [
+          {
+            "entitlement_ordinal": 739647,
+            "event_id": "scheduled_investor_entitlement-0",
+            "interest": 0.3,
+            "kind": "scheduled_investor_entitlement",
+            "principal": 100.0,
+            "remittance_ordinal": 739647
+          }
+        ],
+        "guarantee_interest_advance": 0.0,
+        "guarantee_principal_advance": 0.0,
+        "identity": {
+          "assumption_id": "synthetic-supplied-coefficients",
+          "cohort_id": "synthetic-cohort",
+          "currency": "USD",
+          "measure": "physical",
+          "model_version": "mortgage-state-1",
+          "original_loan_id": "synthetic-loan",
+          "position_id": "synthetic-mortgage",
+          "run_id": "baseline",
+          "source_revision": "synthetic-v1"
+        },
+        "investor_principal_conservation_error": 0.0,
+        "investor_refinance_principal": 0.0,
+        "investor_scheduled_principal": 100.0,
+        "investor_turnover_principal": 0.0,
+        "monetary_unit": "currency_units",
+        "original_payment": 101.0,
+        "original_principal": 100.0,
+        "origination_ordinal": 737425,
+        "ownership": {
+          "kind": "whole_loan",
+          "recognized_accrual_fraction": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "remittance_lag_days": 0
+        },
+        "points": [
+          {
+            "borrower_default_principal": -0.0,
+            "borrower_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "borrower_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "burnout_incentive_years": 0.021767123287671233,
+            "contractual_principal": 0.0,
+            "current_payment": 101.0,
+            "investor_default_principal": -0.0,
+            "investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "investor_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matured_probability": 1.0,
+            "note_rate": 0.0365,
+            "ordinal": 739647,
+            "probability": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "refinance_hazard_per_year": 0.0,
+            "seasoning_days": 2222,
+            "turnover_hazard_per_year": 0.0
+          }
+        ],
+        "recognition": [
+          {
+            "end_ordinal": 739647,
+            "interest": 0.3,
+            "origin_id": "mortgage-earned-0",
+            "start_ordinal": 739617
+          }
+        ],
+        "resets": [],
+        "schema": "mortgage-state-1",
+        "work_units": 2
+      }
+    },
+    "original_source_raw_hash": "c15e7520abb3212492a1787210c2949dcb9a6f089198cff8c8fd19ceffe7eb3d",
+    "original_source_receipt_hash": "2dc249438df04229edaa664767e35f7a8eeedc755e4a0984fe394416c4dc8b06",
+    "principal_recovery_owner": "native_mortgage_projection_only-1",
+    "production_adoption": false,
+    "quote_basis": "complete_immutable_original_actual_cash_only-1",
+    "raw_request": {
+      "acquisition": {
+        "accounting_basis": "supplied_non_pcd_gross_cost-1",
+        "actual_cost": 100.13688317735347,
+        "identity": {
+          "id": "actual-purchase",
+          "revision": "synthetic-v1"
+        },
+        "income_review": {
+          "id": "original-income-review",
+          "revision": "synthetic-v1"
+        },
+        "opening_gross_carrying": [
+          100.13688317735347,
+          0.0,
+          0.0
+        ],
+        "original_annual_effective_rate": 0.02,
+        "original_yield_anchor": {
+          "id": "original-purchase-yield",
+          "revision": "synthetic-v1"
+        },
+        "purchase_ordinal": 739617
+      },
+      "contract": {
+        "as_of_ordinal": 739617,
+        "borrower_collection_fraction": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "complete_recovery_tails": [
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ]
+        ],
+        "current_note_rate": 0.0365,
+        "current_payment": 101.0,
+        "day_count": "act365_fixed",
+        "horizon_days": 30,
+        "identity": {
+          "assumption_id": "synthetic-supplied-coefficients",
+          "cohort_id": "synthetic-cohort",
+          "currency": "USD",
+          "measure": "physical",
+          "model_version": "mortgage-state-1",
+          "original_loan_id": "synthetic-loan",
+          "position_id": "synthetic-mortgage",
+          "run_id": "stress",
+          "source_revision": "synthetic-v1"
+        },
+        "loss_given_default": [
+          0.4,
+          0.5,
+          0.6
+        ],
+        "monetary_unit": "currency_units",
+        "opening_borrower_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_borrower_principal": [
+          100.0,
+          0.0,
+          0.0
+        ],
+        "opening_burnout_incentive_years": 0.02,
+        "opening_contractual_interest": 0.0,
+        "opening_contractual_principal": 100.0,
+        "opening_investor_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_investor_principal": [
+          100.0,
+          0.0,
+          0.0
+        ],
+        "opening_probability": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "original_payment": 101.0,
+        "original_principal": 100.0,
+        "origination_ordinal": 737425,
+        "ownership": {
+          "kind": "whole_loan",
+          "recognized_accrual_fraction": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "remittance_lag_days": 0
+        },
+        "path": [
+          {
+            "credit_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "refinancing_market_rate": 0.01,
+            "start_ordinal": 739617,
+            "turnover_hazard_per_year": 0.0
+          },
+          {
+            "credit_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "refinancing_market_rate": 0.01,
+            "start_ordinal": 739627,
+            "turnover_hazard_per_year": 0.0
+          },
+          {
+            "credit_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "refinancing_market_rate": 0.01,
+            "start_ordinal": 739637,
+            "turnover_hazard_per_year": 0.0
+          }
+        ],
+        "payment_dates": [
+          739647
+        ],
+        "publication_cutoff_unix_seconds": 1767225600,
+        "rate": {
+          "kind": "fixed"
+        },
+        "refinance": {
+          "burnout_sensitivity": 1.0,
+          "incentive_slope": 0.0,
+          "incentive_threshold": 0.005,
+          "prepay_eligibility": [
+            1.0,
+            1.0,
+            0.0
+          ],
+          "refinance_seasoning_days": 365,
+          "turnover_seasoning_days": 730
+        },
+        "schema": "mortgage-state-1"
+      },
+      "economic_source": {
+        "id": "current-physical-source",
+        "revision": "synthetic-v1"
+      },
+      "original_contract": {
+        "as_of_ordinal": 739617,
+        "borrower_collection_fraction": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "complete_recovery_tails": [
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 15,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 30,
+              "weight": 0.75
+            }
+          ]
+        ],
+        "current_note_rate": 0.0365,
+        "current_payment": 101.0,
+        "day_count": "act365_fixed",
+        "horizon_days": 30,
+        "identity": {
+          "assumption_id": "synthetic-supplied-coefficients",
+          "cohort_id": "synthetic-cohort",
+          "currency": "USD",
+          "measure": "physical",
+          "model_version": "mortgage-state-1",
+          "original_loan_id": "synthetic-loan",
+          "position_id": "synthetic-mortgage",
+          "run_id": "baseline",
+          "source_revision": "synthetic-v1"
+        },
+        "loss_given_default": [
+          0.4,
+          0.5,
+          0.6
+        ],
+        "monetary_unit": "currency_units",
+        "opening_borrower_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_borrower_principal": [
+          100.0,
+          0.0,
+          0.0
+        ],
+        "opening_burnout_incentive_years": 0.02,
+        "opening_contractual_interest": 0.0,
+        "opening_contractual_principal": 100.0,
+        "opening_investor_interest": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "opening_investor_principal": [
+          100.0,
+          0.0,
+          0.0
+        ],
+        "opening_probability": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "original_payment": 101.0,
+        "original_principal": 100.0,
+        "origination_ordinal": 737425,
+        "ownership": {
+          "kind": "whole_loan",
+          "recognized_accrual_fraction": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "remittance_lag_days": 0
+        },
+        "path": [
+          {
+            "credit_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "refinancing_market_rate": 0.01,
+            "start_ordinal": 739617,
+            "turnover_hazard_per_year": 0.0
+          }
+        ],
+        "payment_dates": [
+          739647
+        ],
+        "publication_cutoff_unix_seconds": 1767225600,
+        "rate": {
+          "kind": "fixed"
+        },
+        "refinance": {
+          "burnout_sensitivity": 1.0,
+          "incentive_slope": 0.0,
+          "incentive_threshold": 0.005,
+          "prepay_eligibility": [
+            1.0,
+            1.0,
+            0.0
+          ],
+          "refinance_seasoning_days": 365,
+          "turnover_seasoning_days": 730
+        },
+        "schema": "mortgage-state-1"
+      },
+      "original_economic_source": {
+        "id": "original-physical-source",
+        "revision": "synthetic-v1"
+      },
+      "pairing": {
+        "current_run_id": "stress",
+        "original_run_id": "baseline",
+        "policy": "supplied_physical_original_contract_unchanged-1",
+        "review": {
+          "id": "paired-contract-review",
+          "revision": "synthetic-v1"
+        }
+      },
+      "path_id": "physical-sequential-path",
+      "policy": {
+        "default_basis": "dispose_signed_basis_at_default-1",
+        "default_principal_book": "chargeoff_native_loss_at_default-1",
+        "default_principal_book_review": {
+          "id": "reviewed-principal-book-loss",
+          "revision": "synthetic-v1"
+        },
+        "economic_principal_disposal_lag_days": 30,
+        "economic_principal_disposal_review": {
+          "id": "reviewed-economic-principal-waiver",
+          "revision": "synthetic-v1"
+        },
+        "exit_basis": "signed_native_exit_cash_minus_exact_carry-1",
+        "identity": {
+          "id": "reviewed-sequential-policy",
+          "revision": "synthetic-v1"
+        },
+        "interest": {
+          "accounting_accrued": "reverse_income_at_default",
+          "collection_fraction": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "complete_collection_tails": [
+            [
+              {
+                "lag_days": 5,
+                "weight": 0.25
+              },
+              {
+                "lag_days": 10,
+                "weight": 0.75
+              }
+            ],
+            [
+              {
+                "lag_days": 5,
+                "weight": 0.25
+              },
+              {
+                "lag_days": 10,
+                "weight": 0.75
+              }
+            ],
+            [
+              {
+                "lag_days": 5,
+                "weight": 0.25
+              },
+              {
+                "lag_days": 10,
+                "weight": 0.75
+              }
+            ]
+          ],
+          "disposal_lag_days": 10,
+          "economic_disposal_review": {
+            "id": "reviewed-economic-interest-waiver",
+            "revision": "synthetic-v1"
+          },
+          "economic_remainder": "reviewed_economic_disposal",
+          "review": {
+            "id": "reviewed-economic-interest-cash",
+            "revision": "synthetic-v1"
+          }
+        },
+        "live_cash": "actual_native_cash_reduces_carry-1",
+        "original_income": "stop_at_exit-1",
+        "remittance_float": "reject_nonzero_remittance_lag-1",
+        "tail": "reject_unclosed_gross_rights-1"
+      },
+      "schema": "mortgage-sequential-carry-draft-1"
+    },
+    "reviewed_interest_cash": [
+      {
+        "amount": 0.00003412173038037214,
+        "cash_id": "mortgage-default-0:reviewed-interest:0",
+        "claim_id": "mortgage-default-0",
+        "ordinal": 739632,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      {
+        "amount": 0.00010236519114111643,
+        "cash_id": "mortgage-default-0:reviewed-interest:1",
+        "claim_id": "mortgage-default-0",
+        "ordinal": 739637,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      {
+        "amount": 0.00010186785876746161,
+        "cash_id": "mortgage-default-1:reviewed-interest:0",
+        "claim_id": "mortgage-default-1",
+        "ordinal": 739642,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      {
+        "amount": 0.0003056035763023848,
+        "cash_id": "mortgage-default-1:reviewed-interest:1",
+        "claim_id": "mortgage-default-1",
+        "ordinal": 739647,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      {
+        "amount": 0.00016887257526762255,
+        "cash_id": "mortgage-default-2:reviewed-interest:0",
+        "claim_id": "mortgage-default-2",
+        "ordinal": 739652,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      {
+        "amount": 0.0005066177258028677,
+        "cash_id": "mortgage-default-2:reviewed-interest:1",
+        "claim_id": "mortgage-default-2",
+        "ordinal": 739657,
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      }
+    ],
+    "schema": "mortgage-sequential-carry-draft-1",
+    "sequential_carry_adoption": false,
+    "source": {
+      "capture": {
+        "boundaries": [
+          {
+            "closing_investor_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0
+            ],
+            "closing_investor_principal": [
+              99.45355327605971,
+              0.0,
+              0.0
+            ],
+            "default_claim_end": 1,
+            "default_claim_start": 0,
+            "default_recoveries": [
+              {
+                "claim_index": 0,
+                "entitlement_id": "whole_loan_default_recovery-0",
+                "ordinal": 739642,
+                "origin": 0,
+                "principal": 0.0819670085910433,
+                "tail_index": 0
+              },
+              {
+                "claim_index": 0,
+                "entitlement_id": "whole_loan_default_recovery-1",
+                "ordinal": 739657,
+                "origin": 0,
+                "principal": 0.24590102577312992,
+                "tail_index": 1
+              }
+            ],
+            "interval_index": 0,
+            "ordinal": 739627,
+            "prepayments": [],
+            "scheduled": [],
+            "transported_investor_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0,
+              0.00027297384304297715,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_investor_principal": [
+              99.45355327605971,
+              0.0,
+              0.0,
+              0.5464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0,
+              0.00027297384304297715,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_principal": [
+              99.45355327605971,
+              0.0,
+              0.0,
+              0.5464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "closing_investor_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0
+            ],
+            "closing_investor_principal": [
+              98.91009259234048,
+              0.0,
+              0.0
+            ],
+            "default_claim_end": 2,
+            "default_claim_start": 1,
+            "default_recoveries": [
+              {
+                "claim_index": 1,
+                "entitlement_id": "whole_loan_default_recovery-2",
+                "ordinal": 739652,
+                "origin": 0,
+                "principal": 0.08151910255788569,
+                "tail_index": 0
+              },
+              {
+                "claim_index": 1,
+                "entitlement_id": "whole_loan_default_recovery-3",
+                "ordinal": 739667,
+                "origin": 0,
+                "principal": 0.24455730767365708,
+                "tail_index": 1
+              }
+            ],
+            "interval_index": 1,
+            "ordinal": 739637,
+            "prepayments": [],
+            "scheduled": [],
+            "transported_investor_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0,
+              0.0008149428701396929,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_investor_principal": [
+              98.91009259234048,
+              0.0,
+              0.0,
+              0.543460683719238,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0,
+              0.0008149428701396929,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_principal": [
+              98.91009259234048,
+              0.0,
+              0.0,
+              0.543460683719238,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "closing_investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "closing_investor_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "default_claim_end": 3,
+            "default_claim_start": 2,
+            "default_recoveries": [
+              {
+                "claim_index": 2,
+                "entitlement_id": "whole_loan_default_recovery-4",
+                "ordinal": 739662,
+                "origin": 0,
+                "principal": 0.08107364409257262,
+                "tail_index": 0
+              },
+              {
+                "claim_index": 2,
+                "entitlement_id": "whole_loan_default_recovery-5",
+                "ordinal": 739677,
+                "origin": 0,
+                "principal": 0.24322093227771785,
+                "tail_index": 1
+              }
+            ],
+            "interval_index": 2,
+            "ordinal": 739647,
+            "prepayments": [],
+            "scheduled": [
+              {
+                "entitlement_id": "scheduled_investor_entitlement-6",
+                "interest": 0.29510880489517,
+                "origin": 0,
+                "principal": 98.36960163172333,
+                "recognized_interest": 0.29510880489517
+              },
+              {
+                "entitlement_id": null,
+                "interest": 0.0,
+                "origin": 1,
+                "principal": 0.0,
+                "recognized_interest": 0.0
+              },
+              {
+                "entitlement_id": null,
+                "interest": 0.0,
+                "origin": 2,
+                "principal": 0.0,
+                "recognized_interest": 0.0
+              }
+            ],
+            "transported_investor_interest": [
+              0.29510880489517,
+              0.0,
+              0.0,
+              0.0013509806021409804,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_investor_principal": [
+              98.36960163172333,
+              0.0,
+              0.0,
+              0.5404909606171507,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_interest": [
+              0.29510880489517,
+              0.0,
+              0.0,
+              0.0013509806021409804,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "transported_loan_principal": [
+              98.36960163172333,
+              0.0,
+              0.0,
+              0.5404909606171507,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "cash_links": [
+          {
+            "cash_event_id": "whole_loan_default_recovery-0",
+            "entitlement_id": "whole_loan_default_recovery-0"
+          },
+          {
+            "cash_event_id": "scheduled_investor_entitlement-1",
+            "entitlement_id": "scheduled_investor_entitlement-6"
+          },
+          {
+            "cash_event_id": "whole_loan_default_recovery-2",
+            "entitlement_id": "whole_loan_default_recovery-2"
+          },
+          {
+            "cash_event_id": "whole_loan_default_recovery-3",
+            "entitlement_id": "whole_loan_default_recovery-1"
+          },
+          {
+            "cash_event_id": "whole_loan_default_recovery-4",
+            "entitlement_id": "whole_loan_default_recovery-4"
+          },
+          {
+            "cash_event_id": "whole_loan_default_recovery-5",
+            "entitlement_id": "whole_loan_default_recovery-3"
+          },
+          {
+            "cash_event_id": "whole_loan_default_recovery-6",
+            "entitlement_id": "whole_loan_default_recovery-5"
+          }
+        ]
+      },
+      "intervals": [
+        {
+          "arm_reset_is_boundary": false,
+          "burnout_before_interval": 0.02,
+          "contractual_day_fraction": 0.0273972602739726,
+          "default_claim_start_index": 0,
+          "duration_years_act365f": 0.0273972602739726,
+          "end_ordinal": 739627,
+          "event_order": "interval_transport_default_capture_prepayment_payment_arm_reset_snapshot-1",
+          "financial_source_sha256": "3BBCECC486DE438A3C6C7586337ED292B2ABBED96156102A4CE5BE327E867E71",
+          "identity": {
+            "assumption_id": "synthetic-supplied-coefficients",
+            "cohort_id": "synthetic-cohort",
+            "currency": "USD",
+            "measure": "physical",
+            "model_version": "mortgage-state-1",
+            "original_loan_id": "synthetic-loan",
+            "position_id": "synthetic-mortgage",
+            "run_id": "stress",
+            "source_revision": "synthetic-v1"
+          },
+          "interval_index": 0,
+          "investor_coupon_before_boundary": 0.0365,
+          "investor_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "investor_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "investor_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "loan_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "loan_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "loan_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "note_rate_before_boundary": 0.0365,
+          "opening_borrower_interest": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "opening_borrower_principal": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "opening_investor_interest": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "opening_investor_principal": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "opening_probability": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ownership": {
+            "kind": "whole_loan",
+            "recognized_accrual_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "remittance_lag_days": 0
+          },
+          "path_start_ordinal": 739617,
+          "payment_before_boundary": 101.0,
+          "payment_is_boundary": false,
+          "reset_count_before_boundary": 0,
+          "schema": "mortgage-interval-receipt-draft-1",
+          "start_ordinal": 739617
+        },
+        {
+          "arm_reset_is_boundary": false,
+          "burnout_before_interval": 0.020589041095890413,
+          "contractual_day_fraction": 0.0273972602739726,
+          "default_claim_start_index": 1,
+          "duration_years_act365f": 0.0273972602739726,
+          "end_ordinal": 739637,
+          "event_order": "interval_transport_default_capture_prepayment_payment_arm_reset_snapshot-1",
+          "financial_source_sha256": "3BBCECC486DE438A3C6C7586337ED292B2ABBED96156102A4CE5BE327E867E71",
+          "identity": {
+            "assumption_id": "synthetic-supplied-coefficients",
+            "cohort_id": "synthetic-cohort",
+            "currency": "USD",
+            "measure": "physical",
+            "model_version": "mortgage-state-1",
+            "original_loan_id": "synthetic-loan",
+            "position_id": "synthetic-mortgage",
+            "run_id": "stress",
+            "source_revision": "synthetic-v1"
+          },
+          "interval_index": 1,
+          "investor_coupon_before_boundary": 0.0365,
+          "investor_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "investor_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "investor_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "loan_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "loan_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "loan_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "note_rate_before_boundary": 0.0365,
+          "opening_borrower_interest": [
+            0.0994535532760597,
+            0.0,
+            0.0
+          ],
+          "opening_borrower_principal": [
+            99.45355327605971,
+            0.0,
+            0.0
+          ],
+          "opening_investor_interest": [
+            0.0994535532760597,
+            0.0,
+            0.0
+          ],
+          "opening_investor_principal": [
+            99.45355327605971,
+            0.0,
+            0.0
+          ],
+          "opening_probability": [
+            0.9945355327605971,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ownership": {
+            "kind": "whole_loan",
+            "recognized_accrual_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "remittance_lag_days": 0
+          },
+          "path_start_ordinal": 739627,
+          "payment_before_boundary": 101.0,
+          "payment_is_boundary": false,
+          "reset_count_before_boundary": 0,
+          "schema": "mortgage-interval-receipt-draft-1",
+          "start_ordinal": 739627
+        },
+        {
+          "arm_reset_is_boundary": false,
+          "burnout_before_interval": 0.021178082191780825,
+          "contractual_day_fraction": 0.0273972602739726,
+          "default_claim_start_index": 2,
+          "duration_years_act365f": 0.0273972602739726,
+          "end_ordinal": 739647,
+          "event_order": "interval_transport_default_capture_prepayment_payment_arm_reset_snapshot-1",
+          "financial_source_sha256": "3BBCECC486DE438A3C6C7586337ED292B2ABBED96156102A4CE5BE327E867E71",
+          "identity": {
+            "assumption_id": "synthetic-supplied-coefficients",
+            "cohort_id": "synthetic-cohort",
+            "currency": "USD",
+            "measure": "physical",
+            "model_version": "mortgage-state-1",
+            "original_loan_id": "synthetic-loan",
+            "position_id": "synthetic-mortgage",
+            "run_id": "stress",
+            "source_revision": "synthetic-v1"
+          },
+          "interval_index": 2,
+          "investor_coupon_before_boundary": 0.0365,
+          "investor_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "investor_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "investor_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "loan_earned_interest": [
+            [
+              0.000994535532760597,
+              0.0,
+              0.0,
+              2.7297384304297716e-6,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0009999999999999998,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "loan_operator_request": {
+            "accrual_rates": [
+              0.0365,
+              0.0365,
+              0.0365
+            ],
+            "duration_years": 0.0273972602739726,
+            "measure": "physical",
+            "schema": "credit-operator-1",
+            "transition_hazards_per_year": [
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.2,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ]
+          },
+          "loan_transition": [
+            [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "note_rate_before_boundary": 0.0365,
+          "opening_borrower_interest": [
+            0.19782018518468095,
+            0.0,
+            0.0
+          ],
+          "opening_borrower_principal": [
+            98.91009259234048,
+            0.0,
+            0.0
+          ],
+          "opening_investor_interest": [
+            0.19782018518468095,
+            0.0,
+            0.0
+          ],
+          "opening_investor_principal": [
+            98.91009259234048,
+            0.0,
+            0.0
+          ],
+          "opening_probability": [
+            0.9891009259234048,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ownership": {
+            "kind": "whole_loan",
+            "recognized_accrual_fraction": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "remittance_lag_days": 0
+          },
+          "path_start_ordinal": 739637,
+          "payment_before_boundary": 101.0,
+          "payment_is_boundary": true,
+          "reset_count_before_boundary": 0,
+          "schema": "mortgage-interval-receipt-draft-1",
+          "start_ordinal": 739637
+        }
+      ],
+      "native_projection": {
+        "borrower_cashflows": [
+          {
+            "event_id": "borrower_default_recovery-0",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739642,
+            "principal": 0.0819670085910433
+          },
+          {
+            "event_id": "scheduled_borrower_collection-6",
+            "fees": 0.0,
+            "interest": 0.29510880489517,
+            "kind": "scheduled_borrower_collection",
+            "ordinal": 739647,
+            "principal": 98.36960163172333
+          },
+          {
+            "event_id": "borrower_default_recovery-2",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739652,
+            "principal": 0.08151910255788569
+          },
+          {
+            "event_id": "borrower_default_recovery-1",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739657,
+            "principal": 0.24590102577312992
+          },
+          {
+            "event_id": "borrower_default_recovery-4",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739662,
+            "principal": 0.08107364409257262
+          },
+          {
+            "event_id": "borrower_default_recovery-3",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739667,
+            "principal": 0.24455730767365708
+          },
+          {
+            "event_id": "borrower_default_recovery-5",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "borrower_default_recovery",
+            "ordinal": 739677,
+            "principal": 0.24322093227771785
+          }
+        ],
+        "borrower_principal_conservation_error": -1.1546319456101628e-14,
+        "borrower_refinance_principal": 0.0,
+        "borrower_scheduled_principal": 98.36960163172333,
+        "borrower_turnover_principal": 0.0,
+        "calendar_mapping_verified": false,
+        "cashflows": [
+          {
+            "event_id": "whole_loan_default_recovery-0",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739642,
+            "principal": 0.0819670085910433
+          },
+          {
+            "event_id": "scheduled_investor_entitlement-1",
+            "fees": 0.0,
+            "interest": 0.29510880489517,
+            "kind": "scheduled_investor_entitlement",
+            "ordinal": 739647,
+            "principal": 98.36960163172333
+          },
+          {
+            "event_id": "whole_loan_default_recovery-2",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739652,
+            "principal": 0.08151910255788569
+          },
+          {
+            "event_id": "whole_loan_default_recovery-3",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739657,
+            "principal": 0.24590102577312992
+          },
+          {
+            "event_id": "whole_loan_default_recovery-4",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739662,
+            "principal": 0.08107364409257262
+          },
+          {
+            "event_id": "whole_loan_default_recovery-5",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739667,
+            "principal": 0.24455730767365708
+          },
+          {
+            "event_id": "whole_loan_default_recovery-6",
+            "fees": 0.0,
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "ordinal": 739677,
+            "principal": 0.24322093227771785
+          }
+        ],
+        "defaults": [
+          {
+            "borrower_contract_interest": 0.00027297384304297715,
+            "borrower_principal": 0.5464467239402887,
+            "borrower_principal_loss": 0.21857868957611548,
+            "claim_id": "mortgage-default-0",
+            "complete_recovery_tail": [
+              {
+                "ordinal": 739642,
+                "principal": 0.0819670085910433
+              },
+              {
+                "ordinal": 739657,
+                "principal": 0.24590102577312992
+              }
+            ],
+            "default_ordinal": 739627,
+            "investor_accrued_interest": 0.00027297384304297715,
+            "investor_buyout_ordinal": null,
+            "investor_principal": 0.5464467239402887,
+            "origin": 0
+          },
+          {
+            "borrower_contract_interest": 0.0008149428701396929,
+            "borrower_principal": 0.543460683719238,
+            "borrower_principal_loss": 0.21738427348769518,
+            "claim_id": "mortgage-default-1",
+            "complete_recovery_tail": [
+              {
+                "ordinal": 739652,
+                "principal": 0.08151910255788569
+              },
+              {
+                "ordinal": 739667,
+                "principal": 0.24455730767365708
+              }
+            ],
+            "default_ordinal": 739637,
+            "investor_accrued_interest": 0.0008149428701396929,
+            "investor_buyout_ordinal": null,
+            "investor_principal": 0.543460683719238,
+            "origin": 0
+          },
+          {
+            "borrower_contract_interest": 0.0013509806021409804,
+            "borrower_principal": 0.5404909606171507,
+            "borrower_principal_loss": 0.2161963842468603,
+            "claim_id": "mortgage-default-2",
+            "complete_recovery_tail": [
+              {
+                "ordinal": 739662,
+                "principal": 0.08107364409257262
+              },
+              {
+                "ordinal": 739677,
+                "principal": 0.24322093227771785
+              }
+            ],
+            "default_ordinal": 739647,
+            "investor_accrued_interest": 0.0013509806021409804,
+            "investor_buyout_ordinal": null,
+            "investor_principal": 0.5404909606171507,
+            "origin": 0
+          }
+        ],
+        "entitlements": [
+          {
+            "entitlement_ordinal": 739642,
+            "event_id": "whole_loan_default_recovery-0",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.0819670085910433,
+            "remittance_ordinal": 739642
+          },
+          {
+            "entitlement_ordinal": 739647,
+            "event_id": "scheduled_investor_entitlement-6",
+            "interest": 0.29510880489517,
+            "kind": "scheduled_investor_entitlement",
+            "principal": 98.36960163172333,
+            "remittance_ordinal": 739647
+          },
+          {
+            "entitlement_ordinal": 739652,
+            "event_id": "whole_loan_default_recovery-2",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.08151910255788569,
+            "remittance_ordinal": 739652
+          },
+          {
+            "entitlement_ordinal": 739657,
+            "event_id": "whole_loan_default_recovery-1",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.24590102577312992,
+            "remittance_ordinal": 739657
+          },
+          {
+            "entitlement_ordinal": 739662,
+            "event_id": "whole_loan_default_recovery-4",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.08107364409257262,
+            "remittance_ordinal": 739662
+          },
+          {
+            "entitlement_ordinal": 739667,
+            "event_id": "whole_loan_default_recovery-3",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.24455730767365708,
+            "remittance_ordinal": 739667
+          },
+          {
+            "entitlement_ordinal": 739677,
+            "event_id": "whole_loan_default_recovery-5",
+            "interest": 0.0,
+            "kind": "whole_loan_default_recovery",
+            "principal": 0.24322093227771785,
+            "remittance_ordinal": 739677
+          }
+        ],
+        "guarantee_interest_advance": 0.0,
+        "guarantee_principal_advance": 0.0,
+        "identity": {
+          "assumption_id": "synthetic-supplied-coefficients",
+          "cohort_id": "synthetic-cohort",
+          "currency": "USD",
+          "measure": "physical",
+          "model_version": "mortgage-state-1",
+          "original_loan_id": "synthetic-loan",
+          "position_id": "synthetic-mortgage",
+          "run_id": "stress",
+          "source_revision": "synthetic-v1"
+        },
+        "investor_principal_conservation_error": -1.1546319456101628e-14,
+        "investor_refinance_principal": 0.0,
+        "investor_scheduled_principal": 98.36960163172333,
+        "investor_turnover_principal": 0.0,
+        "monetary_unit": "currency_units",
+        "original_payment": 101.0,
+        "original_principal": 100.0,
+        "origination_ordinal": 737425,
+        "ownership": {
+          "kind": "whole_loan",
+          "recognized_accrual_fraction": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "remittance_lag_days": 0
+        },
+        "points": [
+          {
+            "borrower_default_principal": 0.5464467239402887,
+            "borrower_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0
+            ],
+            "borrower_principal": [
+              99.45355327605971,
+              0.0,
+              0.0
+            ],
+            "burnout_incentive_years": 0.020589041095890413,
+            "contractual_principal": 100.0,
+            "current_payment": 101.0,
+            "investor_default_principal": 0.5464467239402887,
+            "investor_interest": [
+              0.0994535532760597,
+              0.0,
+              0.0
+            ],
+            "investor_principal": [
+              99.45355327605971,
+              0.0,
+              0.0
+            ],
+            "matured_probability": 0.0,
+            "note_rate": 0.0365,
+            "ordinal": 739627,
+            "probability": [
+              0.9945355327605971,
+              0.0,
+              0.0,
+              0.005464467239402887,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "refinance_hazard_per_year": 0.0,
+            "seasoning_days": 2202,
+            "turnover_hazard_per_year": 0.0
+          },
+          {
+            "borrower_default_principal": 1.0899074076595268,
+            "borrower_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0
+            ],
+            "borrower_principal": [
+              98.91009259234048,
+              0.0,
+              0.0
+            ],
+            "burnout_incentive_years": 0.021178082191780825,
+            "contractual_principal": 100.0,
+            "current_payment": 101.0,
+            "investor_default_principal": 1.0899074076595268,
+            "investor_interest": [
+              0.19782018518468095,
+              0.0,
+              0.0
+            ],
+            "investor_principal": [
+              98.91009259234048,
+              0.0,
+              0.0
+            ],
+            "matured_probability": 0.0,
+            "note_rate": 0.0365,
+            "ordinal": 739637,
+            "probability": [
+              0.9891009259234048,
+              0.0,
+              0.0,
+              0.010899074076595267,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "refinance_hazard_per_year": 0.0,
+            "seasoning_days": 2212,
+            "turnover_hazard_per_year": 0.0
+          },
+          {
+            "borrower_default_principal": 1.548431359685634,
+            "borrower_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "borrower_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "burnout_incentive_years": 0.021767123287671237,
+            "contractual_principal": 0.0,
+            "current_payment": 101.0,
+            "investor_default_principal": 1.548431359685634,
+            "investor_interest": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "investor_principal": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "matured_probability": 0.9836960163172334,
+            "note_rate": 0.0365,
+            "ordinal": 739647,
+            "probability": [
+              0.0,
+              0.0,
+              0.0,
+              0.016303983682766775,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "refinance_hazard_per_year": 0.0,
+            "seasoning_days": 2222,
+            "turnover_hazard_per_year": 0.0
+          }
+        ],
+        "recognition": [
+          {
+            "end_ordinal": 739627,
+            "interest": 0.09972652711910268,
+            "origin_id": "mortgage-earned-0",
+            "start_ordinal": 739617
+          },
+          {
+            "end_ordinal": 739637,
+            "interest": 0.09918157477876093,
+            "origin_id": "mortgage-earned-1",
+            "start_ordinal": 739627
+          },
+          {
+            "end_ordinal": 739647,
+            "interest": 0.09863960031263,
+            "origin_id": "mortgage-earned-2",
+            "start_ordinal": 739637
+          }
+        ],
+        "resets": [],
+        "schema": "mortgage-state-1",
+        "work_units": 18
+      }
+    },
+    "total_accounting_income": -0.49271427111130917,
+    "total_actual_cash": 99.64416890624219,
+    "total_earned_eir": 0.16178309185610062
+  },
+  "native_test": "repeated_same_generator_intervals_preserve_semigroup_and_reward_history",
+  "production_adoption": false,
+  "raw_request": {
+    "acquisition": {
+      "accounting_basis": "supplied_non_pcd_gross_cost-1",
+      "actual_cost": 100.13688317735347,
+      "identity": {
+        "id": "actual-purchase",
+        "revision": "synthetic-v1"
+      },
+      "income_review": {
+        "id": "original-income-review",
+        "revision": "synthetic-v1"
+      },
+      "opening_gross_carrying": [
+        100.13688317735347,
+        0.0,
+        0.0
+      ],
+      "original_annual_effective_rate": 0.02,
+      "original_yield_anchor": {
+        "id": "original-purchase-yield",
+        "revision": "synthetic-v1"
+      },
+      "purchase_ordinal": 739617
+    },
+    "contract": {
+      "as_of_ordinal": 739617,
+      "borrower_collection_fraction": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "complete_recovery_tails": [
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ],
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ],
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ]
+      ],
+      "current_note_rate": 0.0365,
+      "current_payment": 101.0,
+      "day_count": "act365_fixed",
+      "horizon_days": 30,
+      "identity": {
+        "assumption_id": "synthetic-supplied-coefficients",
+        "cohort_id": "synthetic-cohort",
+        "currency": "USD",
+        "measure": "physical",
+        "model_version": "mortgage-state-1",
+        "original_loan_id": "synthetic-loan",
+        "position_id": "synthetic-mortgage",
+        "run_id": "stress",
+        "source_revision": "synthetic-v1"
+      },
+      "loss_given_default": [
+        0.4,
+        0.5,
+        0.6
+      ],
+      "monetary_unit": "currency_units",
+      "opening_borrower_interest": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "opening_borrower_principal": [
+        100.0,
+        0.0,
+        0.0
+      ],
+      "opening_burnout_incentive_years": 0.02,
+      "opening_contractual_interest": 0.0,
+      "opening_contractual_principal": 100.0,
+      "opening_investor_interest": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "opening_investor_principal": [
+        100.0,
+        0.0,
+        0.0
+      ],
+      "opening_probability": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "original_payment": 101.0,
+      "original_principal": 100.0,
+      "origination_ordinal": 737425,
+      "ownership": {
+        "kind": "whole_loan",
+        "recognized_accrual_fraction": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "remittance_lag_days": 0
+      },
+      "path": [
+        {
+          "credit_hazards_per_year": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "refinancing_market_rate": 0.01,
+          "start_ordinal": 739617,
+          "turnover_hazard_per_year": 0.0
+        },
+        {
+          "credit_hazards_per_year": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "refinancing_market_rate": 0.01,
+          "start_ordinal": 739627,
+          "turnover_hazard_per_year": 0.0
+        },
+        {
+          "credit_hazards_per_year": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "refinancing_market_rate": 0.01,
+          "start_ordinal": 739637,
+          "turnover_hazard_per_year": 0.0
+        }
+      ],
+      "payment_dates": [
+        739647
+      ],
+      "publication_cutoff_unix_seconds": 1767225600,
+      "rate": {
+        "kind": "fixed"
+      },
+      "refinance": {
+        "burnout_sensitivity": 1.0,
+        "incentive_slope": 0.0,
+        "incentive_threshold": 0.005,
+        "prepay_eligibility": [
+          1.0,
+          1.0,
+          0.0
+        ],
+        "refinance_seasoning_days": 365,
+        "turnover_seasoning_days": 730
+      },
+      "schema": "mortgage-state-1"
+    },
+    "economic_source": {
+      "id": "current-physical-source",
+      "revision": "synthetic-v1"
+    },
+    "original_contract": {
+      "as_of_ordinal": 739617,
+      "borrower_collection_fraction": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "complete_recovery_tails": [
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ],
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ],
+        [
+          {
+            "lag_days": 15,
+            "weight": 0.25
+          },
+          {
+            "lag_days": 30,
+            "weight": 0.75
+          }
+        ]
+      ],
+      "current_note_rate": 0.0365,
+      "current_payment": 101.0,
+      "day_count": "act365_fixed",
+      "horizon_days": 30,
+      "identity": {
+        "assumption_id": "synthetic-supplied-coefficients",
+        "cohort_id": "synthetic-cohort",
+        "currency": "USD",
+        "measure": "physical",
+        "model_version": "mortgage-state-1",
+        "original_loan_id": "synthetic-loan",
+        "position_id": "synthetic-mortgage",
+        "run_id": "baseline",
+        "source_revision": "synthetic-v1"
+      },
+      "loss_given_default": [
+        0.4,
+        0.5,
+        0.6
+      ],
+      "monetary_unit": "currency_units",
+      "opening_borrower_interest": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "opening_borrower_principal": [
+        100.0,
+        0.0,
+        0.0
+      ],
+      "opening_burnout_incentive_years": 0.02,
+      "opening_contractual_interest": 0.0,
+      "opening_contractual_principal": 100.0,
+      "opening_investor_interest": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "opening_investor_principal": [
+        100.0,
+        0.0,
+        0.0
+      ],
+      "opening_probability": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "original_payment": 101.0,
+      "original_principal": 100.0,
+      "origination_ordinal": 737425,
+      "ownership": {
+        "kind": "whole_loan",
+        "recognized_accrual_fraction": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "remittance_lag_days": 0
+      },
+      "path": [
+        {
+          "credit_hazards_per_year": [
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "refinancing_market_rate": 0.01,
+          "start_ordinal": 739617,
+          "turnover_hazard_per_year": 0.0
+        }
+      ],
+      "payment_dates": [
+        739647
+      ],
+      "publication_cutoff_unix_seconds": 1767225600,
+      "rate": {
+        "kind": "fixed"
+      },
+      "refinance": {
+        "burnout_sensitivity": 1.0,
+        "incentive_slope": 0.0,
+        "incentive_threshold": 0.005,
+        "prepay_eligibility": [
+          1.0,
+          1.0,
+          0.0
+        ],
+        "refinance_seasoning_days": 365,
+        "turnover_seasoning_days": 730
+      },
+      "schema": "mortgage-state-1"
+    },
+    "original_economic_source": {
+      "id": "original-physical-source",
+      "revision": "synthetic-v1"
+    },
+    "pairing": {
+      "current_run_id": "stress",
+      "original_run_id": "baseline",
+      "policy": "supplied_physical_original_contract_unchanged-1",
+      "review": {
+        "id": "paired-contract-review",
+        "revision": "synthetic-v1"
+      }
+    },
+    "path_id": "physical-sequential-path",
+    "policy": {
+      "default_basis": "dispose_signed_basis_at_default-1",
+      "default_principal_book": "chargeoff_native_loss_at_default-1",
+      "default_principal_book_review": {
+        "id": "reviewed-principal-book-loss",
+        "revision": "synthetic-v1"
+      },
+      "economic_principal_disposal_lag_days": 30,
+      "economic_principal_disposal_review": {
+        "id": "reviewed-economic-principal-waiver",
+        "revision": "synthetic-v1"
+      },
+      "exit_basis": "signed_native_exit_cash_minus_exact_carry-1",
+      "identity": {
+        "id": "reviewed-sequential-policy",
+        "revision": "synthetic-v1"
+      },
+      "interest": {
+        "accounting_accrued": "reverse_income_at_default",
+        "collection_fraction": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "complete_collection_tails": [
+          [
+            {
+              "lag_days": 5,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 10,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 5,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 10,
+              "weight": 0.75
+            }
+          ],
+          [
+            {
+              "lag_days": 5,
+              "weight": 0.25
+            },
+            {
+              "lag_days": 10,
+              "weight": 0.75
+            }
+          ]
+        ],
+        "disposal_lag_days": 10,
+        "economic_disposal_review": {
+          "id": "reviewed-economic-interest-waiver",
+          "revision": "synthetic-v1"
+        },
+        "economic_remainder": "reviewed_economic_disposal",
+        "review": {
+          "id": "reviewed-economic-interest-cash",
+          "revision": "synthetic-v1"
+        }
+      },
+      "live_cash": "actual_native_cash_reduces_carry-1",
+      "original_income": "stop_at_exit-1",
+      "remittance_float": "reject_nonzero_remittance_lag-1",
+      "tail": "reject_unclosed_gross_rights-1"
+    },
+    "schema": "mortgage-sequential-carry-draft-1"
+  },
+  "schema": "mortgage-native-proof-case-draft-1",
+  "stage": "sequential"
+}

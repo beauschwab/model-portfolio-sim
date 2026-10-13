@@ -1,5 +1,16 @@
 # Capital and funds transfer pricing
 
+Version 0.29.7 adds the explicit `credit_ledger` source bridge. It independently
+replays the verified physical credit journal, retains separate default/live
+principal, accrual and basis exposure lineage, and feeds native closing-capital
+preparation. Posted allowance, provisions, chargeoffs and recoveries enter once;
+modeled economic loss is not another automatic capital deduction. Every nonzero
+asset GL requires an explicit risk-weight policy. The report selects severity-one
+baseline/scenario cases and retains selected run IDs; reverse runs are verified
+before selection. The Capital & FTP panel accepts completed credit jobs through
+this mode. Regulatory eligibility, commitment CCF/leverage additions and effective
+requirements remain supplied; unknown policy inputs prevent execution.
+
 Implemented in 0.29.2, with source bridges in 0.29.3. This framework calculates ratios and management profitability
 from explicit bank inputs. It does **not** certify regulatory capital eligibility,
 generate a GSIB regulatory filing, or replace the daily ledger acceptance gate.
@@ -189,6 +200,38 @@ Rust and Python. A final-day payoff no longer retains an allowance overnight.
 Bounds: 250,000 trial-balance keys and 1,000 scenario/account policies. Journal
 partitions are read sequentially; independent replay retains the closing key map.
 These limits are not a whole-process memory cap.
+
+### Performing mixed closing capital
+
+The explicit `product-mixed-dated-1` analysis additionally supplies a completed,
+independently verified performing expected ledger to the closing-capital bridge.
+Its signed protocol-3 journal is replayed independently again against its exact
+closing trial balance before Rust constructs capital. The source template retains
+the complete contractual-tail closing date; a changed report date rejects. The
+receipt retains immutable source job/result identity and that closing ordinal.
+This covers complete-tail expected closing capital. Report-date capital, dynamic
+credit/joint scenarios, modeled funding FTP and regulatory methodology approval
+remain separate gates. Candidate-only reports, missing independent receipts and
+credit/cashflow source selections reject this boundary.
+
+### Tagged Card2 complete-tail closing capital
+
+The explicit `card_v2` mixed owner retains gross unpaid interest and signed
+`live_interest_basis_adjustment`/`default_interest_basis_adjustment` asset
+accounts. Negative basis reduces the related net asset and its explicitly
+weighted RWA; it is not deferred income. Original effective interest and reviewed
+basis-realization P&L enter retained earnings separately, once. Supplied instrument
+weights take precedence over supplied GL weights. Missing nonzero weights,
+unknown policy accounts and negative aggregate RWA reject.
+
+`closing_capital_eligible:true` must match in the native summary and independently
+recomputed/persisted receipt, alongside complete ordered source/journal and
+unweighted gross/basis/commitment-tail verification. The report uses the exact
+complete-tail closing date and explicit account/currency/unit/capital policies.
+It does not infer regulatory eligibility or authorize interim default capital.
+The distinct `capital_ftp_eligible:false` declaration remains; no modeled product
+FTP is inferred. Source hashes, journal/trial/closing reconciliation, deadlines,
+cancellation and immutable publication gates remain active.
 
 ### Captured cashflow bridge
 

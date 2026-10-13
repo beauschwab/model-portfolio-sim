@@ -1,0 +1,155 @@
+{
+  "contract": {
+    "schema": "mortgage-state-1",
+    "identity": {
+      "position_id": "synthetic-mortgage",
+      "original_loan_id": "synthetic-loan",
+      "cohort_id": "synthetic-cohort",
+      "currency": "USD",
+      "source_revision": "synthetic-v1",
+      "model_version": "mortgage-state-1",
+      "assumption_id": "synthetic-supplied-coefficients",
+      "run_id": "baseline",
+      "measure": "physical"
+    },
+    "monetary_unit": "currency_units",
+    "as_of_ordinal": 739617,
+    "horizon_days": 20,
+    "origination_ordinal": 737425,
+    "original_principal": 100.0,
+    "original_payment": 34.0,
+    "opening_contractual_principal": 100.0,
+    "opening_contractual_interest": 0.0,
+    "current_payment": 34.0,
+    "current_note_rate": 0.0365,
+    "opening_probability": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "opening_borrower_principal": [
+      100.0,
+      0.0,
+      0.0
+    ],
+    "opening_borrower_interest": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_investor_principal": [
+      100.0,
+      0.0,
+      0.0
+    ],
+    "opening_investor_interest": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "opening_burnout_incentive_years": 0.02,
+    "day_count": "act365_fixed",
+    "rate": {
+      "kind": "fixed"
+    },
+    "ownership": {
+      "kind": "whole_loan",
+      "remittance_lag_days": 2,
+      "recognized_accrual_fraction": [
+        1.0,
+        1.0,
+        0.0
+      ]
+    },
+    "publication_cutoff_unix_seconds": 1767225600,
+    "payment_dates": [
+      739627,
+      739637,
+      739647
+    ],
+    "borrower_collection_fraction": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "refinance": {
+      "incentive_slope": 0.0,
+      "incentive_threshold": 0.005,
+      "turnover_seasoning_days": 730,
+      "refinance_seasoning_days": 365,
+      "burnout_sensitivity": 1.0,
+      "prepay_eligibility": [
+        1.0,
+        1.0,
+        0.0
+      ]
+    },
+    "path": [
+      {
+        "start_ordinal": 739617,
+        "refinancing_market_rate": 0.01,
+        "turnover_hazard_per_year": 0.0,
+        "credit_hazards_per_year": [
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.2,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        ]
+      }
+    ],
+    "loss_given_default": [
+      0.4,
+      0.5,
+      0.6
+    ],
+    "complete_recovery_tails": [
+      [
+        {
+          "lag_days": 15,
+          "weight": 0.25
+        },
+        {
+          "lag_days": 30,
+          "weight": 0.75
+        }
+      ],
+      [
+        {
+          "lag_days": 15,
+          "weight": 0.25
+        },
+        {
+          "lag_days": 30,
+          "weight": 0.75
+        }
+      ],
+      [
+        {
+          "lag_days": 15,
+          "weight": 0.25
+        },
+        {
+          "lag_days": 30,
+          "weight": 0.75
+        }
+      ]
+    ]
+  }
+}

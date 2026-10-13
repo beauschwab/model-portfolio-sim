@@ -1,0 +1,392 @@
+{
+  "runs": [
+    {
+      "scenario_id": "baseline",
+      "run_id": "baseline-physical",
+      "batches": [
+        {
+          "batch_id": "supplied-default",
+          "request": {
+            "schema": "credit-path-accounting-1",
+            "day_mapping": "calendar_midnight_right_closed",
+            "reporting_end_ordinal": 739920,
+            "timestamp_tolerance_seconds": 1E-06,
+            "path": {
+              "schema": "credit-path-1",
+              "measure": "physical",
+              "monetary_unit": "currency_units",
+              "source_id": "synthetic-credit",
+              "source_revision": "1",
+              "model_policy_id": "physical-supplied",
+              "origin_time": {
+                "ordinal": 739890,
+                "seconds_of_day": 0
+              },
+              "max_jumps_per_path": 10,
+              "intervals": [
+                {
+                  "end_year": 0.0821917808219178,
+                  "hazards_per_year": [
+                    [
+                      0,
+                      0,
+                      0,
+                      73,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      0,
+                      0,
+                      0
+                    ]
+                  ],
+                  "accrual_rates": [
+                    0.365,
+                    0,
+                    0
+                  ],
+                  "loss_given_default": [
+                    0.4,
+                    0.4,
+                    0.4
+                  ],
+                  "credit_conversion_factor": [
+                    0.5,
+                    0.5,
+                    0.5
+                  ],
+                  "interest_recovery_fraction": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "complete_recovery_tails": [
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "boundaries": [],
+              "draw_stream": {
+                "kind": "supplied",
+                "stream_id": "hand-draws",
+                "stream_revision": "1",
+                "paths": [
+                  {
+                    "path_key": 17,
+                    "pairs": [
+                      {
+                        "waiting_uniform": 0.9048374180359595,
+                        "destination_uniform": 0.5
+                      }
+                    ]
+                  }
+                ]
+              },
+              "paths": [
+                {
+                  "path_id": "loan",
+                  "path_key": 17,
+                  "initial_live_state": "performing",
+                  "principal": 100,
+                  "undrawn_commitment": 20,
+                  "accrued_interest": 0,
+                  "book_adjustment": -3
+                }
+              ]
+            },
+            "bindings": [
+              {
+                "path_key": 17,
+                "position_id": "loan",
+                "currency": "USD",
+                "claim_id": "claim",
+                "economic_source": {
+                  "id": "synthetic-credit",
+                  "revision": "1"
+                },
+                "recovery_schedule_review": {
+                  "id": "complete-supplied-tail",
+                  "revision": "1"
+                },
+                "policy": {
+                  "identity": {
+                    "id": "reviewed-accounting",
+                    "revision": "1"
+                  },
+                  "accrued": "transfer_until_reviewed_reversal",
+                  "basis": "transfer_until_reviewed_chargeoff",
+                  "allowance_shortfall": "reject",
+                  "excess_cash_recovery": "recognize_in_earnings"
+                },
+                "interest_recovery_policy": {
+                  "id": "reviewed-interest-settlement",
+                  "revision": "1"
+                },
+                "interest_recovery_excess": "recognize_in_earnings",
+                "opening_allowance": 41,
+                "allowance_reviews": [],
+                "chargeoffs": [
+                  {
+                    "review": {
+                      "id": "reviewed-chargeoff",
+                      "revision": "1"
+                    },
+                    "claim_id": "claim",
+                    "recognition_ordinal": 739892,
+                    "principal_amount": 44,
+                    "book_adjustment_amount": -3,
+                    "accrued_interest_reversal": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "account_by_position": [
+            {
+              "account_id": "bank",
+              "position_id": "loan"
+            }
+          ]
+        }
+      ],
+      "severity": 1.0
+    },
+    {
+      "scenario_id": "synthetic-flat",
+      "run_id": "synthetic-flat-physical",
+      "batches": [
+        {
+          "batch_id": "supplied-default",
+          "request": {
+            "schema": "credit-path-accounting-1",
+            "day_mapping": "calendar_midnight_right_closed",
+            "reporting_end_ordinal": 739920,
+            "timestamp_tolerance_seconds": 1E-06,
+            "path": {
+              "schema": "credit-path-1",
+              "measure": "physical",
+              "monetary_unit": "currency_units",
+              "source_id": "synthetic-credit",
+              "source_revision": "1",
+              "model_policy_id": "physical-supplied",
+              "origin_time": {
+                "ordinal": 739890,
+                "seconds_of_day": 0
+              },
+              "max_jumps_per_path": 10,
+              "intervals": [
+                {
+                  "end_year": 0.0821917808219178,
+                  "hazards_per_year": [
+                    [
+                      0,
+                      0,
+                      0,
+                      73,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      0,
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      0,
+                      0,
+                      0,
+                      0
+                    ]
+                  ],
+                  "accrual_rates": [
+                    0.365,
+                    0,
+                    0
+                  ],
+                  "loss_given_default": [
+                    0.4,
+                    0.4,
+                    0.4
+                  ],
+                  "credit_conversion_factor": [
+                    0.5,
+                    0.5,
+                    0.5
+                  ],
+                  "interest_recovery_fraction": [
+                    1,
+                    1,
+                    1
+                  ],
+                  "complete_recovery_tails": [
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ],
+                    [
+                      {
+                        "lag_years": 0.0013698630136986301,
+                        "weight": 1
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "boundaries": [],
+              "draw_stream": {
+                "kind": "supplied",
+                "stream_id": "hand-draws",
+                "stream_revision": "1",
+                "paths": [
+                  {
+                    "path_key": 17,
+                    "pairs": [
+                      {
+                        "waiting_uniform": 0.9048374180359595,
+                        "destination_uniform": 0.5
+                      }
+                    ]
+                  }
+                ]
+              },
+              "paths": [
+                {
+                  "path_id": "loan",
+                  "path_key": 17,
+                  "initial_live_state": "performing",
+                  "principal": 100,
+                  "undrawn_commitment": 20,
+                  "accrued_interest": 0,
+                  "book_adjustment": -3
+                }
+              ]
+            },
+            "bindings": [
+              {
+                "path_key": 17,
+                "position_id": "loan",
+                "currency": "USD",
+                "claim_id": "claim",
+                "economic_source": {
+                  "id": "synthetic-credit",
+                  "revision": "1"
+                },
+                "recovery_schedule_review": {
+                  "id": "complete-supplied-tail",
+                  "revision": "1"
+                },
+                "policy": {
+                  "identity": {
+                    "id": "reviewed-accounting",
+                    "revision": "1"
+                  },
+                  "accrued": "transfer_until_reviewed_reversal",
+                  "basis": "transfer_until_reviewed_chargeoff",
+                  "allowance_shortfall": "reject",
+                  "excess_cash_recovery": "recognize_in_earnings"
+                },
+                "interest_recovery_policy": {
+                  "id": "reviewed-interest-settlement",
+                  "revision": "1"
+                },
+                "interest_recovery_excess": "recognize_in_earnings",
+                "opening_allowance": 41,
+                "allowance_reviews": [],
+                "chargeoffs": [
+                  {
+                    "review": {
+                      "id": "reviewed-chargeoff",
+                      "revision": "1"
+                    },
+                    "claim_id": "claim",
+                    "recognition_ordinal": 739892,
+                    "principal_amount": 44,
+                    "book_adjustment_amount": -3,
+                    "accrued_interest_reversal": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "account_by_position": [
+            {
+              "account_id": "bank",
+              "position_id": "loan"
+            }
+          ]
+        }
+      ],
+      "severity": 1.0
+    }
+  ],
+  "specification": {
+    "horizon_days": 30,
+    "version": "balance-stress-2",
+    "cashflows": [],
+    "scenarios": [
+      {
+        "name": "synthetic-flat"
+      }
+    ],
+    "accounts": [
+      {
+        "id": "bank",
+        "cash": 10.0,
+        "currency": "USD",
+        "entity": "bank",
+        "equity": 66.0
+      }
+    ],
+    "positions": [
+      {
+        "book_adjustment": -3.0,
+        "commitment": 20.0,
+        "allowance": 41.0,
+        "kind": "loan",
+        "id": "loan",
+        "account": "bank",
+        "balance": 100.0
+      }
+    ],
+    "reverse_severities": []
+  },
+  "schema": "credit-path-ledger-1",
+  "as_of_ordinal": 739890,
+  "monetary_unit": "currency_units"
+}

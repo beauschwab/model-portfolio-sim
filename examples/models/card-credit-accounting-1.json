@@ -1,0 +1,18 @@
+{
+  "schema":"card-credit-accounting-1",
+  "contract":{
+    "schema":"consumer-card-1",
+    "identity":{"position_id":"card-1","original_loan_id":"account-1","cohort_id":"cohort-card","currency":"USD","source_revision":"panel-1","model_version":"consumer-card-1","assumption_id":"supplied-1","run_id":"base","measure":"physical"},
+    "as_of_ordinal":738916,"horizon_days":40,
+    "opening_principal":[0.0,100.0,0.0],"opening_billed_interest":[0.0,0.0,0.0],"opening_unbilled_interest":[0.0,0.0,0.0],"opening_unrecognized_billed_interest":[0.0,0.0,0.0],"opening_fees":[0.0,0.0,0.0],"opening_contingent_purchase_interest":0.0,
+    "opening_statement_remaining":[0.0,0.0,0.0],"opening_minimum_remaining":0.0,"opening_due_ordinal":null,"initial_limit":200.0,"initial_state":"performing",
+    "rates":{"purchase":0.36,"cash_advance":0.36,"promotional":0.0,"promotional_expiry_ordinal":738936,"post_promotion":0.36},"day_count":"act360","initial_purchase_grace":false,"regain_grace_after_full_statement_payment":false,"compound_billed_interest":false,
+    "minimum":{"floor":5.0,"principal_fraction":0.01,"include_billed_interest":true,"include_fees":true,"allocation_order":["purchase","cash_advance","promotional"]},
+    "cycles":[{"statement_ordinal":738931,"due_ordinal":738936}],"steps":[{"ordinal":738926,"action":{"kind":"default"}}],"collection_fraction":0.6,"collection_cost":10.0,"recovery_delay_days":20
+  },
+  "path_id":"supplied-card-default-path","economic_source":{"id":"supplied-card-history","revision":"panel-1"},
+  "acquisition":{"identity":{"id":"actual-card-purchase","revision":"r1"},"original_yield_anchor":{"id":"original-card-yield","revision":"r1"},"income_review":{"id":"original-card-income","revision":"r1"},"accounting_basis":"supplied_non_pcd_gross_cost-1","purchase_ordinal":738916,"principal":100.0,"cost":100.0,"original_annual_effective_rate":0.0},
+  "policy":{"identity":{"id":"reviewed-card-accounting","revision":"r1"},"accounting":{"identity":{"id":"reviewed-card-credit","revision":"r1"},"accrued":"reverse_income_at_default","basis":"recognize_in_earnings_at_default","allowance_shortfall":"reject","excess_cash_recovery":"credit_allowance"},"recovery_review":{"id":"card-gross-recovery","revision":"r1"},"cost_review":{"id":"card-collection-cost","revision":"r1"},"contractual_recognition":"raw_card_non_grace_earned_then_billed-1","original_income":"frozen_original_account_eir_until_exit-1","terminal_basis":"recognize_in_earnings_at_reviewed_closure-1","recovery_cost":"gross_recovery_with_credit_loss_cost-1","commitment":"retained_source_undrawn_no_ccf_no_draw-1","unsupported_grace_fees_draws":"reject"},
+  "termination":{"kind":"source_default"},"claim_id":"card-default-claim","reporting_end_ordinal":738931,"opening_allowance":40.0,"allowance_reviews":[],
+  "chargeoffs":[{"review":{"id":"reviewed-card-chargeoff","revision":"r1"},"claim_id":"card-default-claim","recognition_ordinal":738947,"principal_amount":40.0,"book_adjustment_amount":0.0,"accrued_interest_reversal":0.0}]
+}

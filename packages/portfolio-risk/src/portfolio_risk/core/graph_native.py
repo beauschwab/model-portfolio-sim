@@ -22,9 +22,11 @@ class NativeGraph:
         self._finalizer = weakref.finalize(self, self._request, 'graph-1',
                                           dict(op='drop', handle=self.handle))
 
-    def call(self, op, **kwargs):
+    def call(self, op, *, runtime=None, **kwargs):
         if not self._finalizer.alive: raise RuntimeError('native graph is closed')
         self._check_identity()
+        if runtime is not None:
+            return self._request('graph-1', dict(op=op,handle=self.handle,**kwargs),runtime=runtime)
         return self._request('graph-1', dict(op=op, handle=self.handle, **kwargs))
 
     def _check_identity(self):
@@ -64,8 +66,9 @@ def graph_request(books, *, valuation_books, asof, swap_rates, vol_pts, config, 
 def price_books(books, *, valuation_books, asof, swap_rates, vol_pts, cache,
                 config, seed, mbs_hists, dep_hist, scenario_market, spread_shift,
                 spread_overrides_bp, include_analytics, balance_sheet_extras,
-                include_key_rates, backend_identity, model_revision):
+                include_key_rates, backend_identity, model_revision, market_indexed_bindings=None, graph_runtime=None):
     from .lifecycle_native import kpi_output
+    if graph_runtime is not None and market_indexed_bindings is None:raise ValueError('graph runtime requires explicit indexed book selection')
     extras = balance_sheet_extras or {}
     with run_context(config):
         request = graph_request(books, valuation_books=valuation_books, asof=asof,
@@ -74,7 +77,16 @@ def price_books(books, *, valuation_books, asof, swap_rates, vol_pts, cache,
             spread_shift=spread_shift, spread_overrides_bp=spread_overrides_bp,
             include_analytics=include_analytics, balance_sheet_extras=extras,
             include_key_rates=include_key_rates)
+        if market_indexed_bindings is not None:
+            selected = market_indexed_book_request(request, market_indexed_bindings, balance_sheet_extras)
+            with cache._lock:
+                result = select_market_indexed_owner(cache,selected,runtime=graph_runtime)
+            formatted = graph_output(result, books, config, include_analytics, include_key_rates, extras, backend_identity, model_revision)
+            formatted['calibration_policy'] = 'explicit indexed original quote reconciled at supplied original OAS; unbound legacy base calibration retained'
+            return formatted
         with cache._lock:
+            if isinstance(cache._native, NativeMarketIndexedBooks):
+                raise RuntimeError('GRAPH_OWNER_CHANGED: rebuild for the historical owner')
             if cache._entries or cache._shared:
                 cache.clear()
             if cache._native is None:
@@ -136,3 +148,64 @@ def compare_books(books, *, assumption_overrides, calibration_mode, asof, swap_r
             [pl.Series(k,[],dtype=pl.Float64) for k in fields if k not in result['revised']['positions'][book].columns]))
     result['comparison']=comparison;result['assumption_overrides']=assumption_overrides
     return result
+
+
+class NativeMarketIndexedGraph(NativeGraph):
+    """Explicit named-index pricing cache; no Physical or saved-book execution."""
+    def __init__(self, request, max_bytes=8 * 1024 * 1024, max_entries=1024, *, runtime=None):
+        self._path = library_path()
+        self._library = _load(str(self._path))[0]
+        self._check_identity()
+        self._request = partial(term_call, _library=self._library)
+        options={} if runtime is None else {'runtime':runtime}
+        created = self._request('graph-1',dict(op='create_market_indexed',max_bytes=max_bytes,max_entries=max_entries,request=request),**options)
+        self.handle = created['handle']
+        self.initial = created['initial']
+        self._finalizer = weakref.finalize(self, self._request, 'graph-1',
+                                         dict(op='drop', handle=self.handle))
+
+    def price(self, request, *, runtime=None):
+        return self.call('price_market_indexed',request=request,runtime=runtime)
+
+    def info(self, *, runtime=None):
+        return self.call('info',runtime=runtime)
+
+    def clear(self, *, runtime=None):
+        return self.call('clear',runtime=runtime)
+
+
+class NativeMarketIndexedBooks(NativeGraph):
+    """Explicit supplied Pricing book owner; full raw binding receipt is native."""
+    def __init__(self, request, max_bytes, max_entries, *, runtime=None):
+        self._path = library_path()
+        self._library = _load(str(self._path))[0]
+        self._check_identity()
+        self._request = partial(term_call, _library=self._library)
+        options={} if runtime is None else {'runtime':runtime}
+        created = self._request('graph-1',dict(op='create_market_indexed_books',max_bytes=max_bytes,max_entries=max_entries,request=request),**options)
+        self.handle = created['handle']
+        self.initial = created['initial']
+        self._finalizer = weakref.finalize(self, self._request, 'graph-1',
+                                         dict(op='drop', handle=self.handle))
+
+    def price(self, request, *, runtime=None):
+        return self.call('price_market_indexed_books',request=request,runtime=runtime)
+
+
+def market_indexed_book_request(legacy, bindings, balance_sheet_extras=None):
+    # Raw transport only. Rust reconciles dates, rows, amounts, quotes and parents.
+    if not isinstance(bindings, dict) or set(bindings) != {'schema', 'identity', 'bindings'}:
+        raise ValueError('complete versioned market indexed binding transport required')
+    return dict(schema=bindings['schema'], identity=bindings['identity'],
+                legacy=legacy, bindings=bindings['bindings'], balance_sheet_extras=balance_sheet_extras)
+
+
+def select_market_indexed_owner(cache, request, *, runtime=None):
+    if cache._entries or cache._shared:
+        raise RuntimeError('GRAPH_OWNER_CHANGED: rebuild an empty explicit pricing cache')
+    if cache._native is None:
+        cache._native = NativeMarketIndexedBooks(request,cache.max_bytes,cache.max_entries,**({} if runtime is None else {'runtime':runtime}))
+        return cache._native.initial
+    if not isinstance(cache._native, NativeMarketIndexedBooks):
+        raise RuntimeError('GRAPH_OWNER_CHANGED: rebuild with the explicit portfolio owner')
+    return cache._native.price(request,runtime=runtime)

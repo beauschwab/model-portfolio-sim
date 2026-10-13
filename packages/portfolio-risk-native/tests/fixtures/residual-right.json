@@ -1,0 +1,831 @@
+{
+  "schema": "term-product-graph-2",
+  "identity": {
+    "model_revision": "term-graph-2",
+    "input_revision": "hand-r1",
+    "paired_history_source": "supplied-synthetic",
+    "paired_history_revision": "r1",
+    "randomness_domain": "supplied_paired_histories-1"
+  },
+  "as_of_ordinal": 739617,
+  "currency": "USD",
+  "reporting_ordinals": [
+    739617,
+    739618
+  ],
+  "base_scenario_id": "base",
+  "bump_bp": 1.0,
+  "cash_timing": "after_opening_actions",
+  "scenarios": [
+    {
+      "scenario_id": "base",
+      "run_id": "base-run",
+      "severity": 0.0,
+      "collateral_curve": {
+        "curve_id": "collateral",
+        "source_id": "synthetic-hand",
+        "source_revision": "r1",
+        "currency": "USD",
+        "role": {
+          "kind": "collateral",
+          "collateral_index": "SOFR"
+        },
+        "times_years": [
+          0.0,
+          1.0
+        ],
+        "discount_factors": [
+          1.0,
+          0.951229424500714
+        ],
+        "right_tail": "reject"
+      }
+    }
+  ],
+  "positions": [
+    {
+      "position_id": "cd:example",
+      "known": {
+        "kind": "cd_sequence",
+        "contract": {
+          "model_version": "term-contracts-1",
+          "currency": "USD",
+          "direction": "payment",
+          "opening": {
+            "contract": {
+              "id": "cd-original",
+              "revision": "r1"
+            },
+            "position_id": "cd:example",
+            "principal": 23841.4808604056,
+            "accrued_interest": 7.075336659527932,
+            "last_accrual_ordinal": 739617,
+            "maturity_ordinal": 739627,
+            "annual_rate": 0.0,
+            "day_count": "act365_fixed"
+          },
+          "tail_end_ordinal": 739647,
+          "policies": [
+            {
+              "position_id": "cd:example",
+              "contract": {
+                "id": "cd-original",
+                "revision": "r1"
+              },
+              "policy": {
+                "identity": {
+                  "id": "cd-contract-policy",
+                  "revision": "r1"
+                },
+                "channel": "retail",
+                "early_withdrawal_permitted": true,
+                "partial_withdrawal_permitted": true,
+                "brokered_contract_allows_withdrawal": false,
+                "earliest_withdrawal_ordinal": 739617,
+                "minimum_remaining_principal": 0,
+                "penalty": {
+                  "kind": "none"
+                },
+                "penalty_limit": "principal_and_accrued_interest",
+                "penalty_cap": null,
+                "penalty_waivers": [],
+                "maturity_grace_days": 2,
+                "grace_annual_rate": 0.1825,
+                "renewal_permitted": true,
+                "switching_permitted": true
+              }
+            }
+          ],
+          "authorized_new_contracts": []
+        }
+      },
+      "oas_target": {
+        "kind": "locked",
+        "base_oas": -0.05,
+        "source_id": "original-reviewed-oas",
+        "source_revision": "r1"
+      },
+      "histories": [
+        {
+          "scenario_id": "base",
+          "physical": [
+            {
+              "path_id": "physical-independent",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "physical",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing_down": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing_up": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "original_quotes": [
+    {
+      "position_id": "cd:example",
+      "signed_cash_price": -23848.55619706513,
+      "source": {
+        "id": "actual-original-quote",
+        "revision": "r1"
+      }
+    }
+  ],
+  "original_base": {
+    "scenario": {
+      "scenario_id": "base",
+      "run_id": "base-run",
+      "severity": 0.0,
+      "collateral_curve": {
+        "curve_id": "collateral",
+        "source_id": "synthetic-hand",
+        "source_revision": "r1",
+        "currency": "USD",
+        "role": {
+          "kind": "collateral",
+          "collateral_index": "SOFR"
+        },
+        "times_years": [
+          0.0,
+          1.0
+        ],
+        "discount_factors": [
+          1.0,
+          0.951229424500714
+        ],
+        "right_tail": "reject"
+      }
+    },
+    "histories": [
+      {
+        "position_id": "cd:example",
+        "histories": {
+          "scenario_id": "base",
+          "physical": [
+            {
+              "path_id": "physical-independent",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "physical",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing_down": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "pricing_up": [
+            {
+              "path_id": "paired-1",
+              "weight": 1.0,
+              "product": {
+                "kind": "cd_sequence",
+                "request": {
+                  "schema": "cd-election-sequence-2",
+                  "input_revision": "cd-hand-r1",
+                  "measure": "pricing",
+                  "currency": "USD",
+                  "monetary_unit": "currency_units",
+                  "direction": "payment",
+                  "scenario_id": "base-run",
+                  "as_of_ordinal": 739617,
+                  "reporting_end_ordinal": 739618,
+                  "tail_end_ordinal": 739647,
+                  "opening": {
+                    "contract": {
+                      "id": "cd-original",
+                      "revision": "r1"
+                    },
+                    "position_id": "cd:example",
+                    "principal": 23841.4808604056,
+                    "accrued_interest": 7.075336659527932,
+                    "last_accrual_ordinal": 739617,
+                    "maturity_ordinal": 739627,
+                    "annual_rate": 0.0,
+                    "day_count": "act365_fixed"
+                  },
+                  "terminal_projection_source": {
+                    "id": "reviewed-tail",
+                    "revision": "r1"
+                  },
+                  "policies": [
+                    {
+                      "position_id": "cd:example",
+                      "contract": {
+                        "id": "cd-original",
+                        "revision": "r1"
+                      },
+                      "policy": {
+                        "identity": {
+                          "id": "cd-contract-policy",
+                          "revision": "r1"
+                        },
+                        "channel": "retail",
+                        "early_withdrawal_permitted": true,
+                        "partial_withdrawal_permitted": true,
+                        "brokered_contract_allows_withdrawal": false,
+                        "earliest_withdrawal_ordinal": 739617,
+                        "minimum_remaining_principal": 0,
+                        "penalty": {
+                          "kind": "none"
+                        },
+                        "penalty_limit": "principal_and_accrued_interest",
+                        "penalty_cap": null,
+                        "penalty_waivers": [],
+                        "maturity_grace_days": 2,
+                        "grace_annual_rate": 0.1825,
+                        "renewal_permitted": true,
+                        "switching_permitted": true
+                      }
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "action_id": "all",
+                      "position_id": "cd:example",
+                      "ordinal": 739622,
+                      "source": {
+                        "id": "full-withdraw",
+                        "revision": "r1"
+                      },
+                      "election": {
+                        "kind": "withdraw",
+                        "principal": 23841.4808604056
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

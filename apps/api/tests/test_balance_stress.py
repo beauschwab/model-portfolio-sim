@@ -27,7 +27,8 @@ def test_stress_http_validation_and_revision(monkeypatch):
         assert queued[0][0] == 'balance_stress'
         assert queued[0][2] == body['specification']
         assert queued[0][3]['revision'] == body['expected_revision']
-        assert persistence.resolve(persistence.operation(queued[0][1])) is store.run_balance_stress
+        from app import operations
+        assert operations.resolve(operations.operation(queued[0][1])) is store.run_balance_stress
 
 
 def test_stress_real_background_job_and_typed_parquet(tmp_path):
@@ -79,7 +80,8 @@ def test_saved_book_inventory_mapping_and_durable_operation(monkeypatch):
         monkeypatch.setattr(store, 'job_status', lambda _: dict(id='saved-job', kind='saved_balance_stress', status='queued', revision=inv['revision']))
         assert client.post('/balance-stress/saved-book', json=body).status_code == 200
         assert queued[0][2]['position_mapping'] == body['position_mapping']
-        assert persistence.resolve(persistence.operation(queued[0][1])) is store.run_saved_balance_stress
+        from app import operations
+        assert operations.resolve(operations.operation(queued[0][1])) is store.run_saved_balance_stress
 
 
 def test_saved_book_real_engine_job_publishes_journal(monkeypatch):

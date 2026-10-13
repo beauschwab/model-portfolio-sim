@@ -1,5 +1,6 @@
 //! Native product kernels. Inputs are borrowed contiguous f64 arrays; outputs
 //! publish only after the entire call has passed shape and finite-value checks.
+use crate::abi_operations::*;
 use rayon::prelude::*;
 use std::slice;
 
@@ -859,7 +860,7 @@ pub(crate) fn volatility(a: &[View<'_>]) -> Vec<Vec<f64>> {
 
 #[no_mangle]
 pub extern "C" fn portfolio_quant_abi_version() -> u32 {
-    10
+    ABI_VERSION
 }
 
 fn market_paths(a: &[View<'_>], mortgage: bool) -> Vec<Vec<f64>> {
@@ -934,13 +935,9 @@ fn interactive(a: &[View<'_>]) -> Vec<Vec<f64>> {
 }
 
 fn validate(op: u32, a: &[View<'_>]) {
-    let counts = [
-        0, 7, 17, 14, 26, 28, 20, 21, 9, 5, 27, 0, 4, 6, 4, 6, 5, 7, 4, 6, 14, 5, 1, 2, 4, 6, 1, 2,
-        26, 28, 1, 3,
-    ];
-    assert!((1..=31).contains(&op));
-    if op != 11 {
-        assert_eq!(a.len(), counts[op as usize]);
+    let count = input_count(op).expect("unsupported operation");
+    if op != BEHAVIORAL {
+        assert_eq!(a.len(), count);
     }
     let same = |indices: &[usize]| {
         for &i in indices {
@@ -948,51 +945,51 @@ fn validate(op: u32, a: &[View<'_>]) {
         }
     };
     match op {
-        1 => {
+        LMM => {
             assert!(a[3].shape.iter().all(|&n| n > 0));
         }
-        2 | 3 => {
-            let off = if op == 2 { 3 } else { 2 };
+        CORPORATE | CD => {
+            let off = if op == CORPORATE { 3 } else { 2 };
             same(&(0..off).collect::<Vec<_>>());
             assert!(a[0].shape[0] > 0 && a[0].shape[1] > 0 && a[0].shape[2] == 1);
             assert!(!a[off].v.is_empty());
             assert_eq!(a[off].ix(0), 0);
             assert_eq!(a[off].ix(a[off].v.len() - 1), a[off + 1].v.len());
-            same(&((off + 1)..if op == 2 { 12 } else { 9 }).collect::<Vec<_>>());
-            for i in if op == 2 { 12..17 } else { 9..13 } {
+            same(&((off + 1)..if op == CORPORATE { 12 } else { 9 }).collect::<Vec<_>>());
+            for i in if op == CORPORATE { 12..17 } else { 9..13 } {
                 assert_eq!(a[i].v.len() + 1, a[off].v.len());
             }
         }
-        4 | 5 | 10 => {
+        MORTGAGE | MORTGAGE_STRESS | MORTGAGE_BATCH => {
             same(&[0, 1, 2, 3]);
-            let start = if op == 10 { 15 } else { 13 };
+            let start = if op == MORTGAGE_BATCH { 15 } else { 13 };
             // nine per-pool vectors (terms, original HPI, static and speed multipliers) and OAS
             same(&(start..start + 10).collect::<Vec<_>>());
-            if op == 10 {
+            if op == MORTGAGE_BATCH {
                 assert_eq!(a[4].v.len(), a[0].shape[0]);
                 assert_eq!(a[25].v.len(), a[start].v.len());
             }
-            if op == 5 {
+            if op == MORTGAGE_STRESS {
                 same(&[25, 26]);
                 assert_eq!(a[25].shape[..2], [a[13].v.len(), a[0].shape[0]]);
                 assert!(a[23].ix(0) > 0);
             }
         }
-        6 | 7 => {
+        DEPOSIT | DEPOSIT_STRESS => {
             same(&[0, 1, 2, 3]);
             same(&[6, 7, 8, 9, 10, 11, 12, 13, 16]);
             // terminal treatment code is the last input (deposit-terminal-1)
             assert!(a[a.len() - 1].ix(0) <= 2);
-            if op == 7 {
+            if op == DEPOSIT_STRESS {
                 assert_eq!(a[19].shape[..2], [a[6].v.len(), a[0].shape[0]]);
                 assert!(a[17].ix(0) > 0);
             }
         }
-        8 | 9 => {
+        CSR_OAS | CSR_PV => {
             assert!(!a[0].v.is_empty());
             assert_eq!(a[3].v.len() + 1, a[0].v.len());
         }
-        11 => {
+        BEHAVIORAL => {
             assert!(!a.is_empty());
             let mode = a[0].ix(0);
             assert!(mode <= 3);
@@ -1008,19 +1005,19 @@ fn validate(op: u32, a: &[View<'_>]) {
                 same(&[1, 2]);
             }
         }
-        12 => {
+        SWAPTION => {
             assert_eq!(a[2].shape[1..], [5, 1]);
             assert_eq!(a[1].shape, [a[0].shape[0], a[0].shape[2], 1]);
             assert_eq!(a[3].at(0), a[0].shape[0] as f64);
         }
-        13 => {
+        PROGRAM => {
             assert!(a[0].shape[0] > 0 && a[0].shape[1] >= a[1].v.len());
         }
-        14 => {
+        INCOME => {
             assert_eq!(a[1].v.len(), a[0].shape[0]);
             assert!(a[2].ix(0) <= a[0].shape[1]);
         }
-        15 => {
+        ACCRUAL => {
             same(&[1, 2, 3]);
             assert!(!a[0].v.is_empty());
             assert_eq!(a[0].ix(0), 0);
@@ -1029,25 +1026,25 @@ fn validate(op: u32, a: &[View<'_>]) {
                 assert!(w[0] <= w[1]);
             }
         }
-        16 => {
+        MONEY_MARKET => {
             same(&[1, 2, 3]);
             assert!(a[0].shape[0] > 0 && a[4].ix(0) <= a[0].shape[1]);
         }
-        17 => {
+        VOLATILITY => {
             assert_eq!(a[0].shape[1..], [4, 1]);
             assert_eq!(a[1].v.len(), 4);
             assert_eq!(a[3].v.len(), a[2].v.len() + 1);
             assert_eq!(a[4].shape[0], a[2].v.len());
         }
-        18 => {
+        CURVE => {
             assert_eq!(a[0].v.len(), a[1].v.len());
         }
-        19 | 20 => {
+        RATE_PATHS | MORTGAGE_PATHS => {
             assert_eq!(a[0].v.len(), a[1].v.len());
             assert_eq!(a[2].v.len(), 4);
             assert_eq!(a[3].shape[1..], [a[4].shape[2], 1]);
             assert_eq!(a[5].v.len(), 3);
-            if op == 20 {
+            if op == MORTGAGE_PATHS {
                 assert_eq!(a[6].shape, [6, 2, 1]);
                 assert_eq!(a[7].v.len(), 11);
                 assert_eq!(a[9].v.len(), 4);
@@ -1057,20 +1054,20 @@ fn validate(op: u32, a: &[View<'_>]) {
                 }
             }
         }
-        21 => {
+        PARALLEL_SHOCK => {
             same(&[0, 1, 2]);
             assert_eq!(a[0].shape[2], 1);
             assert_eq!(a[3].v.len(), 6);
             assert_eq!(a[4].v.len(), 11);
         }
-        22 => {
+        FIT_CC => {
             assert_eq!(a[0].shape[1..], [11, 1]);
         }
-        23 => {
+        FIT_PS => {
             assert_eq!(a[0].shape[1..], [1, 1]);
         }
-        24 => {}
-        25 => {
+        FACTOR_LOADINGS => {}
+        FIT_VOL => {
             assert_eq!(a[0].shape[1..], [3, 1]);
             assert_eq!(a[1].shape[1..], [1, 1]);
             assert_eq!(a[2].shape[1..], [1, 1]);
@@ -1078,8 +1075,8 @@ fn validate(op: u32, a: &[View<'_>]) {
             assert_eq!(a[3].shape[2], 1);
             assert_eq!(a[5].v.len(), 2);
         }
-        26 => assert_eq!(a[0].shape[1..], [2, 1]),
-        27 => {
+        FIT_DEPOSIT => assert_eq!(a[0].shape[1..], [2, 1]),
+        SHARED_DRAWS => {
             assert_eq!(a[0].shape[1..], [1, 1]);
             assert!(a[0]
                 .v
@@ -1087,7 +1084,7 @@ fn validate(op: u32, a: &[View<'_>]) {
                 .all(|&x| x >= 0. && x <= u32::MAX as f64 && x.fract() == 0.));
             assert_eq!(a[1].v.len(), 3);
         }
-        28 | 29 => {
+        MORTGAGE_RISK | MORTGAGE_FORWARD_STRESS => {
             assert_eq!(a[2].shape[1..], [3, 1]);
             assert_eq!(a[3].shape[1..], [11, 1]);
             assert_eq!(a[5].shape[1..], [13, 1]);
@@ -1098,11 +1095,11 @@ fn validate(op: u32, a: &[View<'_>]) {
                 .iter()
                 .all(|&v| v >= 0. && v <= u32::MAX as f64 && v.fract() == 0.));
         }
-        30 => {
+        MORTGAGE_CACHE => {
             assert_eq!(a[0].v.len(), 1);
             assert!(a[0].at(0) == 0. || a[0].at(0) == 1.);
         }
-        31 => {
+        INTERACTIVE => {
             assert_eq!(a[0].shape[1], 10);
             assert!((1..=360).contains(&a[0].shape[2]));
             assert_eq!(a[0].shape[0], a[1].v.len());
@@ -1233,50 +1230,50 @@ pub unsafe extern "C" fn portfolio_quant_call(
         }
         validate(op, &views);
         let compute = || match op {
-            1 => lmm(&views),
-            2 => corporate(&views, false),
-            3 => corporate(&views, true),
-            4 => mortgage(&views, false),
-            5 => mortgage(&views, true),
-            6 => deposits(&views, false),
-            7 => deposits(&views, true),
-            8 => oas(&views, true),
-            9 => oas(&views, false),
-            10 => mortgage_batch(&views),
-            11 => behavioral(&views),
-            12 => swaption(&views),
-            13 => program(&views),
-            14 => income(&views),
-            15 => accrual(&views),
-            16 => money_market(&views),
-            17 => volatility(&views),
-            18 => vec![crate::market::bootstrap(
+            LMM => lmm(&views),
+            CORPORATE => corporate(&views, false),
+            CD => corporate(&views, true),
+            MORTGAGE => mortgage(&views, false),
+            MORTGAGE_STRESS => mortgage(&views, true),
+            DEPOSIT => deposits(&views, false),
+            DEPOSIT_STRESS => deposits(&views, true),
+            CSR_OAS => oas(&views, true),
+            CSR_PV => oas(&views, false),
+            MORTGAGE_BATCH => mortgage_batch(&views),
+            BEHAVIORAL => behavioral(&views),
+            SWAPTION => swaption(&views),
+            PROGRAM => program(&views),
+            INCOME => income(&views),
+            ACCRUAL => accrual(&views),
+            MONEY_MARKET => money_market(&views),
+            VOLATILITY => volatility(&views),
+            CURVE => vec![crate::market::bootstrap(
                 views[0].v,
                 views[1].v,
                 views[2].ix(0),
                 views[3].at(0),
             )
             .expect("invalid curve")],
-            19 | 20 => market_paths(&views, op == 20),
-            22 => {
+            RATE_PATHS | MORTGAGE_PATHS => market_paths(&views, op == MORTGAGE_PATHS),
+            FIT_CC => {
                 let fit = crate::calibration::fit_current_coupon(views[0].v)
                     .expect("invalid current coupon fit");
                 vec![fit.beta, vec![fit.lambda, fit.r_squared]]
             }
-            23 => vec![
+            FIT_PS => vec![
                 crate::calibration::fit_ps_spread(views[0].v, views[1].at(0))
                     .expect("invalid spread fit")
                     .to_vec(),
             ],
-            24 => vec![crate::calibration::factor_loadings(
+            FACTOR_LOADINGS => vec![crate::calibration::factor_loadings(
                 views[0].ix(0),
                 views[1].ix(0),
                 views[2].at(0),
                 views[3].at(0),
             )
             .expect("invalid factor loadings")],
-            25 | 26 => {
-                let fit = if op == 25 {
+            FIT_VOL | FIT_DEPOSIT => {
+                let fit = if op == FIT_VOL {
                     crate::calibration::fit_abcd(
                         views[0].v,
                         views[1].v,
@@ -1294,7 +1291,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                     vec![fit.rmse, fit.evaluations as f64, fit.status as f64],
                 ]
             }
-            27 => {
+            SHARED_DRAWS => {
                 let seed: Vec<_> = views[0].v.iter().map(|&v| v as u32).collect();
                 let out = crate::random::SharedDraws::new(
                     &seed,
@@ -1303,7 +1300,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                 .expect("invalid shared draws");
                 vec![out.rates, out.spread, out.hpi]
             }
-            28 | 29 => {
+            MORTGAGE_RISK | MORTGAGE_FORWARD_STRESS => {
                 use crate::mortgage_risk::{MortgageRiskRequest, PrepayData, RiskConfig};
                 let a = &views;
                 let c = &a[8];
@@ -1355,7 +1352,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                         channel_multipliers: a[24].v,
                     },
                 };
-                if op == 28 {
+                if op == MORTGAGE_RISK {
                     let out = request.run().expect("invalid mortgage risk lifecycle");
                     vec![out.oas, out.price, out.dv01, out.sensitivities]
                 } else {
@@ -1375,7 +1372,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                     ]
                 }
             }
-            21 => {
+            PARALLEL_SHOCK => {
                 let a = &views;
                 let shock = crate::market::ParallelShock {
                     horizon: a[3].ix(0),
@@ -1391,13 +1388,13 @@ pub unsafe extern "C" fn portfolio_quant_call(
                     .expect("invalid parallel shock");
                 vec![out.mtg, out.hpi, out.yoy, out.df]
             }
-            30 => vec![crate::cache::statistics(views[0].at(0) != 0.).to_vec()],
-            31 => interactive(&views),
+            MORTGAGE_CACHE => vec![crate::cache::statistics(views[0].at(0) != 0.).to_vec()],
+            INTERACTIVE => interactive(&views),
             _ => panic!("unsupported operation"),
         };
         // These operations contain no parallel work. A worker handoff costs more
         // than the coefficient reduction and worsens interactive tail latency.
-        let result = if matches!(op, 30 | 31) {
+        let result = if matches!(op, MORTGAGE_CACHE | INTERACTIVE) {
             compute()
         } else {
             super::pool(threads)?.install(compute)

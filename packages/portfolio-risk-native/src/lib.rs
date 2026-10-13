@@ -6,33 +6,58 @@ use std::sync::{Arc, Mutex, OnceLock};
 #[cfg(feature = "allocator-mimalloc")]
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+pub mod abi_operations;
 pub mod accounting_lifecycle;
+pub mod advanced_graph;
+pub mod advanced_product;
+pub mod aged_units;
 pub mod balance_risk;
 pub mod cache;
 pub mod calibration;
+pub mod card_graph;
 pub mod cohorts;
 pub mod controllers;
 pub mod conventions;
 pub mod dated_term;
 pub mod decision_inputs;
+pub mod deposit_graph;
+pub mod deposit_graph_capture;
 pub mod deposit_lifecycle;
+pub mod derivative_accounting;
+pub mod derivative_contract;
 pub mod forecast_input;
 pub mod forecast_lifecycle;
+mod funding_coefficients;
+pub mod funding_contract;
+pub mod funding_graph;
 mod graph_cache;
+pub mod graph_cohort;
 pub mod hedge_lifecycle;
 pub mod incremental;
+pub mod joint_market_credit;
 pub mod kpi_lifecycle;
 mod least_squares;
 pub mod ledger_mapping;
 pub mod lifecycle_market;
 pub mod market;
+pub mod market_bootstrap;
 mod market_cache;
+pub mod market_driver_calibration;
+pub mod market_indexed_adapter;
+pub mod market_product_source;
 pub mod model_lifecycle;
+pub mod model_market;
+pub mod mortgage_graph;
 pub mod mortgage_input;
 pub mod mortgage_risk;
+pub mod product_candidate_source;
+pub mod product_strategy;
+pub mod product_units;
 #[cfg(feature = "compute-profile")]
 pub mod profile;
 pub mod program_lifecycle;
+pub mod term_enhancements;
+pub mod term_product_graph;
 pub mod treasury;
 pub mod treasury_bridge;
 
@@ -240,3 +265,27 @@ mod tests {
         assert_eq!(a, b);
     }
 }
+
+pub mod market_indexed_graph;
+
+pub mod market_indexed_books;
+
+pub mod graph_runtime_control;
+
+pub mod modeled_ftp_policy;
+
+pub mod commercial_cash;
+pub mod commercial_continuation;
+pub mod commercial_credit_compiler;
+pub mod commercial_exercise;
+pub mod commercial_factor_source;
+pub mod commercial_fee_source;
+pub mod commercial_graph;
+pub mod commercial_source_income;
+mod commercial_stochastic_boundary;
+pub mod commercial_stochastic_exercise;
+pub mod commercial_units;
+pub mod saved_derivative_source;
+
+pub mod commercial_generated_graph;
+pub mod commercial_generated_policy;

@@ -856,12 +856,13 @@ wheels = [
 
 [[package]]
 name = "portfolio-risk"
-version = "0.29.8"
+version = "0.29.17"
 source = { editable = "../../packages/portfolio-risk" }
 dependencies = [
     { name = "numba" },
     { name = "numpy" },
     { name = "polars" },
+    { name = "pyarrow" },
     { name = "scipy" },
 ]
 
@@ -870,6 +871,7 @@ requires-dist = [
     { name = "numba", specifier = ">=0.59" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "polars", specifier = ">=1.0" },
+    { name = "pyarrow", specifier = ">=17" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "scipy", specifier = ">=1.11" },
 ]

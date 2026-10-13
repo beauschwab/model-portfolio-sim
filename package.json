@@ -15,10 +15,11 @@
     "build:native": "uv run --project apps/api python scripts/build_native.py && uv run --project apps/api python scripts/build_ledger_native.py && uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py",
     "build": "bun run build:native && turbo build",
     "test": "bun run test:py && bun run test:e2e",
-    "test:py": "bun run test:engine && bun run test:api",
+    "test:py": "bun run check:architecture && bun run test:engine && bun run test:api",
     "test:e2e": "cd apps/web && bun run test:e2e",
     "test:engine": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q",
-    "test:api": "cd apps/api && uv run --extra dev python -m pytest tests/ -q"
+    "test:api": "cd apps/api && uv run --extra dev python -m pytest tests/ -q",
+    "check:architecture": "python scripts/check_architecture.py && python -m unittest discover -s scripts/tests -v && python scripts/generate_native_contracts.py --check && uv run --project apps/api python scripts/generate_http_contracts.py --check"
   },
   "devDependencies": {
     "turbo": "^2.0.6"

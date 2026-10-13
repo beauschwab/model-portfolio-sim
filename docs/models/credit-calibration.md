@@ -5,6 +5,9 @@ intensities for the shared `credit-model-1` state structure. The implementation 
 `packages/portfolio-model-core/src/credit_calibration.rs`, exposed as
 `credit_calibration::fit(&CreditCalibrationRequest)`. It returns fitted hazards,
 training sufficient statistics and strictly chronological holdout diagnostics.
+Its result declares `measure = physical`: observed frequencies estimate physical
+behavior. There is no request field that can relabel the fit as a pricing-measure
+estimate, and no physical-to-pricing conversion is performed.
 It never estimates a hazard from loan balances, a tape refresh, or monthly
 snapshots whose intervening events are unknown.
 
@@ -61,6 +64,11 @@ All input structs reject unknown fields. Probability weights, balance weights,
 implicit clocks and an option to refit on holdout data are deliberately absent.
 Each spell is one observed account episode, not a fractional/probability-weighted
 cohort observation.
+
+A `measure` field on the calibration request is rejected as unknown. For pricing
+use, an independently justified change of measure and severity assumptions must
+be supplied through a separate model/policy; this estimator cannot infer them
+from observed spells.
 
 Required request provenance is `source_id`, `source_revision`, `population_id`,
 `model_policy_id`, distinct `training_split_id` and `holdout_split_id`, and
@@ -136,6 +144,15 @@ individual zero-event cause in an otherwise observed row, its zero count remains
 visible in the diagnostics. Rare-event uncertainty requires independent interval
 or posterior analysis before economic use; no confidence intervals or safety
 floors are implied by these point estimates.
+
+The result also reports `hazard_standard_errors_per_year` for positive observed
+transition counts. For count `N_ij` and exposure `T_i` years, the reported
+Wald value is `sqrt(N_ij) / T_i`, the inverse-information standard error of
+the Poisson row-rate MLE. Diagonal entries are structurally zero. A `null`
+entry marks a zero-event cause or a supplied row: it is missing information,
+not a zero-risk confidence claim. These local asymptotic errors do not replace
+profile likelihood, Bayesian intervals, rare-event bounds, source censoring
+audits or held-out predictive validation.
 
 For `T_i = 0`, rates are unidentified. Each origin therefore requires an explicit
 `UnobservedRowPolicy`:

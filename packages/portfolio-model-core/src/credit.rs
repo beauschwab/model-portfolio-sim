@@ -13,6 +13,14 @@ const POISSON_TOLERANCE: f64 = 2.0e-16;
 const MAX_POISSON_TERMS: usize = 128;
 const N: usize = 7; // 3 live, 3 default-by-origin, one prepaid
 
+/// Explicit caller-supplied probability measure. No physical/pricing conversion is inferred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CreditMeasure {
+    Physical,
+    Pricing,
+}
+
 /// States in all input/output arrays: performing, watch, delinquent, default, prepaid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -60,6 +68,7 @@ pub struct CreditPeriod {
 #[serde(deny_unknown_fields)]
 pub struct CreditRequest {
     pub schema: String,
+    pub measure: CreditMeasure,
     /// An explicit caller-defined currency/unit label, retained without conversion.
     pub monetary_unit: String,
     /// Performing/watch/delinquent probabilities; nonnegative, sum to one.
@@ -95,6 +104,7 @@ pub struct ExpectedRecovery {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreditResult {
     pub schema: String,
+    pub measure: CreditMeasure,
     pub monetary_unit: String,
     pub periods: Vec<CreditPeriodResult>,
     /// Complete projected recoveries, including those falling after the credit horizon.
@@ -319,6 +329,7 @@ pub fn evaluate(request: &CreditRequest) -> Result<CreditResult, String> {
     validate(request)?; // Validate all terms before financial work or output allocation.
     let mut result = CreditResult {
         schema: SCHEMA.into(),
+        measure: request.measure,
         monetary_unit: request.monetary_unit.clone(),
         periods: Vec::with_capacity(request.periods.len()),
         recoveries: Vec::new(),

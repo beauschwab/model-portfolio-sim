@@ -90,3 +90,4 @@ Rebuild product, ledger and decision artifacts and restart deployed workers befo
 using the new protocol. Existing workers cannot hot-load the replacement libraries.
 The operator skill was repackaged. See [capital-and-ftp.md](../capital-and-ftp.md)
 for inputs, formulas, endpoints and source bounds.
+

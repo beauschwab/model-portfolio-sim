@@ -14,3 +14,8 @@ playwright-report/
 !.env.example
 **/target/
 *.tsbuildinfo
+.ruff_cache/
+# Local acceptance runs, copied checkouts, binaries and durable test stores.
+/artifacts/
+# Accidental local application-cache tree; never repository source.
+/Users/

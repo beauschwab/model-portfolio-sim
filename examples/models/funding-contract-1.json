@@ -1,0 +1,235 @@
+{
+  "schema": "funding-contract-1",
+  "threads": 1,
+  "request": {
+    "schema": "funding-contract-1",
+    "model_version": "funding-contracts-1",
+    "assumption": {
+      "id": "funding-contract-example",
+      "revision": "r1"
+    },
+    "scenario_id": "physical-example",
+    "measure": "physical",
+    "monetary_unit": "currency_units",
+    "currency": "USD",
+    "asof_ordinal": 739617,
+    "reporting_end_ordinal": 739619,
+    "tail_end_ordinal": 739637,
+    "observed_publication_cutoff_unix_seconds": 1767225600,
+    "collateral_assets": [
+      {
+        "asset_id": "Treasury:A",
+        "owner_entity_id": "counterparty",
+        "currency": "USD",
+        "asset_class": "Treasury",
+        "ownership": "owned",
+        "ownership_source": {
+          "id": "owned-inventory-example",
+          "revision": "r1"
+        },
+        "quantity": 200,
+        "already_encumbered_quantity": 0
+      }
+    ],
+    "contracts": [
+      {
+        "contract": {
+          "id": "repo:old",
+          "revision": "r1"
+        },
+        "position_id": "repo:old",
+        "entity_id": "bank",
+        "counterparty_id": "counterparty",
+        "currency": "USD",
+        "direction": "lending",
+        "funding_kind": "repo",
+        "status": "new",
+        "principal": 100,
+        "start_ordinal": 739617,
+        "maturity_ordinal": 739627,
+        "rate_path": {
+          "id": "explicit-fixed-rate-path",
+          "revision": "r1"
+        },
+        "origination_fee": 0,
+        "interest_periods": [
+          {
+            "period_id": "coupon",
+            "start_ordinal": 739617,
+            "end_ordinal": 739627,
+            "payment_ordinal": 739627,
+            "day_count": "act360",
+            "coupon": {
+              "kind": "fixed",
+              "annual_rate": 0.36
+            },
+            "fee": 0
+          }
+        ],
+        "collateral": {
+          "policy": {
+            "id": "repo:old-collateral",
+            "revision": "r1"
+          },
+          "eligible_asset_classes": [
+            "Treasury"
+          ],
+          "include_accrued_interest": true,
+          "initial_accrued_interest_claim": 0,
+          "initial_accrued_right_source": {
+            "id": "opening-accrual",
+            "revision": "r1"
+          },
+          "minimum_transfer_value": 0,
+          "margin_breach": "reject",
+          "initial_snapshot": {
+            "source": {
+              "id": "repo:old-collateral-initial",
+              "revision": "r1"
+            },
+            "ordinal": 739617,
+            "values": [
+              {
+                "asset_id": "Treasury:A",
+                "market_price": 1,
+                "eligible": true,
+                "haircut": 0.1
+              }
+            ]
+          },
+          "initial_pledges": [
+            {
+              "asset_id": "Treasury:A",
+              "quantity": 112
+            }
+          ],
+          "margin_steps": [
+            {
+              "ordinal": 739619,
+              "management_access": "available",
+              "action_source": {
+                "id": "explicit-margin-action",
+                "revision": "r1"
+              },
+              "accrued_interest_claim": 0.2,
+              "accrued_right_source": {
+                "id": "reviewed-accrual-state",
+                "revision": "r1"
+              },
+              "snapshot": {
+                "source": {
+                  "id": "day3-haircut-review",
+                  "revision": "r1"
+                },
+                "ordinal": 739619,
+                "values": [
+                  {
+                    "asset_id": "Treasury:A",
+                    "market_price": 0.9,
+                    "eligible": true,
+                    "haircut": 0.2
+                  }
+                ]
+              },
+              "transfers": [
+                {
+                  "asset_id": "Treasury:A",
+                  "quantity": 40
+                }
+              ]
+            }
+          ]
+        },
+        "exit": {
+          "kind": "maturity",
+          "rollover": {
+            "election_source": {
+              "id": "partial-rollover-election",
+              "revision": "r1"
+            },
+            "market_access": "available",
+            "requested_principal": 60,
+            "replacement": {
+              "contract": {
+                "id": "repo:replacement",
+                "revision": "r1"
+              },
+              "position_id": "repo:replacement",
+              "entity_id": "bank",
+              "counterparty_id": "counterparty",
+              "currency": "USD",
+              "direction": "lending",
+              "funding_kind": "repo",
+              "status": "new",
+              "principal": 60,
+              "start_ordinal": 739627,
+              "maturity_ordinal": 739637,
+              "rate_path": {
+                "id": "explicit-fixed-rate-path",
+                "revision": "r1"
+              },
+              "origination_fee": 0,
+              "interest_periods": [
+                {
+                  "period_id": "coupon",
+                  "start_ordinal": 739627,
+                  "end_ordinal": 739637,
+                  "payment_ordinal": 739637,
+                  "day_count": "act360",
+                  "coupon": {
+                    "kind": "fixed",
+                    "annual_rate": 0.72
+                  },
+                  "fee": 0
+                }
+              ],
+              "collateral": {
+                "policy": {
+                  "id": "repo:replacement-collateral",
+                  "revision": "r1"
+                },
+                "eligible_asset_classes": [
+                  "Treasury"
+                ],
+                "include_accrued_interest": true,
+                "initial_accrued_interest_claim": 0,
+                "initial_accrued_right_source": {
+                  "id": "opening-accrual",
+                  "revision": "r1"
+                },
+                "minimum_transfer_value": 0,
+                "margin_breach": "reject",
+                "initial_snapshot": {
+                  "source": {
+                    "id": "repo:replacement-collateral-initial",
+                    "revision": "r1"
+                  },
+                  "ordinal": 739627,
+                  "values": [
+                    {
+                      "asset_id": "Treasury:A",
+                      "market_price": 1,
+                      "eligible": true,
+                      "haircut": 0.1
+                    }
+                  ]
+                },
+                "initial_pledges": [
+                  {
+                    "asset_id": "Treasury:A",
+                    "quantity": 70
+                  }
+                ],
+                "margin_steps": []
+              },
+              "exit": {
+                "kind": "maturity",
+                "rollover": null
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

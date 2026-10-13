@@ -1,10 +1,15 @@
-# Optional ledger reduction pilot
+# Native daily ledger runtime
+
+Current ownership and deployment rules: [Rust production contract](../../docs/rust-production-contract.md) and [architecture](../../docs/architecture.md). Rust is required for built-in production financial execution. Build matching artifacts and restart API/workers.
+
+The versioned interface and measurement sections below retain their original dated scope; earlier pilot/prototype descriptions are historical.
+
 
 ## Full daily state and partitioned output (0.26)
 
 The crate now also builds `portfolio-balance`, a separate-process daily state
 engine. Use it through `analytics.balance_stream.run_streamed_balance_stress`;
-its private stdin protocol expects Python-validated, fully defaulted typed inputs.
+its private stdin protocol validates/defaults raw daily specifications natively before execution.
 It does not replace the older C ABI reduction pilot described below.
 
 The executable owns opening state, daily recoveries, collateral/funding claims,

@@ -60,7 +60,10 @@ def optimize_balance_sheet(
         cet1_min: float = 0.10, eve_limit: float = 0.15,
         commercial: list[dict] | None = None,
         max_total_assets: float | None = None, cash_budget: float = 0.0,
-        capital_limits: list[dict] | None = None) -> dict:
+        capital_limits: list[dict] | None = None,
+        capital_dependency: dict | None = None,
+        max_purchase_cost_assets: float | None = None,
+        face_limits: list[dict] | None = None) -> dict:
     """Robust LP. `commercial` rows: {label, template (or 'ALL_ASSET'/
     'ALL_LIAB'), sense ('>='|'<='), rhs} on total notional per template.
     Returns optimal allocation, binding constraints, and shadow prices
@@ -70,6 +73,56 @@ def optimize_balance_sheet(
     if cash_budget < 0 or not np.isfinite(cash_budget):
         raise ValueError("cash_budget must be finite and nonnegative")
     from ..core.quant_native import enabled
+    commercial_flags=[lib.get('preparation_schema')=='commercial-units-1' for lib,_ in scen_libs]
+    if any(commercial_flags):
+        if not all(commercial_flags):raise ValueError('commercial libraries cannot be mixed with other coefficient owners')
+        if not enabled():raise ValueError('commercial libraries require the native commercial strategy contract')
+        if commercial:raise ValueError('commercial source allocations require explicit typed face_limits')
+        from ..analytics.modeled_json_identity import exact_json_identity
+        raw=scen_libs[0][0].get('source_request')
+        if raw is None or any(not exact_json_identity(lib.get('source_request'),raw) for lib,_ in scen_libs):raise ValueError('REBUILD_REQUIRED: matching raw commercial preparation sources required')
+        ids=[lib.get('scenario_id') for lib,_ in scen_libs]
+        if ids!=[s['scenario_id'] for s in raw['units'][0]['graph']['scenarios']]:raise ValueError('complete ordered native commercial scenario coverage required')
+        from .commercial import optimize
+        return optimize(raw,[dict(scenario_id=lib['scenario_id'],base=base) for lib,base in scen_libs],dict(lcr_min=lcr_min,nsfr_min=nsfr_min,cet1_min=cet1_min,eve_limit=eve_limit,cash_budget=cash_budget,max_total_assets=max_total_assets,commercial=[],capital_limits=capital_limits or []),capital_dependency=capital_dependency,max_purchase_cost_assets=max_purchase_cost_assets,face_limits=face_limits or [])
+    product_flags=[lib.get('preparation_schema')=='product-units-1' for lib,_ in scen_libs]
+    if any(product_flags):
+        if not all(product_flags):raise ValueError('product, dated fixed and monthly libraries cannot be mixed')
+        if not enabled():raise ValueError('product libraries require the native product strategy contract')
+        if commercial:raise ValueError('product allocations require explicit typed face_limits')
+        raw=scen_libs[0][0].get('source_request')
+        if raw is None or any(lib.get('source_request')!=raw for lib,_ in scen_libs):
+            raise ValueError('REBUILD_REQUIRED: matching raw product preparation sources required')
+        ids=[lib.get('scenario_id') for lib,_ in scen_libs]
+        scenes=raw['units'][0]['purchase_graph']['request']['scenarios']
+        if ids!=[scenario['scenario_id'] for scenario in scenes]:
+            raise ValueError('product libraries need complete ordered native scenario coverage')
+        from .product import optimize
+        return optimize(raw,[dict(scenario_id=lib['scenario_id'],base=base) for lib,base in scen_libs],
+            dict(lcr_min=lcr_min,nsfr_min=nsfr_min,cet1_min=cet1_min,eve_limit=eve_limit,
+                cash_budget=cash_budget,max_total_assets=max_total_assets,commercial=[],
+                capital_limits=capital_limits or []),capital_dependency=capital_dependency,
+            max_purchase_cost_assets=max_purchase_cost_assets,face_limits=face_limits or [])
+    if face_limits:raise ValueError('typed face_limits require a native product library')
+    aged_flags=[lib.get('preparation_schema')=='aged-units-1' for lib,_ in scen_libs]
+    if any(aged_flags):
+        if not all(aged_flags):raise ValueError('dated and monthly scenario libraries cannot be mixed')
+        if not enabled():raise ValueError('dated libraries require the native aged strategy contract')
+        raw=scen_libs[0][0].get('source_request')
+        if raw is None:raise ValueError('REBUILD_REQUIRED: raw dated preparation source required')
+        if any(lib.get('source_request')!=raw for lib,_ in scen_libs):
+            raise ValueError('dated scenario source identities must match')
+        ids=[lib.get('scenario_id') for lib,_ in scen_libs]
+        if ids!=[scenario['scenario_id'] for scenario in raw['scenarios']]:
+            raise ValueError('dated scenario libraries need complete ordered native scenario coverage')
+        from .aged import optimize
+        return optimize(raw,[dict(scenario_id=lib['scenario_id'],base=base) for lib,base in scen_libs],
+            dict(lcr_min=lcr_min,nsfr_min=nsfr_min,cet1_min=cet1_min,eve_limit=eve_limit,
+                cash_budget=cash_budget,max_total_assets=max_total_assets,commercial=commercial or [],
+                capital_limits=capital_limits or []),capital_dependency=capital_dependency,
+            max_purchase_cost_assets=max_purchase_cost_assets)
+    if capital_dependency is not None or max_purchase_cost_assets is not None:
+        raise ValueError('dated funding options require an aged native library')
     if enabled():
         # Serialization only: native code owns coefficient construction, LP rows,
         # solving, financial replay and result validation. Python is the test oracle.

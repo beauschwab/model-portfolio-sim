@@ -7,6 +7,7 @@ const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const KpisPage = lazy(() => import("../pages/Kpis"));
 const Treasury = lazy(() => import("../pages/Treasury"));
+const ModelLab = lazy(() => import("../pages/ModelLab"));
 const MarketPage = lazy(() => import("../pages/Market"));
 const MorningSheet = lazy(() => import("../pages/MorningSheet"));
 const Positions = lazy(() => import("../pages/Positions"));
@@ -21,6 +22,7 @@ export type PanelId =
   | "risk"
   | "kpis"
   | "treasury"
+  | "models"
   | "positions"
   | "cohorts"
   | "decide"
@@ -62,6 +64,7 @@ export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "cohorts", group: "data", title: "Tape & Cohorts", icon: Layers, subtitle: "Loan tapes · behavioral cohorts · lineage · loan analytics", component: () => <Cohorts /> },
   { id: "market", group: "data", title: "Market & Scenarios", icon: ChartLine, subtitle: "Par curve · 9Q scenario builder", component: () => <MarketPage /> },
   { id: "books", group: "data", title: "Book Editor", icon: BookOpen, subtitle: "6 books · table view + JSON edit", component: () => <BalanceSheet /> },
+  { id: "models", group: "data", title: "Product Models", icon: Layers, subtitle: "Product terms · dated cashflows · state and source evidence", component: () => <ModelLab /> },
   {
     id: "settings",
     group: "data",

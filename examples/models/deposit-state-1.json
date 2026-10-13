@@ -1,0 +1,15 @@
+{
+  "schema": "deposit-state-1",
+  "identity": {"entity_id": "synthetic-bank", "cohort_id": "synthetic-customers", "currency": "USD", "source_revision": "synthetic-v1", "model_version": "deposit-state-1", "assumption_id": "zero-runoff-mechanics", "assumption_rationale": "Synthetic two-day interest mechanics with supplied zero retention hazards; no fitted behavior", "run_id": "baseline", "measure": "physical"},
+  "as_of_ordinal": 738916,
+  "horizon_days": 2,
+  "day_count": "act365_fixed",
+  "segments": [{"segment_id": "retail", "opening_balance": 1000, "opening_accrued_interest": 0, "opening_paid_rate": 0.365, "characteristics": {"uninsured_fraction": 0.5, "concentration": 0.2, "digital_fraction": 0.8, "relationship_fraction": 0.5, "operational_fraction": 0.5}, "repricing": {"target": {"kind": "linear", "intercept": 0.365, "beta": 0, "competitor_weight": 0}, "observation_lag_days": 0, "rising_half_life_days": 0, "falling_half_life_days": 0, "floor": 0, "ceiling": 1, "supported_observation_range": null}, "retention": {"withdrawal_per_year": 0, "closure_per_year": 0, "opportunity_gap_sensitivity": 0, "absolute_daily_velocity_sensitivity": 0, "uninsured_stress_sensitivity": 0, "concentration_stress_sensitivity": 0, "digital_stress_sensitivity": 0, "relationship_protection": 0, "operational_protection": 0, "closure_stress_sensitivity": 0}, "maturity_ordinal": null, "interest_payment_ordinals": [738918]}],
+  "migrations": [],
+  "drivers": [
+    {"ordinal": 738915, "reference_rate": 0, "competitor_rates": [0], "offered_spread_stress": [0], "confidence_stress": [0], "external_inflows": [0]},
+    {"ordinal": 738916, "reference_rate": 0, "competitor_rates": [0], "offered_spread_stress": [0], "confidence_stress": [0], "external_inflows": [0]},
+    {"ordinal": 738917, "reference_rate": 0, "competitor_rates": [0], "offered_spread_stress": [0], "confidence_stress": [0], "external_inflows": [0]}
+  ],
+  "terminal": {"kind": "retain_residual"}
+}

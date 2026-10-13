@@ -1,9 +1,9 @@
 name: Storage operations
 on:
   pull_request:
-    paths: ['apps/api/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-decision-native/**', '.github/workflows/storage-operations.yml']
+    paths: ['apps/api/**', 'packages/portfolio-ledger-native/**', '.github/workflows/storage-operations.yml']
   push:
-    paths: ['apps/api/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-decision-native/**', '.github/workflows/storage-operations.yml']
+    paths: ['apps/api/**', 'packages/portfolio-ledger-native/**', '.github/workflows/storage-operations.yml']
 permissions:
   contents: read
 jobs:

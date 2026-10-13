@@ -1,0 +1,33 @@
+name: Agent interface contracts
+on:
+  push:
+    paths: ['apps/mcp/**', 'apps/api/**', 'docs/models/**', 'docs/architecture.md', 'docs/rust-production-contract.md', 'scripts/generate_mcp_contracts.py', '.github/workflows/mcp.yml']
+  pull_request:
+    paths: ['apps/mcp/**', 'apps/api/**', 'docs/models/**', 'docs/architecture.md', 'docs/rust-production-contract.md', 'scripts/generate_mcp_contracts.py', '.github/workflows/mcp.yml']
+permissions:
+  contents: read
+jobs:
+  mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --project apps/mcp --extra dev --locked
+      - run: uv run --project apps/mcp --extra dev python -m pytest apps/mcp/tests -q
+      - run: uv sync --project apps/api --extra dev --locked
+      - run: python scripts/check_architecture.py --python-only
+      - run: uv run --project apps/api python scripts/generate_mcp_contracts.py --check
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            packages/portfolio-risk-native
+            packages/portfolio-ledger-native
+            packages/portfolio-decision-native
+      - run: uv run --project apps/api python scripts/build_native.py
+      - run: uv run --project apps/api python scripts/build_ledger_native.py
+      - run: uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
+      - run: uv run --extra dev --with-editable ../mcp python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py -q
+        working-directory: apps/api

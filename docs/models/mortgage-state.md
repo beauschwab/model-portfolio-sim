@@ -1,0 +1,64 @@
+# Supplied-path mortgage and agency state
+
+`mortgage-state-1` is an explicit model selection in the shared Rust core. `mortgage_state::project(&MortgageRequest)` returns borrower collections, investor entitlements, actual remittances, recognition intervals, state snapshots, default/recovery claims and selected ARM reset identities. Existing mortgage/OAS models are not implicitly changed. The [synthetic example](../../examples/models/mortgage-state-1.json) is executable schema evidence, not fitted mortgage performance.
+
+The request reuses `ConsumerIdentity`, `ConsumerCashEvent`, `ConsumerRecognition`, actual ordinal/day-count functions, floating-index descriptors/fixing revisions, the shared CTMC operator and fixed-payment annuity arithmetic. Physical and pricing measures are mandatory, retained and never converted. No observed coefficients, pricing risk premium or agency legal eligibility are inferred. To use this model in portfolio pricing, the caller must explicitly select it and rebuild the relevant library/session; scenario marks must retain their original fixed OAS and CRN contracts.
+
+## State and original payment
+
+Original principal, original payment, origination ordinal and retained burnout are explicit. The complete remaining actual payment calendar includes dates after the reporting horizon. The nominal contractual principal and contractual accrued interest form a separate reference schedule, without defaults or prepayment. The original fixed payment persists after borrower runoff; the model does not reannuitize every surviving balance. Final contractual payment settles residual principal explicitly. Scheduled borrower payments apply the current payment to absolute live population mass and supplied state collection fractions, allocate interest first, then principal and preserve unpaid interest rights. Unsupported negative amortization fails rather than capitalizing arrears silently.
+
+The three live states are performing, watch and delinquent. Absolute live/default-origin/prepaid probability remains independent from aggregate borrower and investor monetary vectors. The payment is an aggregate payment per unit of original pool mass. Opening state amounts and pool mass must therefore use the same original-pool basis; the engine cannot establish that interpretation from loan-tape data. Monetary balances can differ across states because collection histories differ. A zero principal balance does not by itself erase unpaid accrued rights. A full final payment moves settled population to separate matured mass, never prepaid mass.
+
+Each supplied path interval applies shared CTMC transitions, including migrations, cures and competing default/prepayment. Borrower contractual interest accrues on outstanding borrower principal. Whole-loan recognized accrual uses supplied state factors, allowing delinquent contractual rights to persist without accrued recognized income. Agency investor coupon accrues independently on investor principal in all live states. The shared coupled reward operator computes earned interest through actual state occupation rather than multiplying the closing balance by a full interval. Whole-loan collection or payoff of previously unrecognized contract interest has explicit same-date cash-basis recognition records, with equal start/end ordinals; these require an event-recognition adapter, not an ordinary positive-length calendar accrual segment.
+
+## Turnover, refinance, seasoning and burnout
+
+For an interval beginning at actual age `a` days, the supplied model is
+
+```
+season(a, ramp) = min(a / ramp, 1), or 1 when ramp = 0
+incentive = max(note_rate - refinancing_market_rate - threshold, 0)
+h_turnover = supplied_turnover_intensity * season(a, turnover_ramp)
+h_refinance = slope * incentive * season(a, refinance_ramp)
+              * exp(-burnout_sensitivity * retained_incentive_years)
+retained_incentive_years += incentive * elapsed_actual_days / 365
+```
+
+Rates are decimal annual rates; hazards are inverse model years. Both causes share the declared state eligibility factors. This preserves their constant cause ratio within an interval, so CTMC prepaid principal and accrued rights can be split exactly into turnover and refinance allocations. The supplied credit matrix's prepaid column must be zero: the mortgage model owns that competing exit once. Combined outgoing intensity must fit the shared 100/year limit; excessive derived refinance intensity is rejected, not silently clipped. Ramps, slopes, threshold and burnout sensitivity are supplied assumptions, not estimated from the illustrative path.
+
+Seasoning and burnout coefficients are frozen at each supplied interval's beginning. Their updates occur at actual calendar/path/reset boundaries. Behavioral event timing is an explicit interval-end expected-cash approximation: the CTMC recognizes continuous default/prepay occupation, but assigns expected cash and default recovery clocks to the ending actual date. Refining path boundaries can change that behavioral discretization and default recovery timing. It is not a continuously timed borrower simulation or an empirical inference of monthly payments.
+
+## ARM resets
+
+ARM inputs retain a term or published-average index descriptor, caller-owned reference-calendar revision, margin, original note rate, initial and subsequent up/down caps, lifetime up/down bounds, note floor and prior reset count. Every reset explicitly labels its selected supplied input as observed or projected, with fixing ID/revision/value date, publication time, reset cutoff and, for projections, source/revision and availability time. Observed future publications and unavailable projected snapshots fail. No fixing fallback or future rate lookup occurs. `calendar_mapping_verified=false` states that exact supplied dates are arithmetically checked; the engine does not independently reproduce the referenced holiday/lookback mapping.
+
+The candidate rate is index plus margin, bounded by the intersection of previous-rate initial/subsequent caps and original-rate lifetime/floor bounds. Decimal rate differences represent percentage-point caps, not proportional percentage changes. Current and reset note rates must remain nonnegative and below the declared 200% annual domain; an agency coupon cannot fall below its explicit servicing/guarantee spread.
+
+The reset follows the ending interval's accrual and any payment due that day, and applies to subsequent accrual. `retain_original` preserves original payment. `reamortize_remaining` uses the complete remaining actual accrual fractions and the shared annuity recurrence. For a mid-period reset, retained old-rate contract interest is due in the first remaining installment and enters the annuity equation separately. It is not discarded or charged the new rate retroactively. The original payment remains in the result for lineage even when the current ARM payment changes.
+
+## Whole loan and agency ownership
+
+Whole-loan investor principal matches borrower principal. Actual borrower collections and supplied principal recovery tails generate whole-loan entitlements. Default LGD is principal-only; default contractual and recognized accrued rights are retained separately in claims. The model does not automatically collect, provision or write off those interest rights. Origin-specific complete recovery lag weights sum to one; recoverable principal is `(1 - LGD) * default_principal`. Full tails are returned even after reporting.
+
+Agency borrower UPB and investor principal are separate arrays. On scheduled dates, investor principal follows the nominal contractual amortization allocation and investor accrued coupon is entitled regardless of delinquent borrower collections. The difference requiring support is reported as guarantee principal/interest advances. A guaranteed principal payment reduces investor principal; it does not fabricate a borrower payment or reduce unpaid borrower UPB. Borrower arrears and subsequent recoveries remain issuer-side collections.
+
+An agency default generates a separate investor buyout entitlement on the supplied lag, not a turnover/refinance event. Default-origin investor coupon follows the mandatory supplied `frozen_at_default` policy until buyout, pays on supplied remaining coupon dates, and settles remaining coupon at buyout. Default-date accrued coupon is paid on that date when it is a coupon date, preserving timely entitlement. Borrower default recovery is never added to agency investor principal buyout. The issuer/guarantee revision is retained, but this generic supplied policy does not establish Fannie Mae, Freddie Mac or Ginnie Mae program compliance, guarantor solvency, full-faith-and-credit status or actual delinquent-loan purchase rules.
+
+Investor entitlements and actual cash dates remain separate. Every investor event receives its explicit remittance lag, and cash after reporting is retained. Pending buyout principal, borrower default principal after recoveries, arrears and full tails remain visible even after live principal ends. There is no claim that a single lag covers all agency calendar/remittance conventions or that borrower collections less investor payments constitutes servicing profitability.
+
+## Conservation, bounds and validation
+
+Principal conservation independently checks opening borrower principal against collected borrower principal through reporting plus closing live/default principal, and opening investor principal against entitled investor principal plus closing live/default investor principal. Cash remittance timing can differ from entitlement timing. No survivor normalization, second generic survival haircut, chargeoff inference or balancing principal plug is applied.
+
+Amounts use the shared 1e15 actual-currency-unit bound. Original-to-final payment term, reporting horizon, remittance lag and recovery/buyout lag each admit at most 36,600 days. Payment dates, path points, ARM resets and the combined projected boundary calendar each admit at most 4,096 records. At most 4,096 default claims and 32 recovery points per origin are retained; cash/entitlement vectors reuse the 250,000-event bound. Counted interval, claim, recovery and default-coupon operations cannot exceed two million work units, including zero-coupon tails. This component work bound is not an aggregate workflow RSS or processor-time guarantee. Identity text uses bounded control-free consumer/fixing fields.
+
+Independent tests cover a hand-calculated actual-date fixed-payment schedule; analytic competing default/turnover/refinance principal and accrued flux; delinquent rights/cures; agency advances without borrower principal reduction; default buyout versus recovery ownership; initial/subsequent/lifetime/floor ARM arithmetic; mid-period annuity recast with old coupon accrual; retained seasoning/burnout and measure identity; publication/model/tail admission; same-date default guaranteed coupons; large currency scaling and bounded zero-coupon tails. Synthetic mechanics are not out-of-time empirical calibration. Cohort/tape fit, model selection throughout graph/solver/daily accounting, independent journal publication, cash-flow valuation tolerances and complete scale acceptance remain separate release gates.
+
+## Primary references
+
+The Federal Reserve's [January 2026 credit-model documentation](https://www.federalreserve.gov/supervisionreg/files/credit-risk-models.pdf) describes mortgage payment-state modeling and refinance burnout. Its [2026 mortgage-servicing analysis](https://www.federalreserve.gov/econres/notes/feds-notes/mortgage-servicing-right-valuations-under-stress-20260604.html) discusses refinancing responses and the resulting change in servicing cashflow life. These references motivate retaining history and separating drivers; they do not supply this model's coefficients.
+
+The CFPB explains [index plus margin](https://www.consumerfinance.gov/ask-cfpb/for-an-adjustable-rate-mortgage-arm-what-are-the-index-and-margin-and-how-do-they-work-en-1949/) and [initial, subsequent and lifetime caps](https://www.consumerfinance.gov/ask-cfpb/what-are-rate-caps-with-an-adjustable-rate-mortgage-arm-and-how-do-they-work-en-1951/). Contract terms and selected publication snapshots remain caller inputs here.
+
+Fannie Mae's [December 2025 single-family prospectus](https://capitalmarkets.fanniemae.com/media/26506/display) distinguishes borrower cash, guarantor support, distributions and delinquent-loan purchases, and identifies issuance supplements as relevant terms. Its [remittance description](https://singlefamily.fanniemae.com/servicing/principal-and-interest-remittance) separates reported loan-payment activity and funds passed to investors. The generic supplied agency policy above preserves those distinct economic roles without adopting a prospectus implicitly.

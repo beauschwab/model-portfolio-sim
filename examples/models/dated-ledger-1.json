@@ -1,0 +1,146 @@
+{
+  "schema": "dated-ledger-1",
+  "monetary_unit": "currency_units",
+  "recognition_policy": {
+    "policy_id": "supplied-coupon",
+    "policy_revision": "r1",
+    "recognition_model": "supplied_calendar_segments-1",
+    "fees": "immediate_earnings"
+  },
+  "specification": {
+    "version": "balance-stress-2",
+    "horizon_days": 30,
+    "accounts": [
+      {
+        "id": "a",
+        "entity": "bank",
+        "currency": "USD",
+        "cash": 0.0,
+        "equity": 100.0,
+        "cet1_floor": 0.0,
+        "leverage_floor": 0.0
+      }
+    ],
+    "positions": [
+      {
+        "id": "p",
+        "account": "a",
+        "kind": "loan",
+        "balance": 100.0,
+        "rate": 0.0,
+        "maturity_day": 30
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "shock",
+        "rate_shift": 0.02
+      }
+    ]
+  },
+  "dated": {
+    "schema": "dated-store-1",
+    "as_of_ordinal": 738944,
+    "reporting_horizon_days": 30,
+    "runs": [
+      {
+        "run_id": "base",
+        "scenario_id": "baseline",
+        "severity": 1.0,
+        "input_revision": "synthetic-1"
+      },
+      {
+        "run_id": "stress",
+        "scenario_id": "shock",
+        "severity": 1.0,
+        "input_revision": "synthetic-1"
+      }
+    ],
+    "owners": [
+      {
+        "position_id": "p",
+        "account_id": "a",
+        "currency": "USD",
+        "direction": "receipt",
+        "ownership": "contractual_dated_native_state",
+        "source_id": "source",
+        "source_revision": "r1"
+      }
+    ],
+    "sources": [
+      {
+        "source_id": "source",
+        "source_revision": "r1",
+        "coverage": [
+          {
+            "position_id": "p",
+            "run": {
+              "kind": "all"
+            },
+            "status": {
+              "kind": "complete_event_set"
+            }
+          }
+        ],
+        "schedule": {
+          "schema": "dated-cashflow-1",
+          "as_of_ordinal": 738944,
+          "horizon_days": 30,
+          "scenarios": [
+            "base",
+            "stress"
+          ],
+          "events": [
+            {
+              "position_id": "p",
+              "event_id": "coupon",
+              "scenario": {
+                "kind": "all"
+              },
+              "payment_ordinal": 738974,
+              "day_offset": 30,
+              "accrual_period": {
+                "start_ordinal": 738944,
+                "end_ordinal": 738974
+              },
+              "currency": "USD",
+              "components": {
+                "principal": 100.0,
+                "cash_interest": 0.3,
+                "accrued_interest": 0.3,
+                "book_amortization": 0.0,
+                "fees": 0.0
+              },
+              "measure": "contractual",
+              "provenance": {
+                "kind": "contractual",
+                "source_id": "synthetic-fixed-loan",
+                "source_revision": "terms-1"
+              },
+              "adjustment": {
+                "kind": "none"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "accrual_plans": [
+      {
+        "position_id": "p",
+        "event_id": "coupon",
+        "run": {
+          "kind": "all"
+        },
+        "segments": [
+          {
+            "start_ordinal": 738944,
+            "end_ordinal": 738974,
+            "accrued_interest": 0.3,
+            "book_amortization": 0.0
+          }
+        ]
+      }
+    ]
+  }
+}

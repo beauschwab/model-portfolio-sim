@@ -11,6 +11,31 @@ fn main() {
             return Err("input budget exceeded".into());
         }
         let value: serde_json::Value = serde_json::from_slice(&input).map_err(|e| e.to_string())?;
+        if value.get("schema").and_then(serde_json::Value::as_str)
+            == Some(portfolio_ledger_native::credit_path_replay::SCHEMA)
+        {
+            let request = serde_json::from_value(value).map_err(|e| e.to_string())?;
+            let prepared =
+                portfolio_ledger_native::credit_path_replay::CompiledPathLedger::compile(request)?;
+            return portfolio_ledger_native::credit_path_replay::run(prepared, io::stdout());
+        }
+        if value.get("schema").and_then(serde_json::Value::as_str)
+            == Some(portfolio_ledger_native::credit_replay::SCHEMA)
+        {
+            let request = serde_json::from_value(value).map_err(|e| e.to_string())?;
+            let prepared =
+                portfolio_ledger_native::credit_replay::CompiledCreditReplay::compile(request)?;
+            return portfolio_ledger_native::credit_replay::run(prepared, io::stdout());
+        }
+        if value.get("schema").and_then(serde_json::Value::as_str)
+            == Some(portfolio_ledger_native::dated_ledger::SCHEMA)
+        {
+            let request = serde_json::from_value(value).map_err(|e| e.to_string())?;
+            let prepared = portfolio_ledger_native::dated_ledger::CompiledDatedLedger::compile(
+                request, 60000, 90_000_000,
+            )?;
+            return portfolio_ledger_native::daily::run_dated(prepared, Box::new(io::stdout()));
+        }
         let spec = if value.get("version").is_some() {
             portfolio_ledger_native::spec::normalize(value, 60000, 90_000_000)?
         } else {

@@ -1,0 +1,48 @@
+"""Deliberate forbidden fixtures, without importing application/financial code."""
+import importlib.util
+from pathlib import Path
+import subprocess
+import unittest
+
+ROOT=Path(__file__).resolve().parents[2]
+spec=importlib.util.spec_from_file_location('architecture',ROOT/'scripts/check_architecture.py')
+checker=importlib.util.module_from_spec(spec);spec.loader.exec_module(checker)
+
+
+class ArchitectureTests(unittest.TestCase):
+    def test_deferred_relative_handler(self):
+        errors=checker.violations('app.persistence','def run():\n    from . import store\n')
+        self.assertTrue(errors);self.assertIn('app.store',errors[0]);self.assertIn(':2:',errors[0])
+
+    def test_engine_cannot_import_application(self):
+        self.assertTrue(checker.violations('portfolio_risk.core.example','from app import store'))
+        self.assertTrue(checker.violations('portfolio_risk.core.example','def x():\n    __import__("app.store")'))
+
+    def test_mcp_cannot_bypass_http_boundary(self):
+        for target in ['app.store', 'portfolio_risk.core.quant_native', 'sqlalchemy', 'sqlite3', 'ctypes']:
+            self.assertTrue(checker.violations('workbench_mcp.adapter', 'import ' + target))
+        self.assertFalse(checker.violations('workbench_mcp.adapter', 'import httpx\nimport pyarrow'))
+
+    def test_storage_cannot_import_dispatch_or_features(self):
+        for target in ['operations','pricing_jobs','decision_store','cohort_store','treasury_store','worker']:
+            self.assertTrue(checker.violations('app.persistence','from . import '+target))
+
+    def test_canonical_imports_and_comments(self):
+        self.assertFalse(checker.violations('app.pricing_jobs','from portfolio_risk.analytics.risk import run_risk\n# from . import worker'))
+        self.assertTrue(checker.violations('app.pricing_jobs','from portfolio_risk.risk import run_risk'))
+
+    def test_long_cycles_are_detected(self):
+        self.assertEqual(len(checker.cycle_edges({'a':{'b'},'b':{'c'},'c':{'a'}})),3)
+
+    def test_rust_application_dependency(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'packages/fixture-native';p.mkdir(parents=True)
+            (p/'Cargo.toml').write_text('[dependencies]\napp = { path = "../../apps/api" }')
+            self.assertTrue(checker.rust_violations(Path(tmp)))
+
+    def test_typescript_ast_fixtures(self):
+        subprocess.run(['node',str(ROOT/'scripts/check_web_boundaries.mjs'),'--self-test'],check=True)
+
+
+if __name__=='__main__':unittest.main()

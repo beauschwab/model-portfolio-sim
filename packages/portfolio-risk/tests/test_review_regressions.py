@@ -221,3 +221,4 @@ def test_unit_library_grid_extends_to_the_configured_horizon():
     assert library["grid_m"] == [0, 6, 12, 18, 24, 30, 36]
     assert library["nii"].shape[1] == 39
     assert ("agency_mbs", 38) in library["vectors"]
+

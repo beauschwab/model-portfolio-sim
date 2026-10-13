@@ -1,0 +1,40 @@
+{
+  "schema": "consumer-installment-1",
+  "identity": {
+    "position_id": "personal-1",
+    "original_loan_id": "loan-1",
+    "cohort_id": "cohort-1",
+    "currency": "USD",
+    "source_revision": "tape-1",
+    "model_version": "consumer-installment-1",
+    "assumption_id": "supplied-1",
+    "run_id": "base",
+    "measure": "physical"
+  },
+  "product": {
+    "kind": "personal",
+    "vintage_ordinal": 738551,
+    "dti": 0.4,
+    "dti_definition": "monthly-debt/gross-monthly-income",
+    "channel": "branch",
+    "collection_fraction": 0.5,
+    "collection_cost": 50.0,
+    "recovery_delay_days": 20
+  },
+  "as_of_ordinal": 738916,
+  "horizon_days": 120,
+  "original_principal": 1000.0,
+  "opening_principal": 1000.0,
+  "opening_accrued_interest": 0.0,
+  "opening_unrecognized_interest": 0.0,
+  "opening_fees": 0.0,
+  "initial_state": "performing",
+  "note_rate": 0.365,
+  "disclosed_apr": 0.5,
+  "day_count": "act365_fixed",
+  "original_payment": 529.0,
+  "payment_dates": [738945, 738976],
+  "prepayment_penalty_fraction": 0.0,
+  "accrue_contract_interest_in_nonaccrual": true,
+  "steps": []
+}

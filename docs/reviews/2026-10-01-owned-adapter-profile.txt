@@ -39,3 +39,5 @@
         1    0.000    0.000    0.013    0.013 C:\Users\schwa\AppData\Roaming\uv\python\cpython-3.12.11-windows-x86_64-none\Lib\functools.py:907(wrapper)
         1    0.000    0.000    0.013    0.013 C:\Users\schwa\Repos\model-portfolio-sim\apps\api\.venv\Lib\site-packages\polars\_utils\construction\dataframe.py:698(_sequence_of_dict_to_pydf)
         1    0.013    0.013    0.013    0.013 {built-in method from_dicts}
+
+

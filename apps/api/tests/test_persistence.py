@@ -181,7 +181,7 @@ def test_typed_parquet_roundtrip_and_checksum(tmp_path):
     assert codec.tables(ref)['/frame']['format'] == 'parquet'
     with pytest.raises(ValueError, match='outside'):
         Codec(Objects(str(tmp_path), 'other-tenant', 'workspace')).load(ref)
-    (tmp_path / ref['key']).write_bytes(b'corrupt')
+    (codec.objects.root / ref['key']).write_bytes(b'corrupt')
     with pytest.raises(ValueError, match='checksum'):
         codec.load(ref)
 

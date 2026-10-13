@@ -1,4 +1,5 @@
 """Raw input transport and table formatting for Rust-owned numerical lifecycles."""
+from .abi_generated import Op
 import operator
 import numpy as np
 import polars as pl
@@ -326,13 +327,18 @@ def evaluate_strategy(lib,allocations,base_kpis):
     from .quant_native import call
     from ..analytics.kpis import L2_CAP,NI_TO_NII,PAYOUT
     h=lib['horizon'];amounts=[];vectors=[]
+    dated=lib.get('preparation_schema') in {'aged-units-1','product-units-1','commercial-units-1'}
     prepared=lib.get('vectors')
+    if dated and not prepared:
+        raise ValueError('REBUILD_REQUIRED: native aged coefficients are required')
     if prepared is None:prepared=prepare_coefficients(lib)
     for allocation in allocations:
         month=allocation['purchase_m'];name=allocation['template']
         if not isinstance(month,(int,np.integer)) or month<0:
             raise ValueError('purchase_m must be a nonnegative integer')
         if name not in lib['templates']:raise ValueError(f'unknown template {name}')
+        if dated and (name,month) not in prepared:
+            raise ValueError('REBUILD_REQUIRED: purchase date absent from native aged grid')
         if month>=h:vector=np.zeros((10,h))
         else:
             vector=prepared.get((name,month))
@@ -345,10 +351,18 @@ def evaluate_strategy(lib,allocations,base_kpis):
         base=[e['eve_$'],e['dv01_net_$'],e['mv_assets_$'],l.get('hqla_l1_$',l['hqla_$']),
               l.get('hqla_l2a_uncapped_$',l.get('hqla_l2a_$',0.)),l['net_outflows_$'],n['asf_$'],n['rsf_$'],
               c['cet1_path'][-1]['cet1_$'],c['rwa_total_$'],L2_CAP,NI_TO_NII,PAYOUT]
-    values,path,scalars=call(31,[np.asarray(vectors).reshape(-1,10,h),amounts,base],[(11,h),(3,h),(7,)])
+    values,path,scalars=call(Op.INTERACTIVE,[np.asarray(vectors).reshape(-1,10,h),amounts,base],[(11,h),(3,h),(7,)])
     result=dict(nii_incremental=values[0],balance=values[1],fwd_dv01=values[2],
                 **{'nii_total_$':float(scalars[0]),'dv01_at_t0_$':float(scalars[1])},
-                funding_gap=values[10],horizon_months=h,dv01_method='base unit DV01 scaled by outstanding balance')
+                funding_gap=values[10],horizon_months=h,dv01_method='native actual-age repricing at fixed purchase OAS' if dated else 'base unit DV01 scaled by outstanding balance')
+    if dated:
+        from .quant_native import funding_coefficients
+        funding=lib.get('funding_vectors')
+        if not funding:raise ValueError('REBUILD_REQUIRED: dated funding coefficients required')
+        result['principal_exposure_gap']=result['funding_gap']
+        result['funding_gap']=funding_coefficients(np.asarray([funding[(a['template'],a['purchase_m'])] for a in allocations]).reshape(len(allocations),len(lib['funding_ordinals'])),np.asarray(amounts))
+        result['funding_ordinals']=lib['funding_ordinals'];result['funding_policy']=lib['funding_policy']
+        result['reporting_ordinals']=lib['reporting_ordinals']
     if base_kpis:
         result['kpis']=dict(zip(['d_eve_pct_eve_+200','duration_gap_y','lcr_pct','nsfr_pct','cet1_q9_pct'],map(float,scalars[2:])))
         result['kpis']['cet1_horizon_pct']=float(scalars[6])

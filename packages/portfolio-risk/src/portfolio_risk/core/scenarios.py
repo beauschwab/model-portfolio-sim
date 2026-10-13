@@ -1,6 +1,7 @@
 """Scenario machinery: common random numbers, path building, deterministic
 forward-starting shock templates, portfolio extraction, base OAS solve."""
 from __future__ import annotations
+from .abi_generated import Op
 
 import numpy as np
 import polars as pl
@@ -113,7 +114,7 @@ def shocked_paths(base: dict, h: int, shock_bp: float, models,
         if type(suite.cc) is not mdl.TrendingCC or type(suite.hpi) is not mdl.RateLinkedHPI:
             raise ValueError('Custom Python model suites are not supported by the Rust backend')
         shape = base['mtg'].shape
-        mtg,hpi,yoy,df = native.call(21,[base['mtg'],base['hpi'],base['df'],
+        mtg,hpi,yoy,df = native.call(Op.PARALLEL_SHOCK,[base['mtg'],base['hpi'],base['df'],
             [h,shock_bp,DT,INC_LAG,models['cc']['lam'],HPI_BETA],models['cc']['beta']],[shape]*4)
         return dict(mtg=mtg.astype(ADT),hpi=hpi.astype(ADT),yoy=yoy.astype(ADT),
                     df=df.astype(ADT),short=base['short'],swaps=base['swaps'])

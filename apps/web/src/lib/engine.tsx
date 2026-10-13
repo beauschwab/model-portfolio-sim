@@ -66,6 +66,9 @@ interface EngineState {
   revision: number;
   libraryReady: boolean;
   libraryHorizon: number;
+  libraryDetails: { schema?: string|null; templates: string[]; grid: Record<string,number[]>; ordinals: number[] };
+  // live run telemetry
+
   // downstream results, each stamped with the revision it was computed at
   results: Partial<Record<ResultKind, Result>>;
   kpis: Kpis | null;
@@ -102,7 +105,7 @@ interface EngineState {
 }
 
 const Ctx = createContext<EngineState | null>(null);
-type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "running" | "busy" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "graph" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
+type EngineData = Pick<EngineState, "market" | "settings" | "scenarios" | "active" | "revision" | "libraryReady" | "libraryHorizon" | "libraryDetails" | "running" | "busy" | "setActive" | "setSettings" | "refreshMarket" | "refreshScenarios" | "run" | "results" | "kpis" | "isStale" | "graph" | "pending" | "errors" | "autoRecalc" | "setAutoRecalc" | "request">;
 const DataCtx = createContext<EngineData | null>(null);
 
 function readAutoRecalc(): boolean {
@@ -136,7 +139,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [revision, setRevision] = useState(0);
   const [libraryReady, setLibraryReady] = useState(false);
   const [libraryHorizon, setLibraryHorizon] = useState(27);
-
+  const [libraryDetails,setLibraryDetails]=useState<EngineState['libraryDetails']>({templates:[],grid:{},ordinals:[]});
   const revisionRef = useRef(0);
   const autoRef = useRef(autoRecalc);
   const entriesRef = useRef(entries);
@@ -177,6 +180,9 @@ export function EngineProvider({ children }: { children: ReactNode }) {
     setRevision(state.revision);
     setLibraryReady(state.library_ready);
     setLibraryHorizon(state.library_horizon ?? 27);
+    setLibraryDetails({schema:state.library_schema,templates:state.library_templates??[],
+      grid:state.library_unit_grid??{},ordinals:state.library_reporting_ordinals??[]});
+
     const inflight = inflightJob.current;
     if (changed && inflight) {
       // stop the running job only if an input it depends on moved; otherwise its answer still holds
@@ -427,16 +433,16 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const kpisAt = results.kpis?.at ?? null;
 
   const data = useMemo<EngineData>(() => ({ market, settings, scenarios, active, revision,
-    libraryReady, libraryHorizon, running, busy: busyState, setActive, setSettings, refreshMarket, refreshScenarios, run,
+    libraryReady, libraryHorizon, libraryDetails, running, busy: busyState, setActive, setSettings, refreshMarket, refreshScenarios, run,
     results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request }),
-    [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, running, busyState,
+    [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, libraryDetails, running, busyState,
       setSettings, refreshMarket, refreshScenarios, run, results, kpis, isStale, graph, pending, errors, autoRecalc, setAutoRecalc, request]);
   const value = useMemo<EngineState>(() => ({
-    market, settings, scenarios, active, revision, libraryReady, libraryHorizon,
+    market, settings, scenarios, active, revision, libraryReady, libraryHorizon, libraryDetails,
     results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
     running, busy: busyState, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log,
     setActive, setSettings, refreshMarket, refreshScenarios, run, request,
-  }), [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
+  }), [market, settings, scenarios, active, revision, libraryReady, libraryHorizon, libraryDetails, results, kpis, kpisAt, isStale, graph, pending, errors, autoRecalc, setAutoRecalc,
        running, busyState, activeKind, stage, pct, elapsed, samples, nodes, stats, plan, log, setSettings, refreshMarket, refreshScenarios, run, request]);
 
   return <DataCtx.Provider value={data}><Ctx.Provider value={value}>{children}</Ctx.Provider></DataCtx.Provider>;

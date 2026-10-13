@@ -66,7 +66,7 @@ export default function DecisionLab() {
         templates: editTemplate ? { [template]: { spread_bp: Number(spread) } } : {},
       });
       const done = await awaitJob(job.id, j => { if (id === generation.current) setStatus(j.progress?.stage ?? j.status); }, 75);
-      if (done.status === 'error') throw new Error(done.detail);
+      if (done.status === 'error') throw new Error(done.detail ?? 'Decision job failed');
       const next = done.result as DecisionResult;
       if (id !== generation.current) { if (build) void api.closeDecision(next.session_id); return; }
       const current = await api.state();

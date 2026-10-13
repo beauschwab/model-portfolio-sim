@@ -1,4 +1,4 @@
-use portfolio_model_core::credit::CreditState;
+use portfolio_model_core::credit::{CreditMeasure, CreditState};
 use portfolio_model_core::credit_calibration::*;
 
 fn time(day: i32) -> ObservationTime {
@@ -106,6 +106,12 @@ fn exact_exposure_counts_cures_and_competing_exits_match_hand_mle() {
     close(result.transition_hazards_per_year[0][1], 365.0 / 830.0);
     close(result.transition_hazards_per_year[0][4], 365.0 / 830.0);
     close(result.transition_hazards_per_year[1][0], 365.0 / 265.0);
+    close(
+        result.hazard_standard_errors_per_year[0][1].unwrap(),
+        365.0 / 830.0,
+    );
+    assert_eq!(result.hazard_standard_errors_per_year[0][3], None);
+    assert_eq!(result.hazard_standard_errors_per_year[2], [None; 5]);
     assert_eq!(result.training.event_counts[0][1], 1);
     assert_eq!(result.training.event_counts[0][4], 1);
     assert_eq!(result.training.event_counts[1][0], 1);
@@ -117,6 +123,7 @@ fn exact_exposure_counts_cures_and_competing_exits_match_hand_mle() {
     assert_eq!(result.account_count, 3);
     assert_eq!(result.spell_count, 5);
     assert_eq!(result.data_kind, DataKind::Synthetic);
+    assert_eq!(result.measure, CreditMeasure::Physical);
     assert_eq!(result.source_revision, "immutable-revision-1");
 }
 
@@ -211,6 +218,11 @@ fn observed_no_events_is_distinct_from_no_exposure() {
     ));
     assert_eq!(result.transition_hazards_per_year[0], [0.0; 5]);
     assert_eq!(result.training.log_likelihood, Some(0.0));
+    assert_eq!(result.hazard_standard_errors_per_year[0][0], Some(0.0));
+    assert_eq!(
+        result.hazard_standard_errors_per_year[0][1..],
+        [None, None, None, None]
+    );
 }
 
 #[test]
@@ -305,6 +317,9 @@ fn invalid_windows_paths_sources_domains_and_unbounded_fits_fail() {
 
 #[test]
 fn strict_serde_rejects_interval_censoring_weights_and_unknown_fields() {
+    let mut json = serde_json::to_value(input()).unwrap();
+    json["measure"] = serde_json::json!("pricing");
+    assert!(serde_json::from_value::<CreditCalibrationRequest>(json).is_err());
     let mut json = serde_json::to_value(input()).unwrap();
     json["observation_mode"] = serde_json::json!("interval_censored");
     assert!(serde_json::from_value::<CreditCalibrationRequest>(json).is_err());

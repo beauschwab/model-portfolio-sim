@@ -62,6 +62,29 @@ def test_ledger_amount_conversion_and_corruption_rejection():
     with pytest.raises(ValueError,match='risk-weight'):bridge(spec,trial_balance=trial,journal_frames=[journal])
 
 
+def test_signed_mixed_credit_gross_rights_and_allowance_capital_hand_calculation():
+    # An explicit reviewed closing snapshot; no inferred default eligibility.
+    spec,_,_=ledger_case()
+    values={'cash':100.,'credit_default_principal':60.,'credit_default_book_adjustment':2.,
+        'credit_default_interest_receivable':4.,'credit_default_deferred_income':-3.,'allowance':-10.,
+        'pnl:consumer_credit_loss_expense':40.,'pnl:consumer_interest_income':-5.,'opening_equity':-188.}
+    journal=pl.DataFrame([dict(transaction_number=1,scenario='baseline',day=0,account='bank',
+        event='reviewed_opening',gl_account=gl,instrument_id='' if gl in {'cash','opening_equity'} else 'loan',value=value)
+        for gl,value in values.items()])
+    trial=journal.select('scenario','account','gl_account','instrument_id',pl.col('value').alias('balance'))
+    policy=spec['policies'][0]
+    policy.update(equity_exclusions=0.,intangible_assets=0.,leverage_addon=0.,leverage_deductions=0.,
+        instrument_risk_weights={},gl_risk_weights={gl:0. if gl=='cash' else 1. for gl in
+            ('cash','credit_default_principal','credit_default_book_adjustment',
+             'credit_default_interest_receivable','allowance')})
+    out=bridge(spec,trial_balance=trial,journal_frames=[journal],ledger_journal_protocol=3)
+    closing=out['capital_bridge'].row(0,named=True)
+    assert closing['assets']==156. and closing['liabilities']==3. and closing['book_equity']==153.
+    assert closing['retained_earnings']==-35. and closing['credit_rwa']==56.
+    assert out['source_verification']['journal_replayed']
+    assert out['source_verification']['ledger_journal_protocol']==3
+
+
 def test_cashflow_balances_remaining_wal_and_income_match_hand_calculation():
     spec,openings,flows=flow_case()
     out=bridge(spec,openings=openings,cashflows=flows)

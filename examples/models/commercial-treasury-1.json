@@ -1,0 +1,1229 @@
+{
+  "schema": "commercial-treasury-1",
+  "raw_commercial": {
+    "spec": {
+      "version": "balance-stress-2",
+      "ruleset": "research-weights-v2",
+      "horizon_days": 35,
+      "accounts": [
+        {
+          "id": "bank",
+          "entity": "bank",
+          "currency": "USD",
+          "cash": 1000.0,
+          "equity": 1000.0,
+          "cet1_floor": 0.0,
+          "leverage_floor": 0.0,
+          "lcr_floor": 0.0,
+          "nsfr_floor": 0.0
+        }
+      ],
+      "positions": [
+        {
+          "id": "commercial",
+          "account": "bank",
+          "kind": "loan",
+          "balance": 0.0,
+          "rate": 0.0,
+          "risk_weight": 0.0,
+          "rsf_weight": 0.0
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "stress",
+          "start_day": 1
+        }
+      ],
+      "reverse_severities": [],
+      "policies": []
+    },
+    "commercial": [
+      {
+        "schema": "commercial-source-credit-accounting-proof-1",
+        "source": {
+          "schema": "commercial-source-income-proof-1",
+          "original": {
+            "schema": "term-enhancements-1",
+            "model_version": "term-contracts-1",
+            "contract": {
+              "id": "commercial",
+              "revision": "1"
+            },
+            "assumption": {
+              "id": "research",
+              "revision": "1"
+            },
+            "path": {
+              "id": "base",
+              "revision": "1"
+            },
+            "position_id": "commercial",
+            "scenario_id": "base",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "direction": "receipt",
+            "measure": "physical",
+            "asof_ordinal": 738886,
+            "reporting_end_ordinal": 738901,
+            "tail_end_ordinal": 738921,
+            "observed_publication_cutoff_unix_seconds": 1704067200,
+            "opening_principal": 100.0,
+            "principal_plan": {
+              "kind": "supplied",
+              "principal_payments": [
+                100.0
+              ]
+            },
+            "periods": [
+              {
+                "period_id": "coupon",
+                "start_ordinal": 738886,
+                "end_ordinal": 738916,
+                "payment_ordinal": 738921,
+                "day_count": "act365_fixed",
+                "fee": 0.0,
+                "coupon": {
+                  "kind": "fixed",
+                  "annual_rate": 0.1
+                }
+              }
+            ]
+          },
+          "current": {
+            "schema": "term-enhancements-1",
+            "model_version": "term-contracts-1",
+            "contract": {
+              "id": "commercial",
+              "revision": "1"
+            },
+            "assumption": {
+              "id": "research",
+              "revision": "1"
+            },
+            "path": {
+              "id": "base",
+              "revision": "1"
+            },
+            "position_id": "commercial",
+            "scenario_id": "baseline",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "direction": "receipt",
+            "measure": "physical",
+            "asof_ordinal": 738886,
+            "reporting_end_ordinal": 738901,
+            "tail_end_ordinal": 738921,
+            "observed_publication_cutoff_unix_seconds": 1704067200,
+            "opening_principal": 100.0,
+            "principal_plan": {
+              "kind": "supplied",
+              "principal_payments": [
+                100.0
+              ]
+            },
+            "periods": [
+              {
+                "period_id": "coupon",
+                "start_ordinal": 738886,
+                "end_ordinal": 738916,
+                "payment_ordinal": 738921,
+                "day_count": "act365_fixed",
+                "fee": 0.0,
+                "coupon": {
+                  "kind": "fixed",
+                  "annual_rate": 0.1
+                }
+              }
+            ]
+          },
+          "acquisition": {
+            "identity": {
+              "id": "purchase",
+              "revision": "1"
+            },
+            "original_yield_anchor": {
+              "id": "original-only",
+              "revision": "1"
+            },
+            "income_review": {
+              "id": "income-review",
+              "revision": "1"
+            },
+            "cost": 100.82191780821918,
+            "original_annual_effective_rate": 0.0
+          },
+          "policy": {
+            "identity": {
+              "id": "contract-review",
+              "revision": "1"
+            },
+            "recognition": "native_factor_checkpoint_rights-1",
+            "reset_income": "reviewed_frozen_original_reference-1",
+            "fees": "integral_cash-1"
+          }
+        },
+        "factor_policy": {
+          "review": {
+            "id": "partial-clock",
+            "revision": "1"
+          },
+          "clock": "credit_act365_elapsed_from_source_asof-1",
+          "partial_calendar_day": "simple_partial_native_daycount-1",
+          "overnight": "pre_observation_accumulator_partial_weight-1",
+          "observation_mapping": "explicit_equal_calendar_span-1",
+          "full_checkpoints": "retain_actual_native_endpoints-1"
+        },
+        "credit": {
+          "identity": {
+            "id": "physical-review",
+            "revision": "1"
+          },
+          "max_jumps_per_path": 4,
+          "intervals": [
+            {
+              "end_year": 0.0958904109589041,
+              "hazards_per_year": [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "loss_given_default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "credit_conversion_factor": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interest_recovery_fraction": [
+                0.5,
+                0.5,
+                0.5
+              ],
+              "complete_recovery_tails": [
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ],
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ],
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ]
+              ]
+            }
+          ],
+          "paths": [
+            {
+              "path_id": "borrower",
+              "path_key": 17,
+              "initial_live_state": "performing"
+            }
+          ],
+          "draw_stream": {
+            "kind": "counter_splitmix64_v1",
+            "stream_id": "stable-crn",
+            "stream_revision": "1",
+            "seed": 7
+          }
+        },
+        "accounting": {
+          "identity": {
+            "id": "explicit-accounting",
+            "revision": "1"
+          },
+          "recognition": [
+            {
+              "interval_index": 0,
+              "review": {
+                "id": "full-accrual",
+                "revision": "1"
+              },
+              "by_origin": [
+                "full_accrual",
+                "full_accrual",
+                "full_accrual"
+              ]
+            }
+          ],
+          "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+          "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+          "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+          "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+        },
+        "accounting_rates": [
+          {
+            "interval_index": 0,
+            "review": "original-yield",
+            "annual_effective_rates": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      },
+      {
+        "schema": "commercial-source-credit-accounting-proof-1",
+        "source": {
+          "schema": "commercial-source-income-proof-1",
+          "original": {
+            "schema": "term-enhancements-1",
+            "model_version": "term-contracts-1",
+            "contract": {
+              "id": "commercial",
+              "revision": "1"
+            },
+            "assumption": {
+              "id": "research",
+              "revision": "1"
+            },
+            "path": {
+              "id": "base",
+              "revision": "1"
+            },
+            "position_id": "commercial",
+            "scenario_id": "base",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "direction": "receipt",
+            "measure": "physical",
+            "asof_ordinal": 738886,
+            "reporting_end_ordinal": 738901,
+            "tail_end_ordinal": 738921,
+            "observed_publication_cutoff_unix_seconds": 1704067200,
+            "opening_principal": 100.0,
+            "principal_plan": {
+              "kind": "supplied",
+              "principal_payments": [
+                100.0
+              ]
+            },
+            "periods": [
+              {
+                "period_id": "coupon",
+                "start_ordinal": 738886,
+                "end_ordinal": 738916,
+                "payment_ordinal": 738921,
+                "day_count": "act365_fixed",
+                "fee": 0.0,
+                "coupon": {
+                  "kind": "fixed",
+                  "annual_rate": 0.1
+                }
+              }
+            ]
+          },
+          "current": {
+            "schema": "term-enhancements-1",
+            "model_version": "term-contracts-1",
+            "contract": {
+              "id": "commercial",
+              "revision": "1"
+            },
+            "assumption": {
+              "id": "research",
+              "revision": "1"
+            },
+            "path": {
+              "id": "stress",
+              "revision": "1"
+            },
+            "position_id": "commercial",
+            "scenario_id": "stress",
+            "currency": "USD",
+            "monetary_unit": "currency_units",
+            "direction": "receipt",
+            "measure": "physical",
+            "asof_ordinal": 738886,
+            "reporting_end_ordinal": 738901,
+            "tail_end_ordinal": 738921,
+            "observed_publication_cutoff_unix_seconds": 1704067200,
+            "opening_principal": 100.0,
+            "principal_plan": {
+              "kind": "supplied",
+              "principal_payments": [
+                100.0
+              ]
+            },
+            "periods": [
+              {
+                "period_id": "coupon",
+                "start_ordinal": 738886,
+                "end_ordinal": 738916,
+                "payment_ordinal": 738921,
+                "day_count": "act365_fixed",
+                "fee": 0.0,
+                "coupon": {
+                  "kind": "fixed",
+                  "annual_rate": 0.1
+                }
+              }
+            ]
+          },
+          "acquisition": {
+            "identity": {
+              "id": "purchase",
+              "revision": "1"
+            },
+            "original_yield_anchor": {
+              "id": "original-only",
+              "revision": "1"
+            },
+            "income_review": {
+              "id": "income-review",
+              "revision": "1"
+            },
+            "cost": 100.82191780821918,
+            "original_annual_effective_rate": 0.0
+          },
+          "policy": {
+            "identity": {
+              "id": "contract-review",
+              "revision": "1"
+            },
+            "recognition": "native_factor_checkpoint_rights-1",
+            "reset_income": "reviewed_frozen_original_reference-1",
+            "fees": "integral_cash-1"
+          }
+        },
+        "factor_policy": {
+          "review": {
+            "id": "partial-clock",
+            "revision": "1"
+          },
+          "clock": "credit_act365_elapsed_from_source_asof-1",
+          "partial_calendar_day": "simple_partial_native_daycount-1",
+          "overnight": "pre_observation_accumulator_partial_weight-1",
+          "observation_mapping": "explicit_equal_calendar_span-1",
+          "full_checkpoints": "retain_actual_native_endpoints-1"
+        },
+        "credit": {
+          "identity": {
+            "id": "physical-review",
+            "revision": "1"
+          },
+          "max_jumps_per_path": 4,
+          "intervals": [
+            {
+              "end_year": 0.0958904109589041,
+              "hazards_per_year": [
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "loss_given_default": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "credit_conversion_factor": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interest_recovery_fraction": [
+                0.5,
+                0.5,
+                0.5
+              ],
+              "complete_recovery_tails": [
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ],
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ],
+                [
+                  {
+                    "lag_years": 0.0,
+                    "weight": 1.0
+                  }
+                ]
+              ]
+            }
+          ],
+          "paths": [
+            {
+              "path_id": "borrower",
+              "path_key": 17,
+              "initial_live_state": "performing"
+            }
+          ],
+          "draw_stream": {
+            "kind": "counter_splitmix64_v1",
+            "stream_id": "stable-crn",
+            "stream_revision": "1",
+            "seed": 7
+          }
+        },
+        "accounting": {
+          "identity": {
+            "id": "explicit-accounting",
+            "revision": "1"
+          },
+          "recognition": [
+            {
+              "interval_index": 0,
+              "review": {
+                "id": "full-accrual",
+                "revision": "1"
+              },
+              "by_origin": [
+                "full_accrual",
+                "full_accrual",
+                "full_accrual"
+              ]
+            }
+          ],
+          "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+          "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+          "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+          "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+        },
+        "accounting_rates": [
+          {
+            "interval_index": 0,
+            "review": "original-yield",
+            "annual_effective_rates": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        ]
+      }
+    ],
+    "participations": [
+      {
+        "scenario": "baseline",
+        "path_key": 17,
+        "source_weight": 1.0,
+        "position_id": "commercial"
+      },
+      {
+        "scenario": "stress",
+        "path_key": 17,
+        "source_weight": 1.0,
+        "position_id": "commercial"
+      }
+    ],
+    "schema": "commercial-credit-ledger-1",
+    "allocations": [
+      {
+        "position_id": "commercial",
+        "allocated_face": 100.0
+      }
+    ]
+  },
+  "capital": {
+    "treasury": {
+      "as_of": "2024-02-05",
+      "policy_id": "synthetic-example-not-regulatory-advice-v1",
+      "capital": [],
+      "curves": [],
+      "positions": [],
+      "capital_deltas": [],
+      "strategy_units": []
+    },
+    "policies": [
+      {
+        "account": "bank",
+        "scenario": "baseline",
+        "capital": {
+          "entity": "bank",
+          "currency": "USD",
+          "scenario": "baseline",
+          "period": "2024-02-05",
+          "common_equity": 100000000.0,
+          "retained_earnings": 10000000.0,
+          "eligible_aoci": -2000000.0,
+          "cet1_deductions": 8000000.0,
+          "additional_tier1": 20000000.0,
+          "tier2": 15000000.0,
+          "eligible_tlac": 220000000.0,
+          "eligible_ltd": 80000000.0,
+          "credit_rwa": 750000000.0,
+          "market_rwa": 50000000.0,
+          "operational_rwa": 100000000.0,
+          "advanced_rwa": 950000000.0,
+          "average_assets": 1000.0,
+          "total_leverage_exposure": 2000000000.0,
+          "tangible_common_equity": 100000000.0,
+          "tangible_assets": 1480000000.0,
+          "requirements": {
+            "cet1": {
+              "minimum": 0.045,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "tier1": {
+              "minimum": 0.06,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "advanced_cet1": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_tier1": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tier1_leverage": {
+              "minimum": 0.04,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "slr": {
+              "minimum": 0.03,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_rwa": {
+              "minimum": 0.18,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_leverage": {
+              "minimum": 0.075,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_rwa": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_leverage": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tce_ta": {
+              "minimum": 0.05,
+              "buffer": 0.0,
+              "management": 0.005
+            }
+          }
+        },
+        "include_aoci": true,
+        "equity_exclusions": 0.0,
+        "intangible_assets": 0.0,
+        "leverage_addon": 0.0,
+        "leverage_deductions": 0.0,
+        "gl_risk_weights": {
+          "cash": 0.0
+        },
+        "instrument_risk_weights": {
+          "commercial": 0.5
+        }
+      },
+      {
+        "account": "bank",
+        "scenario": "stress",
+        "capital": {
+          "entity": "bank",
+          "currency": "USD",
+          "scenario": "stress",
+          "period": "2024-02-05",
+          "common_equity": 100000000.0,
+          "retained_earnings": 10000000.0,
+          "eligible_aoci": -2000000.0,
+          "cet1_deductions": 8000000.0,
+          "additional_tier1": 20000000.0,
+          "tier2": 15000000.0,
+          "eligible_tlac": 220000000.0,
+          "eligible_ltd": 80000000.0,
+          "credit_rwa": 750000000.0,
+          "market_rwa": 50000000.0,
+          "operational_rwa": 100000000.0,
+          "advanced_rwa": 950000000.0,
+          "average_assets": 1000.0,
+          "total_leverage_exposure": 2000000000.0,
+          "tangible_common_equity": 100000000.0,
+          "tangible_assets": 1480000000.0,
+          "requirements": {
+            "cet1": {
+              "minimum": 0.045,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "tier1": {
+              "minimum": 0.06,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "advanced_cet1": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_tier1": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tier1_leverage": {
+              "minimum": 0.04,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "slr": {
+              "minimum": 0.03,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_rwa": {
+              "minimum": 0.18,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_leverage": {
+              "minimum": 0.075,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_rwa": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_leverage": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tce_ta": {
+              "minimum": 0.05,
+              "buffer": 0.0,
+              "management": 0.005
+            }
+          }
+        },
+        "include_aoci": true,
+        "equity_exclusions": 0.0,
+        "intangible_assets": 0.0,
+        "leverage_addon": 0.0,
+        "leverage_deductions": 0.0,
+        "gl_risk_weights": {
+          "cash": 0.0
+        },
+        "instrument_risk_weights": {
+          "commercial": 0.5
+        }
+      }
+    ],
+    "amount_multiplier": 1.0,
+    "review": {
+      "id": "explicit-controls",
+      "revision": "1"
+    },
+    "exposure_policy": {
+      "identity": {
+        "id": "explicit-controls",
+        "revision": "1"
+      },
+      "negative_net_carrying": "reviewed_nonnegative_group_exposure"
+    }
+  },
+  "ftp": {
+    "as_of": "2024-01-01",
+    "policy_review": {
+      "id": "explicit-controls",
+      "revision": "1"
+    },
+    "curves": [
+      {
+        "id": "demo-usd-20261001",
+        "entity": "bank",
+        "currency": "USD",
+        "as_of": "2024-01-01",
+        "tenors": [
+          0.0,
+          1.0,
+          5.0,
+          10.0
+        ],
+        "reference_rates": [
+          0.04,
+          0.039,
+          0.037,
+          0.038
+        ],
+        "liquidity_spreads": [
+          0.001,
+          0.002,
+          0.005,
+          0.007
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "scenario": "baseline",
+        "position_id": "commercial",
+        "path_key": 17,
+        "entity": "bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "explicit-controls",
+            "revision": "1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "opening_daily",
+          "negative_funding": "reject_negative",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            }
+          ]
+        },
+        "cash_exclusion_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "channel_change_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "income_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "resets": [
+          {
+            "ordinal": 738886,
+            "reference_years": 0.1,
+            "liquidity_years": 0.1,
+            "review": {
+              "id": "explicit-controls",
+              "revision": "1"
+            }
+          }
+        ],
+        "curve_id": "demo-usd-20261001",
+        "option_spread": 0.0,
+        "contingent_annual_rate": 0.0,
+        "daily_operating_cost": 0.0,
+        "allocated_capital": 10.0,
+        "annual_cost_of_capital": 0.1
+      },
+      {
+        "scenario": "stress",
+        "position_id": "commercial",
+        "path_key": 17,
+        "entity": "bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "explicit-controls",
+            "revision": "1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "opening_daily",
+          "negative_funding": "reject_negative",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            }
+          ]
+        },
+        "cash_exclusion_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "channel_change_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "income_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "resets": [
+          {
+            "ordinal": 738886,
+            "reference_years": 0.1,
+            "liquidity_years": 0.1,
+            "review": {
+              "id": "explicit-controls",
+              "revision": "1"
+            }
+          }
+        ],
+        "curve_id": "demo-usd-20261001",
+        "option_spread": 0.0,
+        "contingent_annual_rate": 0.0,
+        "daily_operating_cost": 0.0,
+        "allocated_capital": 10.0,
+        "annual_cost_of_capital": 0.1
+      }
+    ]
+  }
+}

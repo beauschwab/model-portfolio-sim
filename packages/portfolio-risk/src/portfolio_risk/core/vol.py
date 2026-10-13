@@ -1,6 +1,7 @@
 """LMM vol structure: factor loadings, Rebonato abcd, shifted-Black swaption
 approximation, surface calibration, deterministic vol-feature paths."""
 from __future__ import annotations
+from .abi_generated import Op
 
 from functools import lru_cache
 from ..core.runtime import run_cached
@@ -20,7 +21,7 @@ def factor_loadings() -> np.ndarray:
 def _factor_loadings(native_backend) -> np.ndarray:
     if native_backend:
         from .quant_native import call
-        B=call(24,[N_FWD,N_FACTORS,TENOR,0.10],[(N_FWD,N_FACTORS)])[0]
+        B=call(Op.FACTOR_LOADINGS,[N_FWD,N_FACTORS,TENOR,0.10],[(N_FWD,N_FACTORS)])[0]
         B.setflags(write=False)
         return B
     T = (np.arange(N_FWD) + 1) * TENOR
@@ -58,7 +59,7 @@ def model_swaption_value_jac(t, expiry, tenor, p, F0, dfs, B):
     from . import quant_native as native
     if native.enabled():
         query=np.array([[t,expiry,round((t+expiry)/TENOR),round(tenor/TENOR)]])
-        row=native.call(17,[query,p,F0,dfs,B,TENOR,SHIFT],[(1,5)])[0][0]
+        row=native.call(Op.VOLATILITY,[query,p,F0,dfs,B,TENOR,SHIFT],[(1,5)])[0][0]
         return row[0],row[1:]
     i0 = int(round((t + expiry) / TENOR))
     nq = int(round(tenor / TENOR))
@@ -84,7 +85,7 @@ def calibrate_abcd(vol_pts, F0, dfs, B, x0=None, quiet=False) -> np.ndarray:
     """vol_pts rows: (expiry_y, tenor_y, lognormal ATM vol). Warm-startable."""
     from . import quant_native as native
     if native.enabled():
-        params, stats = native.call(25, [vol_pts, F0, dfs, B,
+        params, stats = native.call(Op.FIT_VOL, [vol_pts, F0, dfs, B,
             [0.05, 0.10, 0.50, 0.12] if x0 is None else x0,
             [TENOR, SHIFT]], [(4,), (3,)])
         if not quiet:
@@ -117,7 +118,7 @@ def vol_feature_paths(p, F0, dfs, B) -> np.ndarray:
             first=np.round((tg+e)/TENOR).astype(int);masks.append(first+nq<N_FWD)
             capped=np.minimum(first,N_FWD-nq-1)
             queries.extend(np.column_stack([tg,np.full(N_STEPS,e),capped,np.full(N_STEPS,nq)]))
-        values=native.call(17,[np.asarray(queries),p,F0,dfs,B,TENOR,SHIFT],[(len(queries),5)])[0][:,0].reshape(len(CC_VOL_POINTS),N_STEPS)
+        values=native.call(Op.VOLATILITY,[np.asarray(queries),p,F0,dfs,B,TENOR,SHIFT],[(len(queries),5)])[0][:,0].reshape(len(CC_VOL_POINTS),N_STEPS)
         for row,valid in zip(values,masks): row[~valid]=row[valid][-1]
         return values
     out = np.empty((len(CC_VOL_POINTS), N_STEPS))

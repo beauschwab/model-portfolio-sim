@@ -1,4 +1,9 @@
-# Optional Rust product and discount backends
+# Native financial runtime
+
+Current ownership and deployment rules: [Rust production contract](../../docs/rust-production-contract.md) and [architecture](../../docs/architecture.md). Rust is required for built-in production financial execution. Build matching artifacts and restart API/workers.
+
+The versioned interface and measurement sections below retain their original dated scope; earlier pilot/prototype descriptions are historical.
+
 
 Version 0.28.0 provides the built-in native financial runtime: raw calibration,
 seeded shared random numbers, conventions/schedules, product/scenario pricing,

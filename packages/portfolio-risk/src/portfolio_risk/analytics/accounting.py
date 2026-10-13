@@ -30,6 +30,7 @@ All quantities are expectations across the SAME CRN path set used for
 pricing -- the NII forecast and the risk numbers come from one model.
 """
 from __future__ import annotations
+from ..core.abi_generated import Op
 
 from ..core.runtime import path_count
 
@@ -47,7 +48,7 @@ def book_yield(cf: np.ndarray, price: np.ndarray, max_iter: int = 60
     S, T = cf.shape
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(14,[cf,price,0,max_iter],[(S,0),(S,0),(S,)])[2]
+        return native.call(Op.INCOME,[cf,price,0,max_iter],[(S,0),(S,0),(S,)])[2]
     t = np.arange(1, T + 1)
     y = np.full(S, 0.05)
     lo, hi = np.full(S, -0.5), np.full(S, 1.0)
@@ -79,7 +80,7 @@ def effective_income(cf: np.ndarray, price: np.ndarray, horizon: int
     level-yield roll: inc = bv*y/12; bv += inc - cash."""
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(14,[cf,price,horizon,60],[(len(cf),horizon),(len(cf),horizon),(len(cf),)])
+        return native.call(Op.INCOME,[cf,price,horizon,60],[(len(cf),horizon),(len(cf),horizon),(len(cf),)])
     y = book_yield(cf, price)
     S = cf.shape[0]
     inc = np.zeros((S, horizon))
@@ -98,7 +99,7 @@ def smear_csr(per_off, acc_m, pay_m, vals, horizon: int, n_pos: int
     (inclusive of pay month) -> (n_pos, horizon) monthly accruals."""
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(15,[per_off,acc_m,pay_m,vals,horizon,True],[(n_pos,horizon)])[0]
+        return native.call(Op.ACCRUAL,[per_off,acc_m,pay_m,vals,horizon,True],[(n_pos,horizon)])[0]
     out = np.zeros((n_pos, horizon))
     for s in range(n_pos):
         for j in range(per_off[s], per_off[s + 1]):
@@ -117,7 +118,7 @@ def bucket_csr(per_off, pay_m, vals, horizon: int, n_pos: int) -> np.ndarray:
     """Per-period amounts at the pay month (cash timing) -> (n_pos, H)."""
     from ..core import quant_native as native
     if native.enabled():
-        return native.call(15,[per_off,pay_m,pay_m,vals,horizon,False],[(n_pos,horizon)])[0]
+        return native.call(Op.ACCRUAL,[per_off,pay_m,pay_m,vals,horizon,False],[(n_pos,horizon)])[0]
     out = np.zeros((n_pos, horizon))
     for s in range(n_pos):
         for j in range(per_off[s], per_off[s + 1]):

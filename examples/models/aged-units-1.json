@@ -1,0 +1,16 @@
+{
+  "schema": "aged-units-1",
+  "identity": {"model_revision": "synthetic-fixed-contract-v1", "grid_revision": "actual-2024-dates-v1", "crn_id": "deterministic-no-draws", "input_revision": "synthetic-v1"},
+  "valuation_policy": {"kind": "contractual_discounting"},
+  "curve_as_of_ordinal": 738916,
+  "currency": "USD",
+  "reporting_ordinals": [738916, 738945, 739282],
+  "base_scenario_id": "base",
+  "scenarios": [{"scenario_id": "base", "collateral_curve": {"curve_id": "synthetic-collateral", "source_id": "synthetic", "source_revision": "v1", "currency": "USD", "role": {"kind": "collateral", "collateral_index": "SOFR"}, "times_years": [0, 1, 2, 5], "discount_factors": [1, 0.951229424500714, 0.9048374180359595, 0.7788007830714049], "right_tail": "reject"}}],
+  "templates": [{"template_id": "fixed-zero-coupon", "side": 1, "accounting_category": "ac", "capital_policy_revision": "supplied-research-v1", "weights": {"hqla_l2a": 0, "outflow30": 0, "asf": 0, "rsf": 0.85, "rwa": 1}, "term": {"product": "corporate", "term_months": 12, "freq_months": 12, "daycount": "ACT/365F", "coupon": 0, "amortization": "bullet", "calendar": {"name": "NONE", "extra_holidays": []}, "bdc": "NONE", "accrual_dates": "unadjusted_scheduled_dates"}}],
+  "purchases": [{"template_id": "fixed-zero-coupon", "purchase_ordinal": 738916, "quote_price_per_unit": 1, "original_annual_effective_yield": 0, "original_yield_anchor": {"id": "synthetic-yield-at-purchase", "revision": "v1"}}],
+  "validation_purchases": [],
+  "bump_bp": 25,
+  "interpolation_absolute_tolerance": 0.0001,
+  "interpolation_relative_tolerance": 0.01
+}

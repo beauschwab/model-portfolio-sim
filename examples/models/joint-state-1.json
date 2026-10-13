@@ -1,0 +1,28 @@
+{
+  "schema": "joint-state-1",
+  "identity": {
+    "source_id": "synthetic-joint-state",
+    "source_revision": "1",
+    "assumption_id": "competing-hazards-v1",
+    "common_random_numbers_id": "joint-crn-v1",
+    "measure": "physical"
+  },
+  "as_of_ordinal": 1,
+  "day_count": "act365_fixed",
+  "periods": [{
+    "start_ordinal": 1,
+    "end_ordinal": 366,
+    "market_discount_factor": 0.97,
+    "behavioral_exit_hazard_per_year": 0.1,
+    "credit_default_hazard_per_year": 0.2,
+    "prepayment_hazard_per_year": 0.0,
+    "recovery_fraction": 0.4,
+    "recovery_lag_years": 1.0
+  }],
+  "paths": [{
+    "position_id": "joint-loan-1",
+    "path_key": 11,
+    "principal": 100.0,
+    "random_pairs": [{"waiting_uniform": 0.2, "destination_uniform": 0.0}]
+  }]
+}

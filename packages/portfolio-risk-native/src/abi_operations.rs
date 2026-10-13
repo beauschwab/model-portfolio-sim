@@ -1,0 +1,70 @@
+//! Generated ABI 10 operation names. Do not edit.
+pub const ABI_VERSION: u32 = 10;
+pub const LMM: u32 = 1;
+pub const CORPORATE: u32 = 2;
+pub const CD: u32 = 3;
+pub const MORTGAGE: u32 = 4;
+pub const MORTGAGE_STRESS: u32 = 5;
+pub const DEPOSIT: u32 = 6;
+pub const DEPOSIT_STRESS: u32 = 7;
+pub const CSR_OAS: u32 = 8;
+pub const CSR_PV: u32 = 9;
+pub const MORTGAGE_BATCH: u32 = 10;
+pub const BEHAVIORAL: u32 = 11;
+pub const SWAPTION: u32 = 12;
+pub const PROGRAM: u32 = 13;
+pub const INCOME: u32 = 14;
+pub const ACCRUAL: u32 = 15;
+pub const MONEY_MARKET: u32 = 16;
+pub const VOLATILITY: u32 = 17;
+pub const CURVE: u32 = 18;
+pub const RATE_PATHS: u32 = 19;
+pub const MORTGAGE_PATHS: u32 = 20;
+pub const PARALLEL_SHOCK: u32 = 21;
+pub const FIT_CC: u32 = 22;
+pub const FIT_PS: u32 = 23;
+pub const FACTOR_LOADINGS: u32 = 24;
+pub const FIT_VOL: u32 = 25;
+pub const FIT_DEPOSIT: u32 = 26;
+pub const SHARED_DRAWS: u32 = 27;
+pub const MORTGAGE_RISK: u32 = 28;
+pub const MORTGAGE_FORWARD_STRESS: u32 = 29;
+pub const MORTGAGE_CACHE: u32 = 30;
+pub const INTERACTIVE: u32 = 31;
+
+pub fn input_count(op: u32) -> Option<usize> {
+    match op {
+        LMM => Some(7),
+        CORPORATE => Some(17),
+        CD => Some(14),
+        MORTGAGE => Some(26),
+        MORTGAGE_STRESS => Some(28),
+        DEPOSIT => Some(20),
+        DEPOSIT_STRESS => Some(21),
+        CSR_OAS => Some(9),
+        CSR_PV => Some(5),
+        MORTGAGE_BATCH => Some(27),
+        SWAPTION => Some(4),
+        PROGRAM => Some(6),
+        INCOME => Some(4),
+        ACCRUAL => Some(6),
+        MONEY_MARKET => Some(5),
+        VOLATILITY => Some(7),
+        CURVE => Some(4),
+        RATE_PATHS => Some(6),
+        MORTGAGE_PATHS => Some(14),
+        PARALLEL_SHOCK => Some(5),
+        FIT_CC => Some(1),
+        FIT_PS => Some(2),
+        FACTOR_LOADINGS => Some(4),
+        FIT_VOL => Some(6),
+        FIT_DEPOSIT => Some(1),
+        SHARED_DRAWS => Some(2),
+        MORTGAGE_RISK => Some(26),
+        MORTGAGE_FORWARD_STRESS => Some(28),
+        MORTGAGE_CACHE => Some(1),
+        INTERACTIVE => Some(3),
+        BEHAVIORAL => Some(0), // mode-dependent layout, validated by the native dispatcher
+        _ => None,
+    }
+}
