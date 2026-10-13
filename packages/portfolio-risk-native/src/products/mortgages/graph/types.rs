@@ -1,4 +1,4 @@
-use crate::advanced_graph::{BaseAnchor, GraphIdentity, OasTarget, Role, Scenario};
+use crate::products::installment::graph::{BaseAnchor, GraphIdentity, OasTarget, Role, Scenario};
 use portfolio_model_core::mortgage_state::{
     ArmReset, MortgagePathPoint, MortgageRequest, MortgageResult,
 };

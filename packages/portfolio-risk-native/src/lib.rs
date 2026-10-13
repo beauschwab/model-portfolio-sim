@@ -8,31 +8,31 @@ use std::sync::{Arc, Mutex, OnceLock};
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 pub mod abi_operations;
 pub mod accounting_lifecycle;
-pub mod advanced_graph;
-pub mod advanced_product;
+pub use products::installment::graph as advanced_graph;
+pub use products::term::projection as advanced_product;
 pub mod aged_units;
 pub mod balance_risk;
 pub mod cache;
 pub mod calibration;
-pub mod card_graph;
+pub use products::revolving::graph as card_graph;
 pub mod cohorts;
 pub mod controllers;
 pub mod conventions;
-pub mod dated_term;
+pub use products::term::dated as dated_term;
 pub mod decision_inputs;
 pub use products::deposits::capture as deposit_graph_capture;
 pub use products::deposits::graph as deposit_graph;
 pub use products::deposits::lifecycle as deposit_lifecycle;
-pub mod derivative_accounting;
-pub mod derivative_contract;
+pub use products::derivatives::accounting as derivative_accounting;
+pub use products::derivatives::contract as derivative_contract;
 pub mod forecast_input;
 pub mod forecast_lifecycle;
 mod funding_coefficients;
-pub mod funding_contract;
-pub mod funding_graph;
+pub use products::funding::contract as funding_contract;
+pub use products::funding::graph as funding_graph;
 mod graph_cache;
 pub mod graph_cohort;
-pub mod hedge_lifecycle;
+pub use products::derivatives::lifecycle as hedge_lifecycle;
 pub mod incremental;
 pub mod joint_market_credit;
 pub mod kpi_lifecycle;
@@ -57,8 +57,8 @@ pub mod product_units;
 #[cfg(feature = "compute-profile")]
 pub mod profile;
 pub mod program_lifecycle;
-pub mod term_enhancements;
-pub mod term_product_graph;
+pub use products::term::contracts as term_enhancements;
+pub use products::term::graph as term_product_graph;
 pub mod treasury;
 pub mod treasury_bridge;
 
@@ -71,9 +71,9 @@ macro_rules! compute_span {
 }
 mod quant;
 pub use math::random;
-pub mod term_deck;
+pub use products::term::deck as term_deck;
 pub mod term_protocol;
-pub mod term_risk;
+pub use products::term::risk as term_risk;
 pub mod unit_lifecycle;
 pub mod whatif;
 
@@ -274,18 +274,18 @@ pub mod graph_runtime_control;
 
 pub mod modeled_ftp_policy;
 
-pub mod commercial_cash;
-pub mod commercial_continuation;
-pub mod commercial_credit_compiler;
-pub mod commercial_exercise;
-pub mod commercial_factor_source;
-pub mod commercial_fee_source;
-pub mod commercial_graph;
-pub mod commercial_source_income;
-mod commercial_stochastic_boundary;
-pub mod commercial_stochastic_exercise;
-pub mod commercial_units;
-pub mod saved_derivative_source;
+pub use products::commercial::cash as commercial_cash;
+pub use products::commercial::continuation as commercial_continuation;
+pub use products::commercial::credit_compiler as commercial_credit_compiler;
+pub use products::commercial::exercise as commercial_exercise;
+pub use products::commercial::factor_source as commercial_factor_source;
+pub use products::commercial::fee_source as commercial_fee_source;
+pub use products::commercial::graph as commercial_graph;
+pub use products::commercial::source_income as commercial_source_income;
 
-pub mod commercial_generated_graph;
-pub mod commercial_generated_policy;
+pub use products::commercial::stochastic_exercise as commercial_stochastic_exercise;
+pub use products::commercial::units as commercial_units;
+pub use products::derivatives::saved_source as saved_derivative_source;
+
+pub use products::commercial::generated_graph as commercial_generated_graph;
+pub use products::commercial::generated_policy as commercial_generated_policy;

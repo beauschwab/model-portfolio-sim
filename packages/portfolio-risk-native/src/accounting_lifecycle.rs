@@ -1,15 +1,15 @@
 //! Raw-book monthly accounting with bounded cashflow chunks and native aggregation.
 use crate::forecast_lifecycle::Forecast;
-use crate::hedge_lifecycle::{smear, swap_values, term_flows, HedgeDeck, Swap};
 use crate::lifecycle_market::{admit, finite, matrix, vector, MarketInput, RateMarket};
 use crate::market::{MarketContext, RatePaths};
 use crate::math::random::SharedDraws;
 use crate::products::deposits::lifecycle::{
     cashflows, deposit_paths, equilibrium, Assumptions, Cohort, DepositDeck,
 };
+use crate::products::derivatives::lifecycle::{smear, swap_values, term_flows, HedgeDeck, Swap};
 use crate::products::mortgages::input::OwnedMortgage;
+use crate::products::term::deck::{Deck, DeckRequest, Product};
 use crate::quant::{corporate, income};
-use crate::term_deck::{Deck, DeckRequest, Product};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

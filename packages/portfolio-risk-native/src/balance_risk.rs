@@ -1,10 +1,10 @@
 //! Mixed-book parallel revaluation: common calibrated paths and fixed base OAS.
 use crate::accounting_lifecycle::{cd_flows, AccountingRequest};
-use crate::hedge_lifecycle::{
-    option_values, swap_values, term_flows, term_price, HedgeDeck, Swaption,
-};
 use crate::lifecycle_market::{finite, monthly_price, RateMarket};
 use crate::products::deposits::lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
+use crate::products::derivatives::lifecycle::{
+    option_values, swap_values, term_flows, term_price, HedgeDeck, Swaption,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

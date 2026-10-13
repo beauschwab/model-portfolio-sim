@@ -4,8 +4,8 @@ use crate::calibration::factor_loadings;
 use crate::market::{bootstrap, MarketContext, RatePaths};
 use crate::market_cache::fit_abcd;
 use crate::math::random::SharedDraws;
+use crate::products::term::risk::RateConfig;
 use crate::quant::{oas, View};
-use crate::term_risk::RateConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

@@ -22,11 +22,16 @@ class ArchitectureTests(unittest.TestCase):
                 'crate': 'packages/fixture-native', 'root_modules': ['lib.rs'],
                 'relocations': {'random.rs': 'math/random.rs'},
                 'compatibility_exports': {'random': 'math::random'},
+                'nested_compatibility_exports': {'math/mod.rs': {'rng': 'self::random'}},
             }))
             (source / 'lib.rs').write_text('pub mod math;\npub use math::random;')
+            (source / 'math/mod.rs').write_text('pub use self::random as rng;')
             numerical = source / 'math/random.rs'
             numerical.write_text('use crate::math::ziggurat; // crate::products is documentation')
             self.assertEqual(checker.native_domain_violations(root), [])
+            (source / 'math/mod.rs').write_text('')
+            self.assertIn('missing compatibility export rng', '\n'.join(checker.native_domain_violations(root)))
+            (source / 'math/mod.rs').write_text('pub use self::random as rng;')
             for forbidden in ['use crate::products::Mortgage;', 'use crate::{market};', 'use std::fs;']:
                 numerical.write_text(forbidden)
                 self.assertTrue(checker.native_domain_violations(root))

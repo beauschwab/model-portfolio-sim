@@ -104,7 +104,7 @@ fn result_bytes(r: &AgedUnitsResult) -> Result<usize, String> {
         .iter()
         .map(|u| {
             u.opening_states.capacity()
-                * std::mem::size_of::<crate::advanced_product::ReplayedBookState>()
+                * std::mem::size_of::<crate::products::term::projection::ReplayedBookState>()
         })
         .sum();
     Ok(serialized_size(r)?

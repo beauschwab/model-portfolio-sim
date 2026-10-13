@@ -1,7 +1,7 @@
 //! UNAPPLIED explicit DTO adapter. Coupons and clean value belong to copied native products.
-use crate::derivative_contract::swaps::*;
 use crate::market_product_source::{self as bridge, Market, Valuation};
-use crate::term_enhancements::{self, indexed::*, Identity};
+use crate::products::derivatives::contract::swaps::*;
+use crate::products::term::contracts::{self as term_enhancements, indexed::*, Identity};
 use portfolio_model_core::cashflow::{ActualDayCount, CashflowMeasure};
 use portfolio_model_core::floating_rate::{
     Calculation, Direction, IndexDescriptor, IndexKind, MarginTreatment, RateBounds,

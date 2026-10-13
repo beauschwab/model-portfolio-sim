@@ -1,5 +1,5 @@
 use super::{admission::money, pricing, *};
-use crate::advanced_graph::Role;
+use crate::products::installment::graph::Role;
 fn inside(d: i32, left: i32, right: i32, opening: bool) -> bool {
     if opening {
         d == left
@@ -57,7 +57,7 @@ fn physical(
 pub(super) fn evaluate(
     r: &Request,
     sources: Vec<NativeSource>,
-    anchor: crate::advanced_graph::BaseAnchor,
+    anchor: crate::products::installment::graph::BaseAnchor,
 ) -> Result<ResultData, String> {
     let mut metrics = Vec::new();
     for (p, oas) in r.positions.iter().zip(&anchor.oas) {
