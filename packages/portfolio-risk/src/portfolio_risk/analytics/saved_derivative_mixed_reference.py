@@ -4,7 +4,8 @@ persisted journal/path partitions are reread as bounded streams.
 """
 from collections import defaultdict
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from . import liquidity_policy_reference as liquidity_policy
 import json,math,hashlib
 from .saved_derivative_mapping_reference import exact,require,verify_with_check as verify_saved
 from .saved_derivative_financial_reference import checked_derive
@@ -397,13 +398,14 @@ def metrics(state,data,scenario,day,account):
         usable_collateral=collateral,undrawn=undrawn,hqla_proxy=hqla,lcr_proxy=ratio(hqla,outflow),nsfr_proxy=ratio(asf,rsf))
     values.update(cash_headroom=stock['cash']-a.cash_floor,cet1_headroom=cet1-a.cet1_floor*rwa,leverage_headroom=cet1-a.leverage_floor*exposure,
         lcr_headroom=hqla-a.lcr_floor*outflow,nsfr_headroom=asf-a.nsfr_floor*rsf,htm_headroom=a.htm_asset_limit*max(stock['assets'],0.)-htm)
+    liquidity_policy.apply_path(values, asdict(a))
     return stock,values
 
 def verify_path_metrics(row,state,data,scenario,day,account):
     a=data['accounts'][account];exact(row['entity'],a.entity);exact(row['currency'],a.currency)
     _,values=metrics(state,data,scenario,day,account)
     for field,v in values.items():
-        if v is None:exact(row[field],None)
+        if v is None or isinstance(v, str):exact(row[field],v)
         else:near(row[field],v,'journal-derived research path '+field)
 
 def verify_secondary_reports(facade,data,check):
@@ -412,7 +414,7 @@ def verify_secondary_reports(facade,data,check):
     state=defaultdict(float);ledger=[];exposures=[];summaries=[];breaches=[];totals=defaultdict(lambda:[0.,0.,0.]);position=data['spec']['positions']
     journal=iter(rows(facade,'journal',check));r=next(journal,None)
     for scenario in data['scenarios']:
-        minimum={a:float(x.cash) for a,x in data['accounts'].items()};first={};max_error=0.
+        minimum={a:float(x.cash) for a,x in data['accounts'].items()};first={};max_error=0.;liquidity_worst={a:{} for a in data['accounts']}
         for day in range(data['spec']['horizon_days']+1):
             events={}
             while r is not None and (r['scenario'],r['day'])==(scenario,day):
@@ -434,13 +436,15 @@ def verify_secondary_reports(facade,data,check):
                     exposures.append(dict(scenario=scenario,day=day,account=p.account,position=p.id,kind=p.kind,balance=sign*state.get((scenario,p.account,pgl,p.id),0.),allowance=0.,watch_fraction=p.watch_fraction,commitment=p.commitment,market_factor=1.,encumbered_fraction=p.encumbered_fraction,accrued_interest=accrued))
             for account,a in data['accounts'].items():
                 stock,m=metrics(state,data,scenario,day,account);minimum[account]=min(minimum[account],stock['cash'])
+                liquidity_policy.accumulate(liquidity_worst[account], m)
                 error=stock['assets']-stock['liabilities']-stock['equity'];max_error=max(max_error,abs(error))
                 for metric in ('cash','cet1','leverage','lcr','nsfr','htm'):
-                    if m[metric+'_headroom']< -1e-9 and (account,metric)not in first:
+                    if m[metric+'_headroom'] is not None and m[metric+'_headroom']< -1e-9 and (account,metric)not in first:
                         first[account,metric]=day;breaches.append(dict(scenario=scenario,account=account,day=day,metric=metric))
         for account,a in data['accounts'].items():
             stock=classified(state,scenario,account,data['funding_positions']);summary=dict(scenario=scenario,account=account,entity=a.entity,currency=a.currency,final_cash=stock['cash'],final_equity=stock['equity'],minimum_cash=minimum[account],peak_cash_shortfall=max(0.,a.cash_floor-minimum[account]),max_reconciliation_error=max_error)
             summary.update({f'first_{metric}_breach_day':first.get((account,metric))for metric in ('cash','capital','leverage','lcr','nsfr','htm')})
+            liquidity_policy.apply_summary(summary, asdict(a), [liquidity_worst[account]])
             summary['first_capital_breach_day']=first.get((account,'cet1'));summaries.append(summary)
     compare_rows(rows(facade,'ledger',check),ledger,'journal-derived phase ledger')
     compare_rows(rows(facade,'exposures',check),exposures,'journal-derived source exposure')

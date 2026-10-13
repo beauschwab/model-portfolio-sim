@@ -21,6 +21,10 @@ class Account:
     lcr_floor: float = 0.0
     nsfr_floor: float = 0.0
     htm_asset_limit: float = 1.0
+    lcr_applicability: str = ""
+    nsfr_applicability: str = ""
+    htm_accounting: str = ""
+    htm_taint_materiality: float = 0.0
 
 @dataclass
 class Position:
