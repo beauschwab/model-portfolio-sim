@@ -34,8 +34,10 @@ fn optional_none_preserves_frozen_financial_output_with_explicit_liquidity_statu
     let expected = old.lock().unwrap();
     #[cfg(target_os = "windows")]
     assert_eq!(
-        expected.as_slice(),
-        include_bytes!("../../tests/fixtures/deposit_revision_none.ndjson")
+        std::str::from_utf8(&expected).unwrap(),
+        // Git may check this text fixture out with CRLF. Only normalize its
+        // record separators; every serialized field remains exact.
+        include_str!("../../tests/fixtures/deposit_revision_none.ndjson").replace("\r\n", "\n")
     );
     let new = m::prepare(r).unwrap();
     let b = Arc::new(Mutex::new(vec![]));
