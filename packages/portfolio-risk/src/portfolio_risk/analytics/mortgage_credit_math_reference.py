@@ -10,8 +10,8 @@ import numpy as np
 from scipy.linalg import expm
 
 # Exact compiled source receipt identity; queued/executed artifact hashes bind execution.
-SOURCE_SHA = 'cb467bb6260f6882d84a55a335c7bc91d377e228791b09a8a38d68c79d2e583a'
-GENERATOR_CODE_HASH_BYTES = 141669
+SOURCE_SHA = 'a925fcc8359f9a202dff5eaa75e4b9c5815467d6aba96701ca278eac515eca7f'
+GENERATOR_CODE_HASH_BYTES = 141631
 ORDER = 'interval_transport_default_capture_prepayment_payment_arm_reset_snapshot-1'
 MAX_AMOUNT = 1e15
 
