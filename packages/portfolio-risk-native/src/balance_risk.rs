@@ -1,10 +1,10 @@
 //! Mixed-book parallel revaluation: common calibrated paths and fixed base OAS.
 use crate::accounting_lifecycle::{cd_flows, AccountingRequest};
-use crate::deposit_lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
 use crate::hedge_lifecycle::{
     option_values, swap_values, term_flows, term_price, HedgeDeck, Swaption,
 };
 use crate::lifecycle_market::{finite, monthly_price, RateMarket};
+use crate::products::deposits::lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -74,7 +74,7 @@ impl BalanceRiskRequest {
             request.config.base_paths = p;
             request.config.sensitivity_paths = p;
             request.fixed_oas = self.oas.get("mbs").map_or(&[], Vec::as_slice);
-            let crate::mortgage_risk::ParallelValues {
+            let crate::products::mortgages::risk::ParallelValues {
                 base: prices,
                 down: d,
                 up: u,

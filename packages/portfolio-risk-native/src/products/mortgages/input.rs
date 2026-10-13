@@ -1,5 +1,5 @@
 //! Owned raw mortgage contract shared by accounting and standalone lifecycles.
-use crate::mortgage_risk::{MortgageRiskRequest, PrepayData, RiskConfig};
+use crate::products::mortgages::risk::{MortgageRiskRequest, PrepayData, RiskConfig};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

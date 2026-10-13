@@ -21,7 +21,7 @@ pub struct MarketInput {
 impl MarketInput {
     pub(crate) fn validate_mortgage(
         &self,
-        book: &crate::mortgage_input::OwnedMortgage,
+        book: &crate::products::mortgages::input::OwnedMortgage,
     ) -> Result<(), String> {
         let (a, b) = (&self.config, &book.config);
         if !book.book.len().is_multiple_of(13)

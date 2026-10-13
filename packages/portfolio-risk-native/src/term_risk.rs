@@ -4,7 +4,7 @@ use crate::calibration::factor_loadings;
 use crate::market::{bootstrap, MarketContext};
 use crate::market_cache::fit_abcd;
 use crate::math::random::SharedDraws;
-use crate::mortgage_risk::RiskResult;
+use crate::products::mortgages::risk::RiskResult;
 use crate::quant::{corporate, oas, View};
 use crate::term_deck::{Deck, DeckRequest, Product};
 use serde::{Deserialize, Serialize};

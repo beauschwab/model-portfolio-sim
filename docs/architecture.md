@@ -223,12 +223,19 @@ imports retain the same underlying implementations through reexports; no duplica
 implementation or runtime wrapper is introduced. ABI 10, protocol names, reduction
 order, original OAS, CRN and numerical tolerances are unchanged by these moves.
 
+The first product modules now live under `src/products/mortgages/` and
+`src/products/deposits/`. Mortgage inputs, risk and graph modules share one home;
+deposit lifecycle, graph and accounting-capture modules share another. Graph
+admission, pricing, metrics and type submodules move with their owning family.
+All six former root module names remain compatibility exports. Shared kernel/ABI
+dispatch and cross-product coordination remain separate follow-up work.
+
 `docs/contracts/native-domains.json` records the exact moves and remaining flat
 modules. The architecture check rejects new flat modules, duplicate old locations,
 lost public aliases and reversed math dependencies. The manifest is a migration
 inventory, not a second runtime registry.
 
-Next stages organize one complete product family, then shared model-core states,
+Next stages organize the remaining product families, then shared model-core states,
 ledger ownership, decision workflows, and Python transport/reference/verification.
 Independent publication verification stays installed at runtime. Package-directory
 relocation comes last, together with build/source-identity/discovery updates;
