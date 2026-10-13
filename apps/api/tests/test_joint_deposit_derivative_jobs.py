@@ -1,10 +1,10 @@
-"""Actual copied worker + pinned full dispatcher + real SQLite/Codec/Parquet.
+"""Actual worker + current release dispatcher + real SQLite/Codec/Parquet.
 Current deployment manifest is the actual startup/current code identity; native finance,
 independent financial/source/journal replay and durable worker are never mocked.
 """
 from copy import deepcopy
 from pathlib import Path
-import hashlib,threading,time
+import threading,time
 import pytest
 import sqlalchemy as sa
 from app import worker,store,persistence as db,joint_deposit_derivative_jobs as candidate
@@ -26,8 +26,11 @@ def durable(tmp_path,monkeypatch):
     identity=db.current_identity()
     monkeypatch.setattr(db,'_IDENTITY',deepcopy(identity))
     monkeypatch.setattr(db,'REPO',repo);monkeypatch.setattr(db,'CODEC',codec);monkeypatch.setattr(db,'CONFIG',config)
-    pin=loads((Path(__file__).resolve().parents[4]/'native-process-pin.json').read_bytes())
-    binary=Path(pin['binary']);assert hashlib.sha256(binary.read_bytes()).hexdigest()==pin['sha256']
+    # Resolve this checkout's release artifact. A sibling experiment pin can
+    # select an obsolete protocol and does not exist in a clean CI checkout.
+    # queue_input retains its binary hash and the real worker rechecks it.
+    binary=runtime.binary_path().resolve()
+    assert binary.parent.name=='release' and binary.is_file()
     monkeypatch.setattr(runtime,'binary_path',lambda:binary)
     worker.STOP.clear();store.SETTINGS=store.SETTINGS.model_copy(update={'n_threads':1,'compute_backend':'rust'})
     state=store.snapshot_local();state['revision']=0;store.STATE_META['revision']=0;repo.initialize(codec.dump(state))
