@@ -1,0 +1,11 @@
+# Mortgage receipts hash these exact compiled source bytes. Keep the reviewed
+# binding and charged byte count identical on every checkout platform.
+packages/portfolio-model-core/src/mortgage_state.rs text eol=lf
+packages/portfolio-model-core/src/mortgage_receipts.rs text eol=lf
+packages/portfolio-model-core/src/consumer_contract.rs text eol=lf
+packages/portfolio-model-core/src/credit_operator.rs text eol=lf
+packages/portfolio-model-core/src/credit.rs text eol=lf
+packages/portfolio-model-core/src/amortization.rs text eol=lf
+packages/portfolio-model-core/src/cashflow.rs text eol=lf
+packages/portfolio-model-core/src/floating_rate.rs text eol=lf
+packages/portfolio-model-core/src/limits.rs text eol=lf

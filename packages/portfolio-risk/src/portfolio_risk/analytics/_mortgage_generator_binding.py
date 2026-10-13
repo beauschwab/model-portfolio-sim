@@ -2,9 +2,11 @@
 from pathlib import Path
 import hashlib
 
+# .gitattributes fixes the reviewed compiled inputs to LF on every platform.
+# Keep the digest strict: other source edits require a new reviewed binding.
 GENERATOR_FILES=('mortgage_state.rs','mortgage_receipts.rs','consumer_contract.rs','credit_operator.rs','credit.rs','amortization.rs','cashflow.rs','floating_rate.rs','limits.rs')
-EXPECTED_DIGEST='cb467bb6260f6882d84a55a335c7bc91d377e228791b09a8a38d68c79d2e583a'
-EXPECTED_BYTES=141669
+EXPECTED_DIGEST='a925fcc8359f9a202dff5eaa75e4b9c5815467d6aba96701ca278eac515eca7f'
+EXPECTED_BYTES=141631
 
 
 def check_generator_copy(source_dir):

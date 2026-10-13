@@ -226,7 +226,7 @@ def test_same_value_float_cannot_replace_exact_mixed_date_identity(full_source,p
 def execute_native(raw):
     # Explicit producer execution occurs only in tests, before the independent
     # verifier. The debug override is never an application runtime fallback.
-    path=Path(os.environ.get('MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release/portfolio-strategy.exe'))
+    path=Path(os.environ.get('MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release'/('portfolio-strategy.exe' if os.name=='nt' else 'portfolio-strategy')))
     assert path.is_file(), 'fresh native mixed artifact required; no skipped validation'
     envelope=dict(op='analyze_product_mixed_dated',schema=oracle.SCHEMA,execution_timeout_ms=30000,request=raw)
     completed=subprocess.run([str(path)],input=json.dumps(envelope,allow_nan=False),capture_output=True,text=True,timeout=40,check=True)

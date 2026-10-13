@@ -140,7 +140,7 @@ def test_cancellation_and_aggregate_reservation_before_raw_credit_projection(pre
 
 
 def execute_native(r):
-    path=Path(os.environ.get('CONSUMER_MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release/portfolio-strategy.exe'))
+    path=Path(os.environ.get('CONSUMER_MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release'/('portfolio-strategy.exe' if os.name=='nt' else 'portfolio-strategy')))
     assert path.is_file(),'fresh actual decision CLI required; no skip or harness fallback'
     command=dict(op='analyze_product_mixed_consumer_credit',schema=oracle.SCHEMA,execution_timeout_ms=30000,request=r)
     completed=subprocess.run([str(path)],input=json.dumps(command,allow_nan=False),text=True,capture_output=True,timeout=40)
@@ -238,7 +238,7 @@ def test_fresh_actual_wrapper_rejects_unsupported_or_incomplete_raw_sources(bad,
     else:
         for run in owner['runs']:run['paths'][0]['request']['opening_allowance']=40.
     with pytest.raises(ArithmeticError):oracle.reconstruct(r,prepared)
-    path=Path(os.environ.get('CONSUMER_MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release/portfolio-strategy.exe'))
+    path=Path(os.environ.get('CONSUMER_MIXED_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release'/('portfolio-strategy.exe' if os.name=='nt' else 'portfolio-strategy')))
     assert path.is_file(),'fresh actual decision CLI required; no skip or harness fallback'
     command=dict(op='analyze_product_mixed_consumer_credit',schema=oracle.SCHEMA,execution_timeout_ms=30000,request=r)
     completed=subprocess.run([str(path)],input=json.dumps(command,allow_nan=False),text=True,capture_output=True,timeout=40)

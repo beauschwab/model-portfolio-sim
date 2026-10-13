@@ -180,7 +180,7 @@ packages/
     workflows/                   # Combined pricing, allocation and journal execution
     transport/
   portfolio-compute-control/     # Shared cancellation/deadline primitive
-  portfolio-risk/src/analytics/
+  portfolio-risk/src/portfolio_risk/analytics/
     adapters/                    # Public Python input/output transport
     verification/                # Independent production publication gates
     reference/                   # Explicit test/research financial oracles

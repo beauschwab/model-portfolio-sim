@@ -161,7 +161,7 @@ def test_cancellation_and_old_output_boundary(prepared):
 
 
 def process(r):
-    binary=Path(os.environ.get('PRODUCT_RIGHTS_TEST_BINARY',str(ROOT/'packages/portfolio-decision-native/target/release/portfolio-strategy.exe')))
+    binary=Path(os.environ.get('PRODUCT_RIGHTS_TEST_BINARY',str(ROOT/'packages/portfolio-decision-native/target/release'/('portfolio-strategy.exe' if os.name=='nt' else 'portfolio-strategy'))))
     completed=subprocess.run([str(binary)],input=json.dumps(dict(op='analyze_product_mixed_product_credit',schema='product-mixed-product-credit-1',execution_timeout_ms=30000,request=r)),text=True,capture_output=True,timeout=35)
     value=json.loads(completed.stdout)
     if 'ok' not in value:raise ArithmeticError(value.get('error',completed.stderr))

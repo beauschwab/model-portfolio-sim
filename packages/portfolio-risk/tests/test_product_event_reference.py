@@ -152,7 +152,7 @@ def test_cancellation_and_joined_escaped_admission_precede_product_projection(pr
 
 
 def execute_native(r):
-    binary=Path(os.environ.get('PRODUCT_EVENT_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release/portfolio-strategy.exe'))
+    binary=Path(os.environ.get('PRODUCT_EVENT_TEST_BINARY',ROOT/'packages/portfolio-decision-native/target/release'/('portfolio-strategy.exe' if os.name=='nt' else 'portfolio-strategy')))
     assert binary.is_file() and binary.name in ('portfolio-strategy.exe','portfolio-strategy'),'fresh actual Decision CLI required; no fallback or skip'
     envelope=dict(op='analyze_product_mixed_product_credit',schema=oracle.SCHEMA,execution_timeout_ms=30000,request=r)
     p=subprocess.run([str(binary)],input=json.dumps(envelope,allow_nan=False),capture_output=True,text=True,timeout=35)
