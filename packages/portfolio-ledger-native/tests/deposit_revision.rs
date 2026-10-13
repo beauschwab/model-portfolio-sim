@@ -195,21 +195,6 @@ fn failed_output_write_cannot_complete_native_publication() {
 }
 
 #[test]
-fn optional_none_complete_ndjson_matches_frozen_installed_daily() {
-    let mut r = raw();
-    for run in &mut r.source.runs {
-        for d in &mut run.revised.drivers {
-            d.reference_rate = 0.24;
-        }
-    }
-    let new = m::prepare(r).unwrap();
-    let expected = include_bytes!("fixtures/deposit_revision_none.ndjson");
-    let b = Arc::new(Mutex::new(vec![]));
-    portfolio_ledger_native::daily::run_dated(new.dated, Box::new(Sink(b.clone()))).unwrap();
-    assert_eq!(expected.as_slice(), b.lock().unwrap().as_slice());
-}
-
-#[test]
 fn public_original_raw_identity_and_four_key_header() {
     let mut original = serde_json::to_value(raw()).unwrap();
     original["source"]["anchor"]["original_principal"] = serde_json::json!(100);

@@ -53,7 +53,12 @@ fn one_source_two_explicit_runs_separate_books_cash_and_earnings() {
     let r = evaluate(raw()).unwrap();
     assert_eq!(r.sources.len(), 1);
     assert_eq!(r.admission.bindings, 2);
-    assert_eq!(r.admission.work_units, 7_124_923);
+    // Admission includes hashing the compiled source bytes. Checkout line endings
+    // change that byte count without changing the financial or replay work.
+    assert_eq!(
+        r.admission.work_units,
+        6_983_254 + portfolio_model_core::mortgage_receipts::source_code_bytes()
+    );
     assert!(r.admission.reserved_bytes < 32 * 1024 * 1024);
     let summaries = rows(&r, "summary");
     assert_eq!(summaries.len(), 2);
