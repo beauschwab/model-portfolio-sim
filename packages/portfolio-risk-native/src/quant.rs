@@ -1293,7 +1293,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
             }
             SHARED_DRAWS => {
                 let seed: Vec<_> = views[0].v.iter().map(|&v| v as u32).collect();
-                let out = crate::random::SharedDraws::new(
+                let out = crate::math::random::SharedDraws::new(
                     &seed,
                     [views[1].ix(0), views[1].ix(1), views[1].ix(2)],
                 )
@@ -1301,7 +1301,9 @@ pub unsafe extern "C" fn portfolio_quant_call(
                 vec![out.rates, out.spread, out.hpi]
             }
             MORTGAGE_RISK | MORTGAGE_FORWARD_STRESS => {
-                use crate::mortgage_risk::{MortgageRiskRequest, PrepayData, RiskConfig};
+                use crate::products::mortgages::risk::{
+                    MortgageRiskRequest, PrepayData, RiskConfig,
+                };
                 let a = &views;
                 let c = &a[8];
                 let seed: Vec<_> = a[7].v.iter().map(|&v| v as u32).collect();

@@ -1,6 +1,6 @@
 # SciPy attribution
 
-src/least_squares.rs adapts the bounded dense TRF algorithm from SciPy 1.17.1.
+src/math/least_squares.rs adapts the bounded dense TRF algorithm from SciPy 1.17.1.
 
 Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers.
 All rights reserved.

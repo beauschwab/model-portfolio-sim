@@ -1,5 +1,6 @@
 """Deliberate forbidden fixtures, without importing application/financial code."""
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import unittest
@@ -10,6 +11,33 @@ checker=importlib.util.module_from_spec(spec);spec.loader.exec_module(checker)
 
 
 class ArchitectureTests(unittest.TestCase):
+    def test_native_domain_ratchet_and_math_direction(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'packages/fixture-native/src'
+            (source / 'math').mkdir(parents=True)
+            (root / 'docs/contracts').mkdir(parents=True)
+            (root / 'docs/contracts/native-domains.json').write_text(json.dumps({
+                'crate': 'packages/fixture-native', 'root_modules': ['lib.rs'],
+                'relocations': {'random.rs': 'math/random.rs'},
+                'compatibility_exports': {'random': 'math::random'},
+            }))
+            (source / 'lib.rs').write_text('pub mod math;\npub use math::random;')
+            numerical = source / 'math/random.rs'
+            numerical.write_text('use crate::math::ziggurat; // crate::products is documentation')
+            self.assertEqual(checker.native_domain_violations(root), [])
+            for forbidden in ['use crate::products::Mortgage;', 'use crate::{market};', 'use std::fs;']:
+                numerical.write_text(forbidden)
+                self.assertTrue(checker.native_domain_violations(root))
+            numerical.write_text('')
+            (source / 'misc.rs').write_text('')
+            self.assertIn('new flat native module', '\n'.join(checker.native_domain_violations(root)))
+            (source / 'random.rs').write_text('')
+            self.assertIn('must live only', '\n'.join(checker.native_domain_violations(root)))
+            (source / 'lib.rs').write_text('pub mod math;')
+            self.assertIn('missing compatibility', '\n'.join(checker.native_domain_violations(root)))
+
     def test_deferred_relative_handler(self):
         errors=checker.violations('app.persistence','def run():\n    from . import store\n')
         self.assertTrue(errors);self.assertIn('app.store',errors[0]);self.assertIn(':2:',errors[0])

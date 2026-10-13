@@ -3,10 +3,10 @@
 use crate::accounting_lifecycle::{
     cd_flows, AccountingRequest, DepositBook, MortgageBook, TermBook,
 };
-use crate::deposit_lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
 use crate::graph_cache::{Cache, Key, Stats};
 use crate::hedge_lifecycle::{smear, term_flows};
 use crate::lifecycle_market::{finite, matrix, vector, RateMarket};
+use crate::products::deposits::lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
 use crate::quant::{income, oas};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

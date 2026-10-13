@@ -1,5 +1,5 @@
 //! Scoped new-request shape admission. Historical SuppliedCurve parsing is unchanged.
-use crate::model_market::curves::{CurveRole, CurveTail, SuppliedCurve};
+use crate::market::analysis::curves::{CurveRole, CurveTail, SuppliedCurve};
 use serde::{Deserialize, Deserializer};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

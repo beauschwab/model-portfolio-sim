@@ -77,7 +77,7 @@ same durable library transaction and recovery path as legacy prepared libraries.
 Its synchronous evaluator consumes native coefficients without repricing. See
 [product analysis and dated adoption](models/product-analysis-workbench.md).
 
-Product batches use borrowed contiguous buffers over C ABI 8 or bounded tagged
+Product batches use borrowed contiguous buffers over C ABI 10 or bounded tagged
 JSON requests with opaque graph/session handles. Standalone lifecycle, strategy,
 balance and workflow executables also accept bounded protocols. Large workflows
 stream table partitions rather than constructing a full cashflow/journal JSON
@@ -120,6 +120,132 @@ exceptions and reviewed dependency cycles. CI configuration records intended
 coverage; a validation report records checks actually run on a stated platform.
 
 ## Build and extension workflow
+
+### Destination layout
+
+Keep the existing deployable crates and package names while organizing their
+internals by domain. The following is the destination, not a claim that every
+directory has already moved. Create directories when their first coherent set of
+modules moves; do not fill the tree with empty placeholders.
+
+```text
+packages/
+  portfolio-model-core/src/       # Reusable financial building blocks
+    conventions/                 # Dates, calendars, day counts, supplied fixings
+    cashflows/                   # Dated events, rights, accrual and settlement
+    models/
+      credit/                    # Transitions, hazards, recoveries, calibration
+      behavior/                  # Retention, prepayment and exercise state
+    products/                    # Contract terms and product state transitions
+      mortgages/
+      deposits/
+      installment/
+      revolving/
+      commercial/
+      term_deposits/
+      derivatives/
+      funding/
+    math/                        # Domain-independent numerical primitives
+  portfolio-risk-native/src/     # Valuation and portfolio calculations
+    products/                    # Product pricing and risk composition
+      mortgages/
+      deposits/
+      installment/
+      revolving/
+      commercial/
+      term_deposits/
+      derivatives/
+      funding/
+    market/                      # Curves, quotes, paths, smiles and driver inputs
+    models/                      # Pricing models and model calibration
+    math/                        # Engine-local solvers and seeded random draws
+    risk/                        # Shocks, sensitivities and portfolio aggregation
+    income/                      # Frozen-yield income and conditional forecasts
+    graph/                       # Dependency graph, identities and bounded caches
+    portfolio/                   # Books, cohorts and unit coefficient preparation
+    treasury/                    # Capital and FTP, with explicit policy inputs
+    runtime/                     # Execution controls, profiling and lifecycle wiring
+    transport/                   # ABI and bounded protocol dispatch
+    bin/                         # Thin executable entrypoints
+  portfolio-ledger-native/src/
+    journal/                     # Posting and reconciliation
+    owners/                      # Product-specific recognition and source ownership
+    replay/                      # Monthly, dated and credit replay contracts
+    reports/                     # Closing, consolidation and attribution
+    transport/
+  portfolio-decision-native/src/
+    coefficients/                # Prepared unit/grid contracts
+    optimization/                # HiGHS problem construction and solution replay
+    coordinator/                 # Transactional edits and selective rebuilding
+    workflows/                   # Combined pricing, allocation and journal execution
+    transport/
+  portfolio-compute-control/     # Shared cancellation/deadline primitive
+  portfolio-risk/src/analytics/
+    adapters/                    # Public Python input/output transport
+    verification/                # Independent production publication gates
+    reference/                   # Explicit test/research financial oracles
+    contracts/                   # Generated and handwritten transport schemas
+```
+
+A product describes a contract and owns its product-specific state/cashflow logic.
+A model describes an assumption or stochastic mechanism that products can select.
+Market inputs describe supplied quotes, curves, histories and scenario drivers.
+Math has no product, market or policy dependency. Product pricing composes these
+pieces; graph and workflow layers coordinate them. Shared product state belongs in
+model-core; portfolio pricing composition belongs in risk-native. Do not copy an
+implementation into both locations.
+
+Keep provider access in application adapters. Keep assumptions and calibration
+code next to the model they configure, while immutable observed data, fixtures and
+generated results remain outside source modules. Tests and benchmarks mirror the
+owning domain. Small helpers stay private beside their caller; reusable helpers
+get descriptive homes such as `conventions`, `math`, `runtime` or `transport`.
+Avoid catch-all `utils`, `common` and `helpers` folders.
+
+Move one product family at a time after the market/math foundation. Extract
+transport dispatch only after its domain implementations have stable homes.
+Retain compatibility exports until downstream callers and generated contracts
+migrate together. Independent runtime verification must remain installed with the
+application; it must not be moved into test-only dependencies.
+
+### Domain migration, stage 1
+
+Native market source now lives under `portfolio-risk-native/src/market/`:
+`paths.rs` retains production market-path construction, `curves/quote_bootstrap.rs`
+owns supplied quote bootstrapping, and `analysis/` retains the explicit supplied
+curve/smile/joint analytical contract. These routes keep their existing financial
+and adoption boundaries. No provider IO enters the engine.
+
+`src/math/` owns bounded least squares, seeded random draws and their Ziggurat
+constants. It cannot import products, market policy, graph execution or application
+code. Existing public `market`, `model_market`, `market_bootstrap` and `random`
+imports retain the same underlying implementations through reexports; no duplicate
+implementation or runtime wrapper is introduced. ABI 10, protocol names, reduction
+order, original OAS, CRN and numerical tolerances are unchanged by these moves.
+
+The first product modules now live under `src/products/mortgages/` and
+`src/products/deposits/`. Mortgage inputs, risk and graph modules share one home;
+deposit lifecycle, graph and accounting-capture modules share another. Graph
+admission, pricing, metrics and type submodules move with their owning family.
+All six former root module names remain compatibility exports. Shared kernel/ABI
+dispatch and cross-product coordination remain separate follow-up work.
+
+`docs/contracts/native-domains.json` records the exact moves and remaining flat
+modules. The architecture check rejects new flat modules, duplicate old locations,
+lost public aliases and reversed math dependencies. The manifest is a migration
+inventory, not a second runtime registry.
+
+Next stages organize the remaining product families, then shared model-core states,
+ledger ownership, decision workflows, and Python transport/reference/verification.
+Independent publication verification stays installed at runtime. Package-directory
+relocation comes last, together with build/source-identity/discovery updates;
+existing package names and deployment paths remain stable in this stage.
+
+Validate native unit/integration tests, legacy public imports, native ownership,
+generated contracts and architecture boundaries before promoting each stage.
+Any source-identity change requires fresh matching artifacts and explicit selected
+library/session rebuilds. A source-only move does not authorize rewriting historical
+manifests, deploying, or claiming empirical model acceptance.
 
 Build all three native runtime artifacts with `make build-native`, restart
 API/workers, and rebuild libraries/sessions whose identity changed. `make build`

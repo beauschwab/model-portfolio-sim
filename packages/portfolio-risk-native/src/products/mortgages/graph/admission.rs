@@ -1,5 +1,5 @@
 use super::*;
-use crate::model_market::curves::CurveRole;
+use crate::market::analysis::curves::CurveRole;
 use portfolio_model_core::{cashflow::validate_ordinal, limits::MAX_MONETARY_AMOUNT};
 use serde::Serialize;
 use std::{collections::HashSet, io::Write};

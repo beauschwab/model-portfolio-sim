@@ -339,7 +339,7 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
             || s.collateral_curve.currency != r.currency
             || !matches!(
                 s.collateral_curve.role,
-                crate::model_market::curves::CurveRole::Collateral { .. }
+                crate::market::analysis::curves::CurveRole::Collateral { .. }
             )
         {
             return Err(
@@ -767,7 +767,7 @@ fn physical_with_policy(
 /// the immutable original OAS and parallel bump enter once each.
 pub fn price(
     source: &NativeSource,
-    curve: &crate::model_market::curves::SuppliedCurve,
+    curve: &crate::market::analysis::curves::SuppliedCurve,
     asof: i32,
     mark: i32,
     oas: f64,
@@ -792,7 +792,7 @@ pub fn price(
 }
 fn weighted_price(
     sources: &[NativeSource],
-    curve: &crate::model_market::curves::SuppliedCurve,
+    curve: &crate::market::analysis::curves::SuppliedCurve,
     asof: i32,
     mark: i32,
     oas: f64,

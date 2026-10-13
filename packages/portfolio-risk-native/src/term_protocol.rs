@@ -1,5 +1,5 @@
 //! Shared bounded JSON protocol for the standalone executable and Python adapter.
-use crate::mortgage_risk::RiskResult;
+use crate::products::mortgages::risk::RiskResult;
 use crate::term_deck::{Deck, DeckRequest};
 use crate::term_risk::TermRiskRequest;
 use serde::{Deserialize, Serialize};
@@ -23,14 +23,14 @@ struct CardRepriceRequest {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DepositGraphRepriceRequest {
-    base: crate::deposit_graph::Request,
-    current: crate::deposit_graph::Request,
+    base: crate::products::deposits::graph::Request,
+    current: crate::products::deposits::graph::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct MortgageGraphRepriceRequest {
-    base: crate::mortgage_graph::Request,
-    current: crate::mortgage_graph::Request,
+    base: crate::products::mortgages::graph::Request,
+    current: crate::products::mortgages::graph::Request,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -119,7 +119,7 @@ enum Request {
     #[serde(rename = "mortgage-product-graph-1")]
     MortgageGraph {
         threads: usize,
-        request: Box<crate::mortgage_graph::Request>,
+        request: Box<crate::products::mortgages::graph::Request>,
     },
     #[serde(rename = "mortgage-product-reprice-1")]
     MortgageGraphReprice {
@@ -139,7 +139,7 @@ enum Request {
     #[serde(rename = "deposit-product-graph-1")]
     DepositGraph {
         threads: usize,
-        request: Box<crate::deposit_graph::Request>,
+        request: Box<crate::products::deposits::graph::Request>,
     },
     #[serde(rename = "deposit-product-reprice-1")]
     DepositGraphReprice {
@@ -229,7 +229,7 @@ enum Request {
     #[serde(rename = "model-market-1")]
     ModelMarket {
         threads: usize,
-        request: Box<crate::model_market::ModelMarketRequest>,
+        request: Box<crate::market::analysis::ModelMarketRequest>,
     },
     #[serde(rename = "market-driver-calibration-1")]
     MarketDriverCalibration {
@@ -239,7 +239,7 @@ enum Request {
     #[serde(rename = "market-quote-bootstrap-1")]
     MarketQuoteBootstrap {
         threads: usize,
-        request: Box<crate::market_bootstrap::Request>,
+        request: Box<crate::market::curves::quote_bootstrap::Request>,
     },
     #[serde(rename = "nonintegral-fee-accounting-1")]
     NonintegralFees {
@@ -420,12 +420,12 @@ enum Request {
     #[serde(rename = "deposit-risk-1")]
     DepositRisk {
         threads: usize,
-        request: Box<crate::deposit_lifecycle::DepositRequest>,
+        request: Box<crate::products::deposits::lifecycle::DepositRequest>,
     },
     #[serde(rename = "deposit-stress-1")]
     DepositStress {
         threads: usize,
-        request: Box<crate::deposit_lifecycle::DepositRequest>,
+        request: Box<crate::products::deposits::lifecycle::DepositRequest>,
     },
     #[serde(rename = "deposit-deck-1")]
     DepositDeck {
@@ -435,7 +435,7 @@ enum Request {
     #[serde(rename = "deposit-horizon-1")]
     DepositHorizon {
         threads: usize,
-        request: Box<crate::deposit_lifecycle::DepositRequest>,
+        request: Box<crate::products::deposits::lifecycle::DepositRequest>,
     },
     #[serde(rename = "term-risk-1")]
     Risk {
@@ -451,8 +451,8 @@ enum Request {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DepositDeckInput {
-    book: Vec<crate::deposit_lifecycle::Cohort>,
-    assumptions: crate::deposit_lifecycle::Assumptions,
+    book: Vec<crate::products::deposits::lifecycle::Cohort>,
+    assumptions: crate::products::deposits::lifecycle::Assumptions,
 }
 #[derive(Serialize)]
 #[serde(untagged)]
@@ -465,10 +465,10 @@ enum Output {
     Accounting(Box<crate::accounting_lifecycle::AccountingResult>),
     HedgeRisk(Box<crate::hedge_lifecycle::HedgeRisk>),
     HedgeDeck(Box<crate::hedge_lifecycle::HedgeDeck>),
-    DepositRisk(Box<crate::deposit_lifecycle::DepositRisk>),
-    DepositStress(Box<crate::deposit_lifecycle::DepositStress>),
-    DepositDeck(Box<crate::deposit_lifecycle::DepositDeck>),
-    DepositHorizon(Box<crate::deposit_lifecycle::DepositHorizon>),
+    DepositRisk(Box<crate::products::deposits::lifecycle::DepositRisk>),
+    DepositStress(Box<crate::products::deposits::lifecycle::DepositStress>),
+    DepositDeck(Box<crate::products::deposits::lifecycle::DepositDeck>),
+    DepositHorizon(Box<crate::products::deposits::lifecycle::DepositHorizon>),
     Risk(RiskResult),
     Deck(Box<Deck>),
 }
@@ -789,11 +789,11 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 .map_err(|e| e.to_string())?,
         )),
         Request::MortgageGraph { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::mortgage_graph::analyze(&request)?)
+            serde_json::to_value(crate::products::mortgages::graph::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::MortgageGraphReprice { request, .. } => {
-            let graph = crate::mortgage_graph::MortgageGraph::new(&request.base)?;
+            let graph = crate::products::mortgages::graph::MortgageGraph::new(&request.base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&request.current)?)
                     .map_err(|e| e.to_string())?,
@@ -811,11 +811,11 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             ))
         }
         Request::DepositGraph { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::deposit_graph::analyze(&request)?)
+            serde_json::to_value(crate::products::deposits::graph::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::DepositGraphReprice { request, .. } => {
-            let graph = crate::deposit_graph::DepositGraph::new(&request.base)?;
+            let graph = crate::products::deposits::graph::DepositGraph::new(&request.base)?;
             Ok(Output::Kpi(
                 serde_json::to_value(graph.reprice(&request.current)?)
                     .map_err(|e| e.to_string())?,
@@ -948,7 +948,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             })
         }
         Request::ModelMarket { request, .. } => Ok(Output::Kpi(
-            serde_json::to_value(crate::model_market::analyze(&request)?)
+            serde_json::to_value(crate::market::analysis::analyze(&request)?)
                 .map_err(|e| e.to_string())?,
         )),
         Request::MarketDriverCalibration { request, .. } => {
@@ -960,7 +960,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         }
         Request::MarketQuoteBootstrap { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
-                serde_json::to_value(crate::market_bootstrap::evaluate(&request)?)
+                serde_json::to_value(crate::market::curves::quote_bootstrap::evaluate(&request)?)
                     .map(Output::Kpi)
                     .map_err(|e| e.to_string())
             })
@@ -1117,8 +1117,11 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             request.stress().map(|v| Output::DepositStress(Box::new(v)))
         }
         Request::DepositDeck { request, .. } => {
-            crate::deposit_lifecycle::DepositDeck::new(&request.book, &request.assumptions)
-                .map(|v| Output::DepositDeck(Box::new(v)))
+            crate::products::deposits::lifecycle::DepositDeck::new(
+                &request.book,
+                &request.assumptions,
+            )
+            .map(|v| Output::DepositDeck(Box::new(v)))
         }
         Request::DepositHorizon { request, .. } => request
             .horizon_sensitivity()

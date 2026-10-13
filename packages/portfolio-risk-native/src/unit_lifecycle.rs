@@ -1,13 +1,13 @@
 //! Unit-grid raw contract construction, pricing and coefficient preparation.
 use crate::accounting_lifecycle::cd_flows;
 use crate::conventions::{Bdc, CalendarSpec, DayCount};
-use crate::deposit_lifecycle::{
-    cashflows, deposit_paths, equilibrium, Assumptions, Cohort, DepositDeck,
-};
 use crate::hedge_lifecycle::{bullet, smear, term_flows, term_price};
 use crate::lifecycle_market::{admit, finite, monthly_price, MarketInput, RateMarket};
-use crate::mortgage_input::OwnedMortgage;
-use crate::random::SharedDraws;
+use crate::math::random::SharedDraws;
+use crate::products::deposits::lifecycle::{
+    cashflows, deposit_paths, equilibrium, Assumptions, Cohort, DepositDeck,
+};
+use crate::products::mortgages::input::OwnedMortgage;
 use crate::term_deck::{Amortization, DeckRequest, Product};
 use serde::{Deserialize, Serialize};
 
@@ -330,7 +330,7 @@ impl UnitRequest {
             request.prepay_multiplier = &[];
             request.config.base_paths = p;
             request.config.sensitivity_paths = p;
-            let crate::mortgage_risk::ParallelValues { down: d, up: u, .. } =
+            let crate::products::mortgages::risk::ParallelValues { down: d, up: u, .. } =
                 request.parallel_values(25.)?;
             let draws = SharedDraws::new(&self.market.seed, [p, t, c.factors])?;
             request.income_chunks(&draws, None, |first, end, coupon, principal, _, _| {

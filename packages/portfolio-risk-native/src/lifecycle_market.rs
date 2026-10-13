@@ -3,8 +3,8 @@ use crate::cache::{resolve, Key};
 use crate::calibration::factor_loadings;
 use crate::market::{bootstrap, MarketContext, RatePaths};
 use crate::market_cache::fit_abcd;
+use crate::math::random::SharedDraws;
 use crate::quant::{oas, View};
-use crate::random::SharedDraws;
 use crate::term_risk::RateConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ pub struct MarketInput {
 impl MarketInput {
     pub(crate) fn validate_mortgage(
         &self,
-        book: &crate::mortgage_input::OwnedMortgage,
+        book: &crate::products::mortgages::input::OwnedMortgage,
     ) -> Result<(), String> {
         let (a, b) = (&self.config, &book.config);
         if !book.book.len().is_multiple_of(13)

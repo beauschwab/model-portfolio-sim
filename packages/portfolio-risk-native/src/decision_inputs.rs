@@ -1,7 +1,7 @@
 //! Dirty-row extraction and assumption application for the owned decision actor.
 use crate::accounting_lifecycle::{AccountingRequest, DepositBook, MortgageBook, TermBook};
 use crate::incremental::PriceRequest;
-use crate::mortgage_input::OwnedMortgage;
+use crate::products::mortgages::input::OwnedMortgage;
 use crate::term_deck::DeckRequest;
 use serde_json::Value;
 use std::collections::BTreeMap;

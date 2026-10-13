@@ -94,13 +94,13 @@ pub fn analyze(r: &ModelMarketRequest) -> Result<ModelMarketResult, String> {
         joint: shocks,
     })
 }
-pub(super) fn label(v: &str, max: usize) -> Result<(), String> {
+pub(crate) fn label(v: &str, max: usize) -> Result<(), String> {
     if v.trim().is_empty() || v.len() > max || v.chars().any(char::is_control) {
         return Err("market identity/source must be bounded nonblank text".into());
     }
     Ok(())
 }
-pub(super) fn range(v: f64, min: f64, max: f64, name: &str) -> Result<(), String> {
+pub(crate) fn range(v: f64, min: f64, max: f64, name: &str) -> Result<(), String> {
     if !v.is_finite() || v < min || v > max {
         return Err(format!("{name} outside finite [{min},{max}]"));
     }

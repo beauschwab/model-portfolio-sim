@@ -1,7 +1,7 @@
 //! Built-in calibration controllers. Histories enter as raw columns; regression,
 //! rank decisions, dynamics, diagnostics and PCA stay inside Rust.
-pub use crate::least_squares::Fit;
-use crate::least_squares::{self, Model};
+pub use crate::math::least_squares::Fit;
+use crate::math::least_squares::{self, Model};
 use crate::quant::{volatility, View};
 use nalgebra::{
     linalg::{SymmetricEigen, SVD},

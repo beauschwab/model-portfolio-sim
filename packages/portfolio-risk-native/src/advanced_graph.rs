@@ -1,6 +1,6 @@
 //! Supplied consumer history graph. Explicit measures, native generation, frozen base OAS.
 //! No stochastic-policy fitting, legacy model switch, or implicit ledger adoption.
-use crate::model_market::curves::{CurveRole, SuppliedCurve};
+use crate::market::analysis::curves::{CurveRole, SuppliedCurve};
 use portfolio_model_core::cashflow::{
     validate_ordinal, AccrualPeriod, CashflowAdjustment, CashflowComponents, CashflowMeasure,
     DatedCashflowEvent, DatedSchedule, EventProvenance, ScenarioSelector,

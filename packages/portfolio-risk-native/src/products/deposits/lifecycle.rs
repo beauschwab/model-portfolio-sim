@@ -4,7 +4,7 @@ use crate::calibration::fit_deposits;
 use crate::lifecycle_market::{
     admit, finite, matrix, monthly_price, tensor, vector, MarketInput, RateMarket,
 };
-use crate::mortgage_risk::RiskResult;
+use crate::products::mortgages::risk::RiskResult;
 use crate::quant::{behavioral, deposits, View};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
