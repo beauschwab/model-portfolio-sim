@@ -28,19 +28,19 @@ export default function BalanceSheet() {
         <Tabs tabs={BOOK_TABS} active={tab} onChange={t => setTab(t as BookName)} />
         <div className="flex gap-2">
           {!editing
-            ? <Button variant="ghost" onClick={() => { setText(JSON.stringify(rows, null, 1)); setEditing(true); }}>Edit book (JSON)</Button>
+            ? <Button variant="secondary" onClick={() => { setText(JSON.stringify(rows, null, 1)); setEditing(true); }}>Edit book (JSON)</Button>
             : <>
                 <Button onClick={save}>Save</Button>
-                <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
               </>}
         </div>
       </div>
       <Card>
         <CardHeader title={`${tab} — ${rows.length} positions`}
-          sub="balances sized to the WFC 1Q26 mix (synthetic; see model_balance_sheet docstring)" />
+          sub="Balances sized to the WFC 1Q26 mix (synthetic; see model_balance_sheet docstring)" />
         <CardBody className="p-0">
           {editing
-            ? <textarea className="h-[28rem] w-full bg-surface-2 p-3 font-mono text-[11px] text-paper-dim outline-none" value={text} onChange={e => setText(e.target.value)} />
+            ? <textarea className="h-[28rem] w-full bg-surface-2 p-3 font-mono text-xs text-paper-dim outline-none" value={text} onChange={e => setText(e.target.value)} />
             : <DataTable rows={rows} />}
         </CardBody>
       </Card>

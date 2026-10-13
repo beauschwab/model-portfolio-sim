@@ -88,8 +88,11 @@ fn invalid_warm_quotes_rows_parents_and_unsupported_metrics_fail() {
             "analytics" => bad["legacy"]["include_analytics"] = json!(true),
             "spread" => bad["legacy"]["spread_shift"] = json!(0.01),
             "order" => bad["bindings"].as_array_mut().unwrap().reverse(),
-            "cap" => bad["bindings"][0]["graph"]["source"]["bridge"]["current_market"]["curves"][1]["discount_factors"][1]=json!(0.001),
-            "extras" => bad["balance_sheet_extras"]=json!({"mm":[]}),
+            "cap" => {
+                bad["bindings"][0]["graph"]["source"]["bridge"]["current_market"]["curves"][1]
+                    ["discount_factors"][1] = json!(0.001)
+            }
+            "extras" => bad["balance_sheet_extras"] = json!({"mm":[]}),
             _ => {
                 bad["bindings"][0]["graph"]["source"]["bridge"]["current_market"]["curves"][0]
                     ["currency"] = json!("EUR")

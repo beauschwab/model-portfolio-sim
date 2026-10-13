@@ -290,12 +290,18 @@ def _mortgage_inputs(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, o
     return inputs
 
 
+def prepay_speed(port):
+    """Optional per-pool prepay speed multipliers; empty when the column is absent."""
+    from .scenarios import prepay_multiplier
+    return prepay_multiplier(port).tolist() if 'prepay_mult' in port.columns else []
+
+
 def mortgage_risk(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, oas):
     import polars as pl
     from . import config as cfg
     inputs = _mortgage_inputs(port, swap_rates, vol_pts, cc_hist, ps_hist, seed, suite, oas)
     n = len(port)
-    spreads, prices, dv01, sensitivities = call(Op.MORTGAGE_RISK, inputs, [(n,), (n,), (n,), (len(cfg.SWAP_TENORS)+len(vol_pts), n)])
+    spreads, prices, dv01, sensitivities = call(Op.MORTGAGE_RISK, inputs + [prepay_speed(port)], [(n,), (n,), (n,), (len(cfg.SWAP_TENORS)+len(vol_pts), n)])
     labels = [f'krd01_{int(t)}y' for t in cfg.SWAP_TENORS] + [f'vega_{int(e)}x{int(t)}' for e,t,_ in vol_pts]
     return port.with_columns(pl.Series('oas_bps', spreads*1e4), pl.Series('model_price', prices*100), pl.Series('dv01', dv01),
                             *[pl.Series(name, values) for name, values in zip(labels, sensitivities)])
@@ -314,7 +320,7 @@ def mortgage_stress(port, swap_rates, vol_pts, cc_hist, ps_hist, shocks_bp, seed
         raise ValueError('mortgage stress outputs exceed 1 GiB admission limit')
     has_profile = -100. in shocks and 100. in shocks
     base, price, shocked, pnl, agg_base, agg_pnl, profile, _ = call(
-        Op.MORTGAGE_FORWARD_STRESS, inputs + [hz, shocks], [(nh,n)]*2 + [(nj,nh,n)]*2 + [(nj,nh)]*2 + [(nh if has_profile else 0,), (n,)])
+        Op.MORTGAGE_FORWARD_STRESS, inputs + [hz, shocks, prepay_speed(port)], [(nh,n)]*2 + [(nj,nh,n)]*2 + [(nj,nh)]*2 + [(nh if has_profile else 0,), (n,)])
     frames = [pl.DataFrame(dict(cusip=port['cusip'], horizon_m=np.full(n,h,dtype=np.int64),
                 shock_bp=np.full(n,shock), fwd_value_base=base[hi], fwd_price_base=price[hi],
                 fwd_value_shock=shocked[j,hi], stress_pnl=pnl[j,hi]))
@@ -344,7 +350,7 @@ def dispatch(name, reference):
             return call(Op.CORPORATE if name == 'corp' else Op.CD, a, [(size,)]*3)
         p, t = a[0].shape
         if name == 'mbs':
-            s, h = len(a[13]), len(a[22])
+            s, h = len(a[13]), len(a[23])   # horizons follow the nine per-pool vectors and OAS
             out = list(call(Op.MORTGAGE, a, [(s,t),(s,h),(s,h),(s,p,h),(s,p,h),(s,t),(s,t)]))
             out[3], out[4] = out[3].astype(np.float32), out[4].astype(np.float32)
             return tuple(out)
@@ -352,7 +358,7 @@ def dispatch(name, reference):
             return call(Op.MORTGAGE_STRESS, a, [(len(a[13]),)])[0]
         if name == 'deposit':
             s, h = len(a[6]), len(a[17])
-            out = list(call(Op.DEPOSIT, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t)]))
+            out = list(call(Op.DEPOSIT, a, [(s,t),(s,t),(s,h),(s,h),(s,p,h),(s,t),(s,)]))
             out[4] = out[4].astype(np.float32)
             return tuple(out)
         if name == 'deposit_stress':

@@ -1,0 +1,6 @@
+# Keep release builds and denied-warning checks on the validated compiler.
+# Upgrade this pin deliberately with native ownership/parity validation.
+[toolchain]
+channel = "1.93.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

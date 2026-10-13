@@ -2,18 +2,18 @@
 //! Product pricing is external; policy/events execute in daily, transport persists.
 //! Reduction calls retain no pointers or global state.
 
-pub mod credit_accounting;
+pub mod acquisition;
 pub mod consumer_intent_owner;
-pub mod product_event_owner;
+pub mod credit_accounting;
 pub mod credit_path_replay;
 pub mod credit_replay;
 pub mod credit_state;
 pub mod daily;
-pub mod driven_credit;
 pub mod dated_ledger;
-pub mod acquisition;
 pub mod dated_store;
+pub mod driven_credit;
 pub mod flow_store;
+pub mod product_event_owner;
 pub mod spec;
 #[path = "bin/types.rs"]
 pub mod types;
@@ -317,19 +317,20 @@ mod tests {
     }
 }
 
-pub mod mortgage_pending_owner;
 pub mod deposit_revision;
 mod deposit_revision_json;
+pub mod mortgage_pending_owner;
 
 pub mod deposit_source_principal;
 mod deposit_source_principal_json;
 
-#[cfg(feature="historical-output-control")]
-#[doc(hidden)] pub mod historical_daily;
 pub mod deposit_fifo_derivation;
-pub mod deposit_source_portfolio;
 mod deposit_portfolio_money;
+pub mod deposit_source_portfolio;
+#[cfg(feature = "historical-output-control")]
+#[doc(hidden)]
+pub mod historical_daily;
 
-pub mod derivative_intent_owner;
-pub mod commercial_intent_owner;
 pub mod commercial_fee_owner;
+pub mod commercial_intent_owner;
+pub mod derivative_intent_owner;

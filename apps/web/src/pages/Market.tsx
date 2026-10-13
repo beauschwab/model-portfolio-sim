@@ -50,15 +50,15 @@ export default function MarketPage() {
   const renderLeg = ({ label, value, color, onChange }: { label: string; value: number[]; color?: string; onChange: (v: number[]) => void }) => (
     <div>
       <div className="mb-0.5 flex items-center justify-between">
-        <div className="flex items-center text-xs text-paper-dim">{label}
+        <div className="flex items-center text-sm text-paper-dim">{label}
           <InfoPop>Drag the points to shape this leg by quarter — values snap to {rng.step}bp. Click a column to set it. The last point extends to Q9 on the engine side.</InfoPop>
         </div>
-        <Popover width="13rem" trigger={<span className="text-[10px] text-paper-faint underline decoration-dotted">range {rng.lo}…{rng.hi}bp</span>}>
+        <Popover width="13rem" trigger={<span className="text-2xs text-paper-faint underline decoration-dotted">range {rng.lo}…{rng.hi}bp</span>}>
           <div className="space-y-2">
-            <div className="text-[10px] uppercase tracking-wide text-paper-faint">Drag range & snap</div>
+            <div className="eyebrow">Drag range & snap</div>
             {(["lo", "hi", "step"] as const).map(k => (
               <div key={k} className="flex items-center gap-2">
-                <span className="w-8 text-[10px] text-paper-faint">{k}</span>
+                <span className="w-8 text-2xs text-paper-faint">{k}</span>
                 <Input type="number" value={rng[k]} onChange={e => setRng({ ...rng, [k]: Number(e.target.value) })} />
               </div>
             ))}
@@ -74,14 +74,14 @@ export default function MarketPage() {
     <div className="grid gap-3 xl:grid-cols-2">
       <div className="xl:col-span-2"><ResearchData market={mkt} onMarket={updateMarket} /></div>
       <Card>
-        <CardHeader title="Par swap curve" sub={mkt?.source ?? ""} right={<Button variant="ghost" onClick={saveMarket}>Save market</Button>} />
+        <CardHeader title="Par swap curve" sub={mkt?.source ?? ""} right={<Button variant="secondary" onClick={saveMarket}>Save market</Button>} />
         <CardBody>
           <CurveChart data={curveData} />
           <div className="mt-3 grid grid-cols-5 gap-2">
             {TENORS.map((t, i) => (
               <div key={t}>
-                <div className="mb-1 text-[10px] text-paper-faint">{t}y</div>
-                <Input value={((rates[i] ?? 0) * 100).toFixed(3)}
+                <div className="mb-1 text-2xs text-paper-faint">{t}y</div>
+                <Input className="!px-1.5 text-right !text-sm" value={((rates[i] ?? 0) * 100).toFixed(3)}
                   onChange={e => { const r = [...rates]; r[i] = parseFloat(e.target.value) / 100 || 0; setRates(r); }} />
               </div>
             ))}
@@ -90,28 +90,28 @@ export default function MarketPage() {
       </Card>
 
       <Card>
-        <CardHeader title="9Q scenario builder" sub="trader-space legs mapped onto the LMM market: level via 10y, 2s10s twist around the 5y pivot, spread applied to OAS for risk runs, vol parallel on the ATM surface"
+        <CardHeader title="9Q scenario builder" sub="Trader-space legs mapped onto the LMM market: level via 10y, 2s10s twist around the 5y pivot, spread applied to OAS for risk runs, vol parallel on the ATM surface"
           right={<div className="flex gap-2">
-            <Button variant="ghost" onClick={saveScenario}>Save</Button>
-            <Button disabled={busy} onClick={runScenarioNii}>{busy ? "running…" : "Compare NII forecasts"}</Button>
+            <Button variant="secondary" onClick={saveScenario}>Save</Button>
+            <Button disabled={busy} onClick={runScenarioNii}>{busy ? "Running…" : "Compare NII forecasts"}</Button>
           </div>} />
         <CardBody className="space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-28 text-xs text-paper-dim">name</div>
+            <div className="w-28 text-sm text-paper-dim">Name</div>
             <Input value={sc.name} onChange={e => setSc({ ...sc, name: e.target.value })} />
             <div className="flex gap-1">{Object.keys(scs).map(n => (
-              <button key={n} className="rounded bg-surface-3 px-2 py-1 text-[10px] text-paper-dim hover:text-brand"
+              <button key={n} className="rounded bg-surface-3 px-2 py-1 text-2xs text-paper-dim hover:text-brand"
                 onClick={() => setSc(scs[n])}>{n}</button>))}
             </div>
           </div>
-          {renderLeg({ label: "10y UST (bp)", color: "#fcd535", value: sc.ust10y_bp, onChange: v => setSc({ ...sc, ust10y_bp: v }) })}
-          {renderLeg({ label: "2s10s (bp)", color: "#2dbdb6", value: sc.twos_tens_bp, onChange: v => setSc({ ...sc, twos_tens_bp: v }) })}
-          {renderLeg({ label: "spread (bp)", color: "#f6465d", value: sc.spread_bp, onChange: v => setSc({ ...sc, spread_bp: v }) })}
-          {renderLeg({ label: "vol (bp)", color: "#929aa5", value: sc.vol_bp, onChange: v => setSc({ ...sc, vol_bp: v }) })}
+          {renderLeg({ label: "10y UST (bp)", color: "var(--viz-1)", value: sc.ust10y_bp, onChange: v => setSc({ ...sc, ust10y_bp: v }) })}
+          {renderLeg({ label: "2s10s (bp)", color: "var(--viz-2)", value: sc.twos_tens_bp, onChange: v => setSc({ ...sc, twos_tens_bp: v }) })}
+          {renderLeg({ label: "spread (bp)", color: "var(--viz-3)", value: sc.spread_bp, onChange: v => setSc({ ...sc, spread_bp: v }) })}
+          {renderLeg({ label: "vol (bp)", color: "var(--gray-300)", value: sc.vol_bp, onChange: v => setSc({ ...sc, vol_bp: v }) })}
           {path
             ? <ScenarioPath data={path} />
-            : <div className="flex h-40 items-center justify-center text-xs text-paper-faint">
-                define legs and run — each quarter revalues the full balance sheet on the shifted market <Badge tone="zinc">base OAS held fixed</Badge>
+            : <div className="flex h-40 items-center justify-center text-sm text-paper-faint">
+                define legs and run — each quarter revalues the full balance sheet on the shifted market <Badge tone="neutral">Base OAS held fixed</Badge>
               </div>}
         </CardBody>
       </Card>

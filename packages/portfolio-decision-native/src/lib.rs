@@ -1,21 +1,21 @@
 //! Versioned actor sessions: native solver pointers stay on their owner thread.
-pub mod mortgage_closing_capital;
-pub mod commercial_ledger;
-pub mod commercial_fee_journal;
-pub mod commercial_holding_journal;
-pub mod commercial_treasury;
-pub mod commercial_library;
-pub mod commercial_candidate_journal;
-pub mod commercial_intake;
 pub mod advanced_ledger;
 mod aged_library;
+pub mod commercial_candidate_journal;
+pub mod commercial_fee_journal;
+pub mod commercial_holding_journal;
+pub mod commercial_intake;
+pub mod commercial_ledger;
+pub mod commercial_library;
+pub mod commercial_treasury;
 pub mod deposit_ledger;
 mod library;
+pub mod mortgage_closing_capital;
 mod owned;
-pub mod product_library;
 pub mod product_candidate_journal;
-pub mod product_mixed_dated;
+pub mod product_library;
 pub mod product_mixed_consumer_credit;
+pub mod product_mixed_dated;
 pub mod product_mixed_product_credit;
 mod solver;
 use serde::{Deserialize, Serialize};
@@ -317,7 +317,11 @@ impl Session {
         }
     }
 }
-type Message = (Value, mpsc::SyncSender<Result<Value, String>>, Option<portfolio_compute_control::Control>);
+type Message = (
+    Value,
+    mpsc::SyncSender<Result<Value, String>>,
+    Option<portfolio_compute_control::Control>,
+);
 enum Actor {
     Legacy(Box<Session>, Option<Box<owned::Owner>>),
     Aged(Box<aged_library::Session>),
@@ -361,9 +365,14 @@ struct ActorHandle {
 }
 static REGISTRY: OnceLock<Mutex<HashMap<u64, ActorHandle>>> = OnceLock::new();
 fn commercial_handle(handle: u64) -> Result<bool, String> {
-    let Some(registry) = REGISTRY.get() else { return Ok(false) };
-    Ok(registry.lock().map_err(|_| "registry unavailable")?
-        .get(&handle).is_some_and(|actor| actor.commercial))
+    let Some(registry) = REGISTRY.get() else {
+        return Ok(false);
+    };
+    Ok(registry
+        .lock()
+        .map_err(|_| "registry unavailable")?
+        .get(&handle)
+        .is_some_and(|actor| actor.commercial))
 }
 static NEXT: AtomicU64 = AtomicU64::new(1);
 pub fn dispatch(v: Value) -> Result<Value, String> {
@@ -387,7 +396,12 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
     if op == "linear_program" {
         return solver::linear_program(&v);
     }
-    if op == "create" || op == "create_owned" || op == "create_aged" || op == "create_product" || op == "create_commercial" {
+    if op == "create"
+        || op == "create_owned"
+        || op == "create_aged"
+        || op == "create_product"
+        || op == "create_commercial"
+    {
         let mut slots = registry.lock().map_err(|_| "registry unavailable")?;
         if slots.len() >= 8 {
             return Err("native session capacity reached (8); close a session".into());
@@ -400,17 +414,29 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
         let (ready_tx, ready_rx) = mpsc::sync_channel(1);
         // Reserve capacity atomically, then release the registry before pricing.
         // Opening a book must not block evaluation/close on unrelated sessions.
-        slots.insert(handle, ActorHandle { sender: tx, commercial: op == "create_commercial" });
+        slots.insert(
+            handle,
+            ActorHandle {
+                sender: tx,
+                commercial: op == "create_commercial",
+            },
+        );
         drop(slots);
         // A creation deadline belongs to this call, never to the retained actor.
-        let creation_control = if op=="create_commercial" {portfolio_compute_control::active()} else {None};
+        let creation_control = if op == "create_commercial" {
+            portfolio_compute_control::active()
+        } else {
+            None
+        };
         let spawned = std::thread::Builder::new()
             .name(format!("decision-{handle}"))
             .spawn(move || {
                 let mut v = v;
                 let created = if v["op"] == "create_commercial" {
-                    portfolio_compute_control::scope(creation_control,||commercial_library::Session::new(&v))
-                        .map(|(session, snapshot)| (Actor::Commercial(Box::new(session)), snapshot))
+                    portfolio_compute_control::scope(creation_control, || {
+                        commercial_library::Session::new(&v)
+                    })
+                    .map(|(session, snapshot)| (Actor::Commercial(Box::new(session)), snapshot))
                 } else if v["op"] == "create_product" {
                     product_library::Session::new(&v)
                         .map(|(session, snapshot)| (Actor::Product(Box::new(session)), snapshot))
@@ -440,11 +466,12 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
                 };
                 while let Ok((msg, reply, control)) = rx.recv() {
                     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        if matches!(actor,Actor::Commercial(_)) {
-                            portfolio_compute_control::scope(control,||actor.call(msg))
-                        } else {actor.call(msg)}
-                    }))
-                    {
+                        if matches!(actor, Actor::Commercial(_)) {
+                            portfolio_compute_control::scope(control, || actor.call(msg))
+                        } else {
+                            actor.call(msg)
+                        }
+                    })) {
                         Ok(r) => {
                             let _ = reply.send(r);
                         }
@@ -490,7 +517,9 @@ pub fn dispatch(v: Value) -> Result<Value, String> {
         .cloned()
         .ok_or("unknown session")?;
     let (reply, rx) = mpsc::sync_channel(1);
-    tx.sender.try_send((v, reply, portfolio_compute_control::active())).map_err(|e| e.to_string())?;
+    tx.sender
+        .try_send((v, reply, portfolio_compute_control::active()))
+        .map_err(|e| e.to_string())?;
     rx.recv().map_err(|e| e.to_string())?
 }
 /// Caller owns the returned string and releases it with decision_free.
@@ -659,5 +688,5 @@ pub mod modeled_product_ftp_source;
 
 pub mod modeled_product_ftp;
 
-pub mod saved_derivative_mixed;
 pub mod joint_deposit_derivative;
+pub mod saved_derivative_mixed;

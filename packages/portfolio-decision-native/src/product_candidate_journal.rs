@@ -16,10 +16,17 @@ pub const MAX_LINES: usize = 2_000_000;
 pub const MAX_BYTES: usize = 128 * 1024 * 1024;
 /// Source-only selection admission for an acquisition-aware mixed coordinator.
 /// Account/position opening ownership must be validated by that coordinator.
-pub(crate) fn audit_source_capacity(request:&Request,prepared:&Prepared)->Result<usize,String>{
+pub(crate) fn audit_source_capacity(
+    request: &Request,
+    prepared: &Prepared,
+) -> Result<usize, String> {
     admission::raw(request)?;
-    let (work,rows,full)=product_candidate_source::admitted_work(prepared,request.as_of_ordinal,request.reporting_end_ordinal)?;
-    admission::aggregate(request,prepared,work,rows,full)
+    let (work, rows, full) = product_candidate_source::admitted_work(
+        prepared,
+        request.as_of_ordinal,
+        request.reporting_end_ordinal,
+    )?;
+    admission::aggregate(request, prepared, work, rows, full)
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

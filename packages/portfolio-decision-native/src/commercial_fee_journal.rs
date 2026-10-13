@@ -154,7 +154,10 @@ pub fn run_started(bytes: &[u8], started: Instant) -> Result<Value, String> {
 mod tests {
     use super::*;
     fn raw() -> Request {
-        serde_json::from_str(include_str!("../../../examples/models/commercial-fee-journal-1.json")).unwrap()
+        serde_json::from_str(include_str!(
+            "../../../examples/models/commercial-fee-journal-1.json"
+        ))
+        .unwrap()
     }
     #[test]
     fn native_single_sim_retains_separate_fee_tail() {
@@ -162,14 +165,22 @@ mod tests {
         assert_eq!(v["completion"], json!({"complete":true,"protocol":7}));
         assert_eq!(v["reporting_horizon_days"], 35);
         assert_eq!(v["loan_carrying_value_changed"], false);
-        assert_eq!(v["fee_sources"][0][0]["source"]["reporting"][0]["state"]["fee_receivable"], 5.);
-        assert_eq!(v["fee_sources"][0][0]["source"]["closing"][0]["state"]["fee_receivable"], 0.);
+        assert_eq!(
+            v["fee_sources"][0][0]["source"]["reporting"][0]["state"]["fee_receivable"],
+            5.
+        );
+        assert_eq!(
+            v["fee_sources"][0][0]["source"]["closing"][0]["state"]["fee_receivable"],
+            0.
+        );
     }
     #[test]
     fn invalid_original_fee_contract_fails_before_generation() {
         let mut r = raw();
         r.fees[0].events[0].amount = 6.;
-        assert!(evaluate(&r).unwrap_err().contains("separate reviewed right"));
+        assert!(evaluate(&r)
+            .unwrap_err()
+            .contains("separate reviewed right"));
         let mut r = raw();
         r.fees[0].fees[0].prepaid_refunds_allowed = false;
         r.fees[0].default.refund_prepaid_fraction = 1.;
@@ -177,8 +188,11 @@ mod tests {
     }
     #[test]
     fn unmatched_and_foreign_original_owner_reject() {
-        let mut r = raw();r.fees.pop();assert!(evaluate(&r).is_err());
-        let mut r = raw();r.fees[0].fees[0].tranche_id = "secondary".into();
+        let mut r = raw();
+        r.fees.pop();
+        assert!(evaluate(&r).is_err());
+        let mut r = raw();
+        r.fees[0].fees[0].tranche_id = "secondary".into();
         assert!(evaluate(&r).unwrap_err().contains("original tranche"));
     }
 }

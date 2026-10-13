@@ -23,7 +23,9 @@ preserve exact retry identity without replacing original deadlines or inputs.
   optional. The client makes default-complete response types `Required` where
   the existing service returns those defaults. Settings/results can describe
   historical Python execution; new production execution still rejects it.
-- `native-abi-8.json`: authoritative operation IDs and named positional layouts.
+- `native-abi-10.json`: current operation IDs and named positional layouts;
+  `native-abi-8.json` retains the historical specification. ABI 10 includes the
+  upstream per-pool mortgage prepayment multiplier and deposit terminal policy.
   `abi_generated.py`, `abi_operations.rs` and [native-abi-layouts.md](native-abi-layouts.md)
   are generated. Native domain/shape validation still executes in Rust.
 - `dependency-baseline.json`: reviewed existing cycle edges. This includes deferred
@@ -74,7 +76,8 @@ objects. Internal API code uses canonical layered imports; legacy aliases do not
 select a Python financial backend. Queued durable operation names are unchanged
 and resolve through `app/operations.py`'s allowlist.
 
-ABI 8 IDs and exported signatures are unchanged. Buffers are borrowed synchronous
+Operation IDs and exported signatures are unchanged; ABI 10 buffer layouts require
+matching rebuilt artifacts and reject older binaries. Buffers are borrowed synchronous
 C-contiguous f64; integer/boolean fields stay within their validated exact domain.
 All output validation completes before the first write. Missing/mismatched native
 artifacts fail with no fallback. Additive JSON protocols still need new binaries.

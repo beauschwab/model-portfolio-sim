@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.93.1
       - run: uv sync --project apps/api --extra dev --extra iceberg --python 3.12
       - run: uv run --project apps/api --extra iceberg python scripts/build_ledger_native.py
       - run: uv run --project apps/api python scripts/build_native.py

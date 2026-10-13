@@ -1,7 +1,9 @@
 //! Public native component fixtures; whole-book adoption has separate gates.
-use portfolio_model_core::{consumer_credit_accounting as adapter, consumer_installment, credit_accounting};
 use adapter::{evaluate, Request};
 use credit_accounting::{AccountCode, AccruedPolicy, BasisPolicy};
+use portfolio_model_core::{
+    consumer_credit_accounting as adapter, consumer_installment, credit_accounting,
+};
 use serde_json::json;
 
 fn raw() -> serde_json::Value {

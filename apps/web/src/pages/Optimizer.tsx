@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useEngineData } from "../lib/engine";
 /** Robust balance-sheet optimizer — OVERDRIVE: the solve is the spectacle.
  * Hitting Optimize opens a live solve console driven by the engine's run
@@ -26,11 +27,11 @@ function Counter({ label, value, sub, hero, reduced }: {
 }) {
   const v = useTween(value, reduced);
   return (
-    <div className={hero ? "rounded-lg border border-brand/30 bg-brand-deep/30 px-4 py-3" : "px-1 py-1"}>
-      <div className="text-[10px] uppercase tracking-wide text-paper-faint">{label}</div>
+    <div className={hero ? "rounded-lg border border-brand/30 bg-brand/5 px-4 py-3" : "px-1 py-1"}>
+      <div className="eyebrow">{label}</div>
       <div className={`num leading-tight text-paper ${hero ? "text-3xl font-semibold text-brand" : "text-lg font-medium"}`}
         title={full(value)}>{compact(v)}</div>
-      {sub && <div className="num text-[10px] text-paper-faint">{sub}</div>}
+      {sub && <div className="num text-2xs text-paper-faint">{sub}</div>}
     </div>
   );
 }
@@ -49,49 +50,46 @@ function SolveConsole({ job, elapsed, reduced, samples }: {
   const running = job.status === "running" || job.status === "queued";
 
   return (
-    <div className="space-y-3 rounded-xl border border-line bg-surface-1 p-4">
+    <div className="space-y-3 rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-4">
       <div className="flex items-center gap-3">
-        <span className={`inline-block h-2 w-2 rounded-full ${err ? "bg-down" : job.status === "done" ? "bg-up" : "bg-brand"} ${running && !reduced ? "animate-pulse" : ""}`} />
-        <div className="text-sm font-medium text-paper">
+        <span className={`inline-block h-2 w-2 rounded-full ${err ? "bg-danger" : job.status === "done" ? "bg-up" : "bg-brand"}`} />
+        <div className="text-md font-medium text-paper">
           {err ? "Solve failed" : job.status === "done" ? "Solve complete" : "Solving"}
-          <span className="ml-2 text-xs font-normal text-paper-faint">{p.stage ?? job.status}</span>
+          <span className="ml-2 text-sm font-normal text-paper-faint">{p.stage ?? job.status}</span>
         </div>
-        <div className="num ml-auto text-xs text-paper-faint">{elapsed.toFixed(1)}s</div>
+        <div className="num ml-auto text-sm text-paper-faint">{elapsed.toFixed(1)}s</div>
       </div>
 
-      <div className="relative h-1.5 overflow-hidden rounded-full bg-surface-3">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-300 ease-out" style={{ width: `${pct}%` }} />
-        {running && !reduced && (
-          <div className="absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-white/25 to-transparent solve-sweep" />
-        )}
+      <div className="relative h-1.5 overflow-hidden rounded-sm bg-surface-3">
+        <div className="absolute inset-y-0 left-0 rounded-sm bg-brand transition-[width] duration-base" style={{ width: `${pct}%` }} />
       </div>
 
-      {err && <div className="text-[11px] text-down">{job.detail}</div>}
+      {err && <div className="text-xs text-danger">{job.detail}</div>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Counter hero reduced={reduced} label="path-evaluations" value={stats.path_evaluations ?? 0} sub="calculations executed" />
-        <Counter reduced={reduced} label="revaluations" value={stats.revaluations ?? 0} sub="full repricings" />
-        <Counter reduced={reduced} label="reductions" value={stats.reductions ?? 0} sub="path → mean collapses" />
-        <Counter reduced={reduced} label="unit columns" value={stats.unit_columns ?? 0} sub="priced into the LP" />
+        <Counter hero reduced={reduced} label="Path-evaluations" value={stats.path_evaluations ?? 0} sub="Calculations executed" />
+        <Counter reduced={reduced} label="Revaluations" value={stats.revaluations ?? 0} sub="Full repricings" />
+        <Counter reduced={reduced} label="Reductions" value={stats.reductions ?? 0} sub="Path → mean collapses" />
+        <Counter reduced={reduced} label="Unit columns" value={stats.unit_columns ?? 0} sub="Priced into the LP" />
       </div>
 
       <Heartbeat samples={samples} running={running} reduced={reduced} />
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-line pt-2 text-[11px] sm:grid-cols-4">
-        <div className="text-paper-faint">records in scope <span className="num text-paper">{full(plan.in_scope ?? plan.records ?? 0)}</span></div>
-        <div className="text-paper-faint">scenario markets <span className="num text-paper">{plan.scenario_markets ?? 1}</span></div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-line pt-2 text-xs sm:grid-cols-4">
+        <div className="text-paper-faint">Records in scope <span className="num text-paper">{full(plan.in_scope ?? plan.records ?? 0)}</span></div>
+        <div className="text-paper-faint">Scenario markets <span className="num text-paper">{plan.scenario_markets ?? 1}</span></div>
         <div className="text-paper-faint">MC paths <span className="num text-paper">{plan.monte_carlo_paths ?? 0}</span></div>
-        <div className="text-paper-faint">scenario paths <span className="num text-paper">{full(stats.scenario_paths ?? 0)}</span></div>
+        <div className="text-paper-faint">Scenario paths <span className="num text-paper">{full(stats.scenario_paths ?? 0)}</span></div>
       </div>
 
-      <div ref={logRef} className="max-h-32 overflow-auto rounded-lg border border-line bg-ink/40 p-2 font-mono text-[10.5px] leading-relaxed">
+      <div ref={logRef} className="max-h-32 overflow-auto rounded-md border border-line bg-surface-base p-2 font-mono text-2xs leading-relaxed">
         {(p.log ?? []).map((l, i) => (
           <div key={i} className={`flex gap-2 ${!reduced ? "log-in" : ""}`}>
             <span className="num shrink-0 text-paper-faint">{l.t.toFixed(2)}s</span>
             <span className="text-paper-dim">{l.msg}</span>
           </div>
         ))}
-        {!(p.log ?? []).length && <div className="text-paper-faint">waiting for first telemetry frame…</div>}
+        {!(p.log ?? []).length && <div className="text-paper-faint">Waiting for first telemetry frame…</div>}
       </div>
     </div>
   );
@@ -139,7 +137,7 @@ export default function OptimizerPage() {
   };
 
   const renderFloor = ({ k, label, step }: { k: keyof typeof floors; label: string; step?: number }) => (
-    <div><div className="mb-1 flex items-center text-[10px] text-paper-faint">{label}
+    <div><div className="mb-1 flex items-center text-2xs text-paper-faint">{label}
         <InfoPop width="15rem">{k === "lcr_min" ? "Liquidity coverage floor, held in base AND every selected scenario. If it binds, its shadow price is the worst-case NII cost of one more unit of LCR." : k === "nsfr_min" ? "Stable funding floor — ASF/RSF with deck maturities driving the buckets." : k === "cet1_min" ? "CET1 ratio floor at the configured horizon, NII-retention linearization (no AOCI leg)." : k === "eve_limit" ? "Two-sided |ΔEVE @ +200bp| cap as a fraction of EVE. 0.15 is the IRRBB outlier line." : k === "cash_budget" ? "Additional committed funding outside the base book, available throughout the horizon. With zero cash budget, new assets require matching funding throughout the horizon." : "Cap on total new asset notional the optimizer may deploy."}</InfoPop>
       </div>
       <Input type="number" step={step ?? 0.01} value={floors[k]} onChange={e => setFloors({ ...floors, [k]: Number(e.target.value) })} /></div>
@@ -157,8 +155,8 @@ export default function OptimizerPage() {
   return (
     <div className="space-y-3">
       <Card>
-        <CardHeader title="Robust optimization" sub="maximin worst-case NII s.t. ratio floors holding in base + every selected scenario; commercial plan as linear rows"
-          right={<Button disabled={busy} onClick={run}>{busy ? "solving…" : "Optimize"}</Button>} />
+        <CardHeader title="Robust optimization" sub="Maximin worst-case NII s.t. ratio floors holding in base + every selected scenario; commercial plan as linear rows"
+          right={<Button disabled={busy} onClick={run}>{busy ? "Solving…" : "Optimize"}</Button>} />
         <CardBody className="space-y-3">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {renderFloor({ k: "lcr_min", label: "LCR floor",  })}{renderFloor({ k: "nsfr_min", label: "NSFR floor",  })}
@@ -167,28 +165,28 @@ export default function OptimizerPage() {
             {renderFloor({ k: "cash_budget", label: "Committed funding budget $", step: 1e6 })}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] text-paper-faint">robust across:</span>
-            <Badge tone="zinc">base</Badge>
+            <span className="text-2xs text-paper-faint">Robust across:</span>
+            <Badge tone="neutral">Base</Badge>
             {scens.map(s => (
               <button key={s} onClick={() => setPicked(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s])}
-                className={`rounded-full px-2 py-0.5 text-[10px] ${picked.includes(s) ? "bg-emerald-950 text-brand" : "bg-surface-3 text-paper-dim"}`}>{s}</button>
+                className={`rounded-sm px-2 py-0.5 text-2xs font-semibold ${picked.includes(s) ? "bg-brand/15 text-brand" : "bg-surface-3 text-paper-dim"}`}>{s}</button>
             ))}
-            {!scens.length && <span className="text-[10px] text-paper-faint">define scenarios in Market & Scenarios</span>}
+            {!scens.length && <span className="text-2xs text-paper-faint">Define scenarios in Market & Scenarios</span>}
           </div>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-[10px] text-paper-faint">commercial plan
-              <Button variant="ghost" onClick={() => setComm([...comm, { label: `row_${comm.length}`, template: "agency_mbs", sense: ">=", rhs: 1e9 }])}>+ row</Button></div>
+            <div className="flex items-center gap-2 text-2xs text-paper-faint">commercial plan
+              <Button variant="secondary" onClick={() => setComm([...comm, { label: `row_${comm.length}`, template: "agency_mbs", sense: ">=", rhs: 1e9 }])}>+ row</Button></div>
             {comm.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Input className="w-36" value={c.label} onChange={e => setComm(cs => cs.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                <select className="h-8 rounded-md border border-line bg-surface-2 px-2 text-xs text-paper" value={c.template}
+                <select className="h-control rounded-sm border border-line-strong bg-surface-base px-2 text-sm text-paper" value={c.template}
                   onChange={e => setComm(cs => cs.map((x, j) => j === i ? { ...x, template: e.target.value } : x))}>
                   {TPL.map(t => <option key={t}>{t}</option>)}</select>
-                <select className="h-8 rounded-md border border-line bg-surface-2 px-2 text-xs" value={c.sense}
+                <select className="h-control rounded-sm border border-line-strong bg-surface-base px-2 text-sm" value={c.sense}
                   onChange={e => setComm(cs => cs.map((x, j) => j === i ? { ...x, sense: e.target.value as Comm["sense"] } : x))}>
                   <option>{">="}</option><option>{"<="}</option></select>
                 <Input className="w-32" type="number" value={c.rhs} onChange={e => setComm(cs => cs.map((x, j) => j === i ? { ...x, rhs: Number(e.target.value) } : x))} />
-                <Button variant="danger" onClick={() => setComm(comm.filter((_, j) => j !== i))}>×</Button>
+                <Button variant="ghost" size="sm" aria-label="Remove row" onClick={() => setComm(comm.filter((_, j) => j !== i))}><Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.5} /></Button>
               </div>
             ))}
           </div>
@@ -198,46 +196,46 @@ export default function OptimizerPage() {
       {showConsole && <SolveConsole job={job!} elapsed={elapsed} reduced={reduced} samples={samples} />}
 
       {res && !res.feasible && (
-        <Card><CardHeader title="Infeasible" sub="the answer, not an error: the plan cannot hold these ratios in every scenario" />
-          <CardBody><Badge tone="red">{res.message}</Badge></CardBody></Card>
+        <Card><CardHeader title="Infeasible" sub="The answer, not an error: the plan cannot hold these ratios in every scenario" />
+          <CardBody><Badge tone="danger">{res.message}</Badge></CardBody></Card>
       )}
       {res?.feasible && (
         <>
-          <p className="text-xs text-paper-faint">Linear coefficient replay passed. Dynamic stress has not run. Copy this allocation into a saved-book Balance-sheet Stress request and supply explicit template mappings to check daily cash, accounting and limits.</p>
-          <details><summary className="cursor-pointer text-xs">Candidate allocation for dynamic replay</summary><pre className="overflow-auto p-2 text-xs">{JSON.stringify(res.allocation, null, 2)}</pre></details>
+          <p className="text-sm text-paper-faint">Linear coefficient replay passed. Dynamic stress has not run. Copy this allocation into a saved-book Balance-sheet Stress request and supply explicit template mappings to check daily cash, accounting and limits.</p>
+          <details><summary className="cursor-pointer text-sm">Candidate allocation for dynamic replay</summary><pre className="overflow-auto p-2 text-sm">{JSON.stringify(res.allocation, null, 2)}</pre></details>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            <div className="reveal-row rounded-xl border border-line bg-surface-1 p-4" style={{ animationDelay: "40ms" }}>
-              <div className="text-[11px] uppercase tracking-wide text-paper-faint">Worst-case total NII</div>
+            <div className="reveal-row rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-4">
+              <div className="eyebrow">Worst-case total NII</div>
               <div className="num mt-1 text-2xl font-semibold text-paper">{fmt$(res.worst_case_nii_$!)}</div>
             </div>
-            <div className="reveal-row rounded-xl border border-line bg-surface-1 p-4" style={{ animationDelay: "100ms" }}>
-              <div className="text-[11px] uppercase tracking-wide text-paper-faint">New assets deployed</div>
+            <div className="reveal-row rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-4">
+              <div className="eyebrow">New assets deployed</div>
               <div className="num mt-1 text-2xl font-semibold text-paper">{fmt$(res.total_new_assets_$!)}</div>
             </div>
-            <div className="reveal-row rounded-xl border border-line bg-surface-1 p-4" style={{ animationDelay: "160ms" }}>
-              <div className="text-[11px] uppercase tracking-wide text-paper-faint">Binding constraints</div>
+            <div className="reveal-row rounded-md border border-line-strong bg-surface-1 shadow-inset-top p-4">
+              <div className="eyebrow">Binding constraints</div>
               <div className="num mt-1 text-2xl font-semibold text-paper">{bindings.length}</div>
             </div>
           </div>
           <div className="grid gap-3 xl:grid-cols-2">
-            <Card><CardHeader title="Optimal allocation" sub="template × purchase month × notional" />
+            <Card><CardHeader title="Optimal allocation" sub="Template × purchase month × notional" />
               <CardBody className="p-0"><DataTable rows={res.allocation as never} /></CardBody></Card>
             <Card>
-              <CardHeader title="Shadow prices" sub="marginal worst-case NII per unit of constraint — the price of liquidity / the cost of the mandate" />
+              <CardHeader title="Shadow prices" sub="Marginal worst-case NII per unit of constraint — the price of liquidity / the cost of the mandate" />
               <CardBody className="space-y-2">
                 {bindings.map((b, i) => (
-                  <div key={b.constraint} className="reveal-row" style={{ animationDelay: `${i * 70}ms` }}>
-                    <div className="mb-1 flex items-baseline justify-between gap-3 text-[11px]">
+                  <div key={b.constraint} className="reveal-row">
+                    <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
                       <span className="truncate text-paper-dim">{b.constraint}</span>
                       <span className={`num shrink-0 ${b.shadow_price < 0 ? "text-down" : "text-paper"}`}>{b.shadow_price.toFixed(4)}</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-surface-3">
-                      <div className={`h-full rounded-full ${b.shadow_price < 0 ? "bg-down" : "bg-brand"} transition-[width] duration-700 ease-out`}
+                    <div className="h-2 overflow-hidden rounded-sm bg-surface-3">
+                      <div className={`h-full rounded-sm ${b.shadow_price < 0 ? "bg-down" : "bg-brand"} transition-[width] duration-base`}
                         style={{ width: `${b.frac * 100}%` }} />
                     </div>
                   </div>
                 ))}
-                {!bindings.length && <div className="text-xs text-paper-faint">no binding constraints — the plan has slack everywhere</div>}
+                {!bindings.length && <div className="text-sm text-paper-faint">No binding constraints — the plan has slack everywhere</div>}
               </CardBody>
             </Card>
           </div>

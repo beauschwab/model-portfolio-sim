@@ -95,7 +95,9 @@ fn days(year: f64) -> Result<usize, String> {
     } else {
         elapsed.ceil()
     };
-    if year > result / 365. { result += 1.; }
+    if year > result / 365. {
+        result += 1.;
+    }
     if !result.is_finite() || !(0. ..=1080.).contains(&result) {
         return Err("commercial candidate complete tail exceeds1080days".into());
     }

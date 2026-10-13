@@ -99,7 +99,9 @@ pub(crate) struct Prepared<'a> {
     pub(crate) ledger_bytes_upper: usize,
 }
 impl Prepared<'_> {
-    pub(crate) fn complete_horizon(&self) -> usize { self.specification.horizon_days }
+    pub(crate) fn complete_horizon(&self) -> usize {
+        self.specification.horizon_days
+    }
 }
 
 /// Preflight all source/credit/coupon/ledger work before generating either source.
@@ -126,7 +128,9 @@ pub(crate) fn admit(r: &Request) -> Result<Prepared<'_>, String> {
         } else {
             elapsed.ceil()
         };
-        if a.full_credit_end_year > days / 365. { days += 1.; }
+        if a.full_credit_end_year > days / 365. {
+            days += 1.;
+        }
         if !days.is_finite() || !(1. ..=1080.).contains(&days) {
             return Err("complete commercial recovery calendar exceeds 1080 days".into());
         }
@@ -292,9 +296,20 @@ pub(crate) fn admit(r: &Request) -> Result<Prepared<'_>, String> {
                 .into(),
         );
     }
-    let ledger_bytes_upper = reservations.iter().try_fold(0usize, |n, (_, bytes)| add(n, *bytes))?;
-    Ok(Prepared { request: r, specification: s, reporting_horizon_days, weights, allocations, reservations,
-        work_upper: total_work, retained_bytes_upper: total_bytes, ledger_bytes_upper })
+    let ledger_bytes_upper = reservations
+        .iter()
+        .try_fold(0usize, |n, (_, bytes)| add(n, *bytes))?;
+    Ok(Prepared {
+        request: r,
+        specification: s,
+        reporting_horizon_days,
+        weights,
+        allocations,
+        reservations,
+        work_upper: total_work,
+        retained_bytes_upper: total_bytes,
+        ledger_bytes_upper,
+    })
 }
 
 pub fn evaluate(r: &Request) -> Result<(Receipt, Vec<u8>), String> {
@@ -308,16 +323,36 @@ pub fn evaluate(r: &Request) -> Result<(Receipt, Vec<u8>), String> {
 }
 
 /// Reuses complete sealed native owners; never accepts caller journal/checkpoint money.
-pub(crate) fn evaluate_prepared(p: Prepared<'_>, sources: Vec<owner::ResultData>) -> Result<(Receipt, Vec<u8>), String> {
-    evaluate_prepared_with_fees(p,sources,&[])
+pub(crate) fn evaluate_prepared(
+    p: Prepared<'_>,
+    sources: Vec<owner::ResultData>,
+) -> Result<(Receipt, Vec<u8>), String> {
+    evaluate_prepared_with_fees(p, sources, &[])
 }
-pub(crate) fn evaluate_prepared_with_fees(p: Prepared<'_>, sources: Vec<owner::ResultData>,fees:&[Vec<portfolio_risk_native::commercial_fee_source::BoundPath>]) -> Result<(Receipt, Vec<u8>), String> {
-    let Prepared { request: r, specification: s, reporting_horizon_days, weights, allocations, reservations,
-        work_upper: total_work, retained_bytes_upper: total_bytes, .. } = p;
-    if sources.len() != r.commercial.len() { return Err("native commercial owner coverage differs".into()); }
+pub(crate) fn evaluate_prepared_with_fees(
+    p: Prepared<'_>,
+    sources: Vec<owner::ResultData>,
+    fees: &[Vec<portfolio_risk_native::commercial_fee_source::BoundPath>],
+) -> Result<(Receipt, Vec<u8>), String> {
+    let Prepared {
+        request: r,
+        specification: s,
+        reporting_horizon_days,
+        weights,
+        allocations,
+        reservations,
+        work_upper: total_work,
+        retained_bytes_upper: total_bytes,
+        ..
+    } = p;
+    if sources.len() != r.commercial.len() {
+        return Err("native commercial owner coverage differs".into());
+    }
     for (raw, source) in r.commercial.iter().zip(&sources) {
         portfolio_compute_control::checkpoint()?;
-        if strict_json::encode(raw, MAX_RAW_BYTES)? != strict_json::encode(source.raw_request(), MAX_RAW_BYTES)? {
+        if strict_json::encode(raw, MAX_RAW_BYTES)?
+            != strict_json::encode(source.raw_request(), MAX_RAW_BYTES)?
+        {
             return Err("native commercial owner is bound to a different raw source".into());
         }
     }
@@ -348,17 +383,29 @@ pub(crate) fn evaluate_prepared_with_fees(p: Prepared<'_>, sources: Vec<owner::R
     if compiled.work_upper > upper.0 || compiled.retained_bytes_upper > upper.1 {
         return Err("actual commercial ledger exceeded structural reservation".into());
     }
-    if !fees.is_empty(){
-        if fees.len()!=sources.len(){return Err("fee loan source coverage differs".into());}
-        let mut fee_bindings=Vec::new();let mut parent=0;
-        for(source,paths)in sources.iter().zip(fees){
-            if paths.len()!=source.raw_request().credit.paths.len(){return Err("fee native path coverage differs".into());}
-            for(path,fee)in source.raw_request().credit.paths.iter().zip(paths){
-                if path.path_key!=fee.path_key(){return Err("fee parent path identity differs".into());}
-                fee_bindings.push(ledger::FeeBinding{loan_binding:parent,source:fee.source(),native_years:fee.native_years()});parent+=1;
+    if !fees.is_empty() {
+        if fees.len() != sources.len() {
+            return Err("fee loan source coverage differs".into());
+        }
+        let mut fee_bindings = Vec::new();
+        let mut parent = 0;
+        for (source, paths) in sources.iter().zip(fees) {
+            if paths.len() != source.raw_request().credit.paths.len() {
+                return Err("fee native path coverage differs".into());
+            }
+            for (path, fee) in source.raw_request().credit.paths.iter().zip(paths) {
+                if path.path_key != fee.path_key() {
+                    return Err("fee parent path identity differs".into());
+                }
+                fee_bindings.push(ledger::FeeBinding {
+                    loan_binding: parent,
+                    source: fee.source(),
+                    native_years: fee.native_years(),
+                });
+                parent += 1;
             }
         }
-        compiled.attach_fees(&s,fee_bindings)?;
+        compiled.attach_fees(&s, fee_bindings)?;
     }
     let out = Buffer::default();
     daily::run_with_commercial(&s, None, &compiled, Box::new(out.clone()))?;

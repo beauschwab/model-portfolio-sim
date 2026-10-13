@@ -25,9 +25,10 @@ test('revised deposit expectations retain original yield in a durable verified j
 
 async function open(page: Page) {
   await page.goto('/');
-  const button = page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true });
+  const button = page.getByRole('button', { name: 'Open Stress', exact: true });
   await button.click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
   await panel.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(panel.getByRole('button', { name: 'Run partitioned simulation', exact: true })).toBeEnabled();
   return panel;
@@ -54,8 +55,9 @@ test('missing Rust disables execution without a Python fallback', async ({page})
     await route.fulfill({response,json:{...(await response.json()),rust:false}});
   });
   await page.goto('/');
-  await page.getByRole('button',{name:'Open Balance-sheet Stress',exact:true}).click();
-  const panel=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+  await page.getByRole('button',{name:'Open Stress',exact:true}).click();
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const panel=page.getByRole('region',{name:'Stress',exact:true});
   await panel.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
   await expect(panel.getByLabel('Partitioned engine',{exact:true}).locator('option')).toHaveText('Rust — unavailable');
   await expect(panel.getByRole('button',{name:'Run partitioned simulation',exact:true})).toBeDisabled();
@@ -137,7 +139,8 @@ test('real Rust run pages, downloads, reopens and never fetches full result', as
   expect(engineBounds!.x + engineBounds!.width).toBeLessThanOrEqual(panelBounds!.x + panelBounds!.width);
   await page.screenshot({ path: 'test-results/partitioned-stress-narrow.png', fullPage: true });
   await page.reload();
-  const restored = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
+  const restored = page.getByRole('region', { name: 'Stress', exact: true });
   await restored.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID', { exact: true })).toHaveValue(id);
   await expect(restored.getByText('Saved journal verified', { exact: true })).toBeVisible();

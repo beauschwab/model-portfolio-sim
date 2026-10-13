@@ -174,6 +174,25 @@ verified. Economic modeled loss is not deducted a second time from posted capita
 The Capital & FTP panel exposes this durable source bridge; regulatory eligibility,
 commitment CCF/leverage additions and requirements remain explicit policy inputs.
 
+Engine 0.29.6 raises the native product ABI to 9. The mortgage kernels (ops 4, 5
+and 10) take a ninth per-pool vector, the prepay speed multiplier, directly after
+the static multiplier; ops 28 and 29 take it as their last input, empty for
+"1 everywhere". `mortgage-risk-1`, owned mortgage JSON and accounting requests
+accept an optional `prepay_multiplier` array of the same length as the book.
+An ABI-8 binary is refused by the ABI check; rebuild and restart.
+
+Engine 0.29.7 raises the native product ABI to 10. The deposit kernels (ops 6
+and 7) take the terminal-treatment code (0 payout, 1 truncate, 2 runoff_tail) as
+their last input, and op 6 returns a seventh output: per-cohort path sums of the
+residual balance before terminal treatment. Every deposit JSON request accepts
+an optional `assumptions.terminal` (`payout` when omitted, never serialized, so
+default request hashes and cache identities are unchanged; unknown names are
+rejected). `deposit-risk-1` adds `residual` ($). `deposit-horizon-1` takes the
+`deposit-risk-1` request with `horizons` as report horizons in months (1..8,
+increasing, first >= 2, at most 482 on the 161-forward grid, no `shocks`) and
+returns `policy`, `base_mode`, `modes`, fixed `oas`, `residual[h][i]`,
+`pv[h][m][i]`, `terminal_pv[h][m][i]` and `implied_oas[h][m][i]`.
+
 ## Validation and remaining work
 
 Independent Rust fixtures and `test_native_model_contracts.py` cover analytical

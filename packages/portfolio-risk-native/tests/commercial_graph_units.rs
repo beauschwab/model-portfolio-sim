@@ -125,8 +125,7 @@ fn option_free_leap_year_stubs_retain_actual_principal_payment_dates() {
             p.periods[0].start_ordinal = 738944;
             p.periods[0].end_ordinal = 738945;
             p.periods[0].payment_ordinal = 738945;
-            p.periods[0].day_count =
-                portfolio_model_core::cashflow::ActualDayCount::ActActIsda;
+            p.periods[0].day_count = portfolio_model_core::cashflow::ActualDayCount::ActActIsda;
             second.period_id = "stub-two".into();
             second.start_ordinal = 738945;
             second.end_ordinal = 738947;

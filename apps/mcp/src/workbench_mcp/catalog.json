@@ -3800,6 +3800,15 @@
                 "title": "Kind",
                 "type": "string"
               },
+              "priority": {
+                "default": "interactive",
+                "enum": [
+                  "interactive",
+                  "background"
+                ],
+                "title": "Priority",
+                "type": "string"
+              },
               "scenario": {
                 "anyOf": [
                   {

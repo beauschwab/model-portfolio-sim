@@ -13,14 +13,15 @@ function envelope(payload: unknown, frames: Uint8Array[] = []) {
 test("optimizer retains input focus and workspace restores", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   await page.goto("/");
-  await page.getByRole("button", { name: "Open Optimizer", exact: true }).click();
-  const floor = page.getByRole("region", { name: "Optimizer", exact: true }).getByRole("spinbutton").first();
+  await page.getByRole("button", { name: "Open Decide", exact: true }).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'Optimize', exact: true }).click();
+  const floor = page.getByRole("region", { name: "Decide", exact: true }).getByRole("spinbutton").first();
   await floor.fill("1");
   await floor.pressSequentially(".25", { delay: 100 });
   await expect(floor).toBeFocused();
   await expect(floor).toHaveValue("1.25");
   await page.reload();
-  await expect(page.getByRole("region", { name: "Optimizer", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Decide", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -30,12 +31,13 @@ test("balance popover survives repeated slider changes", async ({ page }) => {
   const panel = page.getByRole("region", { name: "Positions", exact: true });
   await panel.getByRole("cell", { name: /▸mbs/ }).click();
   await panel.locator("tbody tr").filter({ has: page.locator("button span.num") }).first().locator("button").first().click();
-  const slider = panel.getByRole("slider");
+  // popovers render in a portal, outside the scrolling panel
+  const slider = page.getByRole("slider");
   await slider.focus();
   await slider.press("ArrowRight"); await slider.press("ArrowRight");
   await expect(slider).toHaveValue("1.1");
   await expect(slider).toBeFocused();
-  await expect(panel.getByText("110% of booked", { exact: true })).toBeVisible();
+  await expect(page.getByText("110% of booked", { exact: true })).toBeVisible();
 });
 
 test("table bounds rows and unchanged JSON book saves", async ({ page }) => {
@@ -45,7 +47,7 @@ test("table bounds rows and unchanged JSON book saves", async ({ page }) => {
   await expect(panel.locator("tbody tr")).toHaveCount(100);
   await panel.getByRole("button", { name: "Next", exact: true }).click();
   await expect(panel.locator("tbody tr")).toHaveCount(20);
-  await panel.getByRole("button", { name: "loans", exact: true }).click();
+  await panel.getByRole("tab", { name: "loans", exact: true }).click();
   await expect(panel.getByText("loans — 90 positions", { exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Edit book (JSON)", exact: true }).click();
   const saved = page.waitForResponse(r => r.url().endsWith("/api/books/loans") && r.request().method() === "PUT");
@@ -69,9 +71,9 @@ test("late strategy response cannot replace latest allocation", async ({ page })
         lcr_pct: 150, nsfr_pct: 150, cet1_q9_pct: 12 } }), contentType: "application/octet-stream" }).catch(() => {});
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Open Strategy Lab", exact: true }).click();
+  await page.getByRole("button", { name: "Open Decide", exact: true }).click();
   await started;
-  const panel = page.getByRole("region", { name: "Strategy Lab", exact: true });
+  const panel = page.getByRole("region", { name: "Decide", exact: true });
   await panel.getByRole("textbox").first().fill("3000000000");
   await expect(panel.getByText("$222.0M", { exact: true })).toBeVisible();
   releaseOld();
@@ -79,11 +81,11 @@ test("late strategy response cannot replace latest allocation", async ({ page })
   await expect(panel.getByText("$222.0M", { exact: true })).toBeVisible();
 });
 
-test("panel job updates global telemetry and shared KPIs", async ({ page }) => {
+test("top-bar run updates global telemetry and shared KPIs", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Open KPIs", exact: true }).click();
   const panel = page.getByRole("region", { name: "KPIs", exact: true });
-  await panel.getByRole("button", { name: "Compute KPIs", exact: true }).click();
+  await page.getByRole("button", { name: "Run sheet", exact: true }).click();
   await expect(page.getByTitle("Run the KPI sheet (⌘K for more)")).toBeDisabled();
   await expect(panel.getByText("EVE", { exact: true }).first()).toBeVisible({ timeout: 50_000 });
   await page.getByRole("button", { name: "Open Morning Sheet", exact: true }).click();
@@ -92,6 +94,7 @@ test("panel job updates global telemetry and shared KPIs", async ({ page }) => {
 });
 
 test("equal asset and liability sensitivities cancel on Risk Desk", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   await page.route("**/api/state", route => route.fulfill({ json: { revision: 0, library_ready: false, library_horizon: null } }));
   const job = { id: "signed-risk", kind: "risk", status: "done", revision: 0 };
   await page.route("**/api/run", route => route.fulfill({ json: job }));
@@ -104,6 +107,6 @@ test("equal asset and liability sensitivities cancel on Risk Desk", async ({ pag
   await page.goto("/");
   await page.getByRole("button", { name: "Open Risk Desk", exact: true }).click();
   const panel = page.getByRole("region", { name: "Risk Desk", exact: true });
-  await panel.getByRole("button", { name: "Risk", exact: true }).click();
+  await panel.getByRole("button", { name: "Refresh risk", exact: true }).click();
   await expect(panel.getByText("net dv01 (selected books) $0/bp", { exact: true })).toBeVisible();
 });

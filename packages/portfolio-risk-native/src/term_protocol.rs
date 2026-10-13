@@ -61,13 +61,31 @@ struct AdvancedCaptureRequest {
 #[serde(tag = "schema", deny_unknown_fields)]
 enum Request {
     #[serde(rename = "commercial-holding-continuation-1")]
-    CommercialContinuation { threads: usize, execution_timeout_ms: u64, request: Box<crate::commercial_continuation::Request> },
+    CommercialContinuation {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::commercial_continuation::Request>,
+    },
     #[serde(rename = "commercial-generated-exercise-1")]
-    CommercialGeneratedExercise { threads: usize, execution_timeout_ms: u64, request: Box<crate::commercial_stochastic_exercise::Request> },
+    CommercialGeneratedExercise {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::commercial_stochastic_exercise::Request>,
+    },
     #[serde(rename = "commercial-product-graph-1")]
-    CommercialGraph { threads: usize, #[serde(default)] execution_timeout_ms: Option<u64>, request: Box<crate::commercial_graph::Request> },
+    CommercialGraph {
+        threads: usize,
+        #[serde(default)]
+        execution_timeout_ms: Option<u64>,
+        request: Box<crate::commercial_graph::Request>,
+    },
     #[serde(rename = "commercial-units-1")]
-    CommercialUnits { threads: usize, #[serde(default)] execution_timeout_ms: Option<u64>, request: Box<crate::commercial_units::Request> },
+    CommercialUnits {
+        threads: usize,
+        #[serde(default)]
+        execution_timeout_ms: Option<u64>,
+        request: Box<crate::commercial_units::Request>,
+    },
     #[serde(rename = "product-units-1")]
     ProductUnits {
         threads: usize,
@@ -414,6 +432,11 @@ enum Request {
         threads: usize,
         request: DepositDeckInput,
     },
+    #[serde(rename = "deposit-horizon-1")]
+    DepositHorizon {
+        threads: usize,
+        request: Box<crate::deposit_lifecycle::DepositRequest>,
+    },
     #[serde(rename = "term-risk-1")]
     Risk {
         threads: usize,
@@ -445,6 +468,7 @@ enum Output {
     DepositRisk(Box<crate::deposit_lifecycle::DepositRisk>),
     DepositStress(Box<crate::deposit_lifecycle::DepositStress>),
     DepositDeck(Box<crate::deposit_lifecycle::DepositDeck>),
+    DepositHorizon(Box<crate::deposit_lifecycle::DepositHorizon>),
     Risk(RiskResult),
     Deck(Box<Deck>),
 }
@@ -474,23 +498,53 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     }
     let request: Request = serde_json::from_slice(input).map_err(|e| e.to_string())?;
     let selected_timeout = match &request {
-        Request::CommercialGeneratedExercise { execution_timeout_ms, .. } | Request::CommercialContinuation { execution_timeout_ms, .. } | Request::NonintegralFees { execution_timeout_ms, .. } => Some(*execution_timeout_ms),
-        Request::CommercialGraph { execution_timeout_ms, .. } | Request::CommercialUnits { execution_timeout_ms, .. } => *execution_timeout_ms,
+        Request::CommercialGeneratedExercise {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::CommercialContinuation {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::NonintegralFees {
+            execution_timeout_ms,
+            ..
+        } => Some(*execution_timeout_ms),
+        Request::CommercialGraph {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::CommercialUnits {
+            execution_timeout_ms,
+            ..
+        } => *execution_timeout_ms,
         _ => None,
     };
     let generated_control = if let Some(execution_timeout_ms) = selected_timeout {
         let control = if let Some(parent) = portfolio_compute_control::active() {
             parent.child_started(execution_timeout_ms, started)?
-        } else { portfolio_compute_control::Control::from_started(execution_timeout_ms, started)? };
+        } else {
+            portfolio_compute_control::Control::from_started(execution_timeout_ms, started)?
+        };
         portfolio_compute_control::scope(Some(control.clone()), || {
-            let limit = if matches!(&request, Request::CommercialGeneratedExercise { .. }) { 1 << 20 }
-                else if matches!(&request, Request::NonintegralFees { .. }) { portfolio_model_core::nonintegral_fee::MAX_INPUT }
-                else { 32 << 20 };
-            portfolio_model_core::strict_json::parse_checked(input, limit + 4096, portfolio_compute_control::checkpoint)?;
+            let limit = if matches!(&request, Request::CommercialGeneratedExercise { .. }) {
+                1 << 20
+            } else if matches!(&request, Request::NonintegralFees { .. }) {
+                portfolio_model_core::nonintegral_fee::MAX_INPUT
+            } else {
+                32 << 20
+            };
+            portfolio_model_core::strict_json::parse_checked(
+                input,
+                limit + 4096,
+                portfolio_compute_control::checkpoint,
+            )?;
             Ok(())
         })?;
         Some(control)
-    } else { None };
+    } else {
+        None
+    };
     let threads = match &request {
         Request::CommercialGeneratedExercise { threads, .. }
         | Request::NonintegralFees { threads, .. }
@@ -566,17 +620,24 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::Deck { threads, .. }
         | Request::DepositRisk { threads, .. }
         | Request::DepositStress { threads, .. }
-        | Request::DepositDeck { threads, .. } => *threads,
+        | Request::DepositDeck { threads, .. }
+        | Request::DepositHorizon { threads, .. } => *threads,
     };
     if !(1..=256).contains(&threads) {
         return Err("invalid native thread count".into());
     }
     // Propagate only this new analytical branch's caller control across Rayon.
     // Legacy branches retain their existing execution and None-path behavior.
-    let adapter_control = if generated_control.is_some() { generated_control } else if matches!(
+    let adapter_control = if generated_control.is_some() {
+        generated_control
+    } else if matches!(
         &request,
-        Request::TermSequenceGraph { .. } | Request::TermSequenceGraphReprice { .. }
-        | Request::CommercialGraph { .. } | Request::CommercialUnits { .. } | Request::CommercialGeneratedExercise { .. } | Request::CommercialContinuation { .. }
+        Request::TermSequenceGraph { .. }
+            | Request::TermSequenceGraphReprice { .. }
+            | Request::CommercialGraph { .. }
+            | Request::CommercialUnits { .. }
+            | Request::CommercialGeneratedExercise { .. }
+            | Request::CommercialContinuation { .. }
     ) || matches!(&request, Request::MarketIndexedAdapter { .. })
         || matches!(&request, Request::JointState { .. })
         || matches!(&request, Request::JointMarketCredit { .. })
@@ -592,37 +653,82 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     };
     let pool = crate::pool(threads).map_err(|_| "native thread pool unavailable")?;
     pool.install(|| match request {
-        Request::NonintegralFees { request, .. } => portfolio_compute_control::scope(adapter_control, || {
-            let result=portfolio_model_core::nonintegral_fee::evaluate_with_check(&request, portfolio_compute_control::checkpoint)?;
-            portfolio_model_core::strict_json::serialized_size(&result, portfolio_model_core::nonintegral_fee::MAX_OUTPUT)?;
-            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e| e.to_string())?))
-        }),
-        Request::CommercialContinuation { request, .. } => portfolio_compute_control::scope(adapter_control, || {
-            let result=crate::commercial_continuation::evaluate(&request)?;
-            portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
-            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
-        }),
-        Request::CommercialGeneratedExercise { request, .. } => portfolio_compute_control::scope(adapter_control, || {
-            let result=crate::commercial_stochastic_exercise::analyze(&request)?;
-            portfolio_compute_control::checkpoint()?;
-            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
-        }),
-        Request::CommercialGraph { request, .. } => portfolio_compute_control::scope(adapter_control, || {
-            if request.positions.iter().any(|p|p.generated_policy.as_ref().is_some_and(|g|g.oas_calibration.is_some())) && portfolio_compute_control::active().is_none() {
-                return Err("generated OAS calibration requires original execution deadline".into());
-            }
-            let result=crate::commercial_graph::analyze(&request)?;
-            portfolio_compute_control::checkpoint()?;
-            Ok(Output::Kpi(serde_json::to_value(result).map_err(|e|e.to_string())?))
-        }),
-        Request::CommercialUnits { request, .. } => portfolio_compute_control::scope(adapter_control, || {
-            if request.units.iter().flat_map(|u|&u.graph.positions).any(|p|p.generated_policy.as_ref().is_some_and(|g|g.oas_calibration.is_some())) && portfolio_compute_control::active().is_none() {
-                return Err("generated OAS calibration requires original execution deadline".into());
-            }
-            let result=crate::commercial_units::prepare(&request)?;
-            portfolio_compute_control::checkpoint()?;
-            Ok(Output::Kpi(serde_json::to_value(result.source()).map_err(|e|e.to_string())?))
-        }),
+        Request::NonintegralFees { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = portfolio_model_core::nonintegral_fee::evaluate_with_check(
+                    &request,
+                    portfolio_compute_control::checkpoint,
+                )?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    portfolio_model_core::nonintegral_fee::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::CommercialContinuation { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::commercial_continuation::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::CommercialGeneratedExercise { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::commercial_stochastic_exercise::analyze(&request)?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::CommercialGraph { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                if request.positions.iter().any(|p| {
+                    p.generated_policy
+                        .as_ref()
+                        .is_some_and(|g| g.oas_calibration.is_some())
+                }) && portfolio_compute_control::active().is_none()
+                {
+                    return Err(
+                        "generated OAS calibration requires original execution deadline".into(),
+                    );
+                }
+                let result = crate::commercial_graph::analyze(&request)?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::CommercialUnits { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                if request
+                    .units
+                    .iter()
+                    .flat_map(|u| &u.graph.positions)
+                    .any(|p| {
+                        p.generated_policy
+                            .as_ref()
+                            .is_some_and(|g| g.oas_calibration.is_some())
+                    })
+                    && portfolio_compute_control::active().is_none()
+                {
+                    return Err(
+                        "generated OAS calibration requires original execution deadline".into(),
+                    );
+                }
+                let result = crate::commercial_units::prepare(&request)?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result.source()).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
         Request::ProductUnits { request, .. } => Ok(Output::Kpi(
             serde_json::to_value(crate::product_units::prepare(&request)?)
                 .map_err(|e| e.to_string())?,
@@ -1014,6 +1120,9 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             crate::deposit_lifecycle::DepositDeck::new(&request.book, &request.assumptions)
                 .map(|v| Output::DepositDeck(Box::new(v)))
         }
+        Request::DepositHorizon { request, .. } => request
+            .horizon_sensitivity()
+            .map(|v| Output::DepositHorizon(Box::new(v))),
         Request::Risk { request, .. } => request.run().map(Output::Risk),
         Request::Deck { request, .. } => request.build().map(|deck| Output::Deck(Box::new(deck))),
     })
@@ -1076,13 +1185,21 @@ pub fn respond(input: &[u8]) -> (Vec<u8>, bool) {
 }
 pub fn respond_started(input: &[u8], started: std::time::Instant) -> (Vec<u8>, bool) {
     if let Some(selected) = crate::commercial_stochastic_boundary::selected(input, started, || {
-        let result = std::panic::catch_unwind(|| execute(input)).unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
+        let result = std::panic::catch_unwind(|| execute(input))
+            .unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
         let mut output = crate::commercial_stochastic_boundary::Output(Vec::new());
-        serde_json::to_writer(&mut output, &Response::Success { ok: true, result }).map_err(|e|e.to_string())?;
+        serde_json::to_writer(&mut output, &Response::Success { ok: true, result })
+            .map_err(|e| e.to_string())?;
         portfolio_compute_control::checkpoint()?;
         Ok(output.0)
     }) {
-        return match selected { Ok(output)=>(output,true),Err(error)=>(serde_json::to_vec(&Response::Error {ok:false,error}).unwrap(),false) };
+        return match selected {
+            Ok(output) => (output, true),
+            Err(error) => (
+                serde_json::to_vec(&Response::Error { ok: false, error }).unwrap(),
+                false,
+            ),
+        };
     }
     let result = std::panic::catch_unwind(|| execute(input))
         .unwrap_or_else(|_| Err("native term request failed validation".into()));

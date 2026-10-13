@@ -13,49 +13,119 @@ fn main() {
             return Err("model ledger input exceeds 32 MiB".into());
         }
         let value: Value = serde_json::from_slice(&input).map_err(|e| e.to_string())?;
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("commercial-credit-ledger-1") {
-            return portfolio_decision_native::commercial_ledger::run_started(&input,&mut io::stdout(),dispatcher_started);
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("commercial-credit-ledger-1")
+        {
+            return portfolio_decision_native::commercial_ledger::run_started(
+                &input,
+                &mut io::stdout(),
+                dispatcher_started,
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("saved-derivative-deposit-portfolio-mixed-1") {
-            return portfolio_decision_native::joint_deposit_derivative::run_started(&input,&mut io::stdout(),dispatcher_started);
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("saved-derivative-deposit-portfolio-mixed-1")
+        {
+            return portfolio_decision_native::joint_deposit_derivative::run_started(
+                &input,
+                &mut io::stdout(),
+                dispatcher_started,
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("deposit-performing-portfolio-ledger-2") {
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("deposit-performing-portfolio-ledger-2")
+        {
             use portfolio_ledger_native::deposit_source_portfolio;
-            let (request,timeout,raw)=deposit_source_portfolio::parse_envelope(&input)?;
-            return portfolio_compute_control::scope(Some(portfolio_compute_control::Control::new(timeout)?),|| {
-                let prepared=deposit_source_portfolio::prepare(request)?;
-                deposit_source_portfolio::run_public(&raw,&prepared,Box::new(io::stdout()))
-            });
+            let (request, timeout, raw) = deposit_source_portfolio::parse_envelope(&input)?;
+            return portfolio_compute_control::scope(
+                Some(portfolio_compute_control::Control::new(timeout)?),
+                || {
+                    let prepared = deposit_source_portfolio::prepare(request)?;
+                    deposit_source_portfolio::run_public(&raw, &prepared, Box::new(io::stdout()))
+                },
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("saved-derivative-mixed-1") {
-            return portfolio_decision_native::saved_derivative_mixed::public::run_started(&input,&mut io::stdout(),dispatcher_started);
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("saved-derivative-mixed-1")
+        {
+            return portfolio_decision_native::saved_derivative_mixed::public::run_started(
+                &input,
+                &mut io::stdout(),
+                dispatcher_started,
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("deposit-performing-income-ledger-1") {
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("deposit-performing-income-ledger-1")
+        {
             use portfolio_ledger_native::deposit_source_principal;
-            let (request,timeout,raw)=deposit_source_principal::parse_envelope(&input)?;
-            return portfolio_compute_control::scope(Some(portfolio_compute_control::Control::new(timeout)?),|| {
-                let prepared=deposit_source_principal::prepare(request)?;
-                deposit_source_principal::run_public(prepared,raw,Box::new(io::stdout()))
-            });
+            let (request, timeout, raw) = deposit_source_principal::parse_envelope(&input)?;
+            return portfolio_compute_control::scope(
+                Some(portfolio_compute_control::Control::new(timeout)?),
+                || {
+                    let prepared = deposit_source_principal::prepare(request)?;
+                    deposit_source_principal::run_public(prepared, raw, Box::new(io::stdout()))
+                },
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("deposit-revised-income-ledger-1") {
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("deposit-revised-income-ledger-1")
+        {
             use portfolio_ledger_native::deposit_revision;
             let (request, timeout, raw) = deposit_revision::parse_envelope(&input)?;
-            return portfolio_compute_control::scope(Some(portfolio_compute_control::Control::new(timeout)?), || {
-                let prepared = deposit_revision::prepare(request)?;
-                deposit_revision::run_public(prepared, raw, Box::new(io::stdout()))
-            });
+            return portfolio_compute_control::scope(
+                Some(portfolio_compute_control::Control::new(timeout)?),
+                || {
+                    let prepared = deposit_revision::prepare(request)?;
+                    deposit_revision::run_public(prepared, raw, Box::new(io::stdout()))
+                },
+            );
         }
-        if value.get("request").and_then(|r|r.get("schema")).and_then(Value::as_str)==Some("mortgage-mixed-accounting-1") {
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
+            == Some("mortgage-mixed-accounting-1")
+        {
             #[derive(serde::Deserialize)]
             #[serde(deny_unknown_fields)]
-            struct Envelope { request: portfolio_ledger_native::mortgage_pending_owner::Request, execution_timeout_ms:u64 }
-            let envelope:Envelope=serde_json::from_slice(&input).map_err(|e|e.to_string())?;
-            if input.len()>1024*1024 { return Err("mortgage raw envelope1MiB bound".into()); }
-            return portfolio_compute_control::scope(Some(portfolio_compute_control::Control::new(envelope.execution_timeout_ms)?),|| {
-                let prepared=portfolio_ledger_native::mortgage_pending_owner::prepare(envelope.request)?;
-                portfolio_ledger_native::mortgage_pending_owner::run(&prepared,Box::new(io::stdout()))
-            });
+            struct Envelope {
+                request: portfolio_ledger_native::mortgage_pending_owner::Request,
+                execution_timeout_ms: u64,
+            }
+            let envelope: Envelope = serde_json::from_slice(&input).map_err(|e| e.to_string())?;
+            if input.len() > 1024 * 1024 {
+                return Err("mortgage raw envelope1MiB bound".into());
+            }
+            return portfolio_compute_control::scope(
+                Some(portfolio_compute_control::Control::new(
+                    envelope.execution_timeout_ms,
+                )?),
+                || {
+                    let prepared =
+                        portfolio_ledger_native::mortgage_pending_owner::prepare(envelope.request)?;
+                    portfolio_ledger_native::mortgage_pending_owner::run(
+                        &prepared,
+                        Box::new(io::stdout()),
+                    )
+                },
+            );
         }
         drop(input);
         let timeout = value

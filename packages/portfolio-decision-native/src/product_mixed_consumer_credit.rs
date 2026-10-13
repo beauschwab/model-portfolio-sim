@@ -75,8 +75,10 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
         reservation.work,
         reservation.retained_bytes,
     )?;
-    performing.combined_dated_request.specification=r.combined_specification.clone();
-    performing.combined_dated_request.specification["horizon_days"]=serde_json::json!(performing.full_end_ordinal-performing.combined_dated_request.dated.as_of_ordinal);
+    performing.combined_dated_request.specification = r.combined_specification.clone();
+    performing.combined_dated_request.specification["horizon_days"] = serde_json::json!(
+        performing.full_end_ordinal - performing.combined_dated_request.dated.as_of_ordinal
+    );
     // Existing raw source and individual original ends remain unchanged in receipt.
     let compiled = CompiledDatedLedger::compile_with_acquisitions(
         performing.combined_dated_request.clone(),

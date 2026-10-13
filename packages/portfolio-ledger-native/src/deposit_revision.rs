@@ -499,22 +499,38 @@ struct LimitedOutput {
 impl std::io::Write for LimitedOutput {
     fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
         portfolio_compute_control::checkpoint().map_err(std::io::Error::other)?;
-        let next = self.bytes.checked_add(data.len()).ok_or_else(|| std::io::Error::other("output count overflow"))?;
+        let next = self
+            .bytes
+            .checked_add(data.len())
+            .ok_or_else(|| std::io::Error::other("output count overflow"))?;
         if next > source::MAX_BYTES {
-            return Err(std::io::Error::other("joined source/stream output32MiB cap"));
+            return Err(std::io::Error::other(
+                "joined source/stream output32MiB cap",
+            ));
         }
         let written = self.output.write(data)?;
-        self.bytes = self.bytes.checked_add(written).ok_or_else(|| std::io::Error::other("output count overflow"))?;
+        self.bytes = self
+            .bytes
+            .checked_add(written)
+            .ok_or_else(|| std::io::Error::other("output count overflow"))?;
         Ok(written)
     }
-    fn flush(&mut self) -> std::io::Result<()> { self.output.flush() }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.output.flush()
+    }
 }
 
 /// The existing modeled-source wire; all financial amounts remain native source owned.
-pub fn run_public(p: Prepared, raw: Value, output: Box<dyn std::io::Write + Send>) -> Result<(), String> {
+pub fn run_public(
+    p: Prepared,
+    raw: Value,
+    output: Box<dyn std::io::Write + Send>,
+) -> Result<(), String> {
     use std::io::Write;
-    let (typed, _) = parse_request(&serde_json::to_vec(&raw).map_err(|e|e.to_string())?)?;
-    if serde_json::to_vec(&typed).map_err(|e|e.to_string())? != serde_json::to_vec(&p.raw_request).map_err(|e|e.to_string())? {
+    let (typed, _) = parse_request(&serde_json::to_vec(&raw).map_err(|e| e.to_string())?)?;
+    if serde_json::to_vec(&typed).map_err(|e| e.to_string())?
+        != serde_json::to_vec(&p.raw_request).map_err(|e| e.to_string())?
+    {
         return Err("original revised deposit raw request differs from prepared source".into());
     }
     drop(typed);
@@ -530,13 +546,15 @@ pub fn run_public(p: Prepared, raw: Value, output: Box<dyn std::io::Write + Send
             "accounting_standard_approval":false, "installed_adoption":false, "capital_ftp_eligible":false
         }
     }});
-    let bytes = serde_json::to_vec(&header).map_err(|e|e.to_string())?;
-    if bytes.len() > p.admission.reserved_bytes { return Err("actual retained header exceeds reservation".into()); }
+    let bytes = serde_json::to_vec(&header).map_err(|e| e.to_string())?;
+    if bytes.len() > p.admission.reserved_bytes {
+        return Err("actual retained header exceeds reservation".into());
+    }
     portfolio_compute_control::checkpoint()?;
-    let mut output = LimitedOutput { output, bytes:0 };
-    output.write_all(&bytes).map_err(|e|e.to_string())?;
-    output.write_all(b"\n").map_err(|e|e.to_string())?;
-    output.flush().map_err(|e|e.to_string())?;
+    let mut output = LimitedOutput { output, bytes: 0 };
+    output.write_all(&bytes).map_err(|e| e.to_string())?;
+    output.write_all(b"\n").map_err(|e| e.to_string())?;
+    output.flush().map_err(|e| e.to_string())?;
     drop(header);
     drop(bytes);
     run(p, Box::new(output))

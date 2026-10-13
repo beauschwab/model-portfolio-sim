@@ -22,6 +22,7 @@ pub fn domain(book: &str, field: &str) -> Option<(f64, f64)> {
         ("mbs", "fico") => (300., 850.),
         ("mbs", "avg_loan_size") => (1., 1e8),
         ("mbs", "hpi_orig_ratio") => (0.01, 100.),
+        ("mbs", "prepay_mult") => (0., 10.),
         ("loans" | "debt", "coupon_or_spread") => (-0.1, 0.5),
         ("loans" | "debt", "cap" | "floor") => (-0.1, 1.),
         ("loans" | "debt" | "cds", "call_threshold") => (0., 0.5),
@@ -42,7 +43,7 @@ fn default(field: &str) -> Option<f64> {
         "cap" => Some(10.),
         "floor" => Some(-10.),
         "call_threshold" => Some(0.005),
-        "ew_mult" => Some(1.),
+        "ew_mult" | "prepay_mult" => Some(1.),
         "svc_cost" => Some(0.),
         _ => None,
     }

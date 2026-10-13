@@ -83,9 +83,13 @@ impl CompiledDatedLedger {
     ) -> Result<Self, String> {
         Self::compile_inner(request, max_positions, max_work, Some(acquisitions), &[])
     }
-    pub fn compile_with_native_opening(request: DatedLedgerRequest, max_positions: usize,
-        max_work: usize, opening: &[crate::spec::NativeOpening]) -> Result<Self,String> {
-        Self::compile_inner(request,max_positions,max_work,None,opening)
+    pub fn compile_with_native_opening(
+        request: DatedLedgerRequest,
+        max_positions: usize,
+        max_work: usize,
+        opening: &[crate::spec::NativeOpening],
+    ) -> Result<Self, String> {
+        Self::compile_inner(request, max_positions, max_work, None, opening)
     }
     fn compile_inner(
         request: DatedLedgerRequest,
@@ -113,7 +117,12 @@ impl CompiledDatedLedger {
         let spec = if native_opening.is_empty() {
             crate::spec::normalize(request.specification, max_positions, max_work)?
         } else {
-            crate::spec::normalize_with_native_opening(request.specification,max_positions,max_work,native_opening)?
+            crate::spec::normalize_with_native_opening(
+                request.specification,
+                max_positions,
+                max_work,
+                native_opening,
+            )?
         };
         let store = DatedStore::build(request.dated)?;
         let acquisitions = acquisition_request

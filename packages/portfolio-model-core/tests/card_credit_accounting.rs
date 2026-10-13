@@ -1,10 +1,10 @@
 //! Public card accounting fixtures with independent hand accounting.
+use adapter::{evaluate, Request};
+use credit_accounting::{AccountCode, AccruedPolicy, BasisPolicy};
+use portfolio_model_core::card_credit_accounting as adapter;
 pub use portfolio_model_core::{
     cashflow, consumer_card, consumer_contract, credit_accounting, dated_income, limits,
 };
-use portfolio_model_core::card_credit_accounting as adapter;
-use adapter::{evaluate, Request};
-use credit_accounting::{AccountCode, AccruedPolicy, BasisPolicy};
 use serde_json::json;
 fn raw() -> serde_json::Value {
     serde_json::from_str(include_str!(

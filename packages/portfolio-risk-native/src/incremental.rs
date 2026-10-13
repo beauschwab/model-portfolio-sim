@@ -85,28 +85,75 @@ fn register(owner: Owner, controlled: bool) -> Result<u64, String> {
     handles.insert(handle, owner);
     Ok(handle)
 }
-pub(crate) fn retire_unpublished(handle:u64)->Result<(),String> {
-    HANDLES.get_or_init(||Mutex::new(HashMap::new())).lock().map_err(|_|"graph registry poisoned")?.remove(&handle);Ok(())
+pub(crate) fn retire_unpublished(handle: u64) -> Result<(), String> {
+    HANDLES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .map_err(|_| "graph registry poisoned")?
+        .remove(&handle);
+    Ok(())
 }
-fn controlled_lock<T>(mutex:&Mutex<T>)->Result<std::sync::MutexGuard<'_,T>,String> {
-    if portfolio_compute_control::active().is_none() {return mutex.lock().map_err(|_|"graph owner poisoned".into())}
+fn controlled_lock<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, String> {
+    if portfolio_compute_control::active().is_none() {
+        return mutex.lock().map_err(|_| "graph owner poisoned".into());
+    }
     loop {
         portfolio_compute_control::checkpoint()?;
         match mutex.try_lock() {
-            Ok(guard)=>{portfolio_compute_control::checkpoint()?;return Ok(guard)},
-            Err(std::sync::TryLockError::Poisoned(_))=>return Err("graph owner poisoned".into()),
-            Err(std::sync::TryLockError::WouldBlock)=>std::thread::sleep(std::time::Duration::from_millis(1)),
+            Ok(guard) => {
+                portfolio_compute_control::checkpoint()?;
+                return Ok(guard);
+            }
+            Err(std::sync::TryLockError::Poisoned(_)) => return Err("graph owner poisoned".into()),
+            Err(std::sync::TryLockError::WouldBlock) => {
+                std::thread::sleep(std::time::Duration::from_millis(1))
+            }
         }
     }
 }
 impl Request {
-    pub(crate) fn is_creation(&self)->bool {matches!(self,Self::CreateMarketIndexed{..}|Self::CreateMarketIndexedBooks{..})}
-    pub(crate) fn admit_runtime(&self)->Result<(),String> {
-        if self.is_creation() {return Ok(())}
-        let handle=match self {Self::Info{handle}|Self::Clear{handle}|Self::PriceMarketIndexed{handle,..}|Self::PriceMarketIndexedBooks{handle,..}=>*handle,_=>return Err("GRAPH_CONTROL_EXPLICIT_INDEXED_OPERATION_REQUIRED".into())};
-        let owner=HANDLES.get_or_init(||Mutex::new(HashMap::new())).lock().map_err(|_|"graph registry poisoned")?.get(&handle).cloned().ok_or("unknown graph cache handle")?;
-        let admitted=matches!((&owner,self),(Owner::MarketIndexed(_),Self::PriceMarketIndexed{..})|(Owner::MarketIndexedBooks(_),Self::PriceMarketIndexedBooks{..})|(Owner::MarketIndexed(_)|Owner::MarketIndexedBooks(_),Self::Info{..}|Self::Clear{..}));
-        if !admitted {return Err("GRAPH_OWNER_MISMATCH: controlled operation requires matching indexed owner".into())} Ok(())
+    pub(crate) fn is_creation(&self) -> bool {
+        matches!(
+            self,
+            Self::CreateMarketIndexed { .. } | Self::CreateMarketIndexedBooks { .. }
+        )
+    }
+    pub(crate) fn admit_runtime(&self) -> Result<(), String> {
+        if self.is_creation() {
+            return Ok(());
+        }
+        let handle = match self {
+            Self::Info { handle }
+            | Self::Clear { handle }
+            | Self::PriceMarketIndexed { handle, .. }
+            | Self::PriceMarketIndexedBooks { handle, .. } => *handle,
+            _ => return Err("GRAPH_CONTROL_EXPLICIT_INDEXED_OPERATION_REQUIRED".into()),
+        };
+        let owner = HANDLES
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .map_err(|_| "graph registry poisoned")?
+            .get(&handle)
+            .cloned()
+            .ok_or("unknown graph cache handle")?;
+        let admitted = matches!(
+            (&owner, self),
+            (Owner::MarketIndexed(_), Self::PriceMarketIndexed { .. })
+                | (
+                    Owner::MarketIndexedBooks(_),
+                    Self::PriceMarketIndexedBooks { .. }
+                )
+                | (
+                    Owner::MarketIndexed(_) | Owner::MarketIndexedBooks(_),
+                    Self::Info { .. } | Self::Clear { .. }
+                )
+        );
+        if !admitted {
+            return Err(
+                "GRAPH_OWNER_MISMATCH: controlled operation requires matching indexed owner".into(),
+            );
+        }
+        Ok(())
     }
     pub fn is_market_indexed(&self) -> bool {
         matches!(
@@ -257,8 +304,11 @@ impl Request {
                         }
                     }
                     Owner::MarketIndexedBooks(portfolio) => {
-                        let mut portfolio =
-                            if portfolio_compute_control::active().is_some() {controlled_lock(&portfolio)?} else {portfolio.lock().map_err(|_|"portfolio graph poisoned")?};
+                        let mut portfolio = if portfolio_compute_control::active().is_some() {
+                            controlled_lock(&portfolio)?
+                        } else {
+                            portfolio.lock().map_err(|_| "portfolio graph poisoned")?
+                        };
                         match other {
                             Self::Clear {..} => {portfolio.clear();Ok(portfolio.info())},
                             Self::Info {..} => Ok(portfolio.info()),
@@ -268,8 +318,11 @@ impl Request {
                         }
                     }
                     Owner::MarketIndexed(graph) => {
-                        let mut graph =
-                            if portfolio_compute_control::active().is_some() {controlled_lock(&graph)?} else {graph.lock().map_err(|_|"market indexed graph poisoned")?};
+                        let mut graph = if portfolio_compute_control::active().is_some() {
+                            controlled_lock(&graph)?
+                        } else {
+                            graph.lock().map_err(|_| "market indexed graph poisoned")?
+                        };
                         match other {
                             Self::Clear { .. } => { graph.clear(); Ok(graph.info()) }
                             Self::Info { .. } => Ok(graph.info()),
@@ -395,7 +448,9 @@ impl<'a> Book<'a> {
                         } else {
                             b.request.original_hpi[i]
                         };
-                        json!((row, hpi))
+                        // the speed multiplier changes cash flows, so it is part of the identity
+                        let speed = b.request.prepay_multiplier.get(i).copied().unwrap_or(1.);
+                        json!((row, hpi, speed))
                     }
                     Self::Term(b) => {
                         let mut c = b.deck.contracts[i].clone();
@@ -439,9 +494,18 @@ impl<'a> Book<'a> {
                 } else {
                     indices.iter().map(|&i| b.request.original_hpi[i]).collect()
                 };
+                let speeds: Vec<_> = if b.request.prepay_multiplier.is_empty() {
+                    vec![]
+                } else {
+                    indices
+                        .iter()
+                        .map(|&i| b.request.prepay_multiplier[i])
+                        .collect()
+                };
                 let mut raw = b.request.borrow();
                 raw.book = &selected;
                 raw.original_hpi = &original;
+                raw.prepay_multiplier = &speeds;
                 raw.fixed_oas = &[];
                 raw.config.base_paths = p;
                 raw.config.sensitivity_paths = p;
@@ -1325,7 +1389,20 @@ fn compare(
 }
 
 #[cfg(test)]
-pub(crate) fn with_test_indexed_owner_lock(handle:u64,call:impl FnOnce()) {
-    let owner=HANDLES.get().unwrap().lock().unwrap().get(&handle).unwrap().clone();
-    match owner {Owner::MarketIndexedBooks(owner)=>{let _guard=owner.lock().unwrap();call()},_=>panic!("expected indexed books")}
+pub(crate) fn with_test_indexed_owner_lock(handle: u64, call: impl FnOnce()) {
+    let owner = HANDLES
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .get(&handle)
+        .unwrap()
+        .clone();
+    match owner {
+        Owner::MarketIndexedBooks(owner) => {
+            let _guard = owner.lock().unwrap();
+            call()
+        }
+        _ => panic!("expected indexed books"),
+    }
 }

@@ -1,44 +1,50 @@
+/* Dockview chrome on Aperture tokens (src/styles/aperture.css). */
 .dockview-theme-rates {
-  --dv-activegroup-visiblepanel-tab-background-color: #2b3139;
-  --dv-activegroup-hiddenpanel-tab-background-color: #1e2329;
-  --dv-inactivegroup-visiblepanel-tab-background-color: #1e2329;
-  --dv-inactivegroup-hiddenpanel-tab-background-color: #1e2329;
-  --dv-activegroup-visiblepanel-tab-color: #fcd535;
-  --dv-activegroup-hiddenpanel-tab-color: #929aa5;
-  --dv-inactivegroup-visiblepanel-tab-color: #eaecef;
-  --dv-inactivegroup-hiddenpanel-tab-color: #707a8a;
-  --dv-separator-border: #2b3139;
-  --dv-paneview-active-outline-color: #fcd535;
-  --dv-tabs-and-actions-container-background-color: #1e2329;
-  --dv-tabs-container-scrollbar-color: #363c45;
-  --dv-group-view-background-color: #0b0e11;
-  --dv-drag-over-background-color: rgba(252, 213, 53, 0.13);
-  --dv-drag-over-border-color: rgba(252, 213, 53, 0.72);
-  --dv-icon-hover-background-color: #363c45;
-  --dv-floating-box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--surface-1);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--gray-900);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--gray-900);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--gray-900);
+  --dv-activegroup-visiblepanel-tab-color: var(--text-heading);
+  --dv-activegroup-hiddenpanel-tab-color: var(--text-secondary);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text-secondary);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-tertiary);
+  --dv-separator-border: var(--border-subtle);
+  --dv-paneview-active-outline-color: var(--accent);
+  --dv-tabs-and-actions-container-background-color: var(--gray-900);
+  --dv-tabs-container-scrollbar-color: var(--gray-700);
+  --dv-group-view-background-color: var(--bg-canvas);
+  --dv-drag-over-background-color: var(--yellow-softer);
+  --dv-drag-over-border-color: var(--accent);
+  --dv-icon-hover-background-color: var(--gray-700);
+  --dv-floating-box-shadow: var(--shadow-lg);
   height: 100%;
   width: 100%;
-  color: #eaecef;
-  background: #0b0e11;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
 }
 
 .rates-dockview .dv-groupview {
-  background: #0b0e11;
+  background: var(--bg-canvas);
 }
 
 .rates-dockview .dv-tabs-and-actions-container {
   min-height: 34px;
-  border-bottom: 1px solid #2b3139;
-  font-family: Inter, system-ui, sans-serif;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-sans);
 }
 
 .rates-dockview .dv-tab {
-  border-right: 1px solid #2b3139;
-  font-size: 12px;
+  border-right: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
 }
 
 .rates-dockview .dv-tab.dv-active-tab {
-  box-shadow: inset 0 -2px #fcd535;
+  box-shadow: inset 0 -2px var(--accent);
+  font-weight: 600;
+}
+
+.rates-dockview .dv-tab {
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 
 .rates-dockview .dv-default-tab-content {
@@ -51,14 +57,14 @@
 
 .rates-dockview .dv-split-view-container > .dv-sash-container .dv-sash:hover,
 .rates-dockview .dv-split-view-container > .dv-sash-container .dv-sash.active {
-  background: rgba(252, 213, 53, 0.35);
+  background: var(--yellow-glow);
 }
 
 .rates-dockview .dv-watermark {
   align-items: center;
   justify-content: center;
-  color: #707a8a;
-  font-size: 12px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
 }
 
 .rates-dockview .dv-watermark::before {

@@ -446,7 +446,9 @@ fn validate_with_work(r: &Request) -> Result<(usize, usize), String> {
                         .checked_add(count * passes)
                         .ok_or("advanced pricing work overflow")?;
                     if rows > MAX_ROWS || work > MAX_WORK {
-                        return Err("advanced graph aggregate run/row/work admission exceeded".into());
+                        return Err(
+                            "advanced graph aggregate run/row/work admission exceeded".into()
+                        );
                     }
                     let mut raw = contract.clone();
                     raw.identity.measure = if role == Role::Physical {

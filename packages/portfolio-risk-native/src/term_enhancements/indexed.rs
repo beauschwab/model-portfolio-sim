@@ -1,5 +1,6 @@
 //! Complete supplied conditional-index paths; no front-quarter proxy.
 use super::*;
+use crate::commercial_factor_source::segments::{FactorSegment, SegmentSink};
 use portfolio_model_core::cashflow::*;
 use portfolio_model_core::coupon_factor_state::CouponFactorState;
 use portfolio_model_core::floating_rate::{
@@ -7,7 +8,6 @@ use portfolio_model_core::floating_rate::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use crate::commercial_factor_source::segments::{FactorSegment, SegmentSink};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EarnedFactorPoint {
@@ -192,8 +192,14 @@ fn coupon_factor(
             let factor = amount(CouponFactorState::fixed_factor(*annual_rate, tau))?;
             if let Some(sink) = segments.as_deref_mut() {
                 portfolio_compute_control::checkpoint()?;
-                sink(FactorSegment::fixed(&p.period_id, p.start_ordinal, p.end_ordinal,
-                    p.day_count, *annual_rate, factor))?;
+                sink(FactorSegment::fixed(
+                    &p.period_id,
+                    p.start_ordinal,
+                    p.end_ordinal,
+                    p.day_count,
+                    *annual_rate,
+                    factor,
+                ))?;
             }
             if let Some(sink) = capture.as_deref_mut() {
                 portfolio_compute_control::checkpoint()?;
@@ -402,15 +408,32 @@ fn coupon_factor(
                 if let Some(sink) = segments.as_deref_mut() {
                     portfolio_compute_control::checkpoint()?;
                     let full_factor = if *calculation == Calculation::DailyCompounded {
-                        factor_state.compounded_factor(if *margin_treatment == MarginTreatment::Simple {
-                            Some(*margin)
-                        } else { None })
-                    } else { factor_state.simple_factor() };
-                    sink(FactorSegment::indexed(&p.period_id, o.interest_start_ordinal,
-                        o.interest_end_ordinal, o.observation_start_ordinal,
-                        o.observation_end_ordinal, p.day_count, *observation_shift,
-                        before_observation, *calculation, *margin_treatment,
-                        all_in, *margin, full_factor, &o.source))?;
+                        factor_state.compounded_factor(
+                            if *margin_treatment == MarginTreatment::Simple {
+                                Some(*margin)
+                            } else {
+                                None
+                            },
+                        )
+                    } else {
+                        factor_state.simple_factor()
+                    };
+                    sink(FactorSegment::indexed(
+                        &p.period_id,
+                        o.interest_start_ordinal,
+                        o.interest_end_ordinal,
+                        o.observation_start_ordinal,
+                        o.observation_end_ordinal,
+                        p.day_count,
+                        *observation_shift,
+                        before_observation,
+                        *calculation,
+                        *margin_treatment,
+                        all_in,
+                        *margin,
+                        full_factor,
+                        &o.source,
+                    ))?;
                 }
                 if let Some(sink) = capture.as_deref_mut() {
                     portfolio_compute_control::checkpoint()?;
@@ -509,8 +532,10 @@ pub fn build_path(request: &ContractPathRequest) -> Result<ContractPathResult, S
 
 /// Opt-in factor-only actual-loop descriptors, provisional until complete Ok.
 /// The owning compiler admits and reserves descriptor capacity before this call.
-pub(crate) fn build_path_with_segments(request: &ContractPathRequest,
-    sink: &mut SegmentSink<'_>) -> Result<ContractPathResult, String> {
+pub(crate) fn build_path_with_segments(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+) -> Result<ContractPathResult, String> {
     build_path_owned(request, None, false, Some(sink))
 }
 

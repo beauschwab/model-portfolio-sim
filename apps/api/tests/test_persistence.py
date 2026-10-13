@@ -136,6 +136,20 @@ def test_stale_interactive_result_never_publishes(repository):
     assert repo.job(jid)['revision'] == 0
 
 
+def test_claim_prefers_interactive_jobs_over_background_refreshes(repository):
+    repo = repository
+    background = repo.enqueue('risk', 0, {'ref': 'b'}, {'priority': 'background'})
+    first = repo.enqueue('pricing', 0, {'ref': 'i1'}, {'priority': 'interactive'})
+    legacy = repo.enqueue('pricing', 0, {'ref': 'i2'}, {})   # rows queued before priorities existed
+    repo.acquire('worker')
+    order = []
+    for _ in range(3):
+        job = repo.claim('worker')
+        order.append(job['id'])
+        repo.complete(job, result={})
+    assert order == [first, legacy, background]
+
+
 def test_session_journal_commits_with_result_and_close_blocks_update(repository):
     repo = repository
     enqueue(repo)

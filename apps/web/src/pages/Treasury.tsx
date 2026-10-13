@@ -79,9 +79,9 @@ export default function Treasury() {
   return <div className="space-y-3">
     <Card><CardHeader title="Capital & funds transfer pricing" sub="Explicit capital policy, eligible balances, and internal funding costs" />
       <CardBody>
-        <p className="mb-3 text-xs text-paper-faint">Supply eligible capital, scenario exposures and your bank’s effective requirements, or connect a completed simulation below. Missing requirements are labeled unconfigured. FTP is an internal management allocation; treasury offsets preserve consolidated profit. Rates are decimal fractions; amounts use the specified currency.</p>
+        <p className="mb-3 text-sm text-paper-faint">Supply eligible capital, scenario exposures and your bank’s effective requirements, or connect a completed simulation below. Missing requirements are labeled unconfigured. FTP is an internal management allocation; treasury offsets preserve consolidated profit. Rates are decimal fractions; amounts use the specified currency.</p>
         <div className="mb-3 flex flex-wrap gap-2">
-          <label className="text-xs">Input source <select aria-label="Treasury input source" disabled={busy} value={mode}
+          <label className="text-sm">Input source <select aria-label="Treasury input source" disabled={busy} value={mode}
             className="rounded border border-line bg-surface p-1" onChange={e=>{generation.current++;setMode(e.target.value as typeof mode);setResult({});setJob('');setNote('Load the source template before running.');}}>
             <option value="manual">Explicit inputs</option><option value="modeled_products">Raw modeled-product funding and FTP</option><option value="completed_products">Completed modeled-product sources for FTP</option><option value="ledger">Completed ledger simulation</option><option value="credit_ledger">Verified daily credit journal</option><option value="cashflows">Captured cohort or loan cashflows</option></select></label>
           {mode!=='manual' && !modeled && <><label className="text-xs">Source job ID <input aria-label="Treasury source job ID" className="rounded border border-line bg-surface p-1" value={source} disabled={busy}
@@ -131,9 +131,9 @@ export default function Treasury() {
           onChange={e => { generation.current++; setInput(e.target.value); setResult({}); setJob(''); }} />
         <div className="mt-2 flex gap-2"><Button disabled={busy || revision === undefined || !durable || (mode==='completed_products' && sources.some(s=>!s.metadata||!s.alias.trim()||!s.review.trim()||!s.reviewRevision.trim()))} onClick={run}>{busy ? 'Calculating…' : 'Run capital & FTP report'}</Button>
           <Button disabled={busy} onClick={async () => { try { setRevision((await api.state()).revision); setError(''); } catch (e) { setError(String(e)); } }}>Refresh workspace revision</Button></div>
-        {!durable && <p className="text-xs text-paper-faint">Durable storage is required.</p>}
-        {error && <p role="alert" className="mt-2 text-xs text-red-400">{error}</p>}
-        {job && <p role="status" className="mt-2 text-xs">Report saved: {job}</p>}
+        {!durable && <p className="text-sm text-paper-faint">Durable storage is required.</p>}
+        {error && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+        {job && <p role="status" className="mt-2 text-sm">Report saved: {job}</p>}
       </CardBody></Card>
     {tables.map(([key, title]) => {
       const frame = result[key];

@@ -158,7 +158,9 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
     let retained_capacity = add(
         add(native.retained_capacity_bound, 64 * 1024 * 1024)?,
         add(
-            source::charge_states(&r.source)?.checked_mul(4096).ok_or("charge capacity overflow")?,
+            source::charge_states(&r.source)?
+                .checked_mul(4096)
+                .ok_or("charge capacity overflow")?,
             if capital.is_some() {
                 64 * 1024 * 1024
             } else {

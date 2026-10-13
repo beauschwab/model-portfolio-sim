@@ -4,7 +4,7 @@ import { Badge, Button, Card, CardBody, CardHeader, Input, Stat } from '../compo
 
 const defaults = { lcr_min: 1.10, nsfr_min: 1.05, cet1_min: .10, eve_limit: .15, max_total_assets: 3e10, cash_budget: 0 };
 const labels = { lcr_min: 'Minimum LCR (%)', nsfr_min: 'Minimum NSFR (%)', cet1_min: 'Minimum CET1 (%)', eve_limit: 'Maximum EVE change (%)', max_total_assets: 'New asset cap ($m)', cash_budget: 'Outside-book cash budget ($m)' };
-const selectClass = 'h-8 w-full rounded-md border border-line bg-surface-2 px-2 text-xs';
+const selectClass = 'h-8 w-full rounded-md border border-line bg-surface-2 px-2 text-sm';
 const books: BookName[] = ['mbs', 'loans', 'debt', 'deposits', 'cds'];
 
 export default function DecisionLab() {
@@ -95,17 +95,17 @@ export default function DecisionLab() {
   const names = [...new Set(result?.units?.map(u => u.template) ?? ['cml_fixed_5y'])];
   const replays = manual?.replay ?? result?.replay;
   return <div className="space-y-3">
-    <Card><CardHeader title="Decision Lab" sub="Change assumptions, optimize the balance sheet, and inspect the independently checked allocation." right={<Badge tone="amber">Prototype</Badge>} />
+    <Card><CardHeader title="Decision Lab" sub="Change assumptions, optimize the balance sheet, and inspect the independently checked allocation." right={<Badge tone="warning">Prototype</Badge>} />
       <CardBody className="space-y-3">
-        <p className="text-xs text-paper-dim">Temporary instrument edits hold original calibration. New-business spreads affect future strategy units. Saved books remain unchanged.</p>
+        <p className="text-sm text-paper-dim">Temporary instrument edits hold original calibration. New-business spreads affect future strategy units. Saved books remain unchanged.</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={busy} onClick={() => void run(true)}>{result ? 'Rebuild session' : 'Build decision session'}</Button>
           <Button disabled={!result || stale || busy} onClick={() => void run(false)}>Apply and optimize</Button>
-          {result && <Badge tone={stale ? 'red' : 'green'}>{stale ? 'Rebuild required' : `Version ${result.version} · ${result.work.total_positions} instruments`}</Badge>}
+          {result && <Badge tone={stale ? 'warning' : 'up'}>{stale ? 'Rebuild required' : `Version ${result.version} · ${result.work.total_positions} instruments`}</Badge>}
         </div>
-        <div role="status" aria-live="polite" className="text-xs text-paper-dim">{busy ? `Working: ${status}` : status}</div>
-        {error && <div role="alert" className="text-xs text-down">{error}</div>}
-        <fieldset disabled={busy} className="flex flex-wrap gap-3 text-xs"><legend className="mb-1 text-paper-faint">Scenarios for the next session (base always included)</legend>
+        <div role="status" aria-live="polite" className="text-sm text-paper-dim">{busy ? `Working: ${status}` : status}</div>
+        {error && <div role="alert" className="text-sm text-danger">{error}</div>}
+        <fieldset disabled={busy} className="flex flex-wrap gap-3 text-sm"><legend className="mb-1 text-paper-faint">Scenarios for the next session (base always included)</legend>
           {scenarios.map(s => <label key={s} className="flex items-center gap-1"><input type="checkbox" checked={selectedScenarios.includes(s)} onChange={e => setSelectedScenarios(old => e.target.checked ? [...old, s] : old.filter(x => x !== s))} />{s}</label>)}
         </fieldset>
       </CardBody></Card>
@@ -113,12 +113,12 @@ export default function DecisionLab() {
       <CardBody><fieldset disabled={busy} className="grid grid-cols-2 gap-3 xl:grid-cols-3">
         {(Object.keys(labels) as (keyof typeof defaults)[]).map(key => {
           const multiplier = key === 'cash_budget' || key === 'max_total_assets' ? 1e-6 : 100;
-          return <label key={key} className="space-y-1 text-xs text-paper-dim">{labels[key]}<Input aria-label={labels[key]} type="number" step="any" value={Number((limits[key] * multiplier).toPrecision(12))} onChange={e => setLimits(old => ({ ...old, [key]: Number(e.target.value) / multiplier }))} /></label>;
+          return <label key={key} className="space-y-1 text-sm text-paper-dim">{labels[key]}<Input aria-label={labels[key]} type="number" step="any" value={Number((limits[key] * multiplier).toPrecision(12))} onChange={e => setLimits(old => ({ ...old, [key]: Number(e.target.value) / multiplier }))} /></label>;
         })}
       </fieldset></CardBody></Card>
     <div className="grid gap-3 xl:grid-cols-2">
       <Card><CardHeader title="Instrument assumption" sub="One selected field per apply. Values use engine units: 0.06 means a 6% rate." /><CardBody>
-        <fieldset disabled={busy} className="space-y-2 text-xs">
+        <fieldset disabled={busy} className="space-y-2 text-sm">
           <label className="flex gap-2"><input type="checkbox" checked={editInstrument} onChange={e => setEditInstrument(e.target.checked)} />Include instrument edit</label>
           <label className="block">Book<select aria-label="Decision book" className={selectClass} value={book} onChange={e => { const b = e.target.value as BookName; setBook(b); setField(Object.keys(fields[b] ?? {})[0] ?? ''); }}>{books.map(b => <option key={b}>{b}</option>)}</select></label>
           <label className="block">Instrument<select aria-label="Decision instrument" className={selectClass} value={instrument} onChange={e => setInstrument(e.target.value)}>{rows.map(r => { const id = String(r[book === 'mbs' ? 'cusip' : 'id']); return <option key={id}>{id}</option>; })}</select></label>
@@ -128,12 +128,12 @@ export default function DecisionLab() {
         </fieldset>
       </CardBody></Card>
       <Card><CardHeader title="New-business assumption" sub="Rebuilds only this template’s unit columns across the session scenarios." /><CardBody>
-        <fieldset disabled={busy} className="space-y-2 text-xs">
+        <fieldset disabled={busy} className="space-y-2 text-sm">
           <label className="flex gap-2"><input type="checkbox" checked={editTemplate} onChange={e => setEditTemplate(e.target.checked)} />Include template edit</label>
           <label className="block">Template<select aria-label="Decision template" className={selectClass} value={template} onChange={e => setTemplate(e.target.value)}>{names.map(n => <option key={n}>{n}</option>)}</select></label>
           <label className="block">Spread (basis points)<Input aria-label="Template spread (bp)" type="number" value={spread} onChange={e => setSpread(e.target.value)} /></label>
         </fieldset>
-        <p className="mt-4 text-xs text-paper-faint">Rust owns dependency updates, portfolio aggregates, coefficients and solver state. Product cashflows use the existing engine; HiGHS remains the native solver. Synthetic demo inputs and existing model approximations still apply.</p>
+        <p className="mt-4 text-sm text-paper-faint">Rust owns dependency updates, portfolio aggregates, coefficients and solver state. Product cashflows use the existing engine; HiGHS remains the native solver. Synthetic demo inputs and existing model approximations still apply.</p>
       </CardBody></Card>
     </div>
     {result && <>
@@ -144,14 +144,14 @@ export default function DecisionLab() {
         <Stat label="Templates rebuilt" value={String(result.work.templates_rebuilt)} />
       </div>
       <Card><CardHeader title="Published allocation" sub={`${result.horizon_months} months · ${result.scenarios.join(', ')} · ${result.solver.model_reused ? 'existing solver model updated' : 'solver model initialized'}`} /><CardBody className="space-y-3">
-        {!result.feasible ? <p role="alert" className="text-sm text-brand">{result.message} Adjust targets or funding, then apply again.</p> : <>
-          <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr><th className="p-2">Template</th><th>Purchase month</th><th>Notional</th></tr></thead><tbody>{result.allocation.map(a => <tr key={`${a.template}:${a.purchase_m}`} className="border-t border-line"><td className="p-2">{a.template}</td><td>{a.purchase_m}</td><td>{fmt$(a.notional)}</td></tr>)}</tbody></table></div>
-          <div className="flex flex-wrap items-end gap-2"><label className="text-xs">Allocation scale (%)<Input aria-label="Allocation scale (%)" type="number" min="0" value={scale} onChange={e => setScale(e.target.value)} /></label><Button variant="ghost" disabled={busy || stale || Number(scale) < 0 || !Number.isFinite(Number(scale))} onClick={() => void replay()}>Replay allocation</Button></div>
-          <p className="text-xs text-paper-faint">Manual replay shows outcomes without pricing or solving. A scaled allocation is exploratory and may violate targets.</p>
+        {!result.feasible ? <p role="alert" className="text-md text-warning">{result.message} Adjust targets or funding, then apply again.</p> : <>
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th className="p-2">Template</th><th>Purchase month</th><th>Notional</th></tr></thead><tbody>{result.allocation.map(a => <tr key={`${a.template}:${a.purchase_m}`} className="border-t border-line"><td className="p-2">{a.template}</td><td>{a.purchase_m}</td><td>{fmt$(a.notional)}</td></tr>)}</tbody></table></div>
+          <div className="flex flex-wrap items-end gap-2"><label className="text-sm">Allocation scale (%)<Input aria-label="Allocation scale (%)" type="number" min="0" value={scale} onChange={e => setScale(e.target.value)} /></label><Button variant="secondary" disabled={busy || stale || Number(scale) < 0 || !Number.isFinite(Number(scale))} onClick={() => void replay()}>Replay allocation</Button></div>
+          <p className="text-sm text-paper-faint">Manual replay shows outcomes without pricing or solving. A scaled allocation is exploratory and may violate targets.</p>
         </>}
-        {replays && <div className="overflow-x-auto"><table className="w-full text-left text-xs"><caption className="mb-2 text-left text-paper-dim">{manual ? 'Manual allocation replay' : 'Validated allocation outcomes'}</caption><thead><tr><th>Scenario</th><th>Min LCR</th><th>Min NSFR</th><th>Final CET1</th><th>Max |EVE|</th></tr></thead><tbody>{replays.map((r, i) => <tr key={i} className="border-t border-line"><td className="py-2">{result.scenarios[i]}</td><td>{Math.min(...r.kpi_path.lcr_pct).toFixed(2)}%</td><td>{Math.min(...r.kpi_path.nsfr_pct).toFixed(2)}%</td><td>{r.kpis.cet1_horizon_pct.toFixed(2)}%</td><td>{Math.max(...r.kpi_path['d_eve_pct_eve_+200'].map(Math.abs)).toFixed(2)}%</td></tr>)}</tbody></table></div>}
-        {!!result.binding_constraints?.length && <details><summary className="cursor-pointer text-xs">Binding constraints and marginal NII values</summary><ul className="mt-2 space-y-1 text-xs text-paper-dim">{result.binding_constraints.map(c => <li key={c.constraint}>{c.constraint}: {c.shadow_price.toPrecision(5)}</li>)}</ul></details>}
-        <p className="text-xs text-paper-faint">Changed instruments: {result.changed_positions.join(', ') || 'none'} · Templates: {result.changed_templates.join(', ') || 'none'} · Initial build: {(result.initialization_ms / 1000).toFixed(2)}s</p>
+        {replays && <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="mb-2 text-left text-paper-dim">{manual ? 'Manual allocation replay' : 'Validated allocation outcomes'}</caption><thead><tr><th>Scenario</th><th>Min LCR</th><th>Min NSFR</th><th>Final CET1</th><th>Max |EVE|</th></tr></thead><tbody>{replays.map((r, i) => <tr key={i} className="border-t border-line"><td className="py-2">{result.scenarios[i]}</td><td>{Math.min(...r.kpi_path.lcr_pct).toFixed(2)}%</td><td>{Math.min(...r.kpi_path.nsfr_pct).toFixed(2)}%</td><td>{r.kpis.cet1_horizon_pct.toFixed(2)}%</td><td>{Math.max(...r.kpi_path['d_eve_pct_eve_+200'].map(Math.abs)).toFixed(2)}%</td></tr>)}</tbody></table></div>}
+        {!!result.binding_constraints?.length && <details><summary className="cursor-pointer text-sm">Binding constraints and marginal NII values</summary><ul className="mt-2 space-y-1 text-sm text-paper-dim">{result.binding_constraints.map(c => <li key={c.constraint}>{c.constraint}: {c.shadow_price.toPrecision(5)}</li>)}</ul></details>}
+        <p className="text-sm text-paper-faint">Changed instruments: {result.changed_positions.join(', ') || 'none'} · Templates: {result.changed_templates.join(', ') || 'none'} · Initial build: {(result.initialization_ms / 1000).toFixed(2)}s</p>
       </CardBody></Card>
     </>}
   </div>;

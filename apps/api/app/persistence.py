@@ -112,7 +112,7 @@ def stop():
     _IDENTITY = None
 
 
-def restore(state: WorkspaceSnapshot):
+def restore(state: WorkspaceSnapshot, priority="interactive"):
     workspace().restore_snapshot(state)
 
 
@@ -142,7 +142,7 @@ def changed():
         raise
 
 
-def submit(kind, operation: str, args, plan, state: WorkspaceSnapshot):
+def submit(kind, operation: str, args, plan, state: WorkspaceSnapshot, priority="interactive"):
     if EXPECTED_REVISION.get() not in (None, state['revision']):
         raise Conflict('saved inputs changed before job admission; reload before executing')
     payload: DurableRequest = {"operation": operation, "args": args, "state": state, "identity": identity()}
@@ -162,7 +162,7 @@ def submit(kind, operation: str, args, plan, state: WorkspaceSnapshot):
                 return prior[0]['id']
             raise Conflict('idempotency key already used for a different request or model/revision')
     request = CODEC.dump(payload)
-    progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
+    progress = {"stage": "queued", "pct": 0., "plan": plan or {}, "priority": priority, "stats": {}, "elapsed_s": 0., "log": [], "nodes": []}
     store = workspace()
     return REPO.enqueue(kind, state["revision"], request, progress,
                         key=IDEMPOTENCY_KEY.get(), max_queue=store.MAX_QUEUE)

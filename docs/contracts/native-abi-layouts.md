@@ -1,6 +1,6 @@
-# Native product ABI 8 layouts
+# Native product ABI 10 layouts
 
-Generated from `native-abi-8.json`. All fields are borrowed, C-contiguous f64 buffers padded to three shape dimensions. Shapes and relationships are checked in quant::validate; this manifest names the positional contract, not a replacement for domain validation. Inputs must not overlap outputs, outputs are exclusively owned and disjoint, and no pointers survive the synchronous call. All output checks finish before any publication write.
+Generated from `native-abi-10.json`. All fields are borrowed, C-contiguous f64 buffers padded to three shape dimensions. Shapes and relationships are checked in quant::validate; this manifest names the positional contract, not a replacement for domain validation. Inputs must not overlap outputs, outputs are exclusively owned and disjoint, and no pointers survive the synchronous call. All output checks finish before any publication write.
 
 Symbols: P paths, T captured months, S instruments, K CSR events, H reporting months, F forwards, C factors, Q quotes, J shocks. Empty optional buffers retain a live pointer. Integer/bool values are transported losslessly as f64 within the validated domain.
 
@@ -100,10 +100,11 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 18 | fac | S | dimensionless/index/count |
 | 19 | horig | S | model convention/parameter; packed fields documented in reference source |
 | 20 | smult | S | dimensionless/index/count |
-| 21 | oas | S | annual decimal rate/spread |
-| 22 | horizons | H | months |
-| 23 | want_fwd | scalar | dimensionless/index/count |
-| 24 | rational | scalar | dimensionless/index/count |
+| 21 | prepay_multiplier | S | dimensionless pool speed multiplier |
+| 22 | oas | S | annual decimal rate/spread |
+| 23 | horizons | H | months |
+| 24 | want_fwd | scalar | dimensionless/index/count |
+| 25 | rational | scalar | dimensionless/index/count |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -140,12 +141,13 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 18 | fac | S | dimensionless/index/count |
 | 19 | horig | S | model convention/parameter; packed fields documented in reference source |
 | 20 | smult | S | dimensionless/index/count |
-| 21 | oas | S | annual decimal rate/spread |
-| 22 | h | scalar | months/index as specified by reference signature |
-| 23 | h_idx | scalar | months/index as specified by reference signature |
-| 24 | ck_bal | S x P | model convention/parameter; packed fields documented in reference source |
-| 25 | ck_burn | S x P | model convention/parameter; packed fields documented in reference source |
-| 26 | rational | scalar | dimensionless/index/count |
+| 21 | prepay_multiplier | S | dimensionless pool speed multiplier |
+| 22 | oas | S | annual decimal rate/spread |
+| 23 | h | scalar | months/index as specified by reference signature |
+| 24 | h_idx | scalar | months/index as specified by reference signature |
+| 25 | ck_bal | S x P | model convention/parameter; packed fields documented in reference source |
+| 26 | ck_burn | S x P | model convention/parameter; packed fields documented in reference source |
+| 27 | rational | scalar | dimensionless/index/count |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -174,6 +176,7 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 16 | oas | S | annual decimal rate/spread |
 | 17 | horizons | H | months |
 | 18 | want_fwd | scalar | dimensionless/index/count |
+| 19 | terminal_mode | 1 | enum: 0 payout, 1 truncate, 2 runoff_tail |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -183,6 +186,7 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 3 | balance | S x H | fraction |
 | 4 | checkpoint_balance | S x P x H | fraction |
 | 5 | interest | S x T | path sum per unit principal |
+| 6 | residual_balance | S | path sums of residual principal before terminal treatment |
 
 ## 7: DEPOSIT_STRESS
 
@@ -208,6 +212,7 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 17 | h | scalar | months/index as specified by reference signature |
 | 18 | h_idx | scalar | months/index as specified by reference signature |
 | 19 | ck_bal | S x P | model convention/parameter; packed fields documented in reference source |
+| 20 | terminal_mode | 1 | enum: 0 payout, 1 truncate, 2 runoff_tail |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -273,9 +278,10 @@ Symbols: P paths, T captured months, S instruments, K CSR events, H reporting mo
 | 20 | fac | S | dimensionless/index/count |
 | 21 | horig | S | model convention/parameter; packed fields documented in reference source |
 | 22 | smult | S | dimensionless/index/count |
-| 23 | oas | S | annual decimal rate/spread |
-| 24 | delay_y | S | years |
-| 25 | rational | scalar | dimensionless/index/count |
+| 23 | prepay_multiplier | S | dimensionless pool speed multiplier |
+| 24 | oas | S | annual decimal rate/spread |
+| 25 | delay_y | S | years |
+| 26 | rational | scalar | dimensionless/index/count |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -594,6 +600,7 @@ Variant 3 deposit rate:
 | 22 | size_y | spline grid | dimensionless multiplier |
 | 23 | state_multipliers | code lookup vector | dimensionless multiplier |
 | 24 | channel_multipliers | code lookup vector | dimensionless multiplier |
+| 25 | prepay_multiplier | S or empty | dimensionless pool speed multiplier; empty means one |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -633,6 +640,7 @@ Variant 3 deposit rate:
 | 24 | channel_multipliers | code lookup vector | dimensionless multiplier |
 | 25 | horizons | H | months |
 | 26 | shocks | J | basis points |
+| 27 | prepay_multiplier | S or empty | dimensionless pool speed multiplier; empty means one |
 
 | Output index | Name | Shape | Unit |
 |---|---|---|---|
@@ -671,7 +679,7 @@ Variant 3 deposit rate:
 
 ## Additive graph-call-control-1 capability
 
-Generated separately from `native-graph-runtime-1.json`; numeric ABI 8 IDs/layouts above remain unchanged.
+Generated separately from `native-graph-runtime-1.json`; graph control does not alter the selected numeric ABI layouts.
 
 | Export signature | Result |
 |---|---|

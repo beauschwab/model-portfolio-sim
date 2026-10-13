@@ -177,6 +177,27 @@
       "title": "ForecastRequest",
       "type": "object"
     },
+    "InputFingerprints": {
+      "properties": {
+        "nodes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Nodes",
+          "type": "object"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "revision",
+        "nodes"
+      ],
+      "title": "InputFingerprints",
+      "type": "object"
+    },
     "JobStatus": {
       "description": "Status/progress only -- the computed result is fetched separately as an\nArrow envelope from GET /jobs/{id}/result. Extra keys in the JOBS dict\n(notably the raw `result`) are ignored by pydantic, so JobStatus(**job)\nnever tries to JSON-encode the held DataFrames.",
       "properties": {
@@ -874,6 +895,15 @@
           "title": "Kind",
           "type": "string"
         },
+        "priority": {
+          "default": "interactive",
+          "enum": [
+            "interactive",
+            "background"
+          ],
+          "title": "Priority",
+          "type": "string"
+        },
         "scenario": {
           "anyOf": [
             {
@@ -970,6 +1000,16 @@
     },
     "StateStatus": {
       "properties": {
+        "inputs": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/InputFingerprints"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "library_horizon": {
           "anyOf": [
             {

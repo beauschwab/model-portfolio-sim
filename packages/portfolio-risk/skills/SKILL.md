@@ -1365,3 +1365,93 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+## Per-pool MBS prepay speed (0.29.6)
+
+An optional MBS book column `prepay_mult` scales one pool's prepayment speed:
+monthly CPR = (turnover + refi) x `prepay_mult`, then the existing CPR cap. A
+missing column or null cell means 1, which reproduces the model exactly; 0 stops
+prepayment, leaving scheduled amortization. Saved books, what-if and
+decision edits accept finite values in [0, 10]. The global
+prepay vector, LUTs and static FICO/size/state/channel multipliers are
+unchanged, and the multiplier is not a fitted pool-level model.
+
+Rust owns the multiplier in every built-in mortgage path (spot risk, 9Q stress,
+accounting/NII/KPI capture, the incremental graph, whose cashflow identity now
+includes it, and decision repricing). New-origination unit templates use 1. The
+Python kernels carry the same term in all three MODEL-BLOCKs as the independent
+reference; custom Python prepay steps reject non-unit values. Fixed-OAS and CRN
+are unchanged: OAS is still solved to price with the multiplier applied.
+
+The mortgage kernels take a ninth per-pool vector after the static multiplier,
+so native product ABI 9 (ops 4/5/10 arity +1; ops 28/29 take the multiplier
+last) requires rebuilding scripts/build_native.py and the decision/workflow
+artifacts, then restarting API/workers. Saved books without the column are
+unaffected. Tests: `tests/test_prepay_multiplier.py` and the decision edit gate
+in `tests/test_decision.py`.
+
+## Deposit terminal treatment (0.29.7)
+
+The non-maturity deposit grid ends at month T (360). The balance left after the
+final month's attrition is now an explicit, versioned assumption
+(`deposit-terminal-1`), selected by `RunConfig(deposit_terminal=...)` and carried
+as `assumptions.terminal` in every Rust deposit request:
+
+- `payout` (default; omitted from requests): the residual is repaid at par in the
+  final month, exactly the historical behaviour. Saved results are unchanged.
+- `truncate`: no terminal principal; the residual is excluded from the liability
+  (its value stays with the bank as franchise).
+- `runoff_tail`: the residual R runs off beyond T at the final month's attrition
+  a, paying the final paid rate r plus servicing, discounted at the final short
+  rate s held flat. Closed form at the final deflator:
+  sum_k R(1-a)^k (r/12+svc/12+a)/(1+s/12)^(k+1) = R(r/12+svc/12+a)/(a+s/12),
+  with a+s/12 floored at 1e-4/month. No extra simulated months are added.
+
+The tail is lumped into the final A column, so OAS discounts it to the horizon
+date only (the A-matrix factorization is preserved). Runoff, interest and NII
+capture remain in-horizon in every mode. Risk, stress, accounting/NII, KPIs,
+balance risk, the incremental graph (identity keys include a non-payout mode),
+decision repricing and unit-library deposit templates all use the same kernel
+and mode. Deposit risk adds a `residual_balance` column ($ before the terminal
+treatment). `deposit_horizon_sensitivity` (Rust `deposit-horizon-1`) reports PV,
+residual balance, terminal-treatment PV (PV(mode)-PV(truncate)) and implied OAS
+for every mode at the base and extended horizons (up to 482 months) at one fixed
+OAS, solved at the base horizon; each horizon is simulated as a production run of
+that length, so the base row reconciles with deposit risk. The deposit
+kernels (ops 6/7) take the mode code as their last input and op 6 returns a
+seventh residual output, so native product ABI 10 requires rebuilding
+scripts/build_native.py and the decision/workflow artifacts and restarting
+API/workers. Tests: `tests/test_deposit_terminal.py` and Rust deposit_lifecycle
+unit tests.
+
+## Liquidity applicability, transfer approval and HTM accounting (0.29.8)
+
+Each daily-ledger account declares `lcr_applicability`/`nsfr_applicability`:
+`internal_limit` (needs a positive floor), `not_applicable` or `unconfigured`
+(both forbid a floor). Empty resolves from the floor, so older specifications
+keep their limits as internal limits. `regulatory` is rejected:
+research-weights-v2 computes research proxies only. Path rows carry
+`lcr_status`/`nsfr_status` (within_limit, unavailable when the ratio is
+undefined, breach, or the non-limit basis), headroom is null unless the basis
+is internal_limit, and the summary reports the basis and the worst status. A
+rule that does not apply is never reported as passed.
+
+Transfers may set `approval_day`: a request before it is logged as delayed
+("awaiting transfer approval") and re-dispatched on that day. Intercompany
+receivable/payable must eliminate per currency every day; a non-zero sum
+fails the run. `test_ledger_svb_policies.py` carries the trapped-cash golden
+case: a bank entity breaches its cash floor while consolidated cash is ample.
+
+`htm_accounting="asc320-htm-v1"` classifies HTM sales by `sale_reason`.
+ASC 320-10-25-6/25-14 exceptions (credit_deterioration, tax_law_change,
+business_combination, regulatory_change, and near_maturity within 90 days of
+maturity) are permitted. An unsupported near_maturity claim and liquidity or
+other sales count against `htm_taint_materiality` x opening HTM amortized
+cost. Exceeding it reclassifies the remaining HTM securities to AFS on that
+day, with fair value less amortized cost posted to AOCI in balanced journals.
+The detail table `accounting_events` records each sale and reclassification.
+Without a policy, sales keep the existing internal face limit and are recorded
+as not_assessed. This is a research implementation of the stated rule, not an
+accounting opinion: management intent, auditor judgment and tainting periods
+are not modeled (HTM positions originating after a reclassification stay HTM). Rebuild the ledger and decision/workflow binaries and restart
+workers; the new output columns are additive.

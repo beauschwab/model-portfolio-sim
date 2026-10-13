@@ -57,6 +57,8 @@ impl<'de> Deserialize<'de> for Raw {
     }
 }
 
-pub fn unique(bytes:&[u8])->Result<Value,String> {
-    serde_json::from_slice::<Raw>(bytes).map(|Raw(v)|v).map_err(|e|e.to_string())
+pub fn unique(bytes: &[u8]) -> Result<Value, String> {
+    serde_json::from_slice::<Raw>(bytes)
+        .map(|Raw(v)| v)
+        .map_err(|e| e.to_string())
 }

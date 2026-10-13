@@ -211,8 +211,11 @@ fn cancellation_fences_fee_validation_and_full_tail_generation() {
 
 #[test]
 fn preflight_rejects_excessive_cardinality_and_calendar_before_generation() {
-    let mut r=raw();let f=r["fees"][0].clone();r["fees"]=json!(vec![f;2049]);
+    let mut r = raw();
+    let f = r["fees"][0].clone();
+    r["fees"] = json!(vec![f; 2049]);
     assert!(result(r).unwrap_err().contains("cardinality"));
-    let mut r=raw();r["complete_end_ordinal"]=json!(730000+36601);
+    let mut r = raw();
+    r["complete_end_ordinal"] = json!(730000 + 36601);
     assert!(result(r).unwrap_err().contains("calendar"));
 }

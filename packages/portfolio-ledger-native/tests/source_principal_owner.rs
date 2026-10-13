@@ -26,7 +26,10 @@ impl Write for Capture {
     }
 }
 fn fixture() -> Value {
-    serde_json::from_str(include_str!("fixtures/deposit-source-principal/canonical.json")).unwrap()
+    serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/canonical.json"
+    ))
+    .unwrap()
 }
 fn prepare(v: &Value) -> Result<owner::Prepared, String> {
     owner::prepare(owner::parse_request(&serde_json::to_vec(v).unwrap())?.0)
@@ -115,7 +118,10 @@ fn zero_weight_cannot_hide_bad_tail() {
 }
 #[test]
 fn full_64day_component_cannot_bypass_joined_capacity() {
-    let v: Value = serde_json::from_str(include_str!("fixtures/deposit-source-principal/exact_64_day_tail.json")).unwrap();
+    let v: Value = serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/exact_64_day_tail.json"
+    ))
+    .unwrap();
     assert!(prepare(&v).unwrap_err_string().contains("pre-generation"));
 }
 #[test]
@@ -270,22 +276,28 @@ fn product_stream(raw: &Value, historical: bool) -> Vec<u8> {
 #[cfg(feature = "historical-output-control")]
 #[test]
 fn historical_card1_optional_none_full_ndjson_bytes() {
-    let raw: Value =
-        serde_json::from_str(include_str!("fixtures/deposit-source-principal/product_event_owner.json")).unwrap();
+    let raw: Value = serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/product_event_owner.json"
+    ))
+    .unwrap();
     assert_eq!(product_stream(&raw, true), product_stream(&raw, false));
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
 fn historical_card2_optional_none_full_ndjson_bytes() {
-    let raw: Value =
-        serde_json::from_str(include_str!("fixtures/deposit-source-principal/product_event_owner_v2.json")).unwrap();
+    let raw: Value = serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/product_event_owner_v2.json"
+    ))
+    .unwrap();
     assert_eq!(product_stream(&raw, true), product_stream(&raw, false));
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
 fn historical_consumer_optional_none_full_ndjson_bytes() {
-    let mut raw: Value =
-        serde_json::from_str(include_str!("fixtures/deposit-source-principal/consumer_intent_owner.json")).unwrap();
+    let mut raw: Value = serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/consumer_intent_owner.json"
+    ))
+    .unwrap();
     raw["dated"]["specification"]["positions"].as_array_mut().unwrap().push(json!({"id":"credit-loan","account":"a","kind":"loan","classification":"ac","balance":0.,"rate":0.,"maturity_day":0,"risk_weight":0.,"rsf_weight":0.,"asf_weight":0.,"hqla_weight":0.,"lcr_inflow_weight":0.,"lcr_outflow_weight":0.}));
     let mut owners = raw["consumer_owners"].clone();
     for o in owners.as_array_mut().unwrap() {
@@ -317,8 +329,10 @@ fn historical_consumer_optional_none_full_ndjson_bytes() {
 #[cfg(feature = "historical-output-control")]
 #[test]
 fn historical_purchase_asof_deposit_optional_none_full_ndjson_bytes() {
-    let raw: deposit_revision::Request =
-        serde_json::from_str(include_str!("fixtures/deposit-source-principal/deposit_revised_income.json")).unwrap();
+    let raw: deposit_revision::Request = serde_json::from_str(include_str!(
+        "fixtures/deposit-source-principal/deposit_revised_income.json"
+    ))
+    .unwrap();
     let build = |historical| {
         let p = deposit_revision::prepare(raw.clone()).unwrap();
         let b = Arc::new(Mutex::new(Vec::new()));

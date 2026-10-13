@@ -93,7 +93,13 @@ pub(crate) fn prepare_reusing(
                     values[at..at + 10 * h].copy_from_slice(&p.values[at..at + 10 * h]);
                 }
                 receipts.push(p.units[index].clone());
-                cash.extend(p.funding.cash_events.iter().filter(|e| e.unit_index == index).cloned());
+                cash.extend(
+                    p.funding
+                        .cash_events
+                        .iter()
+                        .filter(|e| e.unit_index == index)
+                        .cloned(),
+                );
                 retained = retained
                     .saturating_add(admission::retained_size(receipts.last().unwrap())?)
                     .saturating_add(admission::retained_size(&cash[cash_start..])?);
@@ -328,8 +334,13 @@ fn shared_context(r: &ProductUnitsRequest) -> Value {
     // invalidation contract. Do not clone every retained raw unit just to
     // compare the small shared context.
     let ProductUnitsRequest {
-        schema, identity, currency, monetary_unit, reporting_ordinals,
-        base_scenario_id, units: _,
+        schema,
+        identity,
+        currency,
+        monetary_unit,
+        reporting_ordinals,
+        base_scenario_id,
+        units: _,
     } = r;
     json!({"schema":schema,"identity":identity,"currency":currency,
         "monetary_unit":monetary_unit,"reporting_ordinals":reporting_ordinals,
@@ -411,4 +422,6 @@ fn fail<T>(message: &str) -> Result<T, String> {
 }
 
 /// Pre-generation full typed source admission, returning exact charged work.
-pub fn audit_source_work(r: &ProductUnitsRequest) -> Result<usize,String> { admission::validate(r).map(|v|v.1) }
+pub fn audit_source_work(r: &ProductUnitsRequest) -> Result<usize, String> {
+    admission::validate(r).map(|v| v.1)
+}

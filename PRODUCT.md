@@ -56,9 +56,9 @@ to read, color used as semantic signal (price up/down, binding constraint)
 rather than decoration.
 
 ## Anti-references
-- **Not flashy crypto-retail.** The palette borrows Binance's
-  near-black canvas, yellow accent, and trading green/red, but the product
-  is an institutional ALM tool — not a consumer exchange. No hype copy, no
+- **Not flashy crypto-retail.** The Aperture Risk palette (DESIGN.md) is a
+  near-black canvas, a deep golden-yellow accent and directional green/red, but
+  the product is an institutional ALM tool — not a consumer exchange. No hype copy, no
   coin illustrations, no "316M USERS TRUST US" stat-callout heroes, no
   pill CTAs shouting for sign-ups. Yellow is a scarce accent for the
   primary action and a single value-claim, never decorative voltage.

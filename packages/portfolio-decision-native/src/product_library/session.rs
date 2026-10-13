@@ -83,9 +83,8 @@ impl Session {
                 let (retained, units_rebuilt, full_rebuild) = if same {
                     (Arc::clone(&self.library.prepared), 0, false)
                 } else {
-                    let (prepared, rebuilt, full) = product_strategy::prepare_update(
-                        &request.product, &self.library.prepared,
-                    )?;
+                    let (prepared, rebuilt, full) =
+                        product_strategy::prepare_update(&request.product, &self.library.prepared)?;
                     (Arc::new(prepared), rebuilt, full)
                 };
                 let mut library = PreparedLibrary::build(request, Some(retained))?;

@@ -67,19 +67,22 @@ pub struct Binding<'a> {
     pub accounting: &'a ResultData,
 }
 pub struct FeeBinding<'a> {
-    pub loan_binding:usize,
-    pub source:&'a portfolio_model_core::nonintegral_fee::ResultData,
-    pub native_years:&'a [f64],
+    pub loan_binding: usize,
+    pub source: &'a portfolio_model_core::nonintegral_fee::ResultData,
+    pub native_years: &'a [f64],
 }
-#[derive(Clone,Copy)]
-pub(crate) enum Scheduled {Loan(usize,usize),Fee(usize,usize)}
+#[derive(Clone, Copy)]
+pub(crate) enum Scheduled {
+    Loan(usize, usize),
+    Fee(usize, usize),
+}
 pub struct Compiled<'a> {
     pub(crate) bindings: Vec<Binding<'a>>,
     pub(crate) positions: Vec<usize>,
     pub(crate) position_owners: Vec<bool>,
     events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
     pub(crate) fees: Vec<FeeBinding<'a>>,
-    fee_events: BTreeMap<(String,usize),Vec<(usize,usize)>>,
+    fee_events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
     pub work_upper: usize,
     pub retained_bytes_upper: usize,
 }
@@ -109,7 +112,9 @@ fn day(year: f64, horizon: usize) -> Result<usize, String> {
     // Multiplication can round a just-later native year back onto an integer.
     // Compare the retained clock directly; never post a future event today.
     if year > result as f64 / 365. {
-        result = result.checked_add(1).ok_or("commercial calendar overflow")?;
+        result = result
+            .checked_add(1)
+            .ok_or("commercial calendar overflow")?;
     }
     if result > horizon {
         return Err("commercial clock cannot be clamped to reporting end".into());
@@ -129,35 +134,85 @@ mod calendar_tests {
     }
 }
 impl<'a> Compiled<'a> {
-    pub fn attach_fees(&mut self,spec:&Spec,fees:Vec<FeeBinding<'a>>)->Result<(),String>{
-        if !self.fees.is_empty(){return Err("fee ownership already bound".into());}
-        let mut seen=BTreeSet::new();
-        for(fi,f)in fees.iter().enumerate(){
+    pub fn attach_fees(&mut self, spec: &Spec, fees: Vec<FeeBinding<'a>>) -> Result<(), String> {
+        if !self.fees.is_empty() {
+            return Err("fee ownership already bound".into());
+        }
+        let mut seen = BTreeSet::new();
+        for (fi, f) in fees.iter().enumerate() {
             checkpoint()?;
-            let b=self.bindings.get(f.loan_binding).ok_or("fee parent binding missing")?;
-            if !seen.insert(f.loan_binding) || f.native_years.len()!=f.source.groups().len(){return Err("unique complete fee group timeline required".into());}
-            for fee in &f.source.raw_request().fees{
-                if fee.position_id!=b.position_id{return Err("fee source position mismatch".into());}
+            let b = self
+                .bindings
+                .get(f.loan_binding)
+                .ok_or("fee parent binding missing")?;
+            if !seen.insert(f.loan_binding) || f.native_years.len() != f.source.groups().len() {
+                return Err("unique complete fee group timeline required".into());
             }
-            for(i,(g,year))in f.source.groups().iter().zip(f.native_years).enumerate(){
-                let elapsed=day(*year,spec.horizon_days-b.origin_day)?;
-                if f.source.raw_request().asof_ordinal+elapsed as i32!=g.event.ordinal{return Err("fee action cannot be retimed against native calendar".into());}
-                self.fee_events.entry((b.scenario.into(),b.origin_day+elapsed)).or_default().push((fi,i));
-                let rows=g.postings.len()+2;
-                self.work_upper=self.work_upper.checked_add(rows*(spec.horizon_days+1)*16).ok_or("fee work overflow")?;
-                self.retained_bytes_upper=self.retained_bytes_upper.checked_add(rows*4096).ok_or("fee byte overflow")?;
+            for fee in &f.source.raw_request().fees {
+                if fee.position_id != b.position_id {
+                    return Err("fee source position mismatch".into());
+                }
+            }
+            for (i, (g, year)) in f.source.groups().iter().zip(f.native_years).enumerate() {
+                let elapsed = day(*year, spec.horizon_days - b.origin_day)?;
+                if f.source.raw_request().asof_ordinal + elapsed as i32 != g.event.ordinal {
+                    return Err("fee action cannot be retimed against native calendar".into());
+                }
+                self.fee_events
+                    .entry((b.scenario.into(), b.origin_day + elapsed))
+                    .or_default()
+                    .push((fi, i));
+                let rows = g.postings.len() + 2;
+                self.work_upper = self
+                    .work_upper
+                    .checked_add(rows * (spec.horizon_days + 1) * 16)
+                    .ok_or("fee work overflow")?;
+                self.retained_bytes_upper = self
+                    .retained_bytes_upper
+                    .checked_add(rows * 4096)
+                    .ok_or("fee byte overflow")?;
             }
         }
-        if self.work_upper>8_000_000 || self.retained_bytes_upper>32<<20{return Err("joined commercial/fee ledger exceeds8M/32MiB".into());}
-        self.fees=fees;Ok(())
+        if self.work_upper > 8_000_000 || self.retained_bytes_upper > 32 << 20 {
+            return Err("joined commercial/fee ledger exceeds8M/32MiB".into());
+        }
+        self.fees = fees;
+        Ok(())
     }
-    pub(crate) fn ordered_events(&self,scenario:&str,day:usize)->Vec<Scheduled>{
-        let mut out=self.events(scenario,day).iter().map(|&(b,i)|Scheduled::Loan(b,i)).collect::<Vec<_>>();
-        if let Some(events)=self.fee_events.get(&(scenario.into(),day)){out.extend(events.iter().map(|&(b,i)|Scheduled::Fee(b,i)));}
-        let key=|e:&Scheduled|match *e{
-            Scheduled::Loan(b,i)=>(self.bindings[b].origin_day as f64/365.+self.bindings[b].accounting.groups()[i].year,0,b,i),
-            Scheduled::Fee(b,i)=>(self.bindings[self.fees[b].loan_binding].origin_day as f64/365.+self.fees[b].native_years[i],1,b,i)};
-        out.sort_by(|a,b|{let a=key(a);let b=key(b);a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)).then(a.3.cmp(&b.3))});out
+    pub(crate) fn ordered_events(&self, scenario: &str, day: usize) -> Vec<Scheduled> {
+        let mut out = self
+            .events(scenario, day)
+            .iter()
+            .map(|&(b, i)| Scheduled::Loan(b, i))
+            .collect::<Vec<_>>();
+        if let Some(events) = self.fee_events.get(&(scenario.into(), day)) {
+            out.extend(events.iter().map(|&(b, i)| Scheduled::Fee(b, i)));
+        }
+        let key = |e: &Scheduled| match *e {
+            Scheduled::Loan(b, i) => (
+                self.bindings[b].origin_day as f64 / 365.
+                    + self.bindings[b].accounting.groups()[i].year,
+                0,
+                b,
+                i,
+            ),
+            Scheduled::Fee(b, i) => (
+                self.bindings[self.fees[b].loan_binding].origin_day as f64 / 365.
+                    + self.fees[b].native_years[i],
+                1,
+                b,
+                i,
+            ),
+        };
+        out.sort_by(|a, b| {
+            let a = key(a);
+            let b = key(b);
+            a.0.total_cmp(&b.0)
+                .then(a.1.cmp(&b.1))
+                .then(a.2.cmp(&b.2))
+                .then(a.3.cmp(&b.3))
+        });
+        out
     }
     pub fn new(spec: &Spec, bindings: Vec<Binding<'a>>) -> Result<Self, String> {
         checkpoint()?;
@@ -363,7 +418,7 @@ struct Tracking {
 }
 pub(crate) struct Runtime {
     paths: Vec<Tracking>,
-    pub(crate) fees:Vec<crate::commercial_fee_owner::FeeTracking>,
+    pub(crate) fees: Vec<crate::commercial_fee_owner::FeeTracking>,
 }
 pub(crate) struct Stage {
     pub lines: Vec<Line>,
@@ -395,7 +450,7 @@ impl Runtime {
     pub(crate) fn new(c: &Compiled<'_>) -> Self {
         Self {
             paths: vec![Tracking::default(); c.bindings.len()],
-            fees:vec![crate::commercial_fee_owner::FeeTracking::default();c.fees.len()],
+            fees: vec![crate::commercial_fee_owner::FeeTracking::default(); c.fees.len()],
         }
     }
     pub(crate) fn stage(
@@ -506,8 +561,13 @@ impl Runtime {
         scenario: &str,
     ) -> Result<Vec<(usize, &'static str, f64)>, String> {
         let mut result = Vec::new();
-        for(i,b)in c.fees.iter().enumerate().filter(|(_,f)|c.bindings[f.loan_binding].scenario==scenario){
-            result.extend(self.fees[i].values(b,c)?);
+        for (i, b) in c
+            .fees
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| c.bindings[f.loan_binding].scenario == scenario)
+        {
+            result.extend(self.fees[i].values(b, c)?);
         }
         for (bi, b) in c
             .bindings

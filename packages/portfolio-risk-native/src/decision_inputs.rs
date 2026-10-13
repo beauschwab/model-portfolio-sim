@@ -33,6 +33,11 @@ pub fn accounting(source: &AccountingRequest, selected: &Selection) -> Accountin
                     } else {
                         ix.iter().map(|&i| r.original_hpi[i]).collect()
                     },
+                    prepay_multiplier: if r.prepay_multiplier.is_empty() {
+                        vec![]
+                    } else {
+                        ix.iter().map(|&i| r.prepay_multiplier[i]).collect()
+                    },
                     seed: r.seed.clone(),
                     fixed_oas: vec![],
                     config: r.config.clone(),
@@ -172,9 +177,21 @@ pub fn apply(
                 .map(|r| (1. + b.request.config.hpi[0]).powf(r[3] / 12.))
                 .collect();
         }
+        if b.request.prepay_multiplier.is_empty()
+            && b.ids.iter().any(|id| {
+                patches
+                    .get(&format!("mbs:{id}"))
+                    .is_some_and(|p| p.get("prepay_mult").is_some())
+            })
+        {
+            b.request.prepay_multiplier = vec![1.; b.ids.len()];
+        }
         for (i, id) in b.ids.iter().enumerate() {
             if let Some(p) = patches.get(&format!("mbs:{id}")) {
                 validate_patch("mbs", p)?;
+                if let Some(x) = p["prepay_mult"].as_f64() {
+                    b.request.prepay_multiplier[i] = x;
+                }
                 for (j, field) in fields.iter().enumerate() {
                     if let Some(x) = p[*field].as_f64() {
                         b.request.book[i * 13 + j] = x;

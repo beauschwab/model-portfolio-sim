@@ -83,7 +83,7 @@ def _spline_eval(x, knots, coefs):
 @njit(parallel=True, fastmath=True, cache=True)
 def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
            smm_lut, smm_scale, burn_lut, burn_scale,
-           wac, net, wam, age, oltv, fac, horig, smult,
+           wac, net, wam, age, oltv, fac, horig, smult, pmult,
            oas, horizons, want_fwd, rational):
     """
     Returns (A, FV, BAL, ck_bal, ck_burn, Iout, Pacc) -- path-SUMS:
@@ -118,6 +118,7 @@ def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
         age_s = age[s]
         ofh = oltv[s] * fac[s] / horig[s]
         sm = smult[s]
+        pm = pmult[s]
         Arow = A[s]
 
         buf = np.empty(T)
@@ -160,7 +161,7 @@ def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
                 hk = 1.0 + hpa_beta * yoy[p, m]
                 if hk < 0.3:
                     hk = 0.3
-                cpr = turnover * ramp * season[moy[m]] * hk * lock + refi
+                cpr = (turnover * ramp * season[moy[m]] * hk * lock + refi) * pm
                 if cpr > cpr_cap:
                     cpr = cpr_cap
                 smm = _lut(cpr * smm_scale, smm_lut)
@@ -202,7 +203,7 @@ def engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
 @njit(parallel=True, fastmath=True, cache=True)
 def stress_engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
                   smm_lut, smm_scale, burn_lut, burn_scale,
-                  wac, net, wam, age, oltv, fac, horig, smult,
+                  wac, net, wam, age, oltv, fac, horig, smult, pmult,
                   oas, h, h_idx, ck_bal, ck_burn, rational):
     """Forward value at single horizon month h under (already-shocked) path
     arrays, restarting each (s, p) from base checkpointed state at h.
@@ -225,6 +226,7 @@ def stress_engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
         age_s = age[s]
         ofh = oltv[s] * fac[s] / horig[s]
         sm = smult[s]
+        pm = pmult[s]
         o = oas[s]
         eo = np.exp(-o * inv12)
         div_oas = np.exp(-o * h * inv12)
@@ -259,7 +261,7 @@ def stress_engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
                 hk = 1.0 + hpa_beta * yoy[p, m]
                 if hk < 0.3:
                     hk = 0.3
-                cpr = turnover * ramp * season[moy[m]] * hk * lock + refi
+                cpr = (turnover * ramp * season[moy[m]] * hk * lock + refi) * pm
                 if cpr > cpr_cap:
                     cpr = cpr_cap
                 smm = _lut(cpr * smm_scale, smm_lut)
@@ -297,7 +299,7 @@ def make_generic_engine(step):
     @njit(parallel=True, fastmath=True)
     def generic_engine(mtg, hpi, yoy, df, moy, season, pp, knots, coefs,
                        smm_lut, smm_scale, burn_lut, burn_scale,
-                       wac, net, wam, age, oltv, fac, horig, smult,
+                       wac, net, wam, age, oltv, fac, horig, smult, pmult,
                        oas, horizons, want_fwd, rational):
         P, T = mtg.shape
         S = wac.shape[0]
@@ -372,7 +374,7 @@ def make_generic_engine(step):
 def batched_pv_engine(mtg, hpi, yoy, df, scen, n_scen, moy, season, pp,
                       knots, coefs, smm_lut, smm_scale, burn_lut,
                       burn_scale, wac, net, wam, age, oltv, fac, horig,
-                      smult, oas, delay_y, rational):
+                      smult, pmult, oas, delay_y, rational):
     """Scenario-BATCHED fixed-OAS PV: all bumped path sets stacked along
     the path axis with scen[p] ids -> PV[n_scen, S] path-sums in ONE
     kernel launch. Exists so the 29-revaluation risk loop saturates cores
@@ -393,6 +395,7 @@ def batched_pv_engine(mtg, hpi, yoy, df, scen, n_scen, moy, season, pp,
         age_s = age[s]
         ofh = oltv[s] * fac[s] / horig[s]
         sm = smult[s]
+        pm = pmult[s]
         q0 = (1.0 + r) ** (-int(wam[s]))
         oa = oas[s]
         eo = np.exp(-oa / 12.0)
@@ -424,7 +427,7 @@ def batched_pv_engine(mtg, hpi, yoy, df, scen, n_scen, moy, season, pp,
                 hk = 1.0 + hpa_beta * yoy[p, m]
                 if hk < 0.3:
                     hk = 0.3
-                cpr = turnover * ramp * season[moy[m]] * hk * lock + refi
+                cpr = (turnover * ramp * season[moy[m]] * hk * lock + refi) * pm
                 if cpr > cpr_cap:
                     cpr = cpr_cap
                 smm = _lut(cpr * smm_scale, smm_lut)

@@ -235,7 +235,7 @@ fn issuer_ac_security_retains_own_original_eir_default_claim_and_typed_journal_o
         source["source"]["acquisition"]["cost"] = json!(cost);
         source["source"]["acquisition"]["original_annual_effective_rate"] = json!(annual);
         for review in source["accounting_rates"].as_array_mut().unwrap() {
-            review["annual_effective_rates"] = json!([annual,annual,annual]);
+            review["annual_effective_rates"] = json!([annual, annual, annual]);
         }
         source["credit"]["draw_stream"] = json!({"kind":"supplied","stream_id":"controlled-default","stream_revision":"1","paths":[{"path_key":17,"pairs":[{"waiting_uniform":(-100_f64*2./365.).exp(),"destination_uniform":0.5}]}]});
     }
@@ -243,8 +243,8 @@ fn issuer_ac_security_retains_own_original_eir_default_claim_and_typed_journal_o
         let i = &mut raw["commercial"]["units"][0]["graph"]["positions"][0]["histories"][0][role]
             [0]["source"]["credit"]["intervals"][0];
         i["hazards_per_year"][0][3] = json!(100.);
-        i["loss_given_default"] = json!([0.4,0.4,0.4]);
-        i["interest_recovery_fraction"] = json!([1.,1.,1.]);
+        i["loss_given_default"] = json!([0.4, 0.4, 0.4]);
+        i["interest_recovery_fraction"] = json!([1., 1., 1.]);
     }
     let result = candidate::evaluate(&serde_json::from_value(raw.clone()).unwrap()).unwrap();
     near(
@@ -268,6 +268,7 @@ fn issuer_ac_security_retains_own_original_eir_default_claim_and_typed_journal_o
     raw["commercial"]["units"][0]["graph"]["positions"][0]["histories"][0]["physical"][0]
         ["source"]["credit"]["opening_undrawn_commitment"] = json!(20.);
     assert!(candidate::evaluate(&serde_json::from_value(raw).unwrap())
-        .err().unwrap()
+        .err()
+        .unwrap()
         .contains("facility/draw"));
 }

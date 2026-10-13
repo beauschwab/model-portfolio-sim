@@ -5,6 +5,7 @@ Functions transport/format engine outputs. Financial calculations stay in Rust.
 from __future__ import annotations
 
 import copy
+import heapq
 import time
 import uuid
 
@@ -21,14 +22,16 @@ def prune_jobs(owner):
                 owner.JOBS.pop(j["id"], None)
 
 
-def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None) -> str:
+def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None, priority="interactive") -> str:
+    if priority not in owner.PRIORITIES:
+        raise ValueError(f"unknown priority {priority}")
     state = state or owner.snapshot()
     state['settings'].require_production_backend()
     args = copy.deepcopy(args)
     from . import persistence
     if persistence.REPO is not None:
         from .operations import operation
-        return persistence.submit(kind, operation(fn), args, plan, state)
+        return persistence.submit(kind, operation(fn), args, plan, state, priority=priority)
     with owner._LOCK:
         owner.prune_jobs()
         if sum(j["status"] in ("queued", "running") for j in owner.JOBS.values()) >= owner.MAX_QUEUE:
@@ -37,15 +40,18 @@ def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None) ->
         owner.JOBS[jid] = {"id": jid, "kind": kind, "status": "queued", "revision": state['revision'],
                     "market_provenance": copy.deepcopy(state["market"].get("provenance", {})),
                      "detail": None, "result": None,
-                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {},
+                     "progress": {"stage": "queued", "pct": 0.0, "plan": plan or {}, "priority": priority,
                                   "stats": {}, "elapsed_s": 0.0, "log": [], "nodes": []}}
 
     def run():
+        with owner._LOCK:
+            if owner.JOBS.get(jid, {}).get("status") != "queued":
+                return
+            owner.JOBS[jid]["status"] = "running"
         from portfolio_risk.core.runtime import RunConfig, run_context
         import numba
         owner._CUR_JID = jid
         token = owner._RUN_STATE.set(state)
-        owner.JOBS[jid]["status"] = "running"
         owner.JOBS[jid]["_t0"] = time.perf_counter()
         owner.report(stage="starting", pct=1.0, log=f"{kind} run started")
         try:
@@ -60,12 +66,16 @@ def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None) ->
             if len(encoded) > owner.MAX_RESULT_BYTES:
                 raise RuntimeError("result exceeds the retention byte limit; reduce book size")
             with owner._LOCK:
+                if owner.JOBS[jid].get("_cancelled"):
+                    return
                 owner.JOBS[jid]["result"] = encoded
                 owner.JOBS[jid]["status"] = "done"
                 owner.JOBS[jid]["finished_at"] = time.time()
             owner.report(stage="done", pct=100.0, log="run complete")
         except Exception as e:
             with owner._LOCK:
+                if owner.JOBS[jid].get("_cancelled"):
+                    return
                 owner.JOBS[jid]["status"] = "error"
                 owner.JOBS[jid]["finished_at"] = time.time()
                 owner.JOBS[jid]["detail"] = f"{type(e).__name__}: {e}"
@@ -78,6 +88,8 @@ def submit(owner, kind: str, fn, *args, plan: dict | None = None, state=None) ->
             owner._RUN_STATE.reset(token)
             owner._CUR_JID = None
 
-    owner._POOL.submit(run)
+    with owner._LOCK:
+        heapq.heappush(owner._PENDING, (owner.PRIORITIES.index(priority), next(owner._SEQ), jid, run))
+    owner._POOL.submit(owner._run_next)
     return jid
 

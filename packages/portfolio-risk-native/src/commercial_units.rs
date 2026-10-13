@@ -103,7 +103,9 @@ pub fn settlement_ordinal(asof: i32, year: f64) -> Result<i32, String> {
     } else {
         elapsed.ceil() as i32
     };
-    if year > f64::from(day) / 365. { day += 1; }
+    if year > f64::from(day) / 365. {
+        day += 1;
+    }
     let out = asof
         .checked_add(day)
         .ok_or("commercial actual cash date overflow")?;

@@ -28,7 +28,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.12'
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.93.1
       - run: uv sync --project apps/api --extra dev --extra iceberg --locked
       - run: uv run --no-sync --project apps/api python scripts/build_native.py
       - run: uv run --no-sync --project apps/api python scripts/build_ledger_native.py

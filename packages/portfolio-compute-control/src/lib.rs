@@ -46,9 +46,14 @@ impl Control {
         })
     }
     /// Fresh deadline sharing only the current native-owned cancellation flag.
-    pub fn with_cancel_flag(timeout_ms:u64,cancelled:Arc<AtomicBool>)->Result<Self,String> {
-        if !(1..=3_600_000).contains(&timeout_ms) {return Err("timeout_ms must be in [1, 3600000]".into())}
-        Ok(Self{cancelled,deadline:Instant::now()+Duration::from_millis(timeout_ms)})
+    pub fn with_cancel_flag(timeout_ms: u64, cancelled: Arc<AtomicBool>) -> Result<Self, String> {
+        if !(1..=3_600_000).contains(&timeout_ms) {
+            return Err("timeout_ms must be in [1, 3600000]".into());
+        }
+        Ok(Self {
+            cancelled,
+            deadline: Instant::now() + Duration::from_millis(timeout_ms),
+        })
     }
     pub fn cancel(&self) {
         self.cancelled.store(true, Ordering::Relaxed);

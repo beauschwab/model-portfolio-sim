@@ -16,7 +16,7 @@ def test_legacy_imports_preserve_module_and_monkeypatch_identity(monkeypatch):
 
 
 def test_operation_ids_are_stable_and_named_input_order_is_explicit(monkeypatch):
-    assert ABI_VERSION==8 and list(map(int,Op))==list(range(1,32))
+    assert ABI_VERSION==10 and list(map(int,Op))==list(range(1,32))
     seen=[]
     monkeypatch.setattr(quant_native,'call',lambda op,inputs,shapes:seen.append((op,inputs,shapes)) or ('result',))
     assert quant_native.call_named(Op.MORTGAGE_CACHE,{'clear':1},{'statistics':(5,)})=={'statistics':'result'}

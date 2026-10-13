@@ -107,7 +107,9 @@ fn ordinal(year: f64, start: i32) -> Result<i32, String> {
     } else {
         days.ceil()
     };
-    if year > n / 365. { n += 1.; }
+    if year > n / 365. {
+        n += 1.;
+    }
     if !n.is_finite() || !(0. ..=1080.).contains(&n) {
         return Err("commercial treasury clock bound".into());
     }

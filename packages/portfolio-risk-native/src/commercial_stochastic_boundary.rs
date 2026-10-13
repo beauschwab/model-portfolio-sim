@@ -25,8 +25,11 @@ impl<'de> Deserialize<'de> for Probe {
                 while let Some(key) = map.next_key::<String>()? {
                     let value = map.next_value::<Box<RawValue>>()?;
                     if key == "schema" {
-                        out.selected |= serde_json::from_str::<String>(value.get())
-                            .is_ok_and(|v| v == super::commercial_stochastic_exercise::SCHEMA || v == super::commercial_continuation::SCHEMA);
+                        out.selected |=
+                            serde_json::from_str::<String>(value.get()).is_ok_and(|v| {
+                                v == super::commercial_stochastic_exercise::SCHEMA
+                                    || v == super::commercial_continuation::SCHEMA
+                            });
                         out.graph |= serde_json::from_str::<String>(value.get()).is_ok_and(|v| {
                             matches!(
                                 v.as_str(),

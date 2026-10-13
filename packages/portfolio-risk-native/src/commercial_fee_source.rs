@@ -125,7 +125,8 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
         }
         if !f.prepaid_refunds_allowed
             && [&p.default, &p.prepayment, &p.exercise, &p.maturity]
-                .iter().any(|policy| policy.refund_prepaid_fraction > 0.)
+                .iter()
+                .any(|policy| policy.refund_prepaid_fraction > 0.)
         {
             return Err("fee exit refund policy contradicts supplied fee terms".into());
         }
@@ -153,7 +154,10 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
     // Validate the complete supplied service/cash contract before any loan path
     // generation. Exit policies may remove events; they cannot legalize a bad
     // original source, duplicate identity, unavailable right or invalid clock.
-    fee::evaluate_with_check(&request(p, r, p.events.clone()), portfolio_compute_control::checkpoint)?;
+    fee::evaluate_with_check(
+        &request(p, r, p.events.clone()),
+        portfolio_compute_control::checkpoint,
+    )?;
     let recoveries = [&p.default, &p.prepayment, &p.exercise, &p.maturity]
         .iter()
         .map(|p| p.recoveries.len())
@@ -181,7 +185,9 @@ fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
     } else {
         elapsed.ceil()
     };
-    if year > days / 365. { days += 1.; }
+    if year > days / 365. {
+        days += 1.;
+    }
     origin
         .checked_add(days as i32)
         .ok_or("fee ordinal overflow".into())
@@ -223,18 +229,23 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
                 }),
                 _ => None,
             })
-            .or_else(|| path.events.iter().find(|e| e.kind == "maturity").map(|e| ExitEvidence {
-                native_event_id: e.event_id.clone(), native_year: e.year,
-                reason: fee::Reason::Maturity,
-            }));
+            .or_else(|| {
+                path.events
+                    .iter()
+                    .find(|e| e.kind == "maturity")
+                    .map(|e| ExitEvidence {
+                        native_event_id: e.event_id.clone(),
+                        native_year: e.year,
+                        reason: fee::Reason::Maturity,
+                    })
+            });
         if let Some(x) = exit.as_mut() {
             if source.native_stops().iter().any(|stop| {
-                    stop.path_key() == path.path_key
-                        && stop.event_id() == x.native_event_id
-                        && (f64::from(stop.ordinal() - origin) / 365.).to_bits()
-                            == x.native_year.to_bits()
-                })
-            {
+                stop.path_key() == path.path_key
+                    && stop.event_id() == x.native_event_id
+                    && (f64::from(stop.ordinal() - origin) / 365.).to_bits()
+                        == x.native_year.to_bits()
+            }) {
                 x.reason = fee::Reason::Exercise;
             }
         }

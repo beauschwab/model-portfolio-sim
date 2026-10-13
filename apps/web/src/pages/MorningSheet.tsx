@@ -1,3 +1,4 @@
+import { LIMITS, headroom, isTight } from "../lib/limits";
 import { useEngineData } from "../lib/engine";
 /** The Morning Sheet — the strategist's entry point, typeset as a
  * decision memo: masthead with the engraved curve, the position in one
@@ -6,9 +7,11 @@ import { useEngineData } from "../lib/engine";
  * model), and a queue of next actions. One orchestrated load reveal;
  * reduced motion respected. */
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { api, awaitJob, fmt$, type Market } from "../lib/api";
-import { Button, InfoPop } from "../components/ui";
+import { api, fmt$, rowsOf, type Market, type Table } from "../lib/api";
+import { Badge, InfoPop, Stat } from "../components/ui";
+import { Freshness } from "./Dashboard";
+import { useWorkspace } from "../workspace/Workspace";
+import type { PanelId } from "../workspace/panels";
 
 type Kpis = {
   eve: { eve_$: number; duration_gap_y: number; dv01_net_$: number;
@@ -20,29 +23,30 @@ type Kpis = {
 
 /** Headroom row: value, limit, and the distance between them as a bar.
  * Brass marker sits at the limit; the bar is the room you have. */
-function Headroom({ label, value, limit, sense, unit, to }: {
+function Headroom({ label, value, limit, sense, unit, panel }: {
   label: string; value: number; limit: number;
-  sense: "floor" | "ceiling"; unit: string; to: string;
+  sense: "floor" | "ceiling"; unit: "%" | "y"; panel: PanelId;
 }) {
-  const room = sense === "floor" ? value - limit : limit - value;
+  const { openPanel } = useWorkspace();
+  const room = headroom(value, { label, limit, sense, unit });
   const pct = Math.max(0, Math.min(1, room / Math.max(Math.abs(limit), 1e-9)));
-  const tight = room < 0.08 * Math.abs(limit);
+  const tight = isTight(value, { label, limit, sense, unit });
   return (
-    <Link to={to} className="memo-rise group grid grid-cols-12 items-center gap-3 border-b border-line py-2.5 hover:bg-surface-1">
-      <div className="col-span-3 text-sm text-paper-dim group-hover:text-paper">{label}</div>
-      <div className="col-span-2 num text-right text-sm text-paper">{value.toFixed(unit === "y" ? 2 : 1)}{unit}</div>
-      <div className="col-span-2 num text-right text-xs text-paper-faint">{sense === "floor" ? "≥" : "≤"} {limit}{unit}</div>
+    <button type="button" onClick={() => openPanel(panel)} className="memo-rise group grid w-full grid-cols-12 items-center gap-3 border-b border-line py-2.5 text-left hover:bg-surface-1">
+      <div className="col-span-3 text-md text-paper-dim group-hover:text-paper">{label}</div>
+      <div className="col-span-2 num text-right text-md text-paper">{value.toFixed(unit === "y" ? 2 : 1)}{unit}</div>
+      <div className="col-span-2 num text-right text-sm text-paper-faint">{sense === "floor" ? "≥" : "≤"} {limit}{unit}</div>
       <div className="col-span-4">
-        <div className="relative h-1.5 rounded-full bg-surface-3">
-          <div className={`absolute inset-y-0 left-0 rounded-full ${room < 0 ? "bg-down" : tight ? "bg-brand" : "bg-up"}`}
+        <div className="relative h-1.5 rounded-sm bg-surface-3">
+          <div className={`absolute inset-y-0 left-0 rounded-sm ${room < 0 ? "bg-down" : tight ? "bg-warning" : "bg-up"}`}
             style={{ width: `${pct * 100}%` }} />
           <div className="absolute inset-y-0 left-0 w-px bg-brand" />
         </div>
       </div>
-      <div className={`col-span-1 num text-right text-xs ${room < 0 ? "text-down" : tight ? "text-brand" : "text-up"}`}>
+      <div className={`col-span-1 num text-right text-sm ${room < 0 ? "text-down" : tight ? "text-warning" : "text-up"}`}>
         {room >= 0 ? "+" : ""}{room.toFixed(1)}
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -50,18 +54,16 @@ export default function MorningSheet() {
   const engine = useEngineData();
   const [mkt, setMkt] = useState<Market | null>(null);
   const k = engine.kpis;
-  const [busy, setBusy] = useState(false);
+  const nii = engine.results.nii?.value as { summary: Table } | undefined;
+  const niiAnnual = nii ? (rowsOf(nii.summary).find(r => r.metric === "nii_annualized_$")?.value as number | undefined) : undefined;
+  const kpisPending = engine.pending.includes("kpis");
+  const niiPending = engine.pending.includes("nii");
+  const stale = engine.isStale("kpis") && !!k;
+  const niiStale = engine.isStale("nii") && !!nii;
   const today = useMemo(() => new Date().toLocaleDateString("en-US",
     { weekday: "long", month: "long", day: "numeric", year: "numeric" }), []);
 
   useEffect(() => { api.market().then(setMkt); }, []);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const done = await engine.run("kpis");
-      if (done.status === "error") alert(done.detail);
-    } finally { setBusy(false); }
-  };
 
   // the engraved curve: market pillars as a single inked stroke
   const curvePath = useMemo(() => {
@@ -74,6 +76,7 @@ export default function MorningSheet() {
     return xs.map((x, i) => `${i ? "L" : "M"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
   }, [mkt]);
 
+  const { openPanel } = useWorkspace();
   const d200 = k?.eve.sensitivity.find(s => s.shock_bp === 200)?.d_eve_pct_eve ?? 0;
 
   return (
@@ -82,21 +85,42 @@ export default function MorningSheet() {
       <header className="memo-rise border-b-2 border-paper-faint pb-4 pt-2">
         <div className="flex items-end justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-paper-faint">Treasury · balance sheet & rate risk</div>
-            <h1 className="font-display text-3xl font-medium text-paper" style={{ fontVariationSettings: '"opsz" 40' }}>
-              The Morning Sheet
-            </h1>
-            <div className="mt-1 text-xs text-paper-faint">{today} · 10y {mkt ? (mkt.swap_rates[6] * 100).toFixed(2) : "—"}% · 2s10s {mkt ? ((mkt.swap_rates[6] - mkt.swap_rates[1]) * 1e4).toFixed(0) : "—"}bp</div>
+            <div className="eyebrow">Treasury · balance sheet & rate risk</div>
+            <div className="mt-1 text-sm text-paper-faint">{today} · 10y {mkt ? (mkt.swap_rates[6] * 100).toFixed(2) : "—"}% · 2s10s {mkt ? ((mkt.swap_rates[6] - mkt.swap_rates[1]) * 1e4).toFixed(0) : "—"}bp</div>
           </div>
-          <svg width="320" height="48" className="text-paper-dim" aria-label="par curve">
+          <svg width="320" height="48" className="text-paper-dim" aria-label="Par curve">
             <path d={curvePath} fill="none" stroke="currentColor" strokeWidth="1.25" />
-            <path d={curvePath} fill="none" stroke="#fcd535" strokeWidth="1.25" strokeDasharray="2 5" opacity="0.6" />
+            <path d={curvePath} fill="none" stroke="var(--accent)" strokeWidth="1.25" strokeDasharray="2 5" opacity="0.6" />
           </svg>
         </div>
       </header>
 
+      {/* current state: the headline numbers, kept current by the engine */}
+      {k && (
+        <section className={`memo-rise grid grid-cols-2 gap-3 pt-5 lg:grid-cols-4 ${stale ? "opacity-60 transition-opacity duration-base" : ""}`}>
+          <Stat label="EVE" value={fmt$(k.eve.eve_$)} detail={`Net dv01 ${fmt$(k.eve.dv01_net_$)}/bp`} />
+          <div className={niiStale && !stale ? "opacity-60 transition-opacity duration-base" : ""}>
+            <Stat label="NII, annualized" value={niiAnnual != null ? fmt$(niiAnnual) : "—"} detail={niiAnnual != null ? "27-month forecast" : "Forecast pending"} />
+          </div>
+          <Stat label="Duration gap" value={`${k.eve.duration_gap_y.toFixed(2)}y`} detail={`A ${k.eve.dur_assets_y.toFixed(2)}y · L ${k.eve.dur_liab_y.toFixed(2)}y`} />
+          <div className="flex flex-col justify-between rounded-md border border-line-strong bg-surface-1 px-3.5 py-3 shadow-inset-top">
+            <div className="eyebrow">Status</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Freshness kind="kpis" />
+              {!kpisPending && !stale && (niiPending || niiStale || engine.errors.nii)
+                ? <span className="text-xs text-paper-faint">NII</span> : null}
+              {!kpisPending && !stale && <Freshness kind="nii" />}
+              {!kpisPending && !stale && !niiPending && !niiStale && !engine.errors.nii && <Badge tone="up" dot>Current</Badge>}
+            </div>
+            <div className="num mt-1 text-xs text-paper-faint">
+              {engine.autoRecalc ? "Updates when assumptions change" : "Auto-update is off"}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* the position, in prose */}
-      <section className="memo-rise py-6" style={{ animationDelay: "80ms" }}>
+      <section className="memo-rise py-6">
         {k ? (
           <p className="font-display text-lg leading-relaxed text-paper" style={{ fontVariationSettings: '"opsz" 18' }}>
             The book holds <span className="num text-brand">{fmt$(k.eve.eve_$)}</span> of economic value of equity,
@@ -108,40 +132,44 @@ export default function MorningSheet() {
               : " — inside the 15% line; the hedge overlay is doing its job."}
           </p>
         ) : (
-          <div className="flex items-center gap-4">
-            <p className="font-display text-lg text-paper-dim">Pull this morning's position to begin.</p>
-            <Button disabled={busy} onClick={run}>{busy ? "computing…" : "Run the sheet"}</Button>
+          <div className="space-y-2">
+            <p className="font-display text-lg text-paper-dim">
+              {kpisPending ? "Computing this morning's position…" : "Pull this morning's position with Run sheet in the command bar."}
+            </p>
+            {engine.errors.kpis && (
+              <p role="alert" className="text-sm text-danger">The sheet did not compute: {engine.errors.kpis}</p>
+            )}
           </div>
         )}
       </section>
 
       {/* the constraint ledger: headroom, not levels */}
       {k && (
-        <section style={{ animationDelay: "160ms" }} className="memo-rise">
+        <section className="memo-rise">
           <div className="flex items-baseline justify-between border-b border-paper-faint pb-1">
-            <h2 className="font-display text-sm font-medium uppercase tracking-[0.18em] text-paper-dim">Constraint ledger</h2>
-            <span className="flex items-center text-[10px] text-paper-faint">headroom to limit — brass mark is the line
+            <h2 className="eyebrow">Constraint ledger</h2>
+            <span className="flex items-center text-2xs text-paper-faint">headroom to limit — brass mark is the line
               <InfoPop width="15rem">Each row shows distance to its binding limit, not the ratio's level. Oxblood = breached, brass = inside 8% of the line, verdigris = comfortable. Click a row to open the tool that moves it.</InfoPop></span>
           </div>
-          <Headroom label="EVE sensitivity (+200bp)" value={Math.abs(d200)} limit={15} sense="ceiling" unit="%" to="/kpis" />
-          <Headroom label="Liquidity coverage" value={k.lcr.lcr_pct} limit={110} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="Stable funding" value={k.nsfr.nsfr_pct} limit={100} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="CET1, end of plan" value={k.capital.cet1_path[k.capital.cet1_path.length - 1].cet1_ratio_pct} limit={10} sense="floor" unit="%" to="/kpis" />
-          <Headroom label="Duration gap" value={k.eve.duration_gap_y} limit={2.0} sense="ceiling" unit="y" to="/risk" />
+          <Headroom {...LIMITS.eve200} value={Math.abs(d200)} panel="kpis" />
+          <Headroom {...LIMITS.lcr} value={k.lcr.lcr_pct} panel="kpis" />
+          <Headroom {...LIMITS.nsfr} value={k.nsfr.nsfr_pct} panel="kpis" />
+          <Headroom {...LIMITS.cet1} value={k.capital.cet1_path[k.capital.cet1_path.length - 1].cet1_ratio_pct} panel="kpis" />
+          <Headroom {...LIMITS.durationGap} value={k.eve.duration_gap_y} panel="risk" />
         </section>
       )}
 
       {/* decisions queue */}
-      <section className="memo-rise grid gap-3 py-8 sm:grid-cols-3" style={{ animationDelay: "240ms" }}>
+      <section className="memo-rise grid gap-3 py-8 sm:grid-cols-3">
         {([
-          ["/strategy", "Test a reinvestment", "Slide allocations against live constraints."],
-          ["/optimizer", "Price the constraints", "Solve the plan; read the shadow prices."],
-          ["/market", "Move the market", "Set a 9Q path and rerun the sheet."],
-        ] as const).map(([to, t, s]) => (
-          <Link key={to} to={to} className="group border-t-2 border-brand pt-3 hover:bg-surface-1">
-            <div className="font-display text-base text-paper group-hover:text-brand">{t}</div>
-            <div className="mt-1 text-xs text-paper-faint">{s}</div>
-          </Link>
+          ["decide", "Test a reinvestment", "Slide allocations against live constraints."],
+          ["decide", "Price the constraints", "Solve the plan; read the shadow prices."],
+          ["market", "Move the market", "Set a 9Q path and rerun the sheet."],
+        ] as const).map(([panel, t, s]) => (
+          <button key={t} type="button" onClick={() => openPanel(panel)} className="group border-t-2 border-brand pt-3 text-left hover:bg-surface-1">
+            <div className="font-display text-lg text-paper group-hover:text-brand">{t}</div>
+            <div className="mt-1 text-sm text-paper-faint">{s}</div>
+          </button>
         ))}
       </section>
     </div>

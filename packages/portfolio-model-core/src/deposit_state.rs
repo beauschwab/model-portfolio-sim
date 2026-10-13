@@ -228,17 +228,24 @@ pub fn capture_principal_with_check(
     }
     // Cheap shape first. Do not scan an unsupported unbounded request.
     check()?;
-    if r.horizon_days > 64 || r.segments.len() != 1 || !r.migrations.is_empty()
+    if r.horizon_days > 64
+        || r.segments.len() != 1
+        || !r.migrations.is_empty()
         || !matches!(r.terminal, TerminalPolicy::RetainResidual {})
         || r.segments[0].repricing.observation_lag_days > 366
         || r.drivers.len() > 64 + 366 + 1
     {
-        return Err("principal capture requires <=64day single-segment no-inflow/migration retained tail".into());
+        return Err(
+            "principal capture requires <=64day single-segment no-inflow/migration retained tail"
+                .into(),
+        );
     }
     for driver in &r.drivers {
         check()?;
-        if driver.external_inflows.len() != 1 || driver.competitor_rates.len() != 1
-            || driver.offered_spread_stress.len() != 1 || driver.confidence_stress.len() != 1
+        if driver.external_inflows.len() != 1
+            || driver.competitor_rates.len() != 1
+            || driver.offered_spread_stress.len() != 1
+            || driver.confidence_stress.len() != 1
             || driver.external_inflows[0] != 0.
         {
             return Err("principal capture requires one declared channel and no-inflow".into());
@@ -246,11 +253,17 @@ pub fn capture_principal_with_check(
     }
     // Full economic validation occurs only once in simulate_inner below. The
     // source validator now receives checkpoints through its bounded driver scan.
-    let slots = (r.horizon_days as usize).checked_add(2).ok_or("atom slots overflow")?;
+    let slots = (r.horizon_days as usize)
+        .checked_add(2)
+        .ok_or("atom slots overflow")?;
     let mut receipts = Vec::new();
-    receipts.try_reserve_exact(slots).map_err(|_| "principal atom reservation failed")?;
+    receipts
+        .try_reserve_exact(slots)
+        .map_err(|_| "principal atom reservation failed")?;
     let result = simulate_inner(r, Some(&mut receipts), check)?;
-    if receipts.len() > slots { return Err("principal atom capacity exceeded".into()); }
+    if receipts.len() > slots {
+        return Err("principal atom capacity exceeded".into());
+    }
     Ok((result, receipts))
 }
 /// Separately versioned counted owner uses the unchanged native loop and atom sink.
@@ -261,24 +274,46 @@ pub(crate) fn capture_principal_counted_with_check(
     check: &mut impl FnMut() -> Result<(), String>,
 ) -> Result<(DepositStateResult, Vec<PrincipalAtom>), String> {
     check()?;
-    if maximum_days > 365 || r.horizon_days == 0 || r.horizon_days > maximum_days
-        || r.identity.measure != CashflowMeasure::Physical || r.segments.len() != 1
-        || !r.migrations.is_empty() || !matches!(r.terminal, TerminalPolicy::RetainResidual {})
+    if maximum_days > 365
+        || r.horizon_days == 0
+        || r.horizon_days > maximum_days
+        || r.identity.measure != CashflowMeasure::Physical
+        || r.segments.len() != 1
+        || !r.migrations.is_empty()
+        || !matches!(r.terminal, TerminalPolicy::RetainResidual {})
         || r.segments[0].repricing.observation_lag_days > 64
         || r.drivers.len() > maximum_days as usize + 64 + 1
-    { return Err("counted principal tier requires <=365day physical one-segment retained-tail, lag<=64".into()); }
+    {
+        return Err(
+            "counted principal tier requires <=365day physical one-segment retained-tail, lag<=64"
+                .into(),
+        );
+    }
     for d in &r.drivers {
         check()?;
-        if d.external_inflows.len()!=1 || d.external_inflows[0]!=0. || d.competitor_rates.len()!=1
-            || d.offered_spread_stress.len()!=1 || d.confidence_stress.len()!=1
-        { return Err("counted principal tier rejects inflow/migration/ambiguous channels".into()); }
+        if d.external_inflows.len() != 1
+            || d.external_inflows[0] != 0.
+            || d.competitor_rates.len() != 1
+            || d.offered_spread_stress.len() != 1
+            || d.confidence_stress.len() != 1
+        {
+            return Err(
+                "counted principal tier rejects inflow/migration/ambiguous channels".into(),
+            );
+        }
     }
-    let slots=(r.horizon_days as usize).checked_add(2).ok_or("atom slots overflow")?;
-    let mut atoms=Vec::new();
-    atoms.try_reserve_exact(slots).map_err(|_| "counted atom reserve failed")?;
-    let result=simulate_inner(r,Some(&mut atoms),check)?;
-    if atoms.len()>slots { return Err("counted atom capacity exceeded".into()); }
-    Ok((result,atoms))
+    let slots = (r.horizon_days as usize)
+        .checked_add(2)
+        .ok_or("atom slots overflow")?;
+    let mut atoms = Vec::new();
+    atoms
+        .try_reserve_exact(slots)
+        .map_err(|_| "counted atom reserve failed")?;
+    let result = simulate_inner(r, Some(&mut atoms), check)?;
+    if atoms.len() > slots {
+        return Err("counted atom capacity exceeded".into());
+    }
+    Ok((result, atoms))
 }
 fn simulate_inner(
     r: &DepositStateRequest,
@@ -771,7 +806,10 @@ fn label(v: &str, max: usize) -> Result<(), String> {
 fn validate(r: &DepositStateRequest) -> Result<(i32, i32), String> {
     validate_with_check(r, &mut || Ok(()))
 }
-fn validate_with_check(r: &DepositStateRequest, check: &mut impl FnMut()->Result<(),String>) -> Result<(i32,i32),String> {
+fn validate_with_check(
+    r: &DepositStateRequest,
+    check: &mut impl FnMut() -> Result<(), String>,
+) -> Result<(i32, i32), String> {
     check()?;
     if r.schema != SCHEMA || r.identity.model_version != SCHEMA {
         return Err("deposit schema/model version mismatch".into());
@@ -1002,4 +1040,3 @@ fn validate_with_check(r: &DepositStateRequest, check: &mut impl FnMut()->Result
     }
     Ok((end, first))
 }
-

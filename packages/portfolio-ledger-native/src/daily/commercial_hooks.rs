@@ -26,24 +26,42 @@ impl Sim<'_> {
             .ok_or("commercial native state missing")?;
         for event in c.ordered_events(&self.scenario.name, day) {
             portfolio_compute_control::checkpoint()?;
-            let (binding,index)=match event {
-                crate::commercial_intent_owner::Scheduled::Loan(b,i)=>(b,i),
-                crate::commercial_intent_owner::Scheduled::Fee(fi,i)=>{
-                    let f=&c.fees[fi];let b=&c.bindings[f.loan_binding];let pi=c.positions[f.loan_binding];
-                    let a=self.aid[self.positions[pi].account.as_str()];
-                    let(next,lines,cash,equity)=state.fees[fi].stage(c,fi,i)?;
-                    let entries=lines.iter().map(|(gl,value)|entry(gl,if *gl=="cash"{""}else{b.position_id},*value)).collect();
-                    self.raw_post(day,a,"commercial_nonintegral_fee",entries)?;
-                    for(gl,value)in &lines{if gl.starts_with("pnl:"){
-                        *self.earnings.entry((a,self.sink.intern(gl),self.sink.intern(b.position_id))).or_default()+=value;
-                    }}
-                    self.accounts[a].cash+=cash;self.accounts[a].equity+=equity;
-                    self.owned_event_totals(a,"commercial_nonintegral_fee",cash,equity);
-                    if !self.accounts[a].cash.is_finite()||!self.accounts[a].equity.is_finite(){return Err("fee pooled account overflow".into());}
-                    if self.detail {self.sink.emit("commercial_fee_lineage",json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,
+            let (binding, index) = match event {
+                crate::commercial_intent_owner::Scheduled::Loan(b, i) => (b, i),
+                crate::commercial_intent_owner::Scheduled::Fee(fi, i) => {
+                    let f = &c.fees[fi];
+                    let b = &c.bindings[f.loan_binding];
+                    let pi = c.positions[f.loan_binding];
+                    let a = self.aid[self.positions[pi].account.as_str()];
+                    let (next, lines, cash, equity) = state.fees[fi].stage(c, fi, i)?;
+                    let entries = lines
+                        .iter()
+                        .map(|(gl, value)| {
+                            entry(gl, if *gl == "cash" { "" } else { b.position_id }, *value)
+                        })
+                        .collect();
+                    self.raw_post(day, a, "commercial_nonintegral_fee", entries)?;
+                    for (gl, value) in &lines {
+                        if gl.starts_with("pnl:") {
+                            *self
+                                .earnings
+                                .entry((a, self.sink.intern(gl), self.sink.intern(b.position_id)))
+                                .or_default() += value;
+                        }
+                    }
+                    self.accounts[a].cash += cash;
+                    self.accounts[a].equity += equity;
+                    self.owned_event_totals(a, "commercial_nonintegral_fee", cash, equity);
+                    if !self.accounts[a].cash.is_finite() || !self.accounts[a].equity.is_finite() {
+                        return Err("fee pooled account overflow".into());
+                    }
+                    if self.detail {
+                        self.sink.emit("commercial_fee_lineage",json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,
                         "path_key":b.path_key,"native_year":f.native_years[i],"source_weight":b.source_weight,"allocation_factor":b.allocated_face/b.native_unit_face,
-                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.groups()[i]}))?;}
-                    state.fees[fi]=next;continue;
+                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.groups()[i]}))?;
+                    }
+                    state.fees[fi] = next;
+                    continue;
                 }
             };
             let b = &c.bindings[binding];
@@ -122,8 +140,10 @@ impl Sim<'_> {
             }
             if matches!(
                 gl,
-                "dated_deferred_income" | "credit_default_deferred_income"
-                | "commercial_fee_payable" | "commercial_deferred_fee_income"
+                "dated_deferred_income"
+                    | "credit_default_deferred_income"
+                    | "commercial_fee_payable"
+                    | "commercial_deferred_fee_income"
             ) {
                 liabilities -= value;
             } else {
@@ -143,13 +163,20 @@ impl Sim<'_> {
             .commercial_state
             .as_ref()
             .ok_or("commercial state missing")?;
-        for(fi,f)in c.fees.iter().enumerate().filter(|(_,f)|c.bindings[f.loan_binding].scenario==self.scenario.name){
-            let b=&c.bindings[f.loan_binding];
-            for(fee_id,snapshot)in &state.fees[fi].states{
-                let row=json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,"path_key":b.path_key,"fee_id":fee_id,
+        for (fi, f) in c
+            .fees
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| c.bindings[f.loan_binding].scenario == self.scenario.name)
+        {
+            let b = &c.bindings[f.loan_binding];
+            for (fee_id, snapshot) in &state.fees[fi].states {
+                let row = json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,"path_key":b.path_key,"fee_id":fee_id,
                     "source_weight":b.source_weight,"allocation_factor":b.allocated_face/b.native_unit_face,"native_fee_snapshot":snapshot});
-                self.sink.emit("commercial_fee_daily",row.clone())?;
-                if day==self.spec.horizon_days{self.sink.emit("commercial_fee_closing",row)?;}
+                self.sink.emit("commercial_fee_daily", row.clone())?;
+                if day == self.spec.horizon_days {
+                    self.sink.emit("commercial_fee_closing", row)?;
+                }
             }
         }
         for (binding, snapshot) in state.snapshots(c, &self.scenario.name)? {

@@ -162,7 +162,8 @@ incentive), not pool-factor based. Turnover = base × 30m seasoning ramp ×
 monthly seasonality × YoY-HPA kicker (floored 0.3) × rate lock-in
 sigmoid. CLTV migrates by pool factor amortization ÷ HPI (origination
 appreciation proxied from age if `hpi_orig_ratio` absent). FICO / size /
-state / channel are STATIC per-security multipliers. All anchors
+state / channel are STATIC per-security multipliers on refi; the optional
+`prepay_mult` column scales turnover + refi together before the CPR cap. All anchors
 stylized — fit to loan level. Payment delay: `pay_delay_days` column →
 discounting shift at the OAS layer (delay discounted at OAS, not
 pathwise short — bp-level residual).
@@ -184,8 +185,14 @@ Fit = JOINT NLS over the simulated recursion — never static levels
 visits the logistic plateau (high-rate beta = extrapolation). Attrition =
 segment base × age curve (young churns, seasoned floor) × size mult ×
 opportunity-gap S-curve × positive-12m-rate-velocity accelerator, capped
-0.5/mo. Liability = PV(interest + servicing + runoff + terminal at T−1)
-on the monthly grid; widened OAS bracket to −15% (franchise premia).
+0.5/mo. Liability = PV(interest + servicing + runoff + terminal treatment
+at T−1) on the monthly grid. The terminal treatment is the explicit
+`deposit-terminal-1` assumption (RunConfig.deposit_terminal / request
+assumptions.terminal): payout (default, residual repaid at par), truncate
+(residual excluded) or runoff_tail (closed-form perpetuity
+R(r/12+svc/12+a)/max(a+s/12, 1e-4) at the final attrition/paid/short rate,
+lumped into the T−1 A column so OAS discounts it to the horizon only);
+`deposit_horizon_sensitivity` quantifies it at extended horizons; widened OAS bracket to −15% (franchise premia).
 9Q stress shocks are EXACT re-runs of the rate recursion on the shifted
 short path (no linearized template); velocity recomputes → shock-induced
 flight captured. EVE sign: eve_pnl = −Δliability.

@@ -107,9 +107,13 @@ fn key(row: &JournalRow) -> Key {
 
 /// Decode only the output of the same native Sim; no caller stream is accepted.
 fn decode(data: &[u8], reserved_bytes: usize) -> Result<(Tables, Value), String> {
-    decode_selected(data,reserved_bytes,6)
+    decode_selected(data, reserved_bytes, 6)
 }
-pub(crate) fn decode_selected(data:&[u8],reserved_bytes:usize,protocol:u32)->Result<(BTreeMap<String,Vec<Value>>,Value),String>{
+pub(crate) fn decode_selected(
+    data: &[u8],
+    reserved_bytes: usize,
+    protocol: u32,
+) -> Result<(BTreeMap<String, Vec<Value>>, Value), String> {
     if data.len() > reserved_bytes || data.len() > MAX_OUTPUT {
         return Err("holding stream exceeds preflight reservation".into());
     }

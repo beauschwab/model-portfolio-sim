@@ -119,7 +119,10 @@ pub fn audit(r: &Request) -> Result<Admission, String> {
     audit_with_native_opening(r, &[])
 }
 /// Additive joined-owner admission. The coordinator must derive these anchors from raw native sources.
-pub fn audit_with_native_opening(r: &Request, native_opening: &[crate::spec::NativeOpening]) -> Result<Admission, String> {
+pub fn audit_with_native_opening(
+    r: &Request,
+    native_opening: &[crate::spec::NativeOpening],
+) -> Result<Admission, String> {
     portfolio_compute_control::checkpoint()?;
     if r.schema != SCHEMA
         || r.positions.is_empty()
@@ -143,7 +146,12 @@ pub fn audit_with_native_opening(r: &Request, native_opening: &[crate::spec::Nat
     let spec = if native_opening.is_empty() {
         crate::spec::normalize(r.specification.clone(), 256, MAX_WORK)?
     } else {
-        crate::spec::normalize_with_native_opening(r.specification.clone(), 256, MAX_WORK, native_opening)?
+        crate::spec::normalize_with_native_opening(
+            r.specification.clone(),
+            256,
+            MAX_WORK,
+            native_opening,
+        )?
     };
     if spec.positions.len() != r.positions.len()
         || !spec.cashflows.is_empty()
@@ -341,12 +349,20 @@ pub fn prepare(r: Request) -> Result<Prepared, String> {
     prepare_with_native_opening(r, &[])
 }
 /// The empty anchor path preserves the historical source2 implementation exactly.
-pub fn prepare_with_native_opening(r: Request, native_opening: &[crate::spec::NativeOpening]) -> Result<Prepared, String> {
+pub fn prepare_with_native_opening(
+    r: Request,
+    native_opening: &[crate::spec::NativeOpening],
+) -> Result<Prepared, String> {
     let admission = audit_with_native_opening(&r, native_opening)?;
     let spec = if native_opening.is_empty() {
         crate::spec::normalize(r.specification.clone(), 256, MAX_WORK)?
     } else {
-        crate::spec::normalize_with_native_opening(r.specification.clone(), 256, MAX_WORK, native_opening)?
+        crate::spec::normalize_with_native_opening(
+            r.specification.clone(),
+            256,
+            MAX_WORK,
+            native_opening,
+        )?
     };
     let asof = r.positions[0].paths[0]
         .source
@@ -588,7 +604,12 @@ pub fn prepare_with_native_opening(r: Request, native_opening: &[crate::spec::Na
     let dated = if native_opening.is_empty() {
         CompiledDatedLedger::compile(req.clone(), 256, MAX_WORK)?
     } else {
-        CompiledDatedLedger::compile_with_native_opening(req.clone(), 256, MAX_WORK, native_opening)?
+        CompiledDatedLedger::compile_with_native_opening(
+            req.clone(),
+            256,
+            MAX_WORK,
+            native_opening,
+        )?
     };
     let by_event: BTreeMap<_, _> = dated
         .store

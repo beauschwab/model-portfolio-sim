@@ -3,8 +3,8 @@
 use std::io::{self, Read};
 
 fn main() {
-    let started=std::time::Instant::now();
-    let mut ftp_handled=false;
+    let started = std::time::Instant::now();
+    let mut ftp_handled = false;
     let result = (|| -> Result<serde_json::Value, String> {
         let mut input = Vec::new();
         io::stdin()
@@ -15,16 +15,22 @@ fn main() {
             return Err("request exceeds 128 MiB".into());
         }
         let request = portfolio_decision_native::commercial_intake::parse(&input)?;
-        if request["op"]=="analyze_commercial_fee_journal"{
-            return portfolio_decision_native::commercial_fee_journal::run_started(&input,started);
+        if request["op"] == "analyze_commercial_fee_journal" {
+            return portfolio_decision_native::commercial_fee_journal::run_started(&input, started);
         }
         if request["op"] == "analyze_commercial_holding_journal" {
-            portfolio_decision_native::commercial_holding_journal::run_cli_started(&input,io::stdout(),started)?;
-            ftp_handled=true;
+            portfolio_decision_native::commercial_holding_journal::run_cli_started(
+                &input,
+                io::stdout(),
+                started,
+            )?;
+            ftp_handled = true;
             return Ok(serde_json::Value::Null);
         }
         if request["op"] == "analyze_commercial_candidate_journal" {
-            return portfolio_decision_native::commercial_candidate_journal::run_envelope_started(&input,started);
+            return portfolio_decision_native::commercial_candidate_journal::run_envelope_started(
+                &input, started,
+            );
         }
         if request["op"] == "analyze_commercial_treasury" {
             return portfolio_decision_native::commercial_treasury::run_envelope(&input);
@@ -32,8 +38,11 @@ fn main() {
         if request["op"] == "prepare_modeled_product_ftp" {
             // Historical generic peek admits128MiB; selected raw parser independently
             // enforces1MiB. This is not a preparse1MiB RSS guarantee.
-            portfolio_decision_native::modeled_product_ftp::public_cli::execute(&input,io::stdout())?;
-            ftp_handled=true;
+            portfolio_decision_native::modeled_product_ftp::public_cli::execute(
+                &input,
+                io::stdout(),
+            )?;
+            ftp_handled = true;
             return Ok(serde_json::Value::Null);
         }
         if request["op"] == "analyze_mortgage_closing_capital" {
@@ -57,7 +66,9 @@ fn main() {
                 return Err("unsupported product-credit mixed operation".into());
             }
             return portfolio_compute_control::scope(
-                Some(portfolio_compute_control::Control::new(raw.execution_timeout_ms)?),
+                Some(portfolio_compute_control::Control::new(
+                    raw.execution_timeout_ms,
+                )?),
                 || {
                     let result = portfolio_decision_native::product_mixed_product_credit::evaluate(
                         &raw.request,
@@ -163,7 +174,9 @@ fn main() {
         }
         portfolio_decision_native::dispatch(request)
     })();
-    if ftp_handled{return;}
+    if ftp_handled {
+        return;
+    }
     match result {
         Ok(v) => println!("{}", serde_json::json!({"ok":v})),
         Err(e) => {

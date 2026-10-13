@@ -174,7 +174,7 @@ def test_saved_native_workflow_publishes_queued_identity(durable, monkeypatch):
     import polars as pl
     state = store.snapshot()
     state['settings'] = state['settings'].model_copy(update={
-        'compute_backend': 'rust', 'n_paths': 32, 'n_paths_base': 32, 'horizon_months': 6, 'n_threads': 4})
+        'compute_backend': 'rust', 'n_paths': 32, 'n_paths_base': 32, 'horizon_months': 6, 'n_threads': 1})
     book = {'loans': pl.DataFrame([dict(id='loan', face=100.,
         maturity=state['asof'] + dt.timedelta(days=365), freq_months=6,
         daycount='ACT/360', is_float=False, coupon_or_spread=.05,

@@ -382,17 +382,18 @@ mod tests {
         let library = PreparedLibrary::new(&value).unwrap();
         let mut request = library.request.clone();
         request.max_purchase_cost_assets = Some(70.);
-        let staged =
-            PreparedLibrary::build(request, Some(Rc::clone(&library.prepared))).unwrap();
+        let staged = PreparedLibrary::build(request, Some(Rc::clone(&library.prepared))).unwrap();
         assert!(Rc::ptr_eq(&library.prepared, &staged.prepared));
         assert_eq!(Rc::strong_count(&library.prepared), 2);
 
         let mut substituted = library.request.clone();
         substituted.commercial.identity.input_revision = "different-source".into();
-        assert!(PreparedLibrary::build(substituted, Some(Rc::clone(&library.prepared)))
-            .err()
-            .unwrap()
-            .contains("retained commercial source identity mismatch"));
+        assert!(
+            PreparedLibrary::build(substituted, Some(Rc::clone(&library.prepared)))
+                .err()
+                .unwrap()
+                .contains("retained commercial source identity mismatch")
+        );
         assert_eq!(Rc::strong_count(&library.prepared), 2);
         drop(staged);
         assert_eq!(Rc::strong_count(&library.prepared), 1);

@@ -89,7 +89,9 @@ pub fn envelope(bytes: &[u8]) -> Result<(crate::deposit_revision::Request, u64, 
     if map.len() != 2 || !map.contains_key("request") || !map.contains_key("execution_timeout_ms") {
         return Err("unknown revised deposit envelope fields".into());
     }
-    let timeout = v["execution_timeout_ms"].as_u64().ok_or("explicit integer execution timeout required")?;
+    let timeout = v["execution_timeout_ms"]
+        .as_u64()
+        .ok_or("explicit integer execution timeout required")?;
     let serialized = serde_json::to_vec(&v["request"]).map_err(|e| e.to_string())?;
     let (request, _) = parse(&serialized)?;
     Ok((request, timeout, v["request"].clone()))

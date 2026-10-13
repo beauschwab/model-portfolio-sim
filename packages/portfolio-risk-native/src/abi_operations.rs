@@ -1,5 +1,5 @@
-//! Generated ABI 8 operation names. Do not edit.
-pub const ABI_VERSION: u32 = 8;
+//! Generated ABI 10 operation names. Do not edit.
+pub const ABI_VERSION: u32 = 10;
 pub const LMM: u32 = 1;
 pub const CORPORATE: u32 = 2;
 pub const CD: u32 = 3;
@@ -37,13 +37,13 @@ pub fn input_count(op: u32) -> Option<usize> {
         LMM => Some(7),
         CORPORATE => Some(17),
         CD => Some(14),
-        MORTGAGE => Some(25),
-        MORTGAGE_STRESS => Some(27),
-        DEPOSIT => Some(19),
-        DEPOSIT_STRESS => Some(20),
+        MORTGAGE => Some(26),
+        MORTGAGE_STRESS => Some(28),
+        DEPOSIT => Some(20),
+        DEPOSIT_STRESS => Some(21),
         CSR_OAS => Some(9),
         CSR_PV => Some(5),
-        MORTGAGE_BATCH => Some(26),
+        MORTGAGE_BATCH => Some(27),
         SWAPTION => Some(4),
         PROGRAM => Some(6),
         INCOME => Some(4),
@@ -60,8 +60,8 @@ pub fn input_count(op: u32) -> Option<usize> {
         FIT_VOL => Some(6),
         FIT_DEPOSIT => Some(1),
         SHARED_DRAWS => Some(2),
-        MORTGAGE_RISK => Some(25),
-        MORTGAGE_FORWARD_STRESS => Some(27),
+        MORTGAGE_RISK => Some(26),
+        MORTGAGE_FORWARD_STRESS => Some(28),
         MORTGAGE_CACHE => Some(1),
         INTERACTIVE => Some(3),
         BEHAVIORAL => Some(0), // mode-dependent layout, validated by the native dispatcher

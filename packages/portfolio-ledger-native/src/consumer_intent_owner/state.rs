@@ -104,8 +104,13 @@ fn is_earnings(code: AccountCode) -> bool {
 /// Credit channels keep the core debit-positive convention. P&L codes must have
 /// the shared report's pnl: prefix; standalone credit_replay's plain names cannot
 /// be copied into Sim without a different classification rule.
-pub(crate) enum IncomeOwner {Consumer, Commercial}
-fn gl(code: AccountCode) -> &'static str {gl_with_owner(code,IncomeOwner::Consumer)}
+pub(crate) enum IncomeOwner {
+    Consumer,
+    Commercial,
+}
+fn gl(code: AccountCode) -> &'static str {
+    gl_with_owner(code, IncomeOwner::Consumer)
+}
 pub(crate) fn gl_with_owner(code: AccountCode, owner: IncomeOwner) -> &'static str {
     match code {
         AccountCode::Cash => "cash",
@@ -116,10 +121,22 @@ pub(crate) fn gl_with_owner(code: AccountCode, owner: IncomeOwner) -> &'static s
         AccountCode::LiveBookAdjustment => "book_adjustment",
         AccountCode::DefaultBookAdjustment => "credit_default_book_adjustment",
         AccountCode::Allowance => "allowance",
-        AccountCode::InterestIncome => match owner {IncomeOwner::Consumer=>"pnl:consumer_interest_income",IncomeOwner::Commercial=>"pnl:commercial_effective_interest_income"},
-        AccountCode::CreditLossExpense => match owner {IncomeOwner::Consumer=>"pnl:consumer_credit_loss_expense",IncomeOwner::Commercial=>"pnl:commercial_credit_loss_expense"},
-        AccountCode::BasisRecognitionExpense => match owner {IncomeOwner::Consumer=>"pnl:consumer_basis_recognition_expense",IncomeOwner::Commercial=>"pnl:commercial_basis_realization_expense"},
-        AccountCode::RecoveryIncome => match owner {IncomeOwner::Consumer=>"pnl:consumer_recovery_income",IncomeOwner::Commercial=>"pnl:commercial_recovery_income"},
+        AccountCode::InterestIncome => match owner {
+            IncomeOwner::Consumer => "pnl:consumer_interest_income",
+            IncomeOwner::Commercial => "pnl:commercial_effective_interest_income",
+        },
+        AccountCode::CreditLossExpense => match owner {
+            IncomeOwner::Consumer => "pnl:consumer_credit_loss_expense",
+            IncomeOwner::Commercial => "pnl:commercial_credit_loss_expense",
+        },
+        AccountCode::BasisRecognitionExpense => match owner {
+            IncomeOwner::Consumer => "pnl:consumer_basis_recognition_expense",
+            IncomeOwner::Commercial => "pnl:commercial_basis_realization_expense",
+        },
+        AccountCode::RecoveryIncome => match owner {
+            IncomeOwner::Consumer => "pnl:consumer_recovery_income",
+            IncomeOwner::Commercial => "pnl:commercial_recovery_income",
+        },
     }
 }
 fn push(lines: &mut Vec<Line>, name: &'static str, value: f64, factor: f64) -> Result<(), String> {

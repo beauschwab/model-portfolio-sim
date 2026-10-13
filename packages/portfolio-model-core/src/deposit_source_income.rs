@@ -562,7 +562,9 @@ fn evaluate_generated(
         capital_ftp_eligible: false,
     };
     // Counted tier seals and sizes the COMPLETE source once in its wrapper.
-    let size = if counted { 0 } else {
+    let size = if counted {
+        0
+    } else {
         serde_json::to_vec(&result)
             .map_err(|e| e.to_string())?
             .len()

@@ -326,6 +326,8 @@ impl UnitRequest {
             request.book = &mortgage_book;
             request.fixed_oas = &[];
             request.original_hpi = &[];
+            // new-origination units prepay at the model's own speed
+            request.prepay_multiplier = &[];
             request.config.base_paths = p;
             request.config.sensitivity_paths = p;
             let crate::mortgage_risk::ParallelValues { down: d, up: u, .. } =

@@ -139,6 +139,11 @@ class MarketView(Market):
     provenance: MarketProvenance | None = None
 
 
+class InputFingerprints(BaseModel):
+    revision: int
+    nodes: dict[str, str]
+
+
 class StateStatus(BaseModel):
     revision: int
     library_ready: bool
@@ -149,6 +154,7 @@ class StateStatus(BaseModel):
     library_purchase_grid: list[int] | None = None
     library_reporting_ordinals: list[int] | None = None
     library_unit_grid: dict[str,list[int]] | None = None
+    inputs: InputFingerprints | None = None
 
 
 class StressCapabilities(BaseModel):
@@ -168,6 +174,9 @@ class RunRequest(BaseModel):
     include_analytics: bool = False
     backend: Literal['rust'] = 'rust'
     expected_revision: int | None = Field(None, ge=0)
+    # "background" marks an automatic downstream refresh; it waits behind
+    # every queued request a person is waiting on.
+    priority: Literal['interactive', 'background'] = 'interactive'
 
     @model_validator(mode="after")
     def pricing_overrides(self):

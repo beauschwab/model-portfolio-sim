@@ -213,12 +213,20 @@ fn optional_none_complete_ndjson_matches_frozen_installed_daily() {
 fn public_original_raw_identity_and_four_key_header() {
     let mut original = serde_json::to_value(raw()).unwrap();
     original["source"]["anchor"]["original_principal"] = serde_json::json!(100);
-    let input = serde_json::to_vec(&serde_json::json!({"request": original, "execution_timeout_ms": 30000})).unwrap();
+    let input = serde_json::to_vec(
+        &serde_json::json!({"request": original, "execution_timeout_ms": 30000}),
+    )
+    .unwrap();
     let (typed, timeout, retained) = m::parse_envelope(&input).unwrap();
     assert_eq!(timeout, 30000);
     assert!(retained["source"]["anchor"]["original_principal"].is_u64());
     let output = Arc::new(Mutex::new(vec![]));
-    m::run_public(m::prepare(typed).unwrap(), retained.clone(), Box::new(Sink(output.clone()))).unwrap();
+    m::run_public(
+        m::prepare(typed).unwrap(),
+        retained.clone(),
+        Box::new(Sink(output.clone())),
+    )
+    .unwrap();
     let bytes = output.lock().unwrap();
     let first = bytes.split(|x| *x == b'\n').next().unwrap();
     let header: serde_json::Value = serde_json::from_slice(first).unwrap();
@@ -227,17 +235,23 @@ fn public_original_raw_identity_and_four_key_header() {
     assert_eq!(workflow["schema"], "model-ledger-preparation-1");
     assert_eq!(workflow["model_schema"], m::SCHEMA);
     assert_eq!(workflow["source_receipt"]["raw_request"], retained);
-    assert!(workflow["source_receipt"]["raw_request"]["source"]["anchor"]["original_principal"].is_u64());
+    assert!(
+        workflow["source_receipt"]["raw_request"]["source"]["anchor"]["original_principal"]
+            .is_u64()
+    );
     assert!(bytes.ends_with(b"{\"complete\":true,\"protocol\":3}\n"));
 }
 
 #[test]
 fn selected_original_byte_envelope_rejects_duplicates_and_timeout_alias() {
     let r = serde_json::to_string(&raw()).unwrap();
-    for input in [format!("{{\"request\":{r},\"execution_timeout_ms\":30000,\"execution_timeout_ms\":30000}}"),
+    for input in [
+        format!(
+            "{{\"request\":{r},\"execution_timeout_ms\":30000,\"execution_timeout_ms\":30000}}"
+        ),
         format!("{{\"request\":{r},\"execution_timeout_ms\":30000.0}}"),
-        format!("{{\"request\":{r},\"execution_timeout_ms\":true}}")]
-    {
+        format!("{{\"request\":{r},\"execution_timeout_ms\":true}}"),
+    ] {
         assert!(m::parse_envelope(input.as_bytes()).is_err());
     }
 }

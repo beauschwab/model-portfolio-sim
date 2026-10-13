@@ -56,10 +56,7 @@ fn evaluate(v: &Value) -> Result<ResultData, String> {
 }
 use serde_json::{json, Value};
 fn raw() -> Value {
-    serde_json::from_str(include_str!(
-        "fixtures/product_event_owner.json"
-    ))
-    .unwrap()
+    serde_json::from_str(include_str!("fixtures/product_event_owner.json")).unwrap()
 }
 fn run(v: Value) -> Result<ResultData, String> {
     evaluate(&v)

@@ -13,8 +13,9 @@ test('real instrument what-if preserves saved book and exposes risk and recalibr
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   const original = await (await request.get('/api/books/loans')).body();
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Instrument What-if', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Instrument What-if', exact: true });
+  await page.getByRole('button', { name: 'Open Decide', exact: true }).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'What-if', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Decide', exact: true });
   await expect(panel.getByRole('combobox', { name: 'What-if instrument' })).not.toBeEmpty();
   await panel.getByRole('button', { name: 'Compare', exact: true }).click();
   await expect(panel.getByTestId('value-change')).toHaveText('$0', { timeout: 50_000 });
@@ -33,6 +34,8 @@ test('real instrument what-if preserves saved book and exposes risk and recalibr
 });
 
 test('obsolete what-if response is hidden and latest inputs determine results', async ({ page }) => {
+  // counts only what-if requests; automatic downstream recalculation is covered by downstream.spec
+  await page.addInitScript(() => localStorage.setItem('engine.autoRecalc', 'off'));
   let started!: () => void, release!: () => void;
   const first = new Promise<void>(r => { started=r; }); const gate = new Promise<void>(r => { release=r; });
   let count=0;
@@ -48,8 +51,9 @@ test('obsolete what-if response is hidden and latest inputs determine results', 
     await r.fulfill({body:envelope({baseline:valuation,revised:valuation,comparison:{loans:{__arrow__:0}},calibration_mode:'hold',revision:77,net_value_change:amount},[frame]),contentType:'application/octet-stream'});
   });
   await page.goto('/');
-  await page.getByRole('button', {name:'Open Instrument What-if',exact:true}).click();
-  const panel=page.getByRole('region',{name:'Instrument What-if',exact:true});
+  await page.getByRole('button', {name:'Open Decide',exact:true}).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'What-if', exact: true }).click();
+  const panel=page.getByRole('region',{name:'Decide',exact:true});
   await panel.getByLabel('Include risk and earnings', {exact:true}).uncheck();
   await expect(panel.getByRole('button',{name:'Compare',exact:true})).toBeEnabled();
   await panel.getByRole('button',{name:'Compare',exact:true}).click();
@@ -65,8 +69,9 @@ test('obsolete what-if response is hidden and latest inputs determine results', 
 test('what-if controls remain usable in a narrow dock panel', async ({page}) => {
   await page.setViewportSize({width:850,height:900});
   await page.goto('/');
-  await page.getByRole('button',{name:'Open Instrument What-if',exact:true}).click();
-  const panel=page.getByRole('region',{name:'Instrument What-if',exact:true});
+  await page.getByRole('button',{name:'Open Decide',exact:true}).click();
+  await page.getByRole('region', { name: 'Decide', exact: true }).getByRole('tab', { name: 'What-if', exact: true }).click();
+  const panel=page.getByRole('region',{name:'Decide',exact:true});
   await expect(panel.getByLabel('Assumption value',{exact:true})).toBeVisible();
   await panel.getByLabel('Assumption value',{exact:true}).fill('1000');
   await expect(panel.getByRole('button',{name:'Apply temporary change',exact:true})).toBeDisabled();

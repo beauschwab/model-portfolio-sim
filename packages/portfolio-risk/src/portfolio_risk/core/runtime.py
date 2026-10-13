@@ -24,8 +24,11 @@ class RunConfig:
     deposit_segments: dict | None = None
     cd_ew_params: tuple | None = None
     compute_backend: str = 'rust'
+    deposit_terminal: str | None = None   # None/'payout' | 'truncate' | 'runoff_tail'
 
     def __post_init__(self):
+        if self.deposit_terminal not in (None, 'payout', 'truncate', 'runoff_tail'):
+            raise ValueError('deposit_terminal must be payout, truncate or runoff_tail')
         if self.compute_backend not in ('python', 'rust'):
             raise ValueError('compute_backend must be python or rust')
         if min(self.n_paths, self.n_paths_base) < 1:

@@ -137,7 +137,9 @@ pub struct ResultData {
     accounting_approval: bool,
 }
 impl ResultData {
-    pub fn raw_request(&self) -> &Request { &self.raw_request }
+    pub fn raw_request(&self) -> &Request {
+        &self.raw_request
+    }
     pub fn groups(&self) -> &[Group] {
         &self.groups
     }
