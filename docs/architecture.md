@@ -275,6 +275,37 @@ contracts; `make test-py` and browser/native suites retain their existing gates.
 New products follow the engine recipe first, then adapters, book UI/KRD keys and
 unit templates. Financial logic belongs in Rust; adapters transport and format.
 
+### Domain migration, stage 3
+
+The cross-product layer now has explicit homes. Another 47 files moved, bringing
+the relocation inventory to 139 files:
+
+- `market/` owns shared market preparation, immutable market caches, supplied
+  product sources and indexed input adaptation.
+- `models/` owns calibration, observed market-driver fitting, joint market/credit
+  generation and explicit shared-model analysis.
+- `risk/` owns mixed-book risk and KPI aggregation; `income/` owns monthly
+  accounting and the separate income-only conditional forecast lane.
+- `graph/` owns incremental and indexed valuation graphs and their bounded cache.
+- `portfolio/` owns cohorts and audits, indexed books, decision inputs, what-if
+  preparation, monthly/aged/product units, coefficient replay, candidate sources,
+  forward programs and explicit ledger mapping.
+- `treasury/` owns capital/FTP evaluation, source bridges and modeled FTP policy.
+- `runtime/` owns financial controllers, cancellation/deadline control and optional
+  profiling; `transport/` owns generated ABI operation names and bounded dispatch.
+- `conventions/` retains the existing calendar and coupon conventions. Funding
+  coefficient reduction joins its owner under `products/funding/`.
+
+Previous public module paths remain aliases, including the treasury facade and
+feature-gated profiler. The generated ABI manifest writes directly to its new
+transport location. The inventory rejects new flat modules and missing aliases.
+No numerical bodies, schemas, tolerances or publication contracts change.
+
+Only `lib.rs` and the mixed low-level `quant.rs` kernel remain as root source
+files. Separating that kernel by calculation responsibility, organizing shared
+model-core and the ledger/decision crates, and the application adapter/reference
+layout remain subsequent work. This stage does not imply those moves are complete.
+
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).
 It describes earlier Numba/thread/in-memory stages, not current production policy.

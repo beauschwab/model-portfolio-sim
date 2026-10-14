@@ -1,9 +1,9 @@
 //! Raw corporate and CD lifecycle: dates -> cashflows -> fixed-OAS risk.
-use crate::cache::{resolve, Key};
-use crate::calibration::factor_loadings;
+use crate::market::cache::{resolve, Key};
+use crate::market::calibration_cache::fit_abcd;
 use crate::market::{bootstrap, MarketContext};
-use crate::market_cache::fit_abcd;
 use crate::math::random::SharedDraws;
+use crate::models::calibration::factor_loadings;
 use crate::products::mortgages::risk::RiskResult;
 use crate::products::term::deck::{Deck, DeckRequest, Product};
 use crate::quant::{corporate, oas, View};

@@ -53,7 +53,7 @@ pub(crate) fn selected(
     started: Instant,
     run: impl FnOnce() -> Result<Vec<u8>, String>,
 ) -> Option<Result<Vec<u8>, String>> {
-    if input.len() > crate::term_protocol::MAX_INPUT {
+    if input.len() > crate::transport::protocol::MAX_INPUT {
         return None;
     }
     let probe = serde_json::from_slice::<Probe>(input).ok()?;

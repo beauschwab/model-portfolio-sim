@@ -1,6 +1,6 @@
 //! Raw swap legs and cash-settled swaptions, carry and complete risk orchestration.
 use crate::conventions::{Bdc, CalendarSpec, DayCount};
-use crate::lifecycle_market::{admit, finite, matrix, tensor, vector, MarketInput, RateMarket};
+use crate::market::lifecycle::{admit, finite, matrix, tensor, vector, MarketInput, RateMarket};
 use crate::market::RatePaths;
 use crate::products::term::deck::{Amortization, Contract, Deck, DeckRequest, Product};
 use crate::quant::{accrual, corporate, oas, swaption};
