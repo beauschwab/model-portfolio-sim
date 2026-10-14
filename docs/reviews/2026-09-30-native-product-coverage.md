@@ -103,7 +103,7 @@ Benchmark results and validation counts are recorded below. The prior
 different workload and must not be treated as a measurement of these new product
 kernels.
 
-Sources: [native batch kernels](../../packages/portfolio-risk-native/src/quant.rs),
+Sources: [native batch kernel locations](../architecture.md#domain-migration-stage-4),
 [Python dispatch](../../packages/portfolio-risk/src/portfolio_risk/core/quant_native.py),
 [parity gates](../../packages/portfolio-risk/tests/test_native_products.py),
 [benchmark harness](../../scripts/benchmark_native_products.py),

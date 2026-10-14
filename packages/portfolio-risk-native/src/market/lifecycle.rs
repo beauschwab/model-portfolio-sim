@@ -2,10 +2,11 @@
 use crate::market::cache::{resolve, Key};
 use crate::market::calibration_cache::fit_abcd;
 use crate::market::{bootstrap, MarketContext, RatePaths};
+use crate::math::arrays::View;
 use crate::math::random::SharedDraws;
 use crate::models::calibration::factor_loadings;
+use crate::pricing::discount::oas;
 use crate::products::term::risk::RateConfig;
-use crate::quant::{oas, View};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

@@ -89,7 +89,7 @@ impl Program {
                 _ => (1. - smm).powf(k as f64),
             })
             .collect();
-        Ok(crate::quant::program(&[
+        Ok(crate::portfolio::forward_cashflows::program(&[
             matrix(reference, paths, months),
             vector(&amounts),
             vector(&factors),

@@ -6,11 +6,14 @@ use crate::market::calibration_cache::fit_abcd;
 use crate::market::{
     bootstrap, MarketContext, MortgageInputs, MortgagePaths, ParallelShock, RatePaths,
 };
+use crate::math::arrays::View;
 use crate::math::random::SharedDraws;
 use crate::models::calibration::{
     factor_loadings, fit_current_coupon, fit_ps_spread, CurrentCouponFit,
 };
-use crate::quant::{mortgage, mortgage_batch, oas, View};
+use crate::pricing::discount::oas;
+use crate::products::mortgages::kernels::mortgage;
+use crate::products::mortgages::kernels::mortgage_batch;
 use std::sync::Arc;
 
 fn vector(v: &[f64]) -> View<'_> {

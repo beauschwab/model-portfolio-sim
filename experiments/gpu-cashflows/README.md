@@ -2,7 +2,8 @@
 
 This isolated Rust DLL controls CUDA through pinned `cudarc` 0.19.10 and NVIDIA
 NVRTC 12.9.86. It implements prepared-input base mortgage/deposit cashflows from
-`portfolio-risk-native/src/quant.rs`. It is not linked into the production crates,
+`portfolio-risk-native/src/products/mortgages/kernels.rs` and
+`portfolio-risk-native/src/products/deposits/kernels.rs`. It is not linked into the production crates,
 registered in API settings, or used by workers. No production financial kernel
 or persistence contract is changed.
 

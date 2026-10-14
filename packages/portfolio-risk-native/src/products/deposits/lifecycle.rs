@@ -3,9 +3,11 @@ use crate::market::cache::{resolve, Key};
 use crate::market::lifecycle::{
     admit, finite, matrix, monthly_price, tensor, vector, MarketInput, RateMarket,
 };
+use crate::math::arrays::View;
+use crate::models::behavioral::behavioral;
 use crate::models::calibration::fit_deposits;
+use crate::products::deposits::kernels::deposits;
 use crate::products::mortgages::risk::RiskResult;
-use crate::quant::{behavioral, deposits, View};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -38,7 +40,7 @@ pub struct Segment {
     pub g0: f64,
 }
 /// Explicit treatment of the balance left after the final simulated month
-/// (`deposit-terminal-1`). See `quant::deposits` for the cash-flow formulas.
+/// (`deposit-terminal-1`). See `super::kernels::deposits` for the cash-flow formulas.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Terminal {
@@ -779,7 +781,7 @@ impl DepositRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::quant::DEPOSIT_TAIL_MIN_DECAY;
+    use crate::products::deposits::kernels::DEPOSIT_TAIL_MIN_DECAY;
 
     const SVC: f64 = 0.0024;
 

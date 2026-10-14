@@ -2,6 +2,7 @@ pub mod candidate_source;
 pub mod cohort_audit;
 pub mod cohorts;
 pub mod decision_inputs;
+pub(crate) mod forward_cashflows;
 pub mod indexed_books;
 pub mod ledger_mapping;
 pub mod programs;

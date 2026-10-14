@@ -23,12 +23,20 @@ class ArchitectureTests(unittest.TestCase):
                 'relocations': {'random.rs': 'math/random.rs'},
                 'compatibility_exports': {'random': 'math::random'},
                 'nested_compatibility_exports': {'math/mod.rs': {'rng': 'self::random'}},
+                'extractions': {'quant.rs': {'retired': True, 'destinations': ['math/arrays.rs']}},
             }))
             (source / 'lib.rs').write_text('pub mod math;\npub use math::random;')
             (source / 'math/mod.rs').write_text('pub use self::random as rng;')
             numerical = source / 'math/random.rs'
             numerical.write_text('use crate::math::ziggurat; // crate::products is documentation')
+            (source / 'math/arrays.rs').write_text('')
             self.assertEqual(checker.native_domain_violations(root), [])
+            (source / 'math/arrays.rs').unlink()
+            self.assertIn('missing extracted domain source', '\n'.join(checker.native_domain_violations(root)))
+            (source / 'math/arrays.rs').write_text('')
+            (source / 'quant.rs').write_text('')
+            self.assertIn('retired mixed module', '\n'.join(checker.native_domain_violations(root)))
+            (source / 'quant.rs').unlink()
             (source / 'math/mod.rs').write_text('')
             self.assertIn('missing compatibility export rng', '\n'.join(checker.native_domain_violations(root)))
             (source / 'math/mod.rs').write_text('pub use self::random as rng;')

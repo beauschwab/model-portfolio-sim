@@ -3,6 +3,7 @@ pub mod deposits;
 pub mod derivatives;
 pub mod funding;
 pub mod installment;
+pub(crate) mod money_market;
 pub mod mortgages;
 pub mod revolving;
 pub mod term;
