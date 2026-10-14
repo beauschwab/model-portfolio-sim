@@ -1,6 +1,6 @@
 //! Native product kernels. Inputs are borrowed contiguous f64 arrays; outputs
 //! publish only after the entire call has passed shape and finite-value checks.
-use crate::abi_operations::*;
+use crate::transport::abi_operations::*;
 use rayon::prelude::*;
 use std::slice;
 
@@ -1256,16 +1256,16 @@ pub unsafe extern "C" fn portfolio_quant_call(
             .expect("invalid curve")],
             RATE_PATHS | MORTGAGE_PATHS => market_paths(&views, op == MORTGAGE_PATHS),
             FIT_CC => {
-                let fit = crate::calibration::fit_current_coupon(views[0].v)
+                let fit = crate::models::calibration::fit_current_coupon(views[0].v)
                     .expect("invalid current coupon fit");
                 vec![fit.beta, vec![fit.lambda, fit.r_squared]]
             }
             FIT_PS => vec![
-                crate::calibration::fit_ps_spread(views[0].v, views[1].at(0))
+                crate::models::calibration::fit_ps_spread(views[0].v, views[1].at(0))
                     .expect("invalid spread fit")
                     .to_vec(),
             ],
-            FACTOR_LOADINGS => vec![crate::calibration::factor_loadings(
+            FACTOR_LOADINGS => vec![crate::models::calibration::factor_loadings(
                 views[0].ix(0),
                 views[1].ix(0),
                 views[2].at(0),
@@ -1274,7 +1274,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
             .expect("invalid factor loadings")],
             FIT_VOL | FIT_DEPOSIT => {
                 let fit = if op == FIT_VOL {
-                    crate::calibration::fit_abcd(
+                    crate::models::calibration::fit_abcd(
                         views[0].v,
                         views[1].v,
                         views[2].v,
@@ -1283,7 +1283,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                         [views[5].at(0), views[5].at(1)],
                     )
                 } else {
-                    crate::calibration::fit_deposits(views[0].v)
+                    crate::models::calibration::fit_deposits(views[0].v)
                 }
                 .expect("invalid nonlinear fit");
                 vec![
@@ -1390,7 +1390,7 @@ pub unsafe extern "C" fn portfolio_quant_call(
                     .expect("invalid parallel shock");
                 vec![out.mtg, out.hpi, out.yoy, out.df]
             }
-            MORTGAGE_CACHE => vec![crate::cache::statistics(views[0].at(0) != 0.).to_vec()],
+            MORTGAGE_CACHE => vec![crate::market::cache::statistics(views[0].at(0) != 0.).to_vec()],
             INTERACTIVE => interactive(&views),
             _ => panic!("unsupported operation"),
         };

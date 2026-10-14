@@ -45,7 +45,7 @@ def artifacts():
     for item in graph['symbols']:md+=f'| `{item["signature"]}` | {item["result"]} |\n'
     md+='\n'+graph['caller_contract']+'\n\n'+graph['execution_scope']+'\n\n'+graph['outer_scope']+'\n'
     return {ROOT/'packages/portfolio-risk/src/portfolio_risk/core/abi_generated.py':py,
-            ROOT/'packages/portfolio-risk-native/src/abi_operations.rs':rs,
+            ROOT/'packages/portfolio-risk-native/src/transport/abi_operations.rs':rs,
             ROOT/'docs/contracts/native-abi-layouts.md':md}
 
 

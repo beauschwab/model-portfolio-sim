@@ -1,9 +1,9 @@
 //! Raw NMD cohorts/history -> calibration, fixed-OAS risk and forward stress.
-use crate::cache::{resolve, Key};
-use crate::calibration::fit_deposits;
-use crate::lifecycle_market::{
+use crate::market::cache::{resolve, Key};
+use crate::market::lifecycle::{
     admit, finite, matrix, monthly_price, tensor, vector, MarketInput, RateMarket,
 };
+use crate::models::calibration::fit_deposits;
 use crate::products::mortgages::risk::RiskResult;
 use crate::quant::{behavioral, deposits, View};
 use serde::{Deserialize, Serialize};

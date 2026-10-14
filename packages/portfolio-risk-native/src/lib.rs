@@ -6,76 +6,76 @@ use std::sync::{Arc, Mutex, OnceLock};
 #[cfg(feature = "allocator-mimalloc")]
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
-pub mod abi_operations;
-pub mod accounting_lifecycle;
+pub use income::accounting as accounting_lifecycle;
+pub use market::cache;
+pub use models::calibration;
+pub use portfolio::cohorts;
+pub use portfolio::units::aged as aged_units;
 pub use products::installment::graph as advanced_graph;
-pub use products::term::projection as advanced_product;
-pub mod aged_units;
-pub mod balance_risk;
-pub mod cache;
-pub mod calibration;
 pub use products::revolving::graph as card_graph;
-pub mod cohorts;
-pub mod controllers;
+pub use products::term::projection as advanced_product;
+pub use risk::balance as balance_risk;
+pub use runtime::controllers;
+pub use transport::abi_operations;
 pub mod conventions;
-pub use products::term::dated as dated_term;
-pub mod decision_inputs;
+pub use income::forecast::input as forecast_input;
+pub use income::forecast::paths as forecast_lifecycle;
+pub use portfolio::decision_inputs;
 pub use products::deposits::capture as deposit_graph_capture;
 pub use products::deposits::graph as deposit_graph;
 pub use products::deposits::lifecycle as deposit_lifecycle;
 pub use products::derivatives::accounting as derivative_accounting;
 pub use products::derivatives::contract as derivative_contract;
-pub mod forecast_input;
-pub mod forecast_lifecycle;
-mod funding_coefficients;
+pub use products::term::dated as dated_term;
+
 pub use products::funding::contract as funding_contract;
 pub use products::funding::graph as funding_graph;
-mod graph_cache;
-pub mod graph_cohort;
+
+pub use graph::incremental;
+pub use market::lifecycle as lifecycle_market;
+pub use models::joint_market_credit;
+pub use portfolio::cohort_audit as graph_cohort;
+pub use portfolio::ledger_mapping;
 pub use products::derivatives::lifecycle as hedge_lifecycle;
-pub mod incremental;
-pub mod joint_market_credit;
-pub mod kpi_lifecycle;
-pub mod ledger_mapping;
-pub mod lifecycle_market;
+pub use risk::kpis as kpi_lifecycle;
 pub mod market;
 pub mod math;
 pub mod products;
 pub use market::curves::quote_bootstrap as market_bootstrap;
-mod market_cache;
-pub mod market_driver_calibration;
-pub mod market_indexed_adapter;
-pub mod market_product_source;
-pub mod model_lifecycle;
+
 pub use market::analysis as model_market;
+pub use market::indexed_adapter as market_indexed_adapter;
+pub use market::product_source as market_product_source;
+pub use models::analysis as model_lifecycle;
+pub use models::market_drivers as market_driver_calibration;
+pub use portfolio::candidate_source as product_candidate_source;
+pub use portfolio::programs as program_lifecycle;
+pub use portfolio::strategy as product_strategy;
+pub use portfolio::units::product as product_units;
 pub use products::mortgages::graph as mortgage_graph;
 pub use products::mortgages::input as mortgage_input;
 pub use products::mortgages::risk as mortgage_risk;
-pub mod product_candidate_source;
-pub mod product_strategy;
-pub mod product_units;
-#[cfg(feature = "compute-profile")]
-pub mod profile;
-pub mod program_lifecycle;
 pub use products::term::contracts as term_enhancements;
 pub use products::term::graph as term_product_graph;
+#[cfg(feature = "compute-profile")]
+pub use runtime::profile;
 pub mod treasury;
-pub mod treasury_bridge;
+pub use treasury::bridge as treasury_bridge;
 
 #[macro_export]
 macro_rules! compute_span {
     ($name:literal) => {
         #[cfg(feature = "compute-profile")]
-        let _compute_span = $crate::profile::Span::new($name);
+        let _compute_span = $crate::runtime::profile::Span::new($name);
     };
 }
 mod quant;
 pub use math::random;
+pub use portfolio::units::monthly as unit_lifecycle;
+pub use portfolio::whatif;
 pub use products::term::deck as term_deck;
-pub mod term_protocol;
 pub use products::term::risk as term_risk;
-pub mod unit_lifecycle;
-pub mod whatif;
+pub use transport::protocol as term_protocol;
 
 type PoolSlot = Option<(usize, Arc<rayon::ThreadPool>)>;
 static POOL: OnceLock<Mutex<PoolSlot>> = OnceLock::new();
@@ -266,13 +266,13 @@ mod tests {
     }
 }
 
-pub mod market_indexed_graph;
+pub use graph::indexed as market_indexed_graph;
 
-pub mod market_indexed_books;
+pub use portfolio::indexed_books as market_indexed_books;
 
-pub mod graph_runtime_control;
+pub use runtime::control as graph_runtime_control;
 
-pub mod modeled_ftp_policy;
+pub use treasury::modeled_ftp_policy;
 
 pub use products::commercial::cash as commercial_cash;
 pub use products::commercial::continuation as commercial_continuation;
@@ -289,3 +289,11 @@ pub use products::derivatives::saved_source as saved_derivative_source;
 
 pub use products::commercial::generated_graph as commercial_generated_graph;
 pub use products::commercial::generated_policy as commercial_generated_policy;
+
+pub mod graph;
+pub mod income;
+pub mod models;
+pub mod portfolio;
+pub mod risk;
+pub mod runtime;
+pub mod transport;

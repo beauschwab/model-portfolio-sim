@@ -1,13 +1,15 @@
 //! Mortgage spot-risk lifecycle: raw numeric books/histories -> calibrated fixed
 //! OAS -> shared-draw curve/volatility revaluation -> dollar KRD, DV01 and vega.
 //! Only one scenario's paths and a 256-position base cashflow chunk are retained.
-use crate::cache::{resolve, Key};
-use crate::calibration::{factor_loadings, fit_current_coupon, fit_ps_spread, CurrentCouponFit};
+use crate::market::cache::{resolve, Key};
+use crate::market::calibration_cache::fit_abcd;
 use crate::market::{
     bootstrap, MarketContext, MortgageInputs, MortgagePaths, ParallelShock, RatePaths,
 };
-use crate::market_cache::fit_abcd;
 use crate::math::random::SharedDraws;
+use crate::models::calibration::{
+    factor_loadings, fit_current_coupon, fit_ps_spread, CurrentCouponFit,
+};
 use crate::quant::{mortgage, mortgage_batch, oas, View};
 use std::sync::Arc;
 
@@ -250,7 +252,7 @@ impl MortgageRiskRequest<'_> {
     pub(crate) fn income_chunks(
         &self,
         draws: &SharedDraws,
-        forecast: Option<&crate::forecast_lifecycle::Forecast>,
+        forecast: Option<&crate::income::forecast::paths::Forecast>,
         mut consume: impl FnMut(usize, usize, &[f64], &[f64], &[f64], &[f64]) -> Result<(), String>,
     ) -> Result<(), String> {
         let prepared = self.prepare(false, false)?;
