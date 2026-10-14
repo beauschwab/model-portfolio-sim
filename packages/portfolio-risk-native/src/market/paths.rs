@@ -1,7 +1,10 @@
 //! Rust-owned market path lifecycle from explicit calibrated parameters and CRN.
 //! Calibration controllers and random-number generation are separate inputs;
 //! no Python callback or FFI round trip occurs between stages in this module.
-use crate::quant::{behavioral, lmm, volatility, View};
+use crate::math::arrays::View;
+use crate::models::behavioral::behavioral;
+use crate::models::rates::lmm;
+use crate::models::volatility::volatility;
 
 fn interp(x: f64, times: &[f64], values: &[f64]) -> f64 {
     let i = times.partition_point(|t| *t <= x);

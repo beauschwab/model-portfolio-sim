@@ -2,10 +2,11 @@
 //! valuation edits, bounded cashflow batches, fixed-OAS risk and frozen-yield NII.
 use crate::graph::cache::{Cache, Key, Stats};
 use crate::income::accounting::{cd_flows, AccountingRequest, DepositBook, MortgageBook, TermBook};
+use crate::income::kernels::income;
 use crate::market::lifecycle::{finite, matrix, vector, RateMarket};
+use crate::pricing::discount::oas;
 use crate::products::deposits::lifecycle::{cashflows, deposit_paths, equilibrium, DepositDeck};
 use crate::products::derivatives::lifecycle::{smear, term_flows};
-use crate::quant::{income, oas};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};

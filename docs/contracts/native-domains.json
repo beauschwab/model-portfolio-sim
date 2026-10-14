@@ -1,9 +1,8 @@
 {
-  "stage": 3,
+  "stage": 4,
   "crate": "packages/portfolio-risk-native",
   "root_modules": [
-    "lib.rs",
-    "quant.rs"
+    "lib.rs"
   ],
   "relocations": {
     "market.rs": "market/paths.rs",
@@ -215,7 +214,10 @@
     "term_protocol": "transport::protocol",
     "treasury_bridge": "treasury::bridge",
     "unit_lifecycle": "portfolio::units::monthly",
-    "whatif": "portfolio::whatif"
+    "whatif": "portfolio::whatif",
+    "with_compute_threads": "runtime::compute::with_compute_threads",
+    "portfolio_risk_abi_version": "transport::discount::portfolio_risk_abi_version",
+    "portfolio_risk_price": "transport::discount::portfolio_risk_price"
   },
   "nested_compatibility_exports": {
     "products/term/contracts/mod.rs": {
@@ -224,6 +226,39 @@
     },
     "treasury/mod.rs": {
       "*": "evaluate::*"
+    }
+  },
+  "extractions": {
+    "quant.rs": {
+      "retired": true,
+      "destinations": [
+        "income/kernels.rs",
+        "math/arrays.rs",
+        "math/functions.rs",
+        "models/behavioral.rs",
+        "models/rates.rs",
+        "models/volatility.rs",
+        "portfolio/forward_cashflows.rs",
+        "portfolio/units/evaluate.rs",
+        "pricing/discount.rs",
+        "products/deposits/kernels.rs",
+        "products/derivatives/swaption.rs",
+        "products/money_market/mod.rs",
+        "products/mortgages/kernels.rs",
+        "products/term/kernel.rs",
+        "transport/buffers.rs",
+        "transport/market.rs",
+        "transport/quant.rs",
+        "transport/validation.rs"
+      ]
+    },
+    "lib.rs": {
+      "retired": false,
+      "destinations": [
+        "runtime/compute.rs",
+        "pricing/discount.rs",
+        "transport/discount.rs"
+      ]
     }
   }
 }

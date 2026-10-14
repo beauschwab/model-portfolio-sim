@@ -91,6 +91,12 @@ def native_domain_violations(root):
     for old, new in layout['relocations'].items():
         if (source / old).exists() or not (source / new).is_file():
             errors.append(f'{layout["crate"]}: migrated module must live only at {new}, not {old}')
+    for old, extraction in layout.get('extractions', {}).items():
+        if extraction['retired'] and (source / old).exists():
+            errors.append(f'{layout["crate"]}: retired mixed module must not return: {old}')
+        for destination in extraction['destinations']:
+            if not (source / destination).is_file():
+                errors.append(f'{layout["crate"]}: missing extracted domain source {destination}')
     export_files = {'lib.rs': layout['compatibility_exports'], **layout.get('nested_compatibility_exports', {})}
     for file, aliases in export_files.items():
         exports = (source / file).read_text()

@@ -160,6 +160,7 @@ packages/
     market/                      # Curves, quotes, paths, smiles and driver inputs
     models/                      # Pricing models and model calibration
     math/                        # Engine-local solvers and seeded random draws
+    pricing/                     # Prepared-cashflow discount and fixed-OAS solving
     risk/                        # Shocks, sensitivities and portfolio aggregation
     income/                      # Frozen-yield income and conditional forecasts
     graph/                       # Dependency graph, identities and bounded caches
@@ -305,6 +306,39 @@ Only `lib.rs` and the mixed low-level `quant.rs` kernel remain as root source
 files. Separating that kernel by calculation responsibility, organizing shared
 model-core and the ledger/decision crates, and the application adapter/reference
 layout remain subsequent work. This stage does not imply those moves are complete.
+
+### Domain migration, stage 4
+
+The mixed `quant.rs` implementation has been retired. Its 25 source sections,
+plus runtime and prepared-cashflow code extracted from `lib.rs`, now occupy
+20 focused files. The 139 earlier whole-file relocations remain recorded
+separately from these extractions in the domain inventory.
+
+`math/arrays.rs` owns borrowed numeric views and row assembly; `math/functions.rs`
+owns scalar logistic, lookup-table and spline arithmetic. These primitives have
+no financial-domain dependencies. Rate simulation, behavioral paths and volatility
+live under `models/`. Mortgage, deposit, term/CD, swaption and money-market kernels
+live with their products. Forward cashflows and coefficient-only evaluation live
+under `portfolio/`; yield income and accrual live under `income/`; prepared-cashflow
+discounting and OAS solving live under `pricing/`.
+
+`transport/` owns C buffer descriptors, operation validation, array adaptation and
+atomic dispatch. `runtime/compute.rs` owns the shared bounded thread pool and
+lifecycle execution scope. `lib.rs` now contains module wiring, compatibility
+exports, allocator selection and the profiling macro. Existing C symbols, buffer
+layout, status codes and public Rust entrypoints remain unchanged. No arithmetic,
+loop order, numerical bound, assertion or tolerance changes in this extraction.
+
+The architecture check guards every extraction destination and rejects a restored
+mixed root module. The experimental ablation builder uses fresh isolated snapshots
+of the new source tree and its local dependency crates, preserving experimental
+outputs under `.data`; `--check` validates variants without release builds. These
+variants remain separate from production artifacts and numerical acceptance.
+
+The native risk crate now has only its composition file at the source root.
+Shared model-core, ledger/decision internals and the application adapter/reference
+layout remain subsequent migration stages. Matching native artifacts and explicit
+saved-library/session rebuilds remain required when source identity changes.
 
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).

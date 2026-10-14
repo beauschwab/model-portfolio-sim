@@ -2,11 +2,13 @@
 use crate::market::cache::{resolve, Key};
 use crate::market::calibration_cache::fit_abcd;
 use crate::market::{bootstrap, MarketContext};
+use crate::math::arrays::View;
 use crate::math::random::SharedDraws;
 use crate::models::calibration::factor_loadings;
+use crate::pricing::discount::oas;
 use crate::products::mortgages::risk::RiskResult;
 use crate::products::term::deck::{Deck, DeckRequest, Product};
-use crate::quant::{corporate, oas, View};
+use crate::products::term::kernel::corporate;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

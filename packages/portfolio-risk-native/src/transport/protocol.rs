@@ -651,7 +651,8 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     } else {
         None
     };
-    let pool = crate::pool(threads).map_err(|_| "native thread pool unavailable")?;
+    let pool =
+        crate::runtime::compute::pool(threads).map_err(|_| "native thread pool unavailable")?;
     pool.install(|| match request {
         Request::NonintegralFees { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
@@ -1156,7 +1157,7 @@ pub(crate) fn respond_controlled_graph(
         request.admit_runtime()?;
         let creation = request.is_creation();
         let active = portfolio_compute_control::active();
-        let value = crate::pool(threads)
+        let value = crate::runtime::compute::pool(threads)
             .map_err(|_| "native thread pool unavailable")?
             .install(|| {
                 portfolio_compute_control::scope(active, || {
@@ -1272,7 +1273,7 @@ pub unsafe extern "C" fn portfolio_term_free(pointer: *mut c_char) {
 pub unsafe extern "C" fn portfolio_term_risk_into(
     input: *const u8,
     length: usize,
-    outputs: *const crate::quant::Buffer,
+    outputs: *const crate::transport::buffers::Buffer,
     count: usize,
 ) -> *mut c_char {
     let result = std::panic::catch_unwind(|| -> Result<(), String> {
