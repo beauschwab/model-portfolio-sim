@@ -101,7 +101,7 @@ The legacy monthly candidate route remains explicitly identified.
 | Shared transition operator | New core `credit_operator.rs`, independent CTMC/reward tests |
 | Daily credit/policy | New ledger `credit_state.rs`, `credit_accounting.rs`, state/draw/claim tests |
 | Dated event/accrual scheduler | New `dated_store.rs`, accrual-plan module and date/right tests |
-| Native integration | Ledger `src/bin/types.rs`, `spec.rs`, `daily.rs`, mapping and owned-workflow dispatch |
+| Native integration | Ledger `src/transport/types.rs`, `validation/specification.rs`, `replay/daily/mod.rs`, mapping and owned-workflow dispatch |
 | Independent publication verification | `balance_stream.py`, `owned_workflow.py`, explicit test oracles and immutable lineage/report schemas |
 
 Retain bounded batches, capacity/work admission, cooperative deadlines, process
