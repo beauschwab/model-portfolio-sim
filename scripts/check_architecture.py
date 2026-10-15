@@ -78,8 +78,15 @@ def cycle_edges(g):
 
 
 def native_domain_violations(root):
+    """Apply the same relocation and compatibility contract to each migrated crate."""
+    manifests = ('native-domains.json', 'model-core-domains.json')
+    return [error for filename in manifests
+            for error in native_crate_domain_violations(root, filename)]
+
+
+def native_crate_domain_violations(root, filename):
     """Ratchet the migrated domains without pretending legacy roots are migrated."""
-    manifest = root / 'docs/contracts/native-domains.json'
+    manifest = root / 'docs/contracts' / filename
     if not manifest.exists():
         return []
     layout = json.loads(manifest.read_text())
@@ -91,6 +98,16 @@ def native_domain_violations(root):
     for old, new in layout['relocations'].items():
         if (source / old).exists() or not (source / new).is_file():
             errors.append(f'{layout["crate"]}: migrated module must live only at {new}, not {old}')
+    binding = layout.get('exact_source_binding')
+    if binding:
+        receipt_path = source / binding['module']
+        receipt = receipt_path.read_text() if receipt_path.is_file() else ''
+        includes = re.findall(r'\(\s*"([^"]+)"\s*,\s*include_bytes!\(\s*"([^"]+)"\s*\)\s*,?\s*\)', receipt)
+        actual = {label: ((source / binding['module']).parent / path).resolve()
+                  for label, path in includes}
+        expected = {label: (source / path).resolve() for label, path in binding['files'].items()}
+        if len(includes) != len(expected) or actual != expected:
+            errors.append(f'{layout["crate"]}: compiled exact-source binding must follow the canonical sources')
     for old, extraction in layout.get('extractions', {}).items():
         if extraction['retired'] and (source / old).exists():
             errors.append(f'{layout["crate"]}: retired mixed module must not return: {old}')

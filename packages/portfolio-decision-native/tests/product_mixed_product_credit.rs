@@ -11,6 +11,31 @@ fn raw() -> Value {
 fn request(v: Value) -> mixed::Request {
     serde_json::from_value(v).unwrap()
 }
+
+// These frozen fixtures precede explicit liquidity applicability. Their inputs
+// supply no reviewed liquidity profile, so the current contract exposes null
+// headroom and unconfigured status. Preserve every other original byte/value;
+// keep the historical fixture files unchanged and compare complete output bytes.
+fn baseline_with_unconfigured_liquidity(baseline: &[u8]) -> Vec<u8> {
+    let mut expected: Value = serde_json::from_slice(baseline).unwrap();
+    assert_eq!(
+        serde_json::to_vec(&expected).unwrap().as_slice(),
+        baseline.trim_ascii_end(),
+        "frozen baseline must round-trip without changing any original bytes"
+    );
+    for table in ["daily_balance", "reported_daily_balance"] {
+        for row in expected["ok"][table].as_array_mut().unwrap() {
+            let row = row.as_object_mut().unwrap();
+            assert!(row.contains_key("lcr_headroom") && row.contains_key("nsfr_headroom"));
+            assert!(!row.contains_key("lcr_status") && !row.contains_key("nsfr_status"));
+            row.insert("lcr_headroom".into(), Value::Null);
+            row.insert("nsfr_headroom".into(), Value::Null);
+            row.insert("lcr_status".into(), json!("unconfigured"));
+            row.insert("nsfr_status".into(), json!("unconfigured"));
+        }
+    }
+    serde_json::to_vec(&expected).unwrap()
+}
 #[test]
 fn dated_candidate_installment_card_share_one_balanced_gl() {
     let raw = raw();
@@ -75,7 +100,7 @@ fn invalid_zero_participation_tail_and_incompatible_anchors_reject() {
     }
 }
 #[test]
-fn original_consumer_result_serialization_is_byte_identical() {
+fn original_consumer_output_matches_frozen_economics_and_current_liquidity_contract() {
     let raw: consumer::Request = serde_json::from_str(include_str!(
         "../../../examples/models/product-mixed-consumer-credit-1.json"
     ))
@@ -83,14 +108,14 @@ fn original_consumer_result_serialization_is_byte_identical() {
     let result = consumer::evaluate(&raw).unwrap();
     let output = serde_json::to_vec(&json!({"ok":result})).unwrap();
     let baseline = include_bytes!("fixtures/product_mixed_consumer_credit_baseline.json");
-    assert_eq!(output.as_slice(), baseline.trim_ascii_end());
+    assert_eq!(output, baseline_with_unconfigured_liquidity(baseline));
 }
 #[test]
-fn original_card1_result_serialization_is_byte_identical() {
+fn original_card1_output_matches_frozen_economics_and_current_liquidity_contract() {
     let result = mixed::evaluate(&request(raw())).unwrap();
     let output = serde_json::to_vec(&json!({"ok":result})).unwrap();
     let baseline = include_bytes!("fixtures/product_mixed_card1_baseline.json");
-    assert_eq!(output.as_slice(), baseline.trim_ascii_end());
+    assert_eq!(output, baseline_with_unconfigured_liquidity(baseline));
 }
 fn card2() -> Value {
     serde_json::from_str(include_str!(

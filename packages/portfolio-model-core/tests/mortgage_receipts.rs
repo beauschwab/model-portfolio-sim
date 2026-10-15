@@ -213,21 +213,21 @@ fn generator_digest_binds_actual_compiled_receipt_and_native_dependencies() {
     use sha2::{Digest, Sha256};
     let mut hash = Sha256::new();
     let mut count = 0;
-    for name in [
-        "mortgage_state.rs",
-        "mortgage_receipts.rs",
-        "consumer_contract.rs",
-        "credit_operator.rs",
-        "credit.rs",
-        "amortization.rs",
-        "cashflow.rs",
-        "floating_rate.rs",
-        "limits.rs",
+    for (name, relative) in [
+        ("mortgage_state.rs", "products/mortgages/state.rs"),
+        ("mortgage_receipts.rs", "products/mortgages/receipts.rs"),
+        ("consumer_contract.rs", "products/consumer/contracts.rs"),
+        ("credit_operator.rs", "models/credit/operator.rs"),
+        ("credit.rs", "models/credit/transition.rs"),
+        ("amortization.rs", "cashflows/amortization.rs"),
+        ("cashflow.rs", "cashflows/dated.rs"),
+        ("floating_rate.rs", "conventions/floating_rate.rs"),
+        ("limits.rs", "validation/limits.rs"),
     ] {
         let bytes = std::fs::read(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src")
-                .join(name),
+                .join(relative),
         )
         .unwrap();
         hash.update((name.len() as u64).to_le_bytes());

@@ -1,7 +1,7 @@
 # Shared native credit model: `credit-model-1`
 
 This model is a deterministic expected-credit foundation in
-`packages/portfolio-model-core/src/credit.rs`. Its public function is
+`packages/portfolio-model-core/src/models/credit/transition.rs`. Its public function is
 `credit::evaluate(&CreditRequest) -> Result<CreditResult, String>`.
 It supplies multi-state migration and cures, competing default/prepayment,
 state-conditional exposure at default, term LGD and explicit recovery timing.

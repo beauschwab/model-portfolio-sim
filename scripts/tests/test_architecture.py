@@ -11,6 +11,33 @@ checker=importlib.util.module_from_spec(spec);spec.loader.exec_module(checker)
 
 
 class ArchitectureTests(unittest.TestCase):
+    def test_shared_model_sources_keep_exact_binding_at_canonical_paths(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'packages/core/src'
+            domain = source / 'products/mortgages'
+            domain.mkdir(parents=True)
+            (root / 'docs/contracts').mkdir(parents=True)
+            (source / 'lib.rs').write_text('pub use products::mortgages::state as mortgage_state;')
+            (domain / 'state.rs').write_text('')
+            receipt = domain / 'receipts.rs'
+            valid = 'const FILES: &[(&str, &[u8])] = &[("mortgage_state.rs", include_bytes!("state.rs")), ("mortgage_receipts.rs", include_bytes!("receipts.rs"))];'
+            receipt.write_text(valid)
+            paths = {'mortgage_state.rs': 'products/mortgages/state.rs',
+                     'mortgage_receipts.rs': 'products/mortgages/receipts.rs'}
+            (root / 'docs/contracts/model-core-domains.json').write_text(json.dumps({
+                'crate': 'packages/core', 'root_modules': ['lib.rs'],
+                'relocations': paths,
+                'compatibility_exports': {'mortgage_state': 'products::mortgages::state'},
+                'exact_source_binding': {'module': paths['mortgage_receipts.rs'], 'files': paths},
+            }))
+            self.assertEqual(checker.native_domain_violations(root), [])
+            receipt.write_text(valid.replace('include_bytes!("state.rs")', 'include_bytes!("../state.rs")'))
+            self.assertIn('exact-source binding', '\n'.join(checker.native_domain_violations(root)))
+            receipt.unlink()
+            self.assertIn('must live only', '\n'.join(checker.native_domain_violations(root)))
+
     def test_native_domain_ratchet_and_math_direction(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
