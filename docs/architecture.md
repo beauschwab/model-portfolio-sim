@@ -402,6 +402,14 @@ ledger and dependent workflow artifacts must be rebuilt before execution; deploy
 API/workers and saved libraries/sessions retain the existing explicit rebuild rules.
 Decision internals and application adapter/reference organization remain later stages.
 
+Optional historical source-control tests also retain the existing explicit
+liquidity applicability contract. Their duplicate suites previously compared a
+pre-policy runner directly with current output. Parent-revision execution confirms
+the same mismatches and identical complete output streams across this migration.
+A shared test helper changes only the documented unconfigured liquidity fields
+and absent HTM reclassification date; all remaining serialized bytes stay exact.
+No historical fixture, financial calculation or numerical tolerance changes.
+
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).
 It describes earlier Numba/thread/in-memory stages, not current production policy.
