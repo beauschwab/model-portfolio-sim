@@ -1,4 +1,4 @@
-#[path = "../src/advanced_ledger.rs"]
+#[path = "../src/workflows/consumer/dated.rs"]
 mod advanced_ledger;
 use advanced_ledger::{prepare, run, Request};
 use portfolio_risk_native::advanced_graph::Product;

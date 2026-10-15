@@ -33,7 +33,8 @@ preserve exact retry identity without replacing original deadlines or inputs.
   package reexports; and application worker/session dependencies. These are not
   immediate import-failure claims. Storage-to-handler edges are forbidden even
   if they appeared in a previous baseline.
-- `native-domains.json`, `model-core-domains.json` and `ledger-domains.json`:
+- `native-domains.json`, `model-core-domains.json`, `ledger-domains.json` and
+  `decision-domains.json`:
   canonical source locations, retained compatibility exports and extracted domain
   sections. The architecture check rejects restored flat modules or missing
   destinations/exports; the model inventory also pins compiled receipt includes.

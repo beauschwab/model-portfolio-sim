@@ -410,6 +410,37 @@ A shared test helper changes only the documented unconfigured liquidity fields
 and absent HTM reclassification date; all remaining serialized bytes stay exact.
 No historical fixture, financial calculation or numerical tolerance changes.
 
+### Domain migration, stage 7
+
+The native decision/workflow crate now has only the composition and compatibility
+facade at its source root. Fifty-two source files move into financial domains:
+`coefficients/` owns monthly, aged, product and commercial library preparation and
+retained allocation sessions; `optimization/` owns HiGHS problem construction and
+independent allocation replay. `workflows/` groups consumer, commercial, deposit,
+candidate, mixed-book, mortgage and treasury orchestration. Raw-book pricing and
+its bounded accounting/ledger execution remain together under `workflows/owned/`.
+
+The former root implementation is separated into `coordinator/session.rs` for
+transactional records, staged edits and coefficient-only evaluation,
+`coordinator/actors.rs` for bounded owner-thread dispatch, `transport/ffi.rs` for
+the C boundary, and the thin workflow entrypoint in `workflows/mod.rs`. The original
+root tests move to `coordinator/tests.rs` with their assertions unchanged.
+Commercial original-byte admission lives in `transport/commercial.rs`. The three
+executables retain their public dispatch routes.
+
+Existing public Rust paths and C symbols remain available through reexports;
+private implementation modules stay crate-private. New internal visibility is
+limited to the existing session/workflow and transport/registry dependencies.
+`docs/contracts/decision-domains.json` records all moves, extractions and public
+compatibility paths under the architecture check. Calculation bodies, financial
+bounds, loop order, protocols and publication gates are unchanged. Model-core,
+risk and ledger sources and independent financial references are untouched.
+
+Matching decision/workflow artifacts must be rebuilt before use; deployment still
+requires API/worker restart and explicit saved-library/session rebuilding. This
+source organization adds no product adoption or empirical acceptance claim.
+Application adapter/reference organization remains a subsequent migration stage.
+
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).
 It describes earlier Numba/thread/in-memory stages, not current production policy.

@@ -2,7 +2,7 @@
 
 This is the remaining implementation plan for issue #20, not an implemented
 schema or an acceptance receipt. The current native saved runner explicitly
-rejects nonempty hedge books in `portfolio-decision-native/src/owned_workflow.rs`.
+rejects nonempty hedge books in `portfolio-decision-native/src/workflows/owned/ledger.rs`.
 The rejection remains correct until the complete source and journal mapping exists.
 
 ## Current source boundaries
