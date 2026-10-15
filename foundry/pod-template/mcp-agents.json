@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "workbench-ops": {
+      "command": "uv",
+      "args": ["run", "--project", "/opt/rates-workbench/apps/mcp", "rates-workbench-ops"],
+      "env": {
+        "WORKBENCH_MCP_API_URL": "https://workbench.bank.internal",
+        "WORKBENCH_MCP_PERMISSIONS": "read,compute",
+        "WORKBENCH_MCP_ACTOR": "fde-pod-agent"
+      }
+    }
+  }
+}

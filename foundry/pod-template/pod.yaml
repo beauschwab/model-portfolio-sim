@@ -1,0 +1,50 @@
+# Customer pod configuration. Copy this directory into the bank's environment.
+# Fields marked REQUIRED must be filled before running fde-orchestrator.
+# The example values describe a fictional bank; replace all of them.
+
+bank:
+  name: Example Regional Bank            # REQUIRED
+  tier: large                            # large ($50–250B) | mid ($10–50B)
+  pod_id: example-regional-2026q4        # REQUIRED, unique per engagement
+
+people:                                  # names/roles only; no contact data in the mothership
+  fde: FDE name                          # REQUIRED, approves every gate
+  bank_data_owner: Data owner role       # approves G1 with the FDE
+  bank_controller: Controller role       # approves G3 with the FDE
+  bank_model_risk: Model risk role       # receives G4 handoff
+
+pins:
+  core_release: "0.29.17"                # REQUIRED, Workbench release running in the bank
+  foundry_skills: "0.1.0"                # REQUIRED, version of foundry/skills
+
+mcp:
+  profile: ops                           # ops | strategy
+  grants: [read, compute]                # FDE adds edit/publish only for the step that needs them
+  api_url: https://workbench.bank.internal   # bank-internal Workbench API
+
+intended_use:                            # REQUIRED, feeds the validation pack
+  - Interest-rate risk (EVE/NII) monitoring for ALCO
+  - Reinvestment and hedge strategy analysis
+
+products_in_scope: [mortgage, deposit]   # REQUIRED
+
+data_sources:                            # REQUIRED; paths/URIs inside the bank environment
+  - name: mortgage_tape
+    product: mortgage
+    uri: s3://bank-data/loan-tapes/mortgage_2026-09-30.parquet
+    as_of: "2026-09-30"
+  - name: deposit_tape
+    product: deposit
+    uri: s3://bank-data/loan-tapes/deposits_2026-09-30.parquet
+    as_of: "2026-09-30"
+  - name: trial_balance
+    product: gl
+    uri: s3://bank-data/gl/trial_balance_2026-09-30.csv
+    as_of: "2026-09-30"
+
+reconciliation:
+  tolerance_abs_usd: 50000               # per entity/currency/category key
+  tolerance_rel: 0.0005                  # 5 bp of balance
+
+mothership_reporting:                    # what may leave the pod
+  send: [gate_status, pins]              # never data, balances or identifiers

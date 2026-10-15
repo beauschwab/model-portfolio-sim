@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "foundry/gate-record.schema.json",
+  "title": "Foundry gate record",
+  "description": "One decision at an onboarding gate. Agents draft records with decision and approver null; only a named human sets them. Rejected records are kept, and a new record is drafted after rework.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "pod_id", "drafted_at", "core_release", "skill", "skill_version", "evidence", "exceptions", "decision", "approver", "decided_at", "notes"],
+  "properties": {
+    "gate": {"enum": ["G1-data-accepted", "G2-mapping-approved", "G3-reconciled", "G4-validation-handoff"]},
+    "pod_id": {"type": "string", "minLength": 1},
+    "drafted_at": {"type": "string", "format": "date-time"},
+    "core_release": {"type": "string", "minLength": 1},
+    "skill": {"type": "string", "minLength": 1},
+    "skill_version": {"type": "string", "minLength": 1},
+    "workspace_revision": {"type": ["integer", "null"]},
+    "evidence": {
+      "description": "Artifacts supporting the decision: pod-relative paths or Workbench job IDs.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "supports"],
+        "properties": {
+          "ref": {"type": "string", "minLength": 1},
+          "supports": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "proposed_disposition"],
+        "properties": {
+          "id": {"type": "string"},
+          "description": {"type": "string"},
+          "amount_usd": {"type": ["number", "null"]},
+          "proposed_disposition": {"enum": ["fix_at_source", "exclude", "explicit_default", "out_of_scope", "explained", "open"]},
+          "approved_disposition": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "decision": {"enum": [null, "approved", "rejected"]},
+    "approver": {"type": ["string", "null"]},
+    "decided_at": {"type": ["string", "null"], "format": "date-time"},
+    "notes": {"type": "string"}
+  }
+}
