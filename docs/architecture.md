@@ -377,6 +377,39 @@ decision internals and the application adapter/reference layout remain subsequen
 migration stages; current source organization does not imply additional product
 adoption or empirical model acceptance.
 
+### Domain migration, stage 6
+
+The native ledger now has only `lib.rs` at its source root. Forty-one source files
+move into `journal/`, `owners/`, `replay/`, `reports/`, `transport/` and `validation/`.
+Product owners are grouped by consumer, commercial, deposit, mortgage, derivative
+and shared product-event responsibilities. Replay separates daily, dated,
+expected-credit, realized-credit and driver preparation, with bounded schedule
+stores under `replay/stores/`. Closing and historical reports live in `reports/`;
+`bin/` contains only the executable entrypoint.
+
+The ordered atomic journal reducer and its original tests move out of `lib.rs`
+into `journal/reduction.rs`. C buffer and JSON validation entrypoints move to
+`transport/ffi.rs`; normalized specification types live in `transport/types.rs`,
+and raw admission/normalization lives in `validation/specification.rs`.
+The existing Rust module paths and C symbols remain available. Historical output
+controls retain their test/feature gate, and private helpers stay crate-private.
+
+`docs/contracts/ledger-domains.json` records relocations, extracted source sections
+and compatibility exports under the architecture check. Calculation bodies,
+reduction order, numerical bounds, protocols and publication gates are unchanged.
+The shared model sources and mortgage receipt binding are unchanged. Matching
+ledger and dependent workflow artifacts must be rebuilt before execution; deployed
+API/workers and saved libraries/sessions retain the existing explicit rebuild rules.
+Decision internals and application adapter/reference organization remain later stages.
+
+Optional historical source-control tests also retain the existing explicit
+liquidity applicability contract. Their duplicate suites previously compared a
+pre-policy runner directly with current output. Parent-revision execution confirms
+the same mismatches and identical complete output streams across this migration.
+A shared test helper changes only the documented unconfigured liquidity fields
+and absent HTM reclassification date; all remaining serialized bytes stay exact.
+No historical fixture, financial calculation or numerical tolerance changes.
+
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).
 It describes earlier Numba/thread/in-memory stages, not current production policy.

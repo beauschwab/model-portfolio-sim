@@ -79,7 +79,7 @@ def cycle_edges(g):
 
 def native_domain_violations(root):
     """Apply the same relocation and compatibility contract to each migrated crate."""
-    manifests = ('native-domains.json', 'model-core-domains.json')
+    manifests = ('native-domains.json', 'model-core-domains.json', 'ledger-domains.json')
     return [error for filename in manifests
             for error in native_crate_domain_violations(root, filename)]
 

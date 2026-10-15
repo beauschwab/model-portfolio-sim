@@ -255,6 +255,11 @@ fn selected_owner_checks_cancellation_after_completion_flush() {
     );
 }
 #[cfg(feature = "historical-output-control")]
+#[path = "common/historical_liquidity.rs"]
+mod historical_liquidity;
+#[cfg(feature = "historical-output-control")]
+use historical_liquidity::historical_with_current_liquidity_contract;
+#[cfg(feature = "historical-output-control")]
 fn product_stream(raw: &Value, historical: bool) -> Vec<u8> {
     let dated = CompiledDatedLedger::compile(
         serde_json::from_value::<DatedLedgerRequest>(raw["dated"].clone()).unwrap(),
@@ -275,25 +280,31 @@ fn product_stream(raw: &Value, historical: bool) -> Vec<u8> {
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
-fn historical_card1_optional_none_full_ndjson_bytes() {
+fn historical_card1_economics_with_current_liquidity_contract() {
     let raw: Value = serde_json::from_str(include_str!(
         "fixtures/deposit-source-principal/product_event_owner.json"
     ))
     .unwrap();
-    assert_eq!(product_stream(&raw, true), product_stream(&raw, false));
+    assert_eq!(
+        historical_with_current_liquidity_contract(&product_stream(&raw, true)),
+        product_stream(&raw, false)
+    );
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
-fn historical_card2_optional_none_full_ndjson_bytes() {
+fn historical_card2_economics_with_current_liquidity_contract() {
     let raw: Value = serde_json::from_str(include_str!(
         "fixtures/deposit-source-principal/product_event_owner_v2.json"
     ))
     .unwrap();
-    assert_eq!(product_stream(&raw, true), product_stream(&raw, false));
+    assert_eq!(
+        historical_with_current_liquidity_contract(&product_stream(&raw, true)),
+        product_stream(&raw, false)
+    );
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
-fn historical_consumer_optional_none_full_ndjson_bytes() {
+fn historical_consumer_economics_with_current_liquidity_contract() {
     let mut raw: Value = serde_json::from_str(include_str!(
         "fixtures/deposit-source-principal/consumer_intent_owner.json"
     ))
@@ -324,11 +335,14 @@ fn historical_consumer_optional_none_full_ndjson_bytes() {
         let r = b.lock().unwrap().clone();
         r
     };
-    assert_eq!(build(true), build(false));
+    assert_eq!(
+        historical_with_current_liquidity_contract(&build(true)),
+        build(false)
+    );
 }
 #[cfg(feature = "historical-output-control")]
 #[test]
-fn historical_purchase_asof_deposit_optional_none_full_ndjson_bytes() {
+fn historical_purchase_asof_deposit_economics_with_current_liquidity_contract() {
     let raw: deposit_revision::Request = serde_json::from_str(include_str!(
         "fixtures/deposit-source-principal/deposit_revised_income.json"
     ))
@@ -354,5 +368,8 @@ fn historical_purchase_asof_deposit_optional_none_full_ndjson_bytes() {
         let r = b.lock().unwrap().clone();
         r
     };
-    assert_eq!(build(true), build(false));
+    assert_eq!(
+        historical_with_current_liquidity_contract(&build(true)),
+        build(false)
+    );
 }
