@@ -36,6 +36,7 @@ test('durable tape import, native cohorts, lineage, repricing and publication',a
   const books=await(await request.get('/api/books')).json();
   expect(books.mbs.positions).toBe(3);expect(books.deposits.positions).toBe(1);
   const count=Object.values(books).reduce((n:number,b:unknown)=>n+(b as {positions:number}).positions,0);
+  await page.getByRole('button',{name:'Open Positions',exact:true}).click();
   await expect(page.getByRole('region',{name:'Positions',exact:true}).getByText(`${count} positions`,{exact:true})).toBeVisible();
   await page.screenshot({path:'test-results/cohorts-real.png',fullPage:true});
   expect(errors).toEqual([]);
