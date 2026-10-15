@@ -5,14 +5,24 @@ import hashlib
 # .gitattributes fixes the reviewed compiled inputs to LF on every platform.
 # Keep the digest strict: other source edits require a new reviewed binding.
 GENERATOR_FILES=('mortgage_state.rs','mortgage_receipts.rs','consumer_contract.rs','credit_operator.rs','credit.rs','amortization.rs','cashflow.rs','floating_rate.rs','limits.rs')
-EXPECTED_DIGEST='a925fcc8359f9a202dff5eaa75e4b9c5815467d6aba96701ca278eac515eca7f'
-EXPECTED_BYTES=141631
+# Logical labels remain stable while compiled files move by domain.
+GENERATOR_PATHS={'mortgage_state.rs': 'products/mortgages/state.rs',
+ 'mortgage_receipts.rs': 'products/mortgages/receipts.rs',
+ 'consumer_contract.rs': 'products/consumer/contracts.rs',
+ 'credit_operator.rs': 'models/credit/operator.rs',
+ 'credit.rs': 'models/credit/transition.rs',
+ 'amortization.rs': 'cashflows/amortization.rs',
+ 'cashflow.rs': 'cashflows/dated.rs',
+ 'floating_rate.rs': 'conventions/floating_rate.rs',
+ 'limits.rs': 'validation/limits.rs'}
+EXPECTED_DIGEST='c07d2a5bf213c5d3860a722ce27079bd4a10120b1fc7e3b62118437a51571e03'
+EXPECTED_BYTES=141787
 
 
 def check_generator_copy(source_dir):
     root=Path(source_dir);digest=hashlib.sha256();count=0
     for name in GENERATOR_FILES:
-        label=name.encode('utf-8');body=(root/name).read_bytes()
+        label=name.encode('utf-8');body=(root/GENERATOR_PATHS[name]).read_bytes()
         digest.update(len(label).to_bytes(8,'little'));digest.update(label)
         digest.update(len(body).to_bytes(8,'little'));digest.update(body)
         count+=16+len(label)+len(body)

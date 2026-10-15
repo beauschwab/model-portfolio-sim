@@ -146,6 +146,10 @@ packages/
       derivatives/
       funding/
     math/                        # Domain-independent numerical primitives
+    accounting/                  # Reviewed credit, fee and dated-income policies
+    treasury/                    # Explicit shared FTP policy contracts
+    validation/                  # Shared admission limits
+    transport/                   # Strict original-byte JSON admission
   portfolio-risk-native/src/     # Valuation and portfolio calculations
     products/                    # Product pricing and risk composition
       mortgages/
@@ -339,6 +343,39 @@ The native risk crate now has only its composition file at the source root.
 Shared model-core, ledger/decision internals and the application adapter/reference
 layout remain subsequent migration stages. Matching native artifacts and explicit
 saved-library/session rebuilds remain required when source identity changes.
+
+### Domain migration, stage 5
+
+The shared `portfolio-model-core` crate now places 51 source files in domain
+folders; only `lib.rs` remains at its source root. `products/` owns installment,
+revolving, mortgage, deposit, commercial and funding state/accounting sources plus
+shared consumer contracts. `models/credit/` owns transitions, operators, event-time
+paths, covariates and exact/panel calibration; `models/behavior/` owns observed
+deposit calibration. Joint drivers and observation contracts also live in `models/`.
+`cashflows/`, `conventions/`, `accounting/`, `treasury/`, `validation/` and `transport/`
+own their respective reusable contracts. Existing root module names remain
+compatibility aliases; private mortgage implementation modules remain crate-private.
+
+`docs/contracts/model-core-domains.json` records every move and guards compatibility
+exports alongside the risk-crate inventory. Calculation bodies, assumptions,
+numerical bounds, schemas and publication gates are unchanged. The independent
+financial reference changes only its reviewed source digest and exact byte count.
+
+The mortgage receipt still hashes the same nine logical source labels and their
+actual compiled bytes. Eight source files are byte-for-byte unchanged. Updating
+the receipt's include paths changes its source bytes and adds 156 charged bytes
+to the binding (141,787 total). The digest is now
+`c07d2a5bf213c5d3860a722ce27079bd4a10120b1fc7e3b62118437a51571e03`.
+The independent verifier reads canonical locations, and `.gitattributes` preserves
+LF for all nine files on every platform. Same-size edits and line-ending drift
+still reject. Old immutable manifests retain their original receipts; fresh
+execution requires matching rebuilt artifacts and explicitly rebuilt saved state.
+
+The architecture check also verifies that compiled receipt includes resolve to
+the canonical sources. It never substitutes a historical source copy. Ledger and
+decision internals and the application adapter/reference layout remain subsequent
+migration stages; current source organization does not imply additional product
+adoption or empirical model acceptance.
 
 The original pre-migration architectural discussion is preserved in
 [reviews/2026-10-01-architecture-historical.md](reviews/2026-10-01-architecture-historical.md).

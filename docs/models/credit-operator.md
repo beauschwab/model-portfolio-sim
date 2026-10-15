@@ -7,7 +7,7 @@ credit accounting. This component does not adopt the model into the daily ledger
 post journal entries, calibrate parameters or complete issue #11.
 
 Implementation and independent tests are in
-`packages/portfolio-model-core/src/credit_operator.rs` and
+`packages/portfolio-model-core/src/models/credit/operator.rs` and
 `packages/portfolio-model-core/tests/credit_operator.rs`.
 
 ## Public API and immutable identity

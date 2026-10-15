@@ -2,7 +2,7 @@
 
 `observed-credit-calibration-1` estimates homogeneous cause-specific transition
 intensities for the shared `credit-model-1` state structure. The implementation is
-`packages/portfolio-model-core/src/credit_calibration.rs`, exposed as
+`packages/portfolio-model-core/src/models/credit/calibration/exact.rs`, exposed as
 `credit_calibration::fit(&CreditCalibrationRequest)`. It returns fitted hazards,
 training sufficient statistics and strictly chronological holdout diagnostics.
 Its result declares `measure = physical`: observed frequencies estimate physical
