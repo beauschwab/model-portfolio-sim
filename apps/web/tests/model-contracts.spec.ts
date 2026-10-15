@@ -83,6 +83,17 @@ for(const librarySchema of ['aged-units-1','product-units-1']) test(`${librarySc
   const strategy=page.getByRole('region',{name:'Decide',exact:true});
   await strategy.getByRole('tab',{name:'Sandbox',exact:true}).click();
   await expect(strategy.getByLabel('Purchase date')).toHaveCount(1);
+  // A queued background refresh may start after the library publishes. The
+  // worker explicitly refuses evaluation while busy; retry through an edit.
+  let notional=1_000_000;let evaluationStatus=409;
+  await expect.poll(async()=>{
+    const amount=++notional;
+    const evaluated=page.waitForResponse(r=>r.url().endsWith('/strategy/eval')&&r.request().method()==='POST'&&r.request().postDataJSON()?.[0]?.notional===amount);
+    await strategy.getByRole('tabpanel',{name:'Sandbox',exact:true}).getByRole('textbox').fill(String(amount));
+    evaluationStatus=(await evaluated).status();
+    return evaluationStatus!==409;
+  },{timeout:40_000}).toBe(true);
+  expect(evaluationStatus).toBe(200);
   await expect(strategy.getByText('native actual-age repricing at fixed purchase OAS',{exact:true})).toBeVisible();
   await expect(strategy.getByText('Actual reporting intervals, $ — retained original effective yield',{exact:true})).toBeVisible();
   await page.screenshot({path:`test-results/${librarySchema}-strategy-real.png`,fullPage:true});
