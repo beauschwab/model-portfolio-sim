@@ -15,6 +15,21 @@ Subsequent committed components below have contained native and independent
 checks. They have not yet passed a combined installed release regression. Work
 still being implemented is identified explicitly.
 
+**Current release blocker:** the expanded 48-cell stochastic-coupon, credit and
+call/put family retains 36 passes and 12 independent native/reference failures.
+Some failures change exercise decisions and path cash; the largest observed path
+difference is about 0.544876 per face100. Three declared failures reproduce on
+the optimized development lifecycle binary. Exact native matrix/target capture
+and independent reconstruction identify an invalid SVD, including a deterministic
+16-by-3 collinear control. Explicit iteration settings do not correct it. A
+bounded native correction with decomposition and solve checks, followed by the
+unchanged benchmark families and combined installed regression, is required.
+The initial combined acceptance attempt is retained and invalidated; full engine
+and API acceptance has not been claimed. See
+[the numerical family](commercial-credit-gaussian-exercise.md). This is distinct
+from the earlier exact-constant metadata correction, whose paired financial
+outputs remain identical.
+
 | Work | Implemented bounded scope | Remaining acceptance or engineering |
 |---|---|---|
 | Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later conveyed fee capital/FTP, signed prepaid refund acquisitions and generated fee stopping/journals | Combined installed acceptance; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |
@@ -23,7 +38,7 @@ still being implemented is identified explicitly.
 | Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims; later separate dated principal and retained coupon nominal | Alternative legal true-up policies and delayed-publication generated loadings |
 | Generated paths | Explicit complete Physical path catalogs, canonical source dimensions and paired original anchors; compact candidate journals, positive reviewed actions, counted actual draw-source construction and generated loan/fee streams | Final combined regression is pending; generated draw fees, secondary generated rights and wider joint/mixed scale remain |
 | Source capacity | Explicit finite transfer authority counts the true origin and both actual buyer builds, canonical scans and source operations. Complete carry/claim/recovery/body census and before-growth guards now retain separate economic/book roles; selected prepaid exercise and no-option dual holdings have positive independent/persisted component controls | With the new complete-tail census, joint exercise plus dual holding still refuses at 49,586,912 work /54,466,096 bytes. Caps, samples, all actual source passes and complete tails remain unchanged |
-| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. Exact-constant classification is corrected with unchanged paired financial output | Stochastic coupons with credit, broad contract/driver/seed/step/basis convergence and observed validation remain |
+| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. Exact-constant classification is corrected with unchanged paired financial output | The expanded stochastic-coupon/credit family exposes 12 genuine financial failures in 48 cells. Certified native SVD correction and unchanged full replay are release blockers; broader contract/driver/seed/step/basis convergence and observed validation remain |
 | Application | Durable generated stream, fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening passed the accepted 0.29.19 checkpoint | Matching release/full regression and browser acceptance for the subsequent combined changes; deployment/restarts and explicit saved-library/session rebuilds |
 
 See [fee adoption](commercial-fee-adoption.md),

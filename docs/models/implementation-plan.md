@@ -5,6 +5,35 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Current commercial release gate (local 0.29.20 development; 2026-10-16)
+
+The last sealed, fully accepted installed checkpoint is **0.29.19**, as recorded
+in [its acceptance review](../reviews/2026-10-16-commercial-source-adoption.md).
+Subsequent transferred-rights, generated-fee, finite-source and complete-tail
+components have separate contained evidence. They have not passed a combined
+installed release acceptance. The initial combined attempt is retained and
+invalidated; rebuilding some artifacts does not establish a matching release set.
+
+The expanded [48-cell stochastic coupon/credit/exercise family](commercial-credit-gaussian-exercise.md)
+found **12 independent native/reference failures and 36 passes**. Unlike the
+earlier exact-constant feature classification correction, these failures change
+continuation predictions and some exercise decisions and path cash. Three declared
+failures also reproduce on the optimized combined development lifecycle binary.
+An audit of the actual native training matrices and targets identifies invalid
+SVD reconstruction. Explicit iteration settings reproduce the defect. A bounded,
+independently checked native numerical correction and complete replay of the
+unchanged families are required before combined release acceptance can resume.
+No financial tolerance, case, path count, rank cutoff or acceptance gate is relaxed.
+
+The cut-date coordinator is separately under implementation. Its historical
+omitted receipts remain unchanged; a positive raw, independently verified and
+persisted publication has not yet been accepted. The
+[current completion ledger](commercial-completion-plan.md) preserves these
+engineering gates together with wider adoption, observed evidence, reviewed
+policies, original dependencies and complete joint-scale acceptance. Issues 15
+and 25 remain open. No deployment, service restart or saved-economics rebuild is
+claimed by this development status.
+
 ## Commercial source and adoption follow-through (local 0.29.19 development)
 
 The working tree adds separate fee graph valuation/acquisition, joint finite
