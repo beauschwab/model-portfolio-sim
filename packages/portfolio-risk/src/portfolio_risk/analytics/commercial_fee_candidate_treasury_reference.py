@@ -8,7 +8,7 @@ from .commercial_candidate_reference import verify as verify_candidate
 from .commercial_graph_reference import verify_graph
 from .commercial_source_reference import compare
 from .commercial_treasury_reference import _state, _day, _ftp, _capital
-from .modeled_product_funding_reference import prepare, FEE_LANES
+from .modeled_product_funding_reference import prepare, FEE_LANES, SECONDARY_FEE_LANES
 from .modeled_json_identity import exact_json_identity as exact
 
 SCHEMA = 'commercial-candidate-fee-treasury-1'
@@ -21,13 +21,13 @@ class CapitalFrames:
         if rows: yield pl.DataFrame(rows)
 
 
-def _funding(raw, unit, owner, native, review, end, check):
+def _funding(raw, unit, owner, native, review, end, check, *, secondary=False):
     source = native['source_request']; current = source['source']['current']
     start = unit['graph']['as_of_ordinal']; key = native['path_key']
     groups = [(i, g) for i, g in enumerate(native['groups']) if g['path_key'] == key]
     points = [p for p in native['reference']['carry_points'] if p['path_key'] == key]
     bound = native['fee_projection']['bound_path']; fee_groups = bound['source']['groups']
-    names = FEE_LANES[18:]; states = []; undrawns = []; at = pi = fi = 0
+    names = (SECONDARY_FEE_LANES if secondary else FEE_LANES)[18:]; states = []; undrawns = []; at = pi = fi = 0
     snapshot = None; fee_states = {}; undrawn = source['credit'].get('opening_undrawn_commitment', 0.)
     for elapsed in range(end-start+1):
         check()
@@ -43,7 +43,7 @@ def _funding(raw, unit, owner, native, review, end, check):
             snapshot_fee = fee_states.get(fee['fee_id'], {})
             for index, name in enumerate(names, 18):
                 signed = snapshot_fee.get(name, 0.)
-                amount = -signed if name in ('fee_payable','deferred_fee_income','acquired_fee_liability') else signed
+                amount = -signed if name in ('fee_payable','deferred_fee_income','acquired_fee_liability','acquired_fee_asset_valuation_adjustment') else signed
                 if not math.isfinite(amount) or amount < 0.: raise ArithmeticError('independent gross fee stock sign')
                 state['channels'][index]['amount'] += amount
                 state['origins'].append(dict(origin_id=f"fee:{fee['fee_id']}:{name}", source_event_id=f"native-fee:{fee['fee_id']}", channel=name, amount=amount))
@@ -66,7 +66,7 @@ def _funding(raw, unit, owner, native, review, end, check):
         accept(f'fee:{index}', start+_day(bound['native_years'][index]), sum((p['amount'] for p in group['postings'] if p['account'] == 'cash'), 0.), earnings)
     def balance(state): return sum(a['amount'] * p['coefficient'] for a, p in zip(state['channels'], review['policy']['channels'], strict=True))
     changes = [dict(sequence=i+1, ordinal=after['ordinal'], source_event_id=after['source_checkpoint_id'], kind='reviewed_other_reallocation', amount=balance(after)-balance(before), cash_event_id=None, review=deepcopy(review['channel_change_review'])) for i, (before, after) in enumerate(zip(states, states[1:]))]
-    request = dict(schema='modeled-product-ftp-source-channels-3', measure='physical', source=deepcopy(current['contract']), original_yield_anchor=deepcopy(source['source']['acquisition']['original_yield_anchor']), path_id=native['path_id'], entity=review['entity'], currency_unit=review['currency'], scenario_id=review['scenario'], side='asset', start_ordinal=start, full_end_ordinal=end, source_weight=float(native['weight']), unit_face=float(unit['unit_face']), allocated_face=float(next(a['face'] for a in raw['allocation'] if a['unit_id'] == owner['unit_id'])), opening_funding_balance=balance(states[0]), policy=deepcopy(review['policy']), states=states, cash=cash, changes=changes, earned=earned, resets=deepcopy(review['resets']))
+    request = dict(schema='modeled-product-ftp-source-channels-4' if secondary else 'modeled-product-ftp-source-channels-3', measure='physical', source=deepcopy(current['contract']), original_yield_anchor=deepcopy(source['source']['acquisition']['original_yield_anchor']), path_id=native['path_id'], entity=review['entity'], currency_unit=review['currency'], scenario_id=review['scenario'], side='asset', start_ordinal=start, full_end_ordinal=end, source_weight=float(native['weight']), unit_face=float(unit['unit_face']), allocated_face=float(next(a['face'] for a in raw['allocation'] if a['unit_id'] == owner['unit_id'])), opening_funding_balance=balance(states[0]), policy=deepcopy(review['policy']), states=states, cash=cash, changes=changes, earned=earned, resets=deepcopy(review['resets']))
     for reset in request['resets']:
         for name in ('reference_years','liquidity_years'): reset[name] = float(reset[name])
     return dict(scenario=review['scenario'], position_id=review['position_id'], path_key=key, request=request, preparation=prepare(request, check), opening_cash=opening_cash), undrawns
@@ -74,8 +74,19 @@ def _funding(raw, unit, owner, native, review, end, check):
 
 def verify(raw, actual, check=lambda: False):
     check()
+    secondary = raw.get('secondary_fee_review') is not None
+    sources = []
+    for unit in raw['raw_candidate']['commercial']['units']:
+        for p in unit['graph']['positions']:
+            sources.extend(p['original_pricing'] + p.get('original_physical', []))
+            for s in p['histories']:
+                for role in ('physical','pricing','pricing_down','pricing_up'): sources.extend(s[role])
+    if any(h['source']['source'].get('transfer') is not None for h in sources) != secondary:
+        raise ArithmeticError('explicit conveyed fee source/review identity differs')
     names='schema raw_request source_candidate capital ftp funding_paths full_end_ordinal bridge_work_bound bridge_work_limit native_ordered_journal_replayed separate_fee_source_adoption original_loan_eir_unchanged economic_loss_deducted_again independent_persisted_verification opening_identity_verified mixed_ledger_adoption empirical_validation regulatory_credit_rwa_approval accounting_standard_approval production_adoption'
+    if secondary: names += ' conveyed_fee_source_adoption'
     if set(actual)!=set(names.split()) or raw.get('schema') != SCHEMA or actual.get('schema') != SCHEMA or not exact(raw, actual['raw_request']): raise ArithmeticError('candidate fee treasury immutable raw identity differs')
+    if secondary and actual.get('conveyed_fee_source_adoption') is not True: raise ArithmeticError('conveyed fee adoption authority differs')
     source = actual['source_candidate']; candidate = raw['raw_candidate']
     source_validation = verify_candidate(candidate, source, check)
     end = source['full_end_ordinal']
@@ -85,7 +96,7 @@ def verify(raw, actual, check=lambda: False):
     if type(actual['bridge_work_bound']) is not int or not 0 < actual['bridge_work_bound'] <= 2_000_000 or not exact(actual['bridge_work_limit'], 2_000_000): raise ArithmeticError('candidate fee bridge admission differs')
     if raw.get('capital') is not None:
         if raw['capital']['treasury']['as_of'] != date.fromordinal(end).isoformat() or any(p['capital']['period'] != date.fromordinal(end).isoformat() for p in raw['capital']['policies']): raise ArithmeticError('candidate fee exact closing capital date')
-        _capital(raw['capital'], actual['capital'], CapitalFrames(source['tables']), check, fees=True)
+        _capital(raw['capital'], actual['capital'], CapitalFrames(source['tables']), check, fees=True, secondary_fees=secondary)
     elif actual['capital'] is not None: raise ArithmeticError('unselected candidate fee capital')
     paths = []; positions = []; used = set(); ftp = raw.get('ftp')
     if ftp is not None:
@@ -101,7 +112,7 @@ def verify(raw, actual, check=lambda: False):
                 if key in used: raise ArithmeticError('duplicate candidate fee funding review')
                 used.add(key); account = accounts[owner['account_id']]
                 if (review['entity'],review['currency']) != (account['entity'],account['currency']): raise ArithmeticError('candidate fee entity/currency lineage differs')
-                path, undrawn = _funding(candidate, unit, owner, native, review, end, check); paths.append(path); prepared = path['preparation']
+                path, undrawn = _funding(candidate, unit, owner, native, review, end, check, secondary=secondary); paths.append(path); prepared = path['preparation']
                 if not prepared['treasury_nonnegative_positions_compatible']: raise ArithmeticError('research signed funding cannot enter nonnegative Treasury positions')
                 for i, day in enumerate(prepared['days']):
                     avg = undrawn[i] if review['policy']['averaging'] == 'opening_daily' else (undrawn[i]+undrawn[i+1])*.5

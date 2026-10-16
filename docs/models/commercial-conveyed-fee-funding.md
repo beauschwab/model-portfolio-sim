@@ -4,8 +4,11 @@ These additive mathematical helpers retain purchased fee rights separately from
 loan principal, loan effective interest and the seller's historical fee income.
 They require explicit reviewed policies. A helper result does not verify a
 source journal, authorize a regulatory method or establish empirical accuracy.
-The candidate coordinator's source and persisted-journal adoption is a separate
-gate; the historical source-channels-3 route remains unchanged.
+The finite candidate coordinator explicitly selects this inventory with
+`secondary_fee_review` on `commercial-candidate-fee-treasury-1`. It requires an
+actual complete-origin secondary source and the supplied review identity;
+selection without that source or conveyed rights without selection rejects.
+Historical omission retains the source-channels-3 route and its exact result.
 
 ## Funding inventories
 
@@ -66,11 +69,41 @@ grouping only.
 
 ## Validation and remaining adoption
 
+The coordinator replays the same native loan/fee candidate journal before
+constructing funding states or closing capital. Each daily checkpoint retains
+all 26 channels and their origins, including zero participation. Purchase cash
+and subsequent earnings come from actual native postings; cumulative seller
+service counters never enter buyer income. The additional two channels and
+origins are charged before generation within the unchanged 2M bridge-work and
+128-origin limits. The 32-MiB result and separate 64-MiB JSON ownership phase
+remain bounded independently of the financial source owners.
+
+Capital uses private reviewed capability9 after ordered-journal replay. The
+complete-tail closing date, entity, currency and scenario must match the supplied
+policies; independent replay reconciles gross closing statements and asset/contra
+groups before and after persisted publication. This is complete-tail closing
+capital, not capital at an arbitrary earlier report date.
+
+The existing Treasury adapter admits nonnegative asset funding. A negative fee
+obligation after loan principal settlement can produce negative funding; the
+adapter rejects it. An explicit reviewed channel policy may exclude that funding
+credit while retaining every gross liability and buyer expense. No implicit
+zero clipping is permitted. Standalone source4 signed research proofs remain a
+separate contract and do not automatically qualify as Treasury positions.
+
+The example `examples/models/commercial-conveyed-fee-treasury-1.json` is supplied
+synthetic policy, not an approved regulatory or accounting methodology. Its
+receivable6/cost5 acquisition retains contra1, separate purchase cash and buyer
+income1, and no inherited seller service income.
+
 Native hand controls cover both obligation directions, zero/half/full allocation,
 complete origins, once-only cash/income, reviewed negative funding, cancellation,
 asset/contra grouping, missing or unequal weights and rejection by historical or
-public capability selectors. Independent source and persisted-journal replay,
-candidate capital/FTP adoption, saved/cohort/mixed-book integration, reviewed
+public capability selectors. Finite candidate source/journal/treasury controls
+also cover both signs, zero/half/full participation, explicit reviews and weights,
+rehashed source/income tampering and final SQL/source/object/lease/deadline fences.
+Saved/cohort/mixed-book integration, generated or partial secondary acquisition,
+arbitrary report-date capital, broader reviewed
 policies, observed evidence and complete issue 15/25 scale acceptance remain
 required. Matching native artifacts must be rebuilt before selecting additive
 schemas; local validation does not deploy or rebuild saved economics.

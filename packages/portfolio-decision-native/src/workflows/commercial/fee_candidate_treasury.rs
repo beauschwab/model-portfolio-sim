@@ -45,6 +45,9 @@ pub struct Request {
     pub raw_candidate: Value,
     pub capital: Option<policy::Capital>,
     pub ftp: Option<policy::Ftp>,
+    /// Explicit reviewed adoption of purchased gross rights and valuation basis.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary_fee_review: Option<funding::Identity>,
 }
 fn tick() -> Result<(), String> {
     portfolio_compute_control::checkpoint()
@@ -154,12 +157,20 @@ fn replay(candidate: &candidates::ResultData) -> Result<(), String> {
     }
     Ok(())
 }
-fn add_fee_state(state: &mut funding::State, fee_id: &str, snapshot: &Value) -> Result<(), String> {
-    for (index, name) in funding::FEE_LANES.iter().enumerate().skip(18) {
+fn add_fee_state(
+    state: &mut funding::State,
+    fee_id: &str,
+    snapshot: &Value,
+    lanes: &[&str],
+) -> Result<(), String> {
+    for (index, name) in lanes.iter().enumerate().skip(18) {
         let signed = snapshot.get(*name).and_then(Value::as_f64).unwrap_or(0.);
         let amount = if matches!(
             *name,
-            "fee_payable" | "deferred_fee_income" | "acquired_fee_liability"
+            "fee_payable"
+                | "deferred_fee_income"
+                | "acquired_fee_liability"
+                | "acquired_fee_asset_valuation_adjustment"
         ) {
             -signed
         } else {
@@ -178,7 +189,42 @@ fn add_fee_state(state: &mut funding::State, fee_id: &str, snapshot: &Value) -> 
     }
     Ok(())
 }
-fn preflight(r: &Request, raw: &candidates::Request) -> Result<(usize, usize, i32), String> {
+fn has_conveyed_sources(raw: &candidates::Request) -> bool {
+    raw.commercial.units.iter().any(|u| {
+        u.graph.positions.iter().any(|p| {
+            let loan = p
+                .original_pricing
+                .iter()
+                .chain(&p.original_physical)
+                .chain(p.histories.iter().flat_map(|s| {
+                    s.physical
+                        .iter()
+                        .chain(&s.pricing)
+                        .chain(&s.pricing_down)
+                        .chain(&s.pricing_up)
+                }))
+                .any(|h| h.source.source.transfer.is_some());
+            loan || p.fees.as_ref().is_some_and(|f| {
+                f.original_pricing
+                    .iter()
+                    .chain(&f.original_physical)
+                    .chain(f.histories.iter().flat_map(|s| {
+                        s.physical
+                            .iter()
+                            .chain(&s.pricing)
+                            .chain(&s.pricing_down)
+                            .chain(&s.pricing_up)
+                    }))
+                    .any(|h| h.policy.transfer.is_some())
+            })
+        })
+    })
+}
+fn preflight(
+    r: &Request,
+    raw: &candidates::Request,
+    lanes: &[&str],
+) -> Result<(usize, usize, i32), String> {
     portfolio_model_core::cashflow::validate_ordinal(raw.as_of_ordinal)?;
     portfolio_model_core::cashflow::validate_ordinal(raw.reporting_end_ordinal)?;
     let raw_bytes = strict_json::serialized_size(r, MAX_BYTES)?;
@@ -234,7 +280,7 @@ fn preflight(r: &Request, raw: &candidates::Request) -> Result<(usize, usize, i3
             for set in &selection.histories {
                 for h in &set.physical {
                     end = end.max(h.policy.complete_end_ordinal);
-                    fee_origins = fee_origins.max(h.policy.fees.len() * 6);
+                    fee_origins = fee_origins.max(h.policy.fees.len() * (lanes.len() - 18));
                     event_work = event_work
                         .checked_add(
                             (portfolio_risk_native::commercial_fee_source::event_bound(&h.policy)
@@ -258,7 +304,10 @@ fn preflight(r: &Request, raw: &candidates::Request) -> Result<(usize, usize, i3
         .and_then(|x| x.checked_add(event_work))
         .and_then(|x| {
             x.checked_add(
-                paths * (end - raw.as_of_ordinal + 1) as usize * (maximum_origins + 24) * 32,
+                paths
+                    * (end - raw.as_of_ordinal + 1) as usize
+                    * (maximum_origins + lanes.len())
+                    * 32,
             )
         })
         .ok_or("candidate fee bridge work overflow")?;
@@ -288,22 +337,30 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
     if raw.schema != candidates::SCHEMA {
         return Err("finite candidate raw schema required".into());
     }
-    if raw.commercial.units.iter().any(|u| {
-        u.graph.positions.iter().any(|p| {
-            p.original_pricing
-                .iter()
-                .any(|h| h.source.source.transfer.is_some())
-        })
-    }) {
-        return Err("secondary acquired rights require separately reviewed capital/FTP gross and valuation-adjustment channels".into());
+    let secondary = r.secondary_fee_review.is_some();
+    if has_conveyed_sources(&raw) != secondary {
+        return Err("secondary acquired rights require explicit matching secondary_fee_review and source-channels-4 gross/valuation ownership".into());
     }
-    let reservation = preflight(&r, &raw)?;
+    if let Some(review) = &r.secondary_fee_review {
+        identity(review)?;
+    }
+    let lanes: &[&str] = if secondary {
+        &funding::SECONDARY_FEE_LANES
+    } else {
+        &funding::FEE_LANES
+    };
+    let reservation = preflight(&r, &raw, lanes)?;
     // Original envelope, retained raw candidate and exact result raw identity
     // coexist with the typed native request. Charge before cloning.
     let raw_request = serde_json::to_value(&r).map_err(|e| e.to_string())?;
     if let Some(c) = &r.capital {
         identity(&c.review)?;
-        treasury_bridge::validate_reviewed_commercial_fee_inputs(
+        let validate = if secondary {
+            treasury_bridge::validate_reviewed_commercial_secondary_fee_inputs
+        } else {
+            treasury_bridge::validate_reviewed_commercial_fee_inputs
+        };
+        validate(
             &c.treasury,
             &c.policies,
             c.amount_multiplier,
@@ -325,7 +382,12 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
                 .iter()
                 .position(|o| o.position_id == p.position_id)
                 .ok_or("candidate funding policy position absent")?;
-            funding::validate_fee_policy_before_source(
+            let validate = if secondary {
+                funding::validate_secondary_fee_policy_before_source
+            } else {
+                funding::validate_fee_policy_before_source
+            };
+            validate(
                 &p.policy,
                 &p.resets,
                 raw.commercial.units[ui].graph.as_of_ordinal,
@@ -397,7 +459,12 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
         .and_then(|x| x.checked_add(8192))
         .ok_or("capital output upper overflow")?;
         json_phase.reserve_encoded(capital_json_upper)?;
-        capital = treasury_bridge::prepare_reviewed_commercial_fee_exposure(
+        let prepare = if secondary {
+            treasury_bridge::prepare_reviewed_commercial_secondary_fee_exposure
+        } else {
+            treasury_bridge::prepare_reviewed_commercial_fee_exposure
+        };
+        capital = prepare(
             c.treasury,
             trial,
             c.policies,
@@ -541,15 +608,10 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
                         policy::state(&row["unweighted_book"], raw.as_of_ordinal + d, u)?;
                     state
                         .channels
-                        .extend(
-                            funding::FEE_LANES
-                                .iter()
-                                .skip(18)
-                                .map(|name| funding::Amount {
-                                    channel: (*name).into(),
-                                    amount: 0.,
-                                }),
-                        );
+                        .extend(lanes.iter().skip(18).map(|name| funding::Amount {
+                            channel: (*name).into(),
+                            amount: 0.,
+                        }));
                     for fee_id in &fee.bound_path.source().raw_request().fees {
                         let snapshot = fee_days.get(&(
                             p.scenario.as_str(),
@@ -575,7 +637,7 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
                                 &empty
                             }
                         };
-                        add_fee_state(&mut state, &fee_id.fee_id, snapshot)?;
+                        add_fee_state(&mut state, &fee_id.fee_id, snapshot, lanes)?;
                     }
                     states.push(state);
                 }
@@ -691,7 +753,12 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
                     })
                     .collect();
                 let request = funding::Request {
-                    schema: funding::FEE_SCHEMA.into(),
+                    schema: if secondary {
+                        funding::SECONDARY_FEE_SCHEMA
+                    } else {
+                        funding::FEE_SCHEMA
+                    }
+                    .into(),
                     measure: "physical".into(),
                     source: funding::Identity {
                         id: loan.raw_request().source.current.contract.id.clone(),
@@ -734,7 +801,11 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
                     earned,
                     resets: p.resets.clone(),
                 };
-                let prepared = funding::prepare_fee_with_check(&request, &mut tick)?;
+                let prepared = if secondary {
+                    funding::prepare_secondary_fee_with_check(&request, &mut tick)?
+                } else {
+                    funding::prepare_fee_with_check(&request, &mut tick)?
+                };
                 if !prepared.treasury_nonnegative_positions_compatible {
                     return Err("research signed funding cannot enter nonnegative Treasury positions; choose an explicit compatible allocation policy".into());
                 }
@@ -827,6 +898,9 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
     }
     json_phase.retain(&candidate)?;
     let mut result = json!({"schema":SCHEMA,"full_end_ordinal":full_end,"bridge_work_bound":reservation.0,"bridge_work_limit":MAX_WORK,"native_ordered_journal_replayed":true,"separate_fee_source_adoption":true,"original_loan_eir_unchanged":true,"economic_loss_deducted_again":false,"independent_persisted_verification":false,"opening_identity_verified":false,"mixed_ledger_adoption":false,"empirical_validation":false,"regulatory_credit_rwa_approval":false,"accounting_standard_approval":false,"production_adoption":false});
+    if secondary {
+        result["conveyed_fee_source_adoption"] = json!(true);
+    }
     result["source_candidate"] = serde_json::to_value(&candidate).map_err(|e| e.to_string())?;
     result["raw_request"] = raw_request;
     result["capital"] = capital;
