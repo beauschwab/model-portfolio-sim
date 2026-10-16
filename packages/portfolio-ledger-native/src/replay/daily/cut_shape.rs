@@ -231,7 +231,8 @@ mod tests {
     #[test]
     fn numeric_width_is_independent_of_money_and_preserves_escaped_strings() {
         let a = shape(&serde_json::json!({"rights":[-0.0,1e-20],"id":"a\\\"\n\u{975e}"})).unwrap();
-        let b = shape(&serde_json::json!({"rights":[f64::MAX,-1e200],"id":"a\\\"\n\u{975e}"})).unwrap();
+        let b =
+            shape(&serde_json::json!({"rights":[f64::MAX,-1e200],"id":"a\\\"\n\u{975e}"})).unwrap();
         assert_eq!(a.encoded_bytes_upper, b.encoded_bytes_upper);
         assert_eq!(a.cells_upper, b.cells_upper);
         assert!(a.string_bytes_upper > 10);
