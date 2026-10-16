@@ -743,6 +743,15 @@ fn fit(
             means[i] += x / rows.len() as f64;
         }
     }
+    // Ordered mean accumulation can leave roundoff even for identical inputs.
+    // Center exactly constant observed columns at their actual value, while
+    // preserving the historical reduction for every genuinely varying column.
+    for (i, mean) in means.iter_mut().enumerate() {
+        let first = rows[0].features[i];
+        if rows.iter().all(|row| row.features[i] == first) {
+            *mean = first;
+        }
+    }
     for row in rows {
         for (i, x) in row.features.iter().enumerate() {
             scales[i] += (x - means[i]).powi(2) / rows.len() as f64;
@@ -795,6 +804,9 @@ fn fit(
         basis_degree: degree,
     })
 }
+#[cfg(test)]
+mod regression_constant_tests;
+
 fn forecast(regression: &Regression, point: &Point) -> Result<f64, String> {
     if !regression.observed_live_states.contains(&point.state) {
         return Err("evaluation live credit state lacks training coverage".into());
