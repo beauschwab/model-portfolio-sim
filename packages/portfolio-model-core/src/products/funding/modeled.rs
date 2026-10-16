@@ -74,6 +74,21 @@ pub const FEE_INCOME_LANES: [&str; 11] = [
     "fee_writeoff",
     "fee_recovery",
 ];
+/// Explicit purchased fee-right adjustments. Both are nonnegative gross
+/// magnitudes; supplied channel coefficients retain the reviewed funding sign.
+/// Historical fee/source inventories and arithmetic are unchanged.
+pub const SECONDARY_FEE_SCHEMA: &str = "modeled-product-ftp-source-channels-4";
+pub const SECONDARY_FEE_LANES: [&str; 26] = {
+    let mut lanes = [""; 26];
+    let mut index = 0;
+    while index < FEE_LANES.len() {
+        lanes[index] = FEE_LANES[index];
+        index += 1;
+    }
+    lanes[24] = "acquired_fee_asset_valuation_adjustment";
+    lanes[25] = "acquired_fee_liability_valuation_adjustment";
+    lanes
+};
 pub const MAX_RAW_BYTES: usize = 1_048_576;
 pub const MAX_OUTPUT_BYTES: usize = 1_048_576;
 const MAX_EVENTS: usize = 4096;
@@ -126,6 +141,12 @@ const FEES: Tier = Tier {
     output: MAX_OUTPUT_BYTES,
     lanes: &FEE_LANES,
     income_lanes: &FEE_INCOME_LANES,
+};
+
+const SECONDARY_FEES: Tier = Tier {
+    schema: SECONDARY_FEE_SCHEMA,
+    lanes: &SECONDARY_FEE_LANES,
+    ..FEES
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -363,6 +384,12 @@ pub fn prepare_fee_with_check(
     check: &mut impl FnMut() -> Result<(), String>,
 ) -> Result<ResultData, String> {
     prepare_in_tier(r, check, &FEES)
+}
+pub fn prepare_secondary_fee_with_check(
+    r: &Request,
+    check: &mut impl FnMut() -> Result<(), String>,
+) -> Result<ResultData, String> {
+    prepare_in_tier(r, check, &SECONDARY_FEES)
 }
 fn prepare_in_tier(
     r: &Request,
@@ -739,8 +766,10 @@ fn prepare_in_tier(
             "modeled-product-ftp-preparation-proof-result-1"
         } else if tier.schema == PORTFOLIO_SCHEMA {
             "modeled-product-ftp-preparation-proof-result-2"
-        } else {
+        } else if tier.schema == FEE_SCHEMA {
             "modeled-product-ftp-preparation-proof-result-3"
+        } else {
+            "modeled-product-ftp-preparation-proof-result-4"
         },
         raw_request: r.clone(),
         scale,
@@ -787,6 +816,14 @@ pub fn validate_fee_policy_before_source(
     end: i32,
 ) -> Result<(), String> {
     validate_policy_in_tier(p, resets, start, end, &FEES)
+}
+pub fn validate_secondary_fee_policy_before_source(
+    p: &Policy,
+    resets: &[Reset],
+    start: i32,
+    end: i32,
+) -> Result<(), String> {
+    validate_policy_in_tier(p, resets, start, end, &SECONDARY_FEES)
 }
 fn validate_policy_in_tier(
     p: &Policy,

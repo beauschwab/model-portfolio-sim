@@ -14,6 +14,7 @@ LANES = ('active_principal','pending_default_principal','pending_prepay_principa
 INCOME = ('original_eir','reviewed_basis','incurred_credit','recovery_income',
           'recovery_cost','initial_allowance','deposit_revision')
 FEE_LANES = LANES + ('fee_receivable','fee_payable','deferred_fee_income','prepaid_fee_expense','acquired_fee_asset','acquired_fee_liability')
+SECONDARY_FEE_LANES = FEE_LANES + ('acquired_fee_asset_valuation_adjustment','acquired_fee_liability_valuation_adjustment')
 FEE_INCOME = INCOME + ('service_fee','fee_cost_release','fee_writeoff','fee_recovery')
 FLOATS = {'amount','bank_cash','bank_earnings','opening_funding_balance','source_weight',
           'unit_face','allocated_face','reference_years','liquidity_years'}
@@ -55,15 +56,16 @@ def _exact(a,b):
 
 def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
     portfolio=raw.get("schema")=="modeled-product-ftp-source-channels-2"
-    fee=raw.get("schema")=="modeled-product-ftp-source-channels-3"
-    lanes=FEE_LANES if fee else LANES
+    secondary=raw.get("schema")=="modeled-product-ftp-source-channels-4"
+    fee=secondary or raw.get("schema")=="modeled-product-ftp-source-channels-3"
+    lanes=SECONDARY_FEE_LANES if secondary else FEE_LANES if fee else LANES
     income_names=FEE_INCOME if fee else INCOME
     def probe():
         if check(): raise InterruptedError('proof cancelled')
     probe()
     _keys(raw,'schema measure source original_yield_anchor path_id entity currency_unit scenario_id side start_ordinal full_end_ordinal source_weight unit_face allocated_face opening_funding_balance policy states cash changes earned resets')
     _require(len(json.dumps(raw,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode())<=(8388608 if portfolio else 1048576),'raw bound')
-    _require(raw['schema'] in ('modeled-product-ftp-source-channels-1','modeled-product-ftp-source-channels-2','modeled-product-ftp-source-channels-3') and raw['measure']=='physical','physical proof')
+    _require(raw['schema'] in ('modeled-product-ftp-source-channels-1','modeled-product-ftp-source-channels-2','modeled-product-ftp-source-channels-3','modeled-product-ftp-source-channels-4') and raw['measure']=='physical','physical proof')
     for name in ('path_id','entity','currency_unit','scenario_id'): _text(raw[name])
     _identity(raw['source']); _identity(raw['original_yield_anchor'])
     start,end=raw['start_ordinal'],raw['full_end_ordinal']
@@ -186,7 +188,7 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
             cash_event_ids=[c['event_id'] for c in cash],earned_event_ids=[e['event_id'] for e in earned],
             bank_cash=money,original_eir=income[0]['amount'],earnings_by_channel=income,external_earnings=profit))
     _require(_near(current,0),'funding tail')
-    output=dict(schema='modeled-product-ftp-preparation-proof-result-3' if fee else 'modeled-product-ftp-preparation-proof-result-2'if portfolio else 'modeled-product-ftp-preparation-proof-result-1',raw_request=r,scale=scale,days=days,
+    output=dict(schema='modeled-product-ftp-preparation-proof-result-4' if secondary else 'modeled-product-ftp-preparation-proof-result-3' if fee else 'modeled-product-ftp-preparation-proof-result-2'if portfolio else 'modeled-product-ftp-preparation-proof-result-1',raw_request=r,scale=scale,days=days,
         closing_unweighted_channels=copy.deepcopy(r['states'][-1]['channels']),closing_funding_balance=current,
         admitted_work=work,complete_unweighted_tail_checked=True,source_reconstructed=False,
         ordered_journal_verified=False,ftp_bridge_adoption=False,capital_ftp_eligible=False,
