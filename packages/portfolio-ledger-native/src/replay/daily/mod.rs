@@ -1,6 +1,8 @@
 //! Full daily research state machine; bounded table batches over a local pipe.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 mod commercial_hooks;
+mod cut;
+pub use cut::run_commercial_cut;
 #[cfg(test)]
 mod compatibility_tests;
 mod consumer_hooks;
@@ -2703,7 +2705,11 @@ impl Sim<'_> {
     }
     fn run_days(mut self) -> R<()> {
         self.opening()?;
-        for day in 1..=self.spec.horizon_days {
+        self.run_range(1, self.spec.horizon_days)?;
+        self.finish()
+    }
+    fn run_range(&mut self, start: usize, end: usize) -> R<()> {
+        for day in start..=end {
             portfolio_compute_control::checkpoint()?;
             let stress = if day >= self.scenario.start_day {
                 self.severity
@@ -2868,6 +2874,9 @@ impl Sim<'_> {
             self.policies(day, stress)?;
             self.close_day(day)?;
         }
+        Ok(())
+    }
+    fn finish(&mut self) -> R<()> {
         for (ai, a) in self.accounts.iter().enumerate() {
             let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"final_cash":a.cash,"final_equity":a.equity,"minimum_cash":self.minimum_cash[ai],"peak_cash_shortfall":(a.cash_floor-self.minimum_cash[ai]).max(0.),"max_reconciliation_error":self.max_error});
             for (field, metric) in [

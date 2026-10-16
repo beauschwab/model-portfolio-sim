@@ -533,6 +533,18 @@ pub(crate) struct Stage {
     next: Tracking,
 }
 impl Runtime {
+    pub(crate) fn extend_cut(&mut self, c: &Compiled<'_>) -> Result<(), String> {
+        checkpoint()?;
+        if self.paths.len() > c.bindings.len() || self.fees.len() > c.fees.len() {
+            return Err("native cut cannot remove surviving owner state".into());
+        }
+        self.paths.resize(c.bindings.len(), Tracking::default());
+        self.fees.resize(
+            c.fees.len(),
+            crate::owners::commercial::fees::FeeTracking::default(),
+        );
+        Ok(())
+    }
     pub(crate) fn snapshots<'a>(
         &'a self,
         c: &'a Compiled<'_>,
