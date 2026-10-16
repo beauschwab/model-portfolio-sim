@@ -103,7 +103,7 @@ Sampling error is native evaluation mean minus the independently integrated
 learned-policy value, separate from regret and total error. No monotonic realized
 convergence is required.
 
-Every result passes independent raw stochastic/credit/source and stopped-cash
+Every result must pass independent raw stochastic/credit/source and stopped-cash
 replay. A second hand-derived oracle integrates supplied cumulative-hazard draws
 and applies signed default-accrual cash to every path and eligible decision.
 Pairs i and i+N/2 reconstruct the native cluster mean and sample standard error.
@@ -128,10 +128,37 @@ contract. Extreme theoretical tails and finite PRNG samples remain distinct.
 
 The harness pins executable, native sources, engine references and new benchmark/
 test/doc bytes before and after execution. Existing receipts cannot be overwritten.
-Prior 60/24/107 evidence and the corrected executable remain sealed; no new build
-or target is required. State-dependent hazards, market/credit dependence, multiple
+Prior 60/24/107 evidence and the original executable remain sealed. The initial
+family reused that matching artifact; a subsequent numerical correction requires
+a separately pinned matching artifact and new immutable receipt. State-dependent
+hazards, market/credit dependence, multiple
 exercise dates, fees, unresolved signed rights, empirical holdouts and mixed/scale
 acceptance remain open. This family makes no DV01 or policy-refitting claim.
+
+## Retained numerical blocker and correction gate
+
+The initial complete execution retained 36 passing and 12 failing cells. All
+12 fail the unchanged independent coefficient comparison; some also change
+native learned decisions and monetary outputs. This invalidates release
+acceptance for the supported family. No failed cell, seed, coefficient check,
+financial tolerance or sampling criterion was removed.
+
+Exact native DMatrix captures match independently constructed feature rows,
+targets, normalization and column energies. The pinned decomposition itself
+fails reconstruction and solve checks. A deterministic16-by-3 example reproduces
+the problem; changing to explicit bounded EPS/100000 settings does not fix it.
+Three cases also reproduce on the optimized combined release. Initial binaries,
+raw/native outputs, spectra, coefficients, functional predictions and failures
+remain immutable evidence.
+
+The separate [checked native least-squares stage](commercial-checked-least-squares.md)
+adds a bounded native correction, actual-matrix and solve checks, explicit work
+and workspace admission, and cutoff/scale/cancellation controls. The complete
+unchanged 48-cell family and prior families must pass against a new matching
+artifact before that blocker is cleared. This document records the initial
+failure independently of any later corrected receipt. The original fraction-zero
+signed gross-obligation valuation/adoption boundary remains open even when the
+explicit full signed-recovery family passes.
 
 The continuation-regression question follows
 [Longstaff and Schwartz (2001)](https://people.math.ethz.ch/~hjfurrer/teaching/LongstaffSchwartzAmericanOptionsLeastSquareMonteCarlo.pdf);

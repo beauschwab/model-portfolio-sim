@@ -12,7 +12,7 @@ use crate::{
         indexed::{Coupon, RateSource},
     },
 };
-use nalgebra::{DMatrix, DVector};
+use nalgebra::DMatrix;
 use portfolio_model_core::{
     cashflow::{validate_ordinal, CashflowMeasure},
     credit::{CreditMeasure, CreditState},
@@ -398,6 +398,10 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .and_then(|v| v.checked_add(tape_bytes))
         .ok_or("generated retained bytes overflow")?;
     let columns = basis::columns(features, degree).min(r.training.paths / 2);
+    let numerical = regression_numerical_reserve_with_columns(r, columns)?;
+    let bytes = bytes
+        .checked_add(numerical.1)
+        .ok_or("regression workspace overflow")?;
     let regress_work = n
         .checked_mul(r.policy.exercise_dates.len() + 1)
         .and_then(|v| v.checked_mul(columns * columns * 16))
@@ -409,6 +413,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     let total = work
         .checked_add(fee_work)
         .and_then(|v| v.checked_add(regress_work))
+        .and_then(|v| v.checked_add(numerical.0))
         .ok_or("generated aggregate overflow")?;
     if total > MAX_WORK || bytes > MAX_BYTES || strict_json::serialized_size(r, 1 << 20)? > 1 << 20
     {
@@ -422,6 +427,23 @@ pub(crate) fn regression_columns_upper(r: &Request) -> Result<usize, String> {
         basis::columns(feature_bound(r)?, basis::degree(&r.regression_policy)?)
             .min(r.training.paths / 2),
     )
+}
+fn regression_numerical_reserve_with_columns(
+    r: &Request,
+    columns: usize,
+) -> Result<(usize, usize), String> {
+    let fits = r.policy.exercise_dates.len();
+    if fits == 0 {
+        return Ok((0, 0));
+    }
+    let bound = checked_least_squares::WorkBound::new(r.training.paths, columns)?;
+    Ok((
+        bound
+            .total()
+            .checked_mul(fits)
+            .ok_or("regression numerical work overflow")?,
+        bound.bytes(),
+    ))
 }
 pub(crate) fn admitted_source(
     r: &Request,
@@ -724,11 +746,21 @@ pub(crate) fn compiled_point_features(
     result.features = features;
     Ok(result)
 }
+#[cfg(test)]
 fn fit(
     ordinal: i32,
     rows: &[&Point],
     targets: &[f64],
     degree: usize,
+) -> Result<Regression, String> {
+    fit_admitted(ordinal, rows, targets, degree, usize::MAX)
+}
+fn fit_admitted(
+    ordinal: i32,
+    rows: &[&Point],
+    targets: &[f64],
+    degree: usize,
+    columns_upper: usize,
 ) -> Result<Regression, String> {
     check()?;
     let features = rows
@@ -771,20 +803,27 @@ fn fit(
     if rows.len() < columns * 2 {
         return Err("insufficient live training paths for selected continuation basis".into());
     }
+    if columns > columns_upper {
+        return Err(
+            "actual continuation basis exceeds admitted numerical columns before matrix allocation"
+                .into(),
+        );
+    }
     let data: Vec<_> = rows
         .iter()
         .flat_map(|p| basis::values(&p.features, &means, &scales, &active_features, degree))
         .collect();
-    let decomposition = DMatrix::from_row_slice(rows.len(), columns, &data).svd(true, true);
-    let cutoff = f64::EPSILON * rows.len().max(columns) as f64 * decomposition.singular_values[0];
-    let rank = decomposition
-        .singular_values
-        .iter()
-        .filter(|v| **v > cutoff)
-        .count();
-    let coefficients = decomposition
-        .solve(&DVector::from_column_slice(targets), cutoff)
-        .map_err(|e| e.to_string())?;
+    let matrix = DMatrix::from_row_slice(rows.len(), columns, &data);
+    #[cfg(test)]
+    regression_svd_audit::capture(regression_svd_audit::Inputs {
+        rows,
+        means: &means,
+        scales: &scales,
+        active_features: &active_features,
+        targets,
+        matrix: &matrix,
+    });
+    let fitted = checked_least_squares::solve(&matrix, targets, check)?;
     let mut observed_live_states = Vec::new();
     for row in rows {
         if !observed_live_states.contains(&row.state) {
@@ -796,16 +835,19 @@ fn fit(
         means,
         scales,
         active_features,
-        coefficients: coefficients.iter().copied().collect(),
+        coefficients: fitted.coefficients,
         observations: rows.len(),
-        rank,
-        singular_values: decomposition.singular_values.iter().copied().collect(),
+        rank: fitted.rank,
+        singular_values: fitted.singular_values,
         observed_live_states,
         basis_degree: degree,
     })
 }
+mod checked_least_squares;
 #[cfg(test)]
 mod regression_constant_tests;
+#[cfg(test)]
+mod regression_svd_audit;
 
 fn forecast(regression: &Regression, point: &Point) -> Result<f64, String> {
     if !regression.observed_live_states.contains(&point.state) {
@@ -984,6 +1026,13 @@ pub fn fit_training(r: &Request) -> Result<NativeTrainedPolicy, String> {
     fit_paths(r, &training)
 }
 fn fit_paths(r: &Request, training: &[Path]) -> Result<NativeTrainedPolicy, String> {
+    fit_paths_with_columns(r, training, regression_columns_upper(r)?)
+}
+fn fit_paths_with_columns(
+    r: &Request,
+    training: &[Path],
+    columns_upper: usize,
+) -> Result<NativeTrainedPolicy, String> {
     let mut train_values = vec![0.; training.len()];
     let mut regressions = Vec::new();
     for index in (0..r.policy.exercise_dates.len()).rev() {
@@ -1001,11 +1050,12 @@ fn fit_paths(r: &Request, training: &[Path]) -> Result<NativeTrainedPolicy, Stri
         }
         let rows: Vec<_> = ids.iter().map(|i| &training[*i].points[index]).collect();
         let responses: Vec<_> = ids.iter().map(|i| target[*i]).collect();
-        let regression = fit(
+        let regression = fit_admitted(
             r.policy.exercise_dates[index].ordinal,
             &rows,
             &responses,
             basis::degree(&r.regression_policy)?,
+            columns_upper,
         )?;
         for (i, p) in training.iter().enumerate() {
             let continuation = if live(p.points[index].state) {

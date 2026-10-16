@@ -1,5 +1,24 @@
 use super::*;
 
+#[test]
+fn actual_columns_must_fit_the_admitted_bound_before_matrix_allocation() {
+    let points: Vec<_> = (0..8)
+        .map(|i| Point {
+            features: vec![i as f64],
+            state: CreditState::Performing,
+            principal: 100.,
+            legal: 0.,
+            surviving_rights: true,
+            fee_payoffs: None,
+        })
+        .collect();
+    let rows: Vec<_> = points.iter().collect();
+    assert!(fit_admitted(0, &rows, &[100.; 8], 1, 1)
+        .err()
+        .unwrap()
+        .contains("before matrix allocation"));
+}
+
 fn point(features: Vec<f64>) -> Point {
     Point {
         features,

@@ -109,13 +109,15 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .checked_mul(r.policy.exercise_dates.len())
         .and_then(|v| v.checked_mul(columns.checked_mul(columns)?.checked_mul(16)?))
         .ok_or("calibration regression overflow")?;
+    let numerical = regression_numerical_reserve_with_columns(r, columns)?.0;
     let targets = n
         .checked_mul(r.policy.exercise_dates.len() + 1)
         .and_then(|v| v.checked_mul(cash.checked_mul(1024)?.checked_add(512)?))
         .ok_or("calibration target work overflow")?;
     Ok((
         fitting
-            .checked_add(targets)
+            .checked_add(numerical)
+            .and_then(|v| v.checked_add(targets))
             .ok_or("calibration trial work overflow")?,
         columns,
     ))
@@ -198,8 +200,8 @@ impl Samples {
         check()?;
         let mut raw = self.raw.clone();
         raw.fixed_base_oas = oas;
-        let trained = fit_paths(&raw, &self.training)?;
         let (_, columns) = trial_upper(&raw)?;
+        let trained = fit_paths_with_columns(&raw, &self.training, columns)?;
         if trained
             .regressions()
             .iter()

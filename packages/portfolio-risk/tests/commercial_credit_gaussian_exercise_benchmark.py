@@ -257,7 +257,9 @@ def benchmark_sources():
     sources = source_identity()
     sources['new_benchmark_files'] = {str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
         for p in (Path(__file__), Path(__file__).with_name('test_commercial_credit_gaussian_exercise.py'),
-                  ROOT/'docs/models/commercial-credit-gaussian-exercise.md') if p.is_file()}
+                  Path(__file__).with_name('test_commercial_regression_work.py'),
+                  ROOT/'docs/models/commercial-credit-gaussian-exercise.md',
+                  ROOT/'docs/models/commercial-checked-least-squares.md') if p.is_file()}
     return sources
 
 

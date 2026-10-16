@@ -847,6 +847,8 @@ def generated_policy_sources(
 
 
 def verify(raw, actual, check=lambda: False):
+    from .commercial_regression_work_reference import verify_numeric_reserve
+    verify_numeric_reserve(raw, actual)
     expected = evaluate(raw, check)
     identity(expected["raw_source"], actual["raw_source"])
     received = deepcopy(actual)

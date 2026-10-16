@@ -114,6 +114,7 @@ def test_signed_hand_owners_preserve_fraction_zero_boundary_and_pay_fraction_one
 def test_credit_changes_actual_learned_native_stopping_with_paired_market_draws(receipt):
     effects=paired_credit_effects(receipt['records'])
     assert effects==receipt['paired_credit_effects']and len(effects)==16
+    assert not any(r.get('comparison_unavailable_due_to_retained_failure')for r in effects), 'retained failure prevents a paired decision comparison'
     assert sum(r['native_learned_decision_changes']for r in effects)>0
     assert all(r['common_eligible_paths']>0 for r in effects)
     signed=[s['signed_recovery_interest']for r in receipt['records']if 'assessment'in r
