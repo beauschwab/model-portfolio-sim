@@ -36,7 +36,7 @@ Opening `acquire_transferred_stock` posts gross receivable/payable/deferred/prep
 
 Face 6 bought for 5 gives receivable 6 and asset valuation adjustment -1: net asset/cash cost 5. It is neither a second asset 5 nor a legal liability 1. The negative mirror is payable -6 plus liability valuation adjustment +1, presented as liability 5 rather than asset 1. New GLs are `commercial_acquired_fee_asset_valuation_adjustment` (normally negative, reduces assets) and `commercial_acquired_fee_liability_valuation_adjustment` (normally positive, reduces liabilities). Residual release uses signed `pnl:commercial_fee_acquisition_expense`: release -1 credits expense 1. Collecting the bought claim 6 recognizes no new service revenue.
 
-Existing allocation-sign restrictions remain: a prepaid-refund liability whose fee quote opposes the entitlement sign rejects at graph acquisition until that classification receives a separate policy. Fee income/release remains outside loan EIR, external NII and the unchanged NII optimization objective. The same daily Sim applies source weights and allocation once. Zero allocation retains unweighted policy and gross inventories.
+Historical allocation-sign restrictions remain when the new policy is omitted. The optional reviewed refund-only prepaid acquisition convention supports opposite-sign cash only against sealed pure deferred/prepaid stock; see [prepaid acquisition](commercial-secondary-prepaid.md). Fee income/release remains outside loan EIR, external NII and the unchanged NII optimization objective. The same daily Sim applies source weights and allocation once. Zero allocation retains unweighted policy and gross inventories.
 
 ## Admission and unsupported cases
 

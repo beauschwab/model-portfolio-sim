@@ -179,6 +179,37 @@ pub struct NativeTransferredFees {
     states: Vec<State>,
 }
 impl NativeTransferredFees {
+    /// Pure prepaid/refundable consideration, proven by the native origin replay.
+    /// No earned claim/payable may be netted against this transferred stock.
+    pub fn prepaid_refund_stock(&self, fee_id: &str) -> Result<f64, String> {
+        let i = self
+            .origin
+            .fees
+            .iter()
+            .position(|f| f.fee_id == fee_id)
+            .ok_or("unknown acquired prepaid fee stock")?;
+        let f = &self.origin.fees[i];
+        let s = &self.states[i];
+        let stock = money(s.deferred_fee_income + s.prepaid_fee_expense)?;
+        if !f.prepaid_refunds_allowed
+            || s.fee_receivable != 0.
+            || s.fee_payable != 0.
+            || stock == 0.
+            || stock.signum() == f.entitlement.signum()
+        {
+            return Err("reviewed prepaid acquisition requires pure native refundable deferred/prepaid stock".into());
+        }
+        Ok(stock)
+    }
+    pub fn unearned_entitlement(&self, fee_id: &str) -> Result<f64, String> {
+        let i = self
+            .origin
+            .fees
+            .iter()
+            .position(|f| f.fee_id == fee_id)
+            .ok_or("unknown acquired service entitlement")?;
+        Ok(self.states[i].unearned_entitlement)
+    }
     pub fn net_stock(&self, fee_id: &str) -> Result<f64, String> {
         let i = self
             .origin

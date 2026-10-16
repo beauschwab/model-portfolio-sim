@@ -118,16 +118,39 @@ fn validate_releases(
     raw: &loan::Request,
     role: Role,
 ) -> Result<(), String> {
-    if role != Role::Physical {
-        if !h.acquisition_releases.is_empty() {
-            return Err("Pricing fee paths cannot supply physical cost releases".into());
-        }
-        return Ok(());
-    }
-    if h.acquisition_releases.len() > 512 {
+    if role == Role::Physical && h.acquisition_releases.len() > 512 {
         return Err("fee acquisition release capacity exceeded".into());
     }
-    let opening = super::transferred_opening(&h.policy, raw)?;
+    if role != Role::Physical && !h.acquisition_releases.is_empty() {
+        return Err("Pricing fee paths cannot supply physical cost releases".into());
+    }
+    let prepaid = h
+        .policy
+        .transfer
+        .as_ref()
+        .is_some_and(|t| t.purchase_cash_policy.is_some());
+    let opening = if prepaid || role == Role::Physical {
+        super::transferred_opening(&h.policy, raw)?
+    } else {
+        None
+    };
+    if prepaid {
+        let stock = opening
+            .as_ref()
+            .ok_or("prepaid acquisition requires sealed native transfer")?;
+        for a in &s.allocations {
+            let net = stock.prepaid_refund_stock(&a.fee_id)?;
+            if a.allocated_cost != 0. && a.allocated_cost.signum() != net.signum() {
+                return Err(
+                    "prepaid acquisition cash sign differs from transferred refundable stock"
+                        .into(),
+                );
+            }
+        }
+    }
+    if role != Role::Physical {
+        return Ok(());
+    }
     let mut remaining: BTreeMap<_, _> = s
         .allocations
         .iter()
@@ -310,12 +333,31 @@ pub fn audit(
                     .iter()
                     .find(|f| f.fee_id == a.fee_id)
                     .ok_or("fee allocation absent")?;
-                if a.allocated_cost != 0. && a.allocated_cost.signum() != f.entitlement.signum() {
+                if h.policy
+                    .transfer
+                    .as_ref()
+                    .is_none_or(|t| t.purchase_cash_policy.is_none())
+                    && a.allocated_cost != 0.
+                    && a.allocated_cost.signum() != f.entitlement.signum()
+                {
                     return Err("fee allocation sign differs from acquired asset/liability".into());
                 }
             }
-            validate_releases(s, h, &loan_history.source, role)?;
-            let (w, b) = admit(&h.policy, &loan_history.source)?;
+            let (w, b) = if h
+                .policy
+                .transfer
+                .as_ref()
+                .is_some_and(|t| t.purchase_cash_policy.is_some())
+            {
+                // Reserve the selected additional origin/opening tier before
+                // release validation derives any sealed transferred stock.
+                let bound = admit(&h.policy, &loan_history.source)?;
+                validate_releases(s, h, &loan_history.source, role)?;
+                bound
+            } else {
+                validate_releases(s, h, &loan_history.source, role)?;
+                admit(&h.policy, &loan_history.source)?
+            };
             let extra = if role == Role::Physical {
                 s.allocations.len() + h.acquisition_releases.len()
             } else {

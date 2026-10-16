@@ -60,6 +60,13 @@ def replay(raw, check=lambda: False, *, transfer=None):
             net=state['fee_receivable']+state['fee_payable']+state['deferred_fee_income']+state['prepaid_fee_expense']
             state['acquired_stock_selected']=True
             if net!=0.:state['transferred_net_stock']=net
+        cash_policy=transfer.get('purchase_cash_policy')
+        if cash_policy is not None:
+            review=cash_policy.get('review',{})
+            if set(cash_policy)!={'review','convention','exit_refunds','remaining_service'}or not all(isinstance(review.get(k),str)and 0<len(review[k])<=128 and not any(ord(c)<32 or 127<=ord(c)<=159 for c in review[k])for k in('id','revision'))or cash_policy['convention']!='signed_acquired_prepaid_refund_stock-1'or cash_policy['exit_refunds']!='native_prepaid_refund_supersedes_cancelled_future_refund-1'or cash_policy['remaining_service']!='cancel_remaining_unearned_at_acquisition-1':raise ValueError('reviewed prepaid acquisition convention differs')
+            for fee in raw['fees']:
+                state=states[fee['fee_id']];net=state['deferred_fee_income']+state['prepaid_fee_expense']
+                if not fee['prepaid_refunds_allowed']or state['fee_receivable']!=0. or state['fee_payable']!=0. or net==0. or net*fee['entitlement']>=0.:raise ValueError('pure native prepaid refund stock required')
         native_transfer=dict(origin=_typed_money(transfer['origin_service']),acquisition_ordinal=raw['asof_ordinal'],review=deepcopy(transfer['review']),states=list(deepcopy(states).values()))
         for i,fee in enumerate(raw['fees']):
             state=states[fee['fee_id']];net=state.get('transferred_net_stock',0.);postings=[]

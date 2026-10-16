@@ -39,7 +39,17 @@ def bind(policy,raw,source,check,stops=()):
                 exit['reason']='exercise'
                 if policy['coincident_order']=='native_exit_follows_native_exercise_timing-1':exit['exercise_timing']=stop['timing']
         after=exit is not None and exit.get('exercise_timing')=='after_scheduled_cash'
-        timeline=[];prefix=[deepcopy(e)for e in policy['events']if exit is None or (e['ordinal']-origin)/365.<exit['native_year']or after and(e['ordinal']-origin)/365.==exit['native_year']]
+        supplied=deepcopy(policy['events'])
+        cash_policy=policy.get('transfer',{}).get('purchase_cash_policy')
+        if cash_policy is not None:
+            if any(e['action']=='earn'for e in supplied):raise ValueError('refund-only purchase cannot retain future service')
+            opening=fee_replay(request([]),check,transfer=policy['transfer']);initial=[]
+            for i,(fee,closing)in enumerate(zip(policy['fees'],opening['closing'],strict=True)):
+                amount=closing['state']['unearned_entitlement']
+                if amount!=0.:initial.append(dict(event_id=f"native-fee:{path['path_key']}:{i}:cancel-at-acquisition",fee_id=fee['fee_id'],source=deepcopy(fee['source']),review=deepcopy(cash_policy['review']),ordinal=origin,sequence=0,action='cancel_unearned',reason='other_reviewed',amount=amount))
+            supplied=initial+supplied
+            for i,event in enumerate(supplied):event['sequence']=i
+        timeline=[];prefix=[deepcopy(e)for e in supplied if exit is None or e['action']=='cancel_unearned'and e['ordinal']==origin and cash_policy is not None or (e['ordinal']-origin)/365.<exit['native_year']or after and(e['ordinal']-origin)/365.==exit['native_year']]
         before=fee_replay(request(prefix),check,transfer=policy.get('transfer'))
         if exit is not None:
             rule=policy[dict(default='default',other_reviewed='prepayment',maturity='maturity',exercise='exercise')[exit['reason']]]
@@ -58,11 +68,11 @@ def bind(policy,raw,source,check,stops=()):
                 collected=max(min((s['earned']-refunded-s['waived_earned'])*sign,s['net_service_cash']*sign),0.)*sign
                 emit('earned-refund','refund_earned',collected*rule.get('refund_earned_fraction',0.),year,reason)
                 for i,v in enumerate(rule['recoveries']):emit(f'recovery:{i}','recover_waived',waived*v['fraction'],year+v['lag_days']/365.,reason)
-            for e in policy['events']:
+            for e in supplied:
                 year=(e['ordinal']-origin)/365.
-                if (year>exit['native_year']or year==exit['native_year']and not after) and(e['action']=='earn'and rule['cancel_future_service']or e['action']=='cash'and rule['cancel_future_cash']):continue
+                if (year>exit['native_year']or year==exit['native_year']and not after) and(e['action']=='earn'and rule['cancel_future_service']or (e['action']=='cash'or e['action']=='refund_prepaid'and policy.get('transfer',{}).get('purchase_cash_policy')is not None)and rule['cancel_future_cash']):continue
                 timeline.append((year,deepcopy(e)))
-        else:timeline=[((e['ordinal']-origin)/365.,deepcopy(e))for e in policy['events']]
+        else:timeline=[((e['ordinal']-origin)/365.,deepcopy(e))for e in supplied]
         timeline.sort(key=lambda e:(e[0],int(e[1]['event_id'].startswith('native-fee:'))if after and e[0]==exit['native_year']else 0));events=[];years=[]
         for i,(year,e)in enumerate(timeline):e['sequence']=i;events.append(e);years.append(year)
         if policy.get('transfer'):years=[0.]*len(policy['fees'])+years
@@ -85,7 +95,7 @@ def verify(raw,result,check=lambda:False):
     from .commercial_dto import typed
     nested=result['loan_receipt'];expected=typed(loan)
     prepared=verify_preparation(expected,expected,nested,check,expected_protocol=7)
-    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))+int(any(p[k].get('refund_earned_fraction',0.)>0. for k in('default','prepayment','exercise','maturity'))))+(len(p['transfer']['origin_service']['events'])*8+len(p['events'])*4+len(p['fees'])*8 if p.get('transfer')else 0))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
+    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))+int(any(p[k].get('refund_earned_fraction',0.)>0. for k in('default','prepayment','exercise','maturity'))))+(len(p['transfer']['origin_service']['events'])*8+len(p['events'])*4+len(p['fees'])*8+(len(p['transfer']['origin_service']['events'])*2+len(p['fees'])*5 if p['transfer'].get('purchase_cash_policy')is not None else 0) if p.get('transfer')else 0))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
     bounds=dict(admitted_work_upper=nested['admitted_work_upper']+cells*128+cells*8*(prepared['horizon']+1)*16,
         retained_bytes_upper=nested['retained_bytes_upper']+cells*4096+cells*8*4096+(32<<20))
     for name,wanted in bounds.items():

@@ -75,6 +75,7 @@ def graph_typed(value,key=''):
                 if isinstance(result.get(name),dict)and result[name].get('refund_earned_fraction',0.)==0.:result[name].pop('refund_earned_fraction',None)
             for fee in result['fees']:
                 if fee.get('earned_refunds_allowed') is False:fee.pop('earned_refunds_allowed')
+        if 'origin_service'in result and 'valuation_release_policy'in result and result.get('purchase_cash_policy')is None:result.pop('purchase_cash_policy',None)
         if result.get('schema')=='commercial-fee-adoption-1'and not result.get('original_physical'):result.pop('original_physical',None)
         if 'policy' in result and 'path_id' in result and isinstance(result['policy'],dict) and result['policy'].get('schema')=='commercial-native-fees-1':
             if not result.get('acquisition_releases'):result.pop('acquisition_releases',None)

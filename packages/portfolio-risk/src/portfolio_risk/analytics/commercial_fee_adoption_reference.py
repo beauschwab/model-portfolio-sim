@@ -46,9 +46,19 @@ def validate(selection, graph, position, check):
             current_contract=graph_typed(policy['fees'])
             if contract is None:contract=current_contract
             elif contract!=current_contract:raise ArithmeticError('fee contractual rights changed across measures/paths')
+            cash_policy=policy.get('transfer',{}).get('purchase_cash_policy')
+            if cash_policy is not None:
+                review=cash_policy.get('review',{})
+                if set(cash_policy)!={'review','convention','exit_refunds','remaining_service'}or not all(isinstance(review.get(k),str)and 0<len(review[k])<=128 and not any(ord(c)<32 or 127<=ord(c)<=159 for c in review[k])for k in('id','revision'))or cash_policy['convention']!='signed_acquired_prepaid_refund_stock-1'or cash_policy['exit_refunds']!='native_prepaid_refund_supersedes_cancelled_future_refund-1'or cash_policy['remaining_service']!='cancel_remaining_unearned_at_acquisition-1':raise ArithmeticError('reviewed prepaid acquisition convention differs')
+                opening=replay_fee(dict(schema='nonintegral-fee-accounting-1',measure='physical',currency=graph['currency'],monetary_unit=loan['source']['source']['current']['monetary_unit'],policy=policy['policy'],asof_ordinal=loan['source']['source']['current']['asof_ordinal'],reporting_end_ordinal=loan['source']['source']['current']['reporting_end_ordinal'],complete_end_ordinal=policy['complete_end_ordinal'],fees=policy['fees'],events=[]),check,transfer=policy.get('transfer'))
+                prepaid_stocks={}
+                for fee,closing in zip(policy['fees'],opening['closing'],strict=True):
+                    state=closing['state'];net=state['deferred_fee_income']+state['prepaid_fee_expense']
+                    if not fee['prepaid_refunds_allowed']or state['fee_receivable']!=0. or state['fee_payable']!=0. or net==0. or net*fee['entitlement']>=0.:raise ArithmeticError('pure native prepaid refund stock required')
+                    prepaid_stocks[fee['fee_id']]=net
             for a in allocations:
                 fee=next(f for f in policy['fees']if f['fee_id']==a['fee_id'])
-                if a['allocated_cost']!=0. and math.copysign(1.,a['allocated_cost'])!=math.copysign(1.,fee['entitlement']):raise ArithmeticError('fee asset/liability allocation sign differs')
+                if a['allocated_cost']!=0. and math.copysign(1.,a['allocated_cost'])!=math.copysign(1.,prepaid_stocks[a['fee_id']]if cash_policy is not None else fee['entitlement']):raise ArithmeticError('fee asset/liability allocation sign differs')
             releases=h.get('acquisition_releases',[])
             if role!='physical':
                 if releases:raise ArithmeticError('Pricing cannot supply physical fee cost release')

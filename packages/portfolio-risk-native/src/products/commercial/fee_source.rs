@@ -32,7 +32,17 @@ pub struct ExitPolicy {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct PurchaseCashPolicy {
+    pub review: Identity,
+    pub convention: String,
+    pub exit_refunds: String,
+    pub remaining_service: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransferPolicy {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purchase_cash_policy: Option<PurchaseCashPolicy>,
     pub review: Identity,
     pub origin_service: fee::Request,
     pub conveyance: String,
@@ -223,6 +233,9 @@ pub fn event_bound(p: &Policy) -> usize {
         + p.fees.len() * (3 + recoveries + earned_refund)
         + p.transfer.as_ref().map_or(0, |t| {
             t.origin_service.events.len() * 8 + p.events.len() * 4 + p.fees.len() * 8
+                // Extra complete+prefix derivation and opening disposition are
+                // charged before either can execute, without anticipating exits.
+                + if t.purchase_cash_policy.is_some() { t.origin_service.events.len() * 2 + p.fees.len() * 5 } else { 0 }
         })
 }
 fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
@@ -266,12 +279,34 @@ pub(crate) fn transferred_opening(
     {
         return Err("secondary fee transfer requires exact complete origin, conveyed service/right catalog and reviewed residual valuation policy".into());
     }
-    Ok(Some(fee::transfer_before(
+    if let Some(cash) = &t.purchase_cash_policy {
+        let review = &cash.review;
+        if review.id.is_empty()
+            || review.revision.is_empty()
+            || review.id.len() > 128
+            || review.revision.len() > 128
+            || review.id.chars().any(char::is_control)
+            || review.revision.chars().any(char::is_control)
+            || cash.convention != "signed_acquired_prepaid_refund_stock-1"
+            || cash.exit_refunds != "native_prepaid_refund_supersedes_cancelled_future_refund-1"
+            || cash.remaining_service != "cancel_remaining_unearned_at_acquisition-1"
+            || p.events.iter().any(|e| e.action == fee::Action::Earn)
+        {
+            return Err("secondary prepaid purchase requires explicit reviewed signed stock and once-only exit refund convention".into());
+        }
+    }
+    let opening = fee::transfer_before(
         &t.origin_service,
         r.source.current.asof_ordinal,
         t.review.clone(),
         portfolio_compute_control::checkpoint,
-    )?))
+    )?;
+    if t.purchase_cash_policy.is_some() {
+        for f in &p.fees {
+            opening.prepaid_refund_stock(&f.fee_id)?;
+        }
+    }
+    Ok(Some(opening))
 }
 fn evaluate_policy(
     p: &Policy,
@@ -382,17 +417,59 @@ pub(crate) fn bind_carry(
                 }
             }
         }
+        let mut supplied = p.events.clone();
+        if let Some(t) = p
+            .transfer
+            .as_ref()
+            .filter(|t| t.purchase_cash_policy.is_some())
+        {
+            let opening = transferred_opening(p, r)?.ok_or("native prepaid transfer absent")?;
+            let review = &t
+                .purchase_cash_policy
+                .as_ref()
+                .ok_or("prepaid purchase review absent")?
+                .review;
+            let mut initial = Vec::new();
+            for (i, f) in p.fees.iter().enumerate() {
+                let amount = opening.unearned_entitlement(&f.fee_id)?;
+                if amount != 0. {
+                    initial.push(fee::Event {
+                        event_id: format!("native-fee:{}:{i}:cancel-at-acquisition", path.path_key),
+                        fee_id: f.fee_id.clone(),
+                        source: f.source.clone(),
+                        review: review.clone(),
+                        ordinal: origin,
+                        sequence: 0,
+                        action: fee::Action::CancelUnearned,
+                        reason: fee::Reason::OtherReviewed,
+                        amount,
+                    });
+                }
+            }
+            initial.append(&mut supplied);
+            supplied = initial;
+            for (i, e) in supplied.iter_mut().enumerate() {
+                e.sequence = i as u32;
+            }
+        }
         let mut timeline: Vec<(f64, fee::Event)> = Vec::new();
         let exit_after = exit
             .as_ref()
             .is_some_and(|x| x.exercise_timing == Some(loan::NativeStopTiming::AfterScheduledCash));
-        let prefix = p
-            .events
+        let prefix = supplied
             .iter()
             .filter(|e| {
                 exit.as_ref().is_none_or(|x| {
                     let year = f64::from(e.ordinal - origin) / 365.;
-                    year < x.native_year || exit_after && year == x.native_year
+                    // Purchase disposition precedes any coincident exercise:
+                    // it is neither scheduled refund cash nor an exit waiver.
+                    (e.action == fee::Action::CancelUnearned
+                        && e.ordinal == origin
+                        && p.transfer
+                            .as_ref()
+                            .is_some_and(|t| t.purchase_cash_policy.is_some()))
+                        || year < x.native_year
+                        || exit_after && year == x.native_year
                 })
             })
             .cloned()
@@ -489,11 +566,16 @@ pub(crate) fn bind_carry(
                     return Err("native loan exit exceeds separately complete fee tail".into());
                 }
             }
-            for e in &p.events {
+            for e in &supplied {
                 let year = f64::from(e.ordinal - origin) / 365.;
                 if (year > x.native_year || year == x.native_year && !exit_after)
                     && ((e.action == fee::Action::Earn && policy.cancel_future_service)
-                        || (e.action == fee::Action::Cash && policy.cancel_future_cash))
+                        || ((e.action == fee::Action::Cash
+                            || (e.action == fee::Action::RefundPrepaid
+                                && p.transfer
+                                    .as_ref()
+                                    .is_some_and(|t| t.purchase_cash_policy.is_some())))
+                            && policy.cancel_future_cash))
                 {
                     continue;
                 }
@@ -501,7 +583,7 @@ pub(crate) fn bind_carry(
             }
         } else {
             timeline.extend(
-                p.events
+                supplied
                     .iter()
                     .map(|e| (f64::from(e.ordinal - origin) / 365., e.clone())),
             );
@@ -540,4 +622,177 @@ pub(crate) fn bind_carry(
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod prepaid_transfer_controls {
+    use super::*;
+    use serde_json::Value;
+    fn input() -> (Policy, loan::Request) {
+        let v: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/models/commercial-secondary-prepaid-candidate-journal-1.json"
+        )))
+        .unwrap();
+        let p = &v["commercial"]["units"][0]["graph"]["positions"][0];
+        (
+            serde_json::from_value(p["fees"]["histories"][0]["physical"][0]["policy"].clone())
+                .unwrap(),
+            serde_json::from_value(p["histories"][0]["physical"][0]["source"].clone()).unwrap(),
+        )
+    }
+    #[test]
+    fn prepaid_refund_actual_exit_before_coincident_before_and_after_once() {
+        for (day, timing, native) in [
+            (19, loan::NativeStopTiming::BeforeScheduledCash, true),
+            (20, loan::NativeStopTiming::BeforeScheduledCash, true),
+            (20, loan::NativeStopTiming::AfterScheduledCash, false),
+            (21, loan::NativeStopTiming::AfterScheduledCash, false),
+        ] {
+            let (mut policy, raw) = input();
+            policy.coincident_order = "native_exit_follows_native_exercise_timing-1".into();
+            let key = raw.credit.paths[0].path_key;
+            let stop = loan::NativeStop::from_compiled_policy_with_timing(
+                key,
+                "reviewed-native-stop".into(),
+                raw.source.current.asof_ordinal + day,
+                loan::NativeStopAction::Call,
+                1.,
+                0.,
+                crate::term_enhancements::Identity {
+                    id: "native-exercise-review".into(),
+                    revision: "1".into(),
+                },
+                timing,
+                None,
+            )
+            .unwrap();
+            let source = loan::evaluate_with_stops(&raw, &[stop]).unwrap();
+            let bound = bind(&policy, &source).unwrap();
+            let path = &bound[0];
+            let refunds: Vec<_> = path
+                .native_years
+                .iter()
+                .zip(path.source.groups())
+                .filter(|(_, g)| g.event.action == fee::Action::RefundPrepaid)
+                .collect();
+            assert_eq!(refunds.len(), 1);
+            assert_eq!(refunds[0].1.event.amount, 6.);
+            assert_eq!(
+                refunds[0].1.event.event_id.starts_with("native-fee:"),
+                native
+            );
+            assert_eq!(
+                *refunds[0].0,
+                if native {
+                    f64::from(day) / 365.
+                } else {
+                    20. / 365.
+                }
+            );
+            assert_eq!(path.source.closing()[0].state.deferred_fee_income, 0.);
+            assert_eq!(path.source.closing()[0].state.unearned_entitlement, 0.);
+        }
+    }
+    #[test]
+    fn selected_partial_refund_retains_surviving_gross_obligation() {
+        let (mut policy, raw) = input();
+        policy.coincident_order = "native_exit_follows_native_exercise_timing-1".into();
+        policy.exercise.refund_prepaid_fraction = 0.5;
+        let stop = loan::NativeStop::from_compiled_policy_with_timing(
+            raw.credit.paths[0].path_key,
+            "partial-native-stop".into(),
+            raw.source.current.asof_ordinal + 19,
+            loan::NativeStopAction::Call,
+            1.,
+            0.,
+            crate::term_enhancements::Identity {
+                id: "native-exercise-review".into(),
+                revision: "1".into(),
+            },
+            loan::NativeStopTiming::BeforeScheduledCash,
+            None,
+        )
+        .unwrap();
+        let source = loan::evaluate_with_stops(&raw, &[stop]).unwrap();
+        let bound = bind(&policy, &source).unwrap();
+        assert_eq!(bound[0].source.closing()[0].state.deferred_fee_income, -3.);
+        assert_eq!(bound[0].source.closing()[0].state.unearned_entitlement, 0.);
+        assert!(serde_json::to_value(&bound)
+            .unwrap()
+            .to_string()
+            .contains("partial-native-stop"));
+    }
+    #[test]
+    fn malformed_or_unbacked_purchase_refuses_before_any_loan_owner_generation() {
+        for case in 0..4 {
+            let mut v: Value = serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../examples/models/commercial-secondary-prepaid-candidate-journal-1.json"
+            )))
+            .unwrap();
+            let t = &mut v["commercial"]["units"][0]["graph"]["positions"][0]["fees"]
+                ["original_pricing"][0]["policy"]["transfer"];
+            match case {
+                0 => {
+                    t.as_object_mut().unwrap().remove("purchase_cash_policy");
+                }
+                1 => t["purchase_cash_policy"]["review"]["revision"] = serde_json::json!(""),
+                2 => {
+                    t["origin_service"]["events"][0]["action"] = serde_json::json!("earn");
+                    t["origin_service"]["events"][0]["reason"] = serde_json::json!("service");
+                }
+                _ => {
+                    t["purchase_cash_policy"]["remaining_service"] =
+                        serde_json::json!("continue_without_review")
+                }
+            }
+            let raw: crate::products::commercial::graph::Request =
+                serde_json::from_value(v["commercial"]["units"][0]["graph"].clone()).unwrap();
+            loan::OWNER_EVALUATIONS.with(|n| n.set(0));
+            assert!(crate::products::commercial::graph::analyze(&raw).is_err());
+            loan::OWNER_EVALUATIONS.with(|n| assert_eq!(n.get(), 0));
+        }
+    }
+    #[test]
+    fn selected_opening_group_and_origin_scans_are_reserved_before_generation() {
+        let (policy, raw) = input();
+        let selected = event_bound(&policy);
+        let mut old = policy.clone();
+        old.transfer.as_mut().unwrap().purchase_cash_policy = None;
+        let t = policy.transfer.as_ref().unwrap();
+        assert_eq!(
+            selected - event_bound(&old),
+            2 * t.origin_service.events.len() + 5 * policy.fees.len()
+        );
+        let (work, bytes) = admit(&policy, &raw).unwrap();
+        assert_eq!(work, selected * raw.credit.paths.len() * 128);
+        assert_eq!(bytes, selected * raw.credit.paths.len() * 4096);
+        let source = loan::evaluate(&raw).unwrap();
+        let bound = bind(&policy, &source).unwrap();
+        assert!(bound[0].source.groups().len() <= selected);
+    }
+    #[test]
+    fn omitted_refund_policy_keeps_historical_future_refund_semantics() {
+        let (mut policy, raw) = input();
+        policy.transfer.as_mut().unwrap().purchase_cash_policy = None;
+        policy.coincident_order = "native_exit_follows_native_exercise_timing-1".into();
+        let stop = loan::NativeStop::from_compiled_policy_with_timing(
+            raw.credit.paths[0].path_key,
+            "old-native-stop".into(),
+            raw.source.current.asof_ordinal + 19,
+            loan::NativeStopAction::Call,
+            1.,
+            0.,
+            crate::term_enhancements::Identity {
+                id: "native-exercise-review".into(),
+                revision: "1".into(),
+            },
+            loan::NativeStopTiming::BeforeScheduledCash,
+            None,
+        )
+        .unwrap();
+        let source = loan::evaluate_with_stops(&raw, &[stop]).unwrap();
+        assert!(bind(&policy, &source).unwrap_err().contains("exceeds"));
+    }
 }
