@@ -79,6 +79,12 @@ pub(crate) fn feature_bound(r: &Request) -> Result<usize, String> {
         .checked_add(super::fees::feature_count(r)?)
         .ok_or("generated joint feature overflow".into())
 }
+/// Raw-law structural bound only. Every feature remains in Point and keeps its
+/// historical normalization/basis order; no sampled value determines admission.
+#[cfg(test)]
+pub(super) fn numerical_active_features_upper(r: &Request) -> Result<usize, String> {
+    Ok(super::numerical_bound::inspect(r)?.active_features_upper)
+}
 pub(super) fn append_observed_features(
     raw: &owner::Request,
     point: &portfolio_model_core::credit_path_income::CarryPoint,

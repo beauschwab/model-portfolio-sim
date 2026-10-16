@@ -37,45 +37,9 @@ pub struct Solved {
     pub receipt: Receipt,
 }
 fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
-    let d = r.drivers.len();
-    let observations = r
-        .source
-        .source
-        .current
-        .periods
-        .iter()
-        .map(|p| match &p.coupon {
-            Coupon::Indexed { observations, .. } => observations.len(),
-            _ => 0,
-        })
-        .sum::<usize>();
     let periods = r.source.source.current.periods.len();
-    let credit_random = r
-        .source
-        .credit
-        .intervals
-        .iter()
-        .any(|p| p.hazards_per_year.iter().flatten().any(|h| *h > 0.));
-    let active_upper =
-        if r.nonintegral_fees.is_some() || !r.source.performing_draw_tranches.is_empty() {
-            feature_bound(r)?
-        } else if !credit_random && r.annual_covariance.iter().all(|c| *c == 0.) {
-            0
-        } else if !credit_random
-            && matches!(
-                &r.source.source.current.principal_plan,
-                term::indexed::PrincipalPlan::Supplied { .. }
-            )
-        {
-            // Without credit jumps or indexed principal, P and origin-state labels
-            // are constant across paths. Reserve OU/anchor levels, every observed
-            // fixing, net legal interest and each canonical legal coupon.
-            d + if r.hazard_loadings.is_empty() { 0 } else { d } + observations + 1 + periods
-        } else {
-            2 * d + 4 + observations + 2 * periods
-        };
-    let columns = basis::columns(active_upper, basis::degree(&r.regression_policy)?)
-        .min(r.training.paths / 2);
+    let numerical = regression_numerical_capacity(r)?;
+    let columns = numerical.columns;
     let n = r
         .training
         .paths
@@ -109,14 +73,13 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .checked_mul(r.policy.exercise_dates.len())
         .and_then(|v| v.checked_mul(columns.checked_mul(columns)?.checked_mul(16)?))
         .ok_or("calibration regression overflow")?;
-    let numerical = regression_numerical_reserve_with_columns(r, columns)?.0;
     let targets = n
         .checked_mul(r.policy.exercise_dates.len() + 1)
         .and_then(|v| v.checked_mul(cash.checked_mul(1024)?.checked_add(512)?))
         .ok_or("calibration target work overflow")?;
     Ok((
         fitting
-            .checked_add(numerical)
+            .checked_add(numerical.work)
             .and_then(|v| v.checked_add(targets))
             .ok_or("calibration trial work overflow")?,
         columns,

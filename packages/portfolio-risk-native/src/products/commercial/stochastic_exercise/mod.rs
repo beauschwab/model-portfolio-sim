@@ -398,9 +398,9 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .and_then(|v| v.checked_add(tape_bytes))
         .ok_or("generated retained bytes overflow")?;
     let columns = basis::columns(features, degree).min(r.training.paths / 2);
-    let numerical = regression_numerical_reserve_with_columns(r, columns)?;
+    let numerical = regression_numerical_capacity(r)?;
     let bytes = bytes
-        .checked_add(numerical.1)
+        .checked_add(numerical.bytes)
         .ok_or("regression workspace overflow")?;
     let regress_work = n
         .checked_mul(r.policy.exercise_dates.len() + 1)
@@ -413,7 +413,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     let total = work
         .checked_add(fee_work)
         .and_then(|v| v.checked_add(regress_work))
-        .and_then(|v| v.checked_add(numerical.0))
+        .and_then(|v| v.checked_add(numerical.work))
         .ok_or("generated aggregate overflow")?;
     if total > MAX_WORK || bytes > MAX_BYTES || strict_json::serialized_size(r, 1 << 20)? > 1 << 20
     {
@@ -428,6 +428,54 @@ pub(crate) fn regression_columns_upper(r: &Request) -> Result<usize, String> {
             .min(r.training.paths / 2),
     )
 }
+fn regression_numerical_columns_upper(r: &Request) -> Result<usize, String> {
+    Ok(regression_numerical_capacity(r)?.columns)
+}
+struct NumericalCapacity {
+    columns: usize,
+    work: usize,
+    bytes: usize,
+}
+fn regression_numerical_capacity(r: &Request) -> Result<NumericalCapacity, String> {
+    if r.policy.exercise_dates.is_empty() {
+        return Ok(NumericalCapacity {
+            columns: 1,
+            work: 0,
+            bytes: 0,
+        });
+    }
+    let structural = numerical_bound::inspect(r)?;
+    // An adopting owner with additional observable feature families must prove
+    // those coordinates constant or retain structural.full_features_upper.
+    let active = if structural.all_credit_hazards_zero {
+        structural.active_features_upper
+    } else {
+        structural.full_features_upper
+    };
+    let columns =
+        basis::columns(active, basis::degree(&r.regression_policy)?).min(r.training.paths / 2);
+    numerical_capacity_for_columns(r, columns, structural.scan_work_upper)
+}
+fn numerical_capacity_for_columns(
+    r: &Request,
+    columns: usize,
+    scan: usize,
+) -> Result<NumericalCapacity, String> {
+    let bound = checked_least_squares::WorkBound::new(r.training.paths, columns)?;
+    Ok(NumericalCapacity {
+        columns,
+        work: bound
+            .total()
+            .checked_mul(r.policy.exercise_dates.len())
+            .and_then(|v| v.checked_add(scan.checked_mul(numerical_bound::SCAN_PASSES)?))
+            .ok_or("regression numerical work overflow")?,
+        bytes: bound
+            .bytes()
+            .checked_add(numerical_bound::HEADER_BYTES)
+            .ok_or("regression numerical header overflow")?,
+    })
+}
+#[cfg(test)]
 fn regression_numerical_reserve_with_columns(
     r: &Request,
     columns: usize,
@@ -436,14 +484,9 @@ fn regression_numerical_reserve_with_columns(
     if fits == 0 {
         return Ok((0, 0));
     }
-    let bound = checked_least_squares::WorkBound::new(r.training.paths, columns)?;
-    Ok((
-        bound
-            .total()
-            .checked_mul(fits)
-            .ok_or("regression numerical work overflow")?,
-        bound.bytes(),
-    ))
+    let summary = numerical_bound::inspect(r)?;
+    let capacity = numerical_capacity_for_columns(r, columns, summary.scan_work_upper)?;
+    Ok((capacity.work, capacity.bytes))
 }
 pub(crate) fn admitted_source(
     r: &Request,
@@ -844,6 +887,9 @@ fn fit_admitted(
     })
 }
 mod checked_least_squares;
+mod numerical_bound;
+#[cfg(test)]
+mod numerical_bound_tests;
 #[cfg(test)]
 mod regression_constant_tests;
 #[cfg(test)]
@@ -1028,7 +1074,12 @@ pub fn fit_training(r: &Request) -> Result<NativeTrainedPolicy, String> {
     fit_paths(r, &training)
 }
 fn fit_paths(r: &Request, training: &[Path]) -> Result<NativeTrainedPolicy, String> {
-    fit_paths_with_columns(r, training, regression_columns_upper(r)?)
+    let columns = if r.policy.exercise_dates.is_empty() {
+        1
+    } else {
+        regression_numerical_columns_upper(r)?
+    };
+    fit_paths_with_columns(r, training, columns)
 }
 fn fit_paths_with_columns(
     r: &Request,

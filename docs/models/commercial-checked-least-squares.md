@@ -125,6 +125,53 @@ The 4-billion-work and 128-MiB caps, sample minima and financial tolerances rema
 Additional honest reservation changes admission metadata and can expose a real
 capacity refusal; it is never concealed behind an old receipt.
 
+The first complete corrected run retained 48/48 Gaussian-credit, 60/60 constant
+exercise and 24/24 option-free credit passes. Its unchanged 107-cell general
+matrix retained four unexpected cubic-256 capacity refusals in addition to the
+original declared larger refusal: the generic 128-column ticket at two exercise
+dates added 2,763,997,184 work to 1,400,901,632 historical work. No expectation was
+downgraded. That source, executable and full failure receipt remain sealed.
+
+The subsequent structural refinement shares the existing OAS-trial raw-law bound
+with ordinary numerical admission. Draw catalogs keep the full feature upper.
+With no positive declared credit hazard and zero market covariance, every path's
+feature history is deterministic, giving zero active features. With no credit
+hazard and supplied principal payments, only current market drivers, optional
+hazard-anchor drivers, every observation, net legal interest and each period's
+legal amount may vary. Principal, live-origin flags and observed coupon nominal
+are constant across samples at each contractual observation clock. This gives
+`d + optional_d + observations + 1 + periods`. Other cases keep the full upper.
+These are structural constants proved from raw law; no generated sample, fitted
+coefficient, monetary netting, future outcome or observed feature correlation
+affects admission. Every actual feature, normalization and polynomial basis stays
+unchanged, and actual basis columns must fit before allocating matrix data.
+
+The old normalization/basis ticket and all source passes remain charged. Only
+the new numerical kernel/workspace dimension uses this proof. The four declared
+cubic-256 cases have bounds 56/84 columns, while the larger declared refusal and
+all unchanged numerical checks remain required. The complete family is replayed
+under a new source/artifact receipt rather than replacing its failed predecessor.
+
+The structural refinement pays its own metadata work. A sealed local census first
+debits the draw-header inventory before reading nested vector lengths. It then
+checks a ticket before traversing hazards, covariance and period headers:
+`S = 32 + 15*intervals + covariance_cells + 2*all_contract_periods + 8*draws`.
+Observation **values**, strings, hashes and future realized states are not read;
+only typed observation-vector lengths enter the structural inventory. The hazard
+fact means literal `all(h == 0)`, rather than the absence of a positive value.
+Owned scan counters must fit this header-derived ticket.
+
+Each represented ordinary numerical role adds `8*S` work plus 128 bytes for its
+structural summary, capacity and ledger headers. Standalone exercise traverses
+the census three times; public graph adds an outer audit, and unit/candidate
+preparation can add two further audits. Eight tickets conservatively cover this
+concrete chain. Original and revised graph components remain separately charged.
+Each reserved OAS trial also retains eight tickets, covering its one actual
+retained-sample census and fixed admission overhead. Actual ordinary and
+calibration call counts have targeted controls. No-fit routes skip this new
+census and add zero. These are explicit additions, not deductions from the old
+normalization/basis ticket or assumed slack in the numerical kernel allowance.
+
 ## Compatibility and remaining gates
 
 Valid historical candidate decompositions retain identical financial values and

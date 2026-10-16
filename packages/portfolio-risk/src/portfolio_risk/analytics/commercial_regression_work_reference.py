@@ -24,12 +24,35 @@ def numerical_reserve(raw, *, columns=None):
     if not dates:
         return 0, 0
     if columns is None:
-        from .commercial_generated_physical_reference import feature_bound
-        from .commercial_stochastic_reference import BASIS_DEGREES
-        degree = BASIS_DEGREES[raw["regression_policy"]]
-        columns = min(comb(feature_bound(raw)+degree, degree), raw["training"]["paths"]//2)
+        degree = {"native_observable_linear_svd_train_evaluate-1":1,
+                  "native_observable_quadratic_svd_train_evaluate-1":2,
+                  "native_observable_cubic_svd_train_evaluate-1":3}[raw["regression_policy"]]
+        columns = min(comb(active_feature_upper(raw)+degree, degree), raw["training"]["paths"]//2)
     work, workspace = shape_bound(raw["training"]["paths"], columns)
-    return dates*work, workspace
+    return dates*work+8*scan_work_upper(raw), workspace+128
+
+
+def scan_work_upper(raw):
+    source=raw['source']
+    draws=source.get('performing_draw_tranches',[])
+    periods=len(source['source']['current']['periods'])+sum(len(d['source']['current']['periods'])for d in draws)
+    return 32+15*len(source['credit']['intervals'])+len(raw['annual_covariance'])+2*periods+8*len(draws)
+
+
+def active_feature_upper(raw):
+    """Structural constants only; no sample realizations or economic netting."""
+    from .commercial_generated_physical_reference import feature_bound
+    source=raw['source']
+    if source.get('performing_draw_tranches'):return feature_bound(raw)
+    credit=any(h!=0 for interval in source['credit']['intervals']
+               for row in interval['hazards_per_year']for h in row)
+    if not credit and all(c==0 for c in raw['annual_covariance']):return 0
+    contract=source['source']['current']
+    if not credit and contract['principal_plan']['kind']=='supplied':
+        d=len(raw['drivers'])
+        return (d+(d if raw['hazard_loadings']else 0)+1+len(contract['periods'])
+                +sum(len(p['coupon'].get('observations',[]))for p in contract['periods']))
+    return feature_bound(raw)
 
 
 def verify_numeric_reserve(raw, actual):
