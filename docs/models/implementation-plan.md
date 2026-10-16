@@ -43,6 +43,21 @@ policies, original dependencies and complete joint-scale acceptance. Issues 15
 and 25 remain open. No deployment, service restart or saved-economics rebuild is
 claimed by this development status.
 
+The integrated development correction now has matching isolated passes for all
+48 original stochastic-coupon cases and all 28 actual history/NumPy comparisons;
+the old failed receipts remain immutable. Public history calibration has 82
+additional/retained controls and 16 focused native controls. The complete
+107-case replay exposes four new work refusals, and two existing generated-role
+native fixtures also refuse. A structural numerical-column/scan census is being
+refined without removing features or widening limits. Full matching installed
+acceptance remains pending.
+
+The selected cut receipt-lifetime stage is diagnostic only. Its complete source,
+stream batch/flush, output and final-result census refuses the genuine short
+case at 65,033,611 work and 150,532,884 bytes before Sim. The independent verifier
+explicitly prevents publication until raw-derived source/Compiled/output
+admission exists. See [the selected cut contract](commercial-cut-receipt-admission.md).
+
 ## Commercial source and adoption follow-through (local 0.29.19 development)
 
 The working tree adds separate fee graph valuation/acquisition, joint finite

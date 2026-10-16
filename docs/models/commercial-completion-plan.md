@@ -15,7 +15,7 @@ Subsequent committed components below have contained native and independent
 checks. They have not yet passed a combined installed release regression. Work
 still being implemented is identified explicitly.
 
-**Current release blocker:** the expanded 48-cell stochastic-coupon, credit and
+**Retained pre-change release blocker:** the expanded 48-cell stochastic-coupon, credit and
 call/put family retains 36 passes and 12 independent native/reference failures.
 Some failures change exercise decisions and path cash; the largest observed path
 difference is about 0.544876 per face100. Three declared failures reproduce on
@@ -40,15 +40,33 @@ caller's epsilon, floating cutoff and accepted tall/wide shapes; a correction
 limited to commercial continuation does not clear this additional release gate.
 See [the caller audit](../reviews/2026-10-16-native-svd-secondary-audit.md).
 
+The bounded checked native solver is now integrated as development code. Its
+matching isolated replay passes all 48 unchanged cases, plus the earlier 60- and
+24-case families. The unchanged 107-case family retains four newly exposed work
+refusals in addition to its original expected refusal. Those four are not
+reclassified or removed: a raw-law column/work census is being corrected while
+preserving every feature and source evaluation. A combined fee-product fixture
+also newly refuses at 4,472,547,840 work; a separately tested proof of constant
+unstopped fee observations under zero credit hazards is not yet integrated into
+that census. All component limits remain unchanged.
+
+The shared tall/wide history correction is also integrated as development code.
+It passes all 28 actual-public-fit/NumPy comparisons, 82 public calibration
+controls, 16 focused native controls and strict risk checks in its matching
+isolated build. The four original incorrect financial fits are repaired. Two
+generated-product work refusals remain in the broader native run. These contained
+results do not establish combined installed acceptance; see
+[the history contract](native-history-least-squares.md).
+
 | Work | Implemented bounded scope | Remaining acceptance or engineering |
 |---|---|---|
 | Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later conveyed fee capital/FTP, signed prepaid refund acquisitions and generated fee stopping/journals | Combined installed acceptance; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |
 | Candidate holdings | Complete-origin finite loan/fee replay, identical completed raw/monetary prefixes, prospective gross rights/basis and future postings; exact-cut ordinary modeled predecessor binding; later complete-origin secondary acquisition and coupon entitlement100/live principal80 | Seasoned graph/cohort/strategy coefficients, broader acquired/default/draw rights and observed bank reconciliation |
-| Native cut replay | The native component moves the actual Sim through a positive cut into a distinct resumed Sim on the original calendar; component controls cover future acquisitions, gross signed fees, cancellation and historical parity. Complete finite source-tail census is also integrated | The omitted public raw specimen still refuses at 36,844,632 work /223,261,940 bytes before generation; the new short selected specimen refuses at 35,324,604 /147,721,280. Coordinator receipt lifetimes and cut admission are under implementation. Positive raw/persisted publication, predecessor binding and complete union-tail adoption remain open |
+| Native cut replay | The native component moves the actual Sim through a positive cut into a distinct resumed Sim on the original calendar; component controls cover future acquisitions, gross signed fees, cancellation and historical parity. Complete finite source-tail census and explicit diagnostic receipt lifetimes are integrated | The omitted public raw specimen still refuses at 36,844,632 work /223,261,940 bytes before generation; the short omitted specimen refuses at 35,324,604 /147,721,280. The selected complete receipt/output census refuses before Sim at 65,033,611 work /150,532,884 bytes. Selected publication explicitly rejects until independent raw-derived admission exists. Compact transport, positive raw/persisted publication, predecessor binding and complete union-tail adoption remain open |
 | Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims; later separate dated principal and retained coupon nominal | Alternative legal true-up policies and delayed-publication generated loadings |
 | Generated paths | Explicit complete Physical path catalogs, canonical source dimensions and paired original anchors; compact candidate journals, positive reviewed actions, counted actual draw-source construction and generated loan/fee streams | Final combined regression is pending; generated draw fees, secondary generated rights and wider joint/mixed scale remain |
 | Source capacity | Explicit finite transfer authority counts the true origin and both actual buyer builds, canonical scans and source operations. Complete carry/claim/recovery/body census and before-growth guards now retain separate economic/book roles; selected prepaid exercise and no-option dual holdings have positive independent/persisted component controls | With the new complete-tail census, joint exercise plus dual holding still refuses at 49,586,912 work /54,466,096 bytes. Caps, samples, all actual source passes and complete tails remain unchanged |
-| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. Exact-constant classification is corrected with unchanged paired financial output | The expanded stochastic-coupon/credit family exposes 12 genuine financial failures in 48 cells. Certified native SVD correction and unchanged full replay are release blockers; broader contract/driver/seed/step/basis convergence and observed validation remain |
+| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. Exact-constant classification is corrected with unchanged paired financial output. The checked correction passes all 48 formerly failing-family cases and all 28 actual history comparisons in matching isolated builds | Restore the unchanged 107-case family and existing generated-product capacity gates, then run combined installed acceptance. Broader contract/driver/seed/step/basis convergence and observed validation remain |
 | Application | Durable generated stream, fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening passed the accepted 0.29.19 checkpoint | Matching release/full regression and browser acceptance for the subsequent combined changes; deployment/restarts and explicit saved-library/session rebuilds |
 
 See [fee adoption](commercial-fee-adoption.md),
@@ -65,6 +83,7 @@ See [fee adoption](commercial-fee-adoption.md),
 [finite source work](commercial-finite-source-work.md),
 [complete-tail census](commercial-finite-tail-work.md),
 [native cut coordinator](commercial-cut-mixed.md) and
+[selected cut admission](commercial-cut-receipt-admission.md) and
 [credit sampling diagnostics](commercial-credit-convergence.md).
 
 Original OAS/EIR, separate Physical/Pricing ownership, shared random streams,
