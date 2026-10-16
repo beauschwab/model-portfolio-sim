@@ -1176,3 +1176,31 @@ See docs/models/commercial-completion-plan.md, commercial-secondary-prepaid.md,
 commercial-principal-entitlement.md, commercial-finite-source-work.md,
 commercial-generated-fee-adoption.md, commercial-cut-mixed.md and
 commercial-credit-convergence.md for exact supported policies and remaining gates.
+
+## Checked numerical fitting and cut diagnostics (local 0.29.20 development)
+
+Rust continuation and coupon/spread-history fitting share bounded checked native
+least squares. Preserve each caller's original matrix shape, decomposition
+epsilon and computed singular cutoff. Valid checked legacy candidates retain
+their original coefficients; invalid decompositions require direct native repair
+or explicit failure. Tall continuation and wide history admission remain separate.
+No normal-equation replacement, feature deletion, tolerance relaxation or Python
+financial fallback is allowed. History work/bytes are checked before design and
+target allocation; continuation reserves each actual fit before generation.
+
+Structural numerical-column bounds use the exact raw role and paid complete
+hazard/covariance/header census. Every feature, path, normalization/basis pass,
+source owner and stopped fee payoff remains. The separate fixed-fee observation
+proof requires zero declared hazards, Supplied principal and no draws, reviews
+or transfers. No sampled equality grants admission. See docs/models/commercial-checked-least-squares.md and
+native-history-least-squares.md for limits and evidence.
+
+The selected encoded cut-receipt route is diagnostic only: its complete source,
+live output batch/flush and final-result census still refuses the genuine short
+case. Publication explicitly rejects until independent raw-derived admission is
+implemented. See docs/models/commercial-cut-receipt-admission.md. Protocol8
+omission, all prior refusals and original issue15/25 gates remain unchanged.
+The last fully accepted installed checkpoint remains0.29.19 until matching
+combined artifacts, complete regressions and publication checks pass. Rebuild
+matching native artifacts, restart deployed workers and explicitly rebuild saved
+libraries/sessions before executing changed economics; no deployment is implied.
