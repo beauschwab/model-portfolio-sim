@@ -19,6 +19,7 @@ class Store:
         self.db.execute('CREATE TABLE item (tag INTEGER, seq INTEGER, scenario TEXT, day INTEGER, clock REAL, binding INTEGER, native_group INTEGER, payload TEXT, PRIMARY KEY(tag,seq))')
         self.db.execute('CREATE INDEX event_order ON item(tag,scenario,day,clock,binding,native_group)')
         self.db.execute('CREATE TABLE keyed (tag INTEGER, key TEXT, payload TEXT, PRIMARY KEY(tag,key))')
+        self.cursors = set()
         self.tags = 0
         self.bytes = self.rows = 0
         self.scenarios = {}
@@ -37,8 +38,25 @@ class Store:
         order = ((self.scenarios[value[0]], *value[1:5]) if events else (None,) * 5)
         self.db.execute('INSERT INTO item VALUES(?,?,?,?,?,?,?,?)', (tag, seq, *order, encoded))
 
+    def cursor(self, query, parameters):
+        cursor = self.db.execute(query, parameters)
+        self.cursors.add(cursor)
+        return cursor
+
+    def release_cursor(self, cursor):
+        if cursor in self.cursors:
+            self.cursors.remove(cursor)
+            cursor.close()
+
     def close(self):
-        self.db.close()
+        # Tracebacks may retain a suspended iterator after a financial refusal
+        # or cancellation. Finalize its SQLite statement before closing the
+        # connection and unlinking the owned temporary directory on Windows.
+        try:
+            for cursor in tuple(self.cursors):
+                self.release_cursor(cursor)
+        finally:
+            self.db.close()
 
     def keyed(self):
         self.tags += 1
@@ -74,9 +92,13 @@ class Keyed:
         return self.store.db.execute('SELECT 1 FROM keyed WHERE tag=? AND key=?', (self.tag, self.key(key))).fetchone() is not None
 
     def __iter__(self):
-        for row in self.store.db.execute('SELECT key FROM keyed WHERE tag=?', (self.tag,)):
-            self.store.check()
-            yield tuple(json.loads(row[0]))
+        cursor = self.store.cursor('SELECT key FROM keyed WHERE tag=?', (self.tag,))
+        try:
+            for row in cursor:
+                self.store.check()
+                yield tuple(json.loads(row[0]))
+        finally:
+            self.store.release_cursor(cursor)
 
     def add(self, key):
         if key not in self:
@@ -114,10 +136,13 @@ class Items(Sequence):
 
     def __iter__(self):
         order = 'scenario,day,clock,binding,native_group' if self.events else 'seq'
-        cursor = self.store.db.execute(f'SELECT payload FROM item WHERE tag=? ORDER BY {order}', (self.tag,))
-        for row in cursor:
-            self.store.check()
-            yield json.loads(row[0])
+        cursor = self.store.cursor(f'SELECT payload FROM item WHERE tag=? ORDER BY {order}', (self.tag,))
+        try:
+            for row in cursor:
+                self.store.check()
+                yield json.loads(row[0])
+        finally:
+            self.store.release_cursor(cursor)
 
     def sort(self, *, key):
         if not self.events:
@@ -125,9 +150,13 @@ class Items(Sequence):
         # scenario is encoded as its authoritative ordinal in event tuples.
 
     def for_day(self, scenario, day):
-        for row in self.store.db.execute('SELECT payload FROM item WHERE tag=? AND scenario=? AND day=? ORDER BY clock,binding,native_group', (self.tag, self.store.scenarios[scenario], day)):
-            self.store.check()
-            yield json.loads(row[0])
+        cursor = self.store.cursor('SELECT payload FROM item WHERE tag=? AND scenario=? AND day=? ORDER BY clock,binding,native_group', (self.tag, self.store.scenarios[scenario], day))
+        try:
+            for row in cursor:
+                self.store.check()
+                yield json.loads(row[0])
+        finally:
+            self.store.release_cursor(cursor)
 
     def snapshots(self):
         return SnapshotMap(self.store)

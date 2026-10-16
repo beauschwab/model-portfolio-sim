@@ -75,7 +75,9 @@ pub(crate) fn feature_bound(r: &Request) -> Result<usize, String> {
                 .ok_or("generated feature count overflow")?;
         }
     }
-    Ok(features)
+    features
+        .checked_add(super::fees::feature_count(r)?)
+        .ok_or("generated joint feature overflow".into())
 }
 pub(super) fn append_observed_features(
     raw: &owner::Request,

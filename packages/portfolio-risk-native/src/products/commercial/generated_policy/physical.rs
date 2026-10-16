@@ -244,6 +244,40 @@ pub(super) fn upper(
     inputs: Option<&RoleInputs>,
     original: bool,
 ) -> Result<(usize, usize, usize, usize, usize), String> {
+    if inputs.is_none() && law.nonintegral_fees.is_some() {
+        // The selected template fee route applies a sealed Q policy to P only.
+        // It executes no P training tape, regression or Q final validation pass.
+        // Retained source/state bytes still use the complete component envelope.
+        let (_, bytes) = stochastic::admitted_law(law, CreditMeasure::Physical)?;
+        let a = stochastic::admitted_source(law, CreditMeasure::Physical)?;
+        let cash = stochastic::cash_event_bound(&law.source)?;
+        let features = stochastic::feature_bound(law)?;
+        let overhead = mul(
+            256,
+            add(
+                mul(law.time_ordinals.len(), law.drivers.len() + 2)?,
+                mul(
+                    law.policy.exercise_dates.len(),
+                    add(add(features, cash)?, 192)?,
+                )?,
+            )?,
+        )?;
+        let (fee_work, _) = stochastic::fees::admit(law, law.evaluation.paths, &a)?;
+        let work = add(
+            mul(
+                add(mul(a.joined_work_upper, 2)?, overhead)?,
+                law.evaluation.paths,
+            )?,
+            fee_work,
+        )?;
+        return Ok((
+            work,
+            bytes,
+            a.accounting_groups_upper,
+            a.lots_per_path_upper,
+            raw_recipe_upper(&law.source)?,
+        ));
+    }
     if inputs.is_none() {
         let (work, bytes) = stochastic::admitted_law(law, CreditMeasure::Physical)?;
         let a = owner::admit(&law.source)?;

@@ -79,6 +79,8 @@ pub struct NativeSource {
     pub source_request: owner::Request,
     pub cash: Vec<EconomicCash>,
     pub fee_projection: Option<Box<crate::products::commercial::fee_source::adoption::Projection>>,
+    pub(crate) generated_fee_projection:
+        Option<Box<crate::products::commercial::generated_policy::FeeProjection>>,
     pub projection: Value,
     /// Native-only financial owner retained from the very same graph pass.
     /// JSON receipts cannot be deserialized into a journal-eligible owner.
@@ -110,6 +112,9 @@ impl Serialize for NativeSource {
         if let Some(fees) = &self.fee_projection {
             out.serialize_field("fee_projection", fees)?;
         }
+        if let Some(fees) = self.generated_fee_source() {
+            out.serialize_field("generated_fee_projection", fees)?;
+        }
         if let Some((recipe, _)) = &self.generated_projection {
             out.serialize_field(
                 "projection",
@@ -125,6 +130,36 @@ impl Serialize for NativeSource {
     }
 }
 impl NativeSource {
+    pub fn generated_fee_source(
+        &self,
+    ) -> Option<&crate::products::commercial::generated_policy::FeeProjection> {
+        self.generated_fee_projection.as_deref().or_else(|| {
+            self.generated_projection
+                .as_ref()
+                .and_then(|(p, _)| p.generated_fee_projection.as_ref())
+        })
+    }
+    pub fn materialize_generated_fees(
+        &self,
+        loan: &owner::ResultData,
+    ) -> Result<Option<crate::products::commercial::fee_source::adoption::Projection>, String> {
+        let Some(fees) = self.generated_fee_source() else {
+            return Ok(None);
+        };
+        let (recipe, _) = self
+            .generated_projection
+            .as_ref()
+            .ok_or("generated Physical fee recipe absent")?;
+        if exact(loan.raw_request())? != exact(&self.source_request)?
+            || exact(&loan.native_stops())? != exact(&recipe.stops())?
+        {
+            return Err(
+                "generated fee replay requires its exact sealed Physical loan owner/stops".into(),
+            );
+        }
+        fees.materialize(&self.source_request, loan.carry(), recipe.stops())
+            .map(Some)
+    }
     pub fn physical_accounting_source(&self) -> Option<&owner::ResultData> {
         self.physical_projection.as_deref()
     }
@@ -781,6 +816,7 @@ fn generate(
         projection,
         physical_projection,
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
 fn pricing_bundle(hs: &[History]) -> Result<Vec<owner::EconomicResult>, String> {
@@ -880,6 +916,7 @@ fn source_from_economic(
         projection: serde_json::to_value(v).map_err(|e| e.to_string())?,
         physical_projection: None,
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
 fn stopped_pricing(
@@ -982,11 +1019,12 @@ fn physical_with_policy(
         projection: serde_json::to_value(&revised).map_err(|e| e.to_string())?,
         physical_projection: Some(Box::new(revised)),
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
 /// Native discounting excludes already settled cash and uses exact event time;
 /// the immutable original OAS and parallel bump enter once each.
-fn loan_price(
+pub(crate) fn loan_price(
     source: &NativeSource,
     curve: &crate::market::analysis::curves::SuppliedCurve,
     asof: i32,
@@ -1022,6 +1060,8 @@ pub fn price(
     let loan = loan_price(source, curve, asof, mark, oas, bump)?;
     if let Some(fees) = &source.fee_projection {
         money(loan + fees.price(curve, asof, mark, bump)?)
+    } else if let Some(fees) = source.generated_fee_source() {
+        money(loan + fees.price(curve, asof, mark, bump, false)?)
     } else {
         Ok(loan)
     }

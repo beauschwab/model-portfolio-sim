@@ -745,7 +745,7 @@ def verify_modeled_persisted(request, result, *, job, stopping, expected_deadlin
     Existing independent scalar verifiers consume one persisted partition at a
     time. This never calls a product pricer or hydrates a complete journal.
     """
-    if request.get('specification',{}).get('schema') == 'commercial-generated-candidate-journal-1':
+    if request.get('specification',{}).get('schema') in {'commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:
         from .commercial_generated_jobs import verify_persisted
         return verify_persisted(request,result,job=job,stopping=stopping,expected_deadline=expected_deadline)
     import io

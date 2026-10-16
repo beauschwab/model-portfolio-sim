@@ -47,15 +47,18 @@ impl FeeTracking {
         let f = &c.fees[binding];
         let b = &c.bindings[f.loan_binding];
         let factor = b.factor()?;
-        let group = &f.source.groups()[index];
+        let group = f.source.group(index);
+        let compact = f.source.compact_bytes().is_some();
         let mut next = self.clone();
         let mut lines = Vec::new();
         let (mut cash, mut equity) = (0., 0.);
         for p in &group.postings {
             let name = gl(p.account);
             let key = (group.event.fee_id.clone(), name);
-            let old = *next.stocks.get(&key).unwrap_or(&0.);
-            next.stocks.insert(key, money(old + p.amount)?);
+            if !compact {
+                let old = *next.stocks.get(&key).unwrap_or(&0.);
+                next.stocks.insert(key, money(old + p.amount)?);
+            }
             let value = money(p.amount * factor)?;
             if value != 0. {
                 lines.push((name, value));
@@ -68,6 +71,11 @@ impl FeeTracking {
             }
         }
         for (name, expected) in stocks(&group.next) {
+            if compact {
+                next.stocks
+                    .insert((group.event.fee_id.clone(), name), expected);
+                continue;
+            }
             let actual = *next
                 .stocks
                 .get(&(group.event.fee_id.clone(), name))

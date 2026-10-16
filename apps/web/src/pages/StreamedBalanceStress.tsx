@@ -27,10 +27,10 @@ export default function StreamedBalanceStress() {
   const [depositContinuationText,setDepositContinuationText]=useState('');
   const [depositPortfolioText,setDepositPortfolioText]=useState('');
   const [mortgageMixedText,setMortgageMixedText]=useState('');
-  const [commercialDrafts,setCommercialDrafts]=useState({commercial:'',commercial_generated:''});
-  const [timing, setTiming] = useState<'monthly' | 'dated' | 'credit' | 'credit_path' | 'graph' | 'driven' | 'deposit_graph' | 'deposit_income' | 'deposit_revised' | 'deposit_continuation' | 'deposit_portfolio' | 'mortgage_mixed' | 'commercial' | 'commercial_generated'>('monthly');
-  const commercialSelected=timing==='commercial'||timing==='commercial_generated';
-  const generatedCommercial=timing==='commercial_generated';
+  const [commercialDrafts,setCommercialDrafts]=useState({commercial:'',commercial_generated:'',commercial_generated_fees:''});
+  const [timing, setTiming] = useState<'monthly' | 'dated' | 'credit' | 'credit_path' | 'graph' | 'driven' | 'deposit_graph' | 'deposit_income' | 'deposit_revised' | 'deposit_continuation' | 'deposit_portfolio' | 'mortgage_mixed' | 'commercial' | 'commercial_generated' | 'commercial_generated_fees'>('monthly');
+  const commercialSelected=timing==='commercial'||timing==='commercial_generated'||timing==='commercial_generated_fees';
+  const generatedCommercial=timing==='commercial_generated'||timing==='commercial_generated_fees';
   const draft = commercialSelected ? commercialDrafts[timing] : timing === 'dated' ? datedText : timing === 'credit' ? creditText : timing === 'credit_path' ? creditPathText : timing === 'graph' ? graphText : timing === 'driven' ? drivenText : timing === 'deposit_graph' ? depositGraphText : timing === 'deposit_income' ? depositIncomeText : timing === 'deposit_revised' ? depositRevisedText : timing === 'deposit_continuation' ? depositContinuationText : timing === 'deposit_portfolio' ? depositPortfolioText : timing === 'mortgage_mixed' ? mortgageMixedText : text;
   const backend = 'rust' as const;
   const [large, setLarge] = useState(false);
@@ -53,7 +53,7 @@ export default function StreamedBalanceStress() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.stressCapabilities(), api.balanceStressExample(), api.datedStressExample(), api.creditStressExample(),api.creditPathStressExample(),api.modeledStressExample('graph-dated-ledger-1'),api.modeledStressExample('driven-credit-ledger-1'),api.modeledStressExample('deposit-graph-dated-ledger-1'),api.modeledStressExample('deposit-graph-income-ledger-1'),api.modeledStressExample('mortgage-mixed-accounting-1'),api.modeledStressExample('deposit-revised-income-ledger-1'),api.modeledStressExample('deposit-performing-income-ledger-1'),api.modeledStressExample('deposit-performing-portfolio-ledger-2'),api.modeledStressExample('commercial-credit-ledger-1'),api.modeledStressExample('commercial-generated-candidate-journal-1')]).then(([caps, example, dated, credit,creditPath,graph,driven,depositGraph,depositIncome,mortgageMixed,depositRevised,depositContinuation,depositPortfolio,commercial,commercialGenerated]) => {
+    Promise.all([api.stressCapabilities(), api.balanceStressExample(), api.datedStressExample(), api.creditStressExample(),api.creditPathStressExample(),api.modeledStressExample('graph-dated-ledger-1'),api.modeledStressExample('driven-credit-ledger-1'),api.modeledStressExample('deposit-graph-dated-ledger-1'),api.modeledStressExample('deposit-graph-income-ledger-1'),api.modeledStressExample('mortgage-mixed-accounting-1'),api.modeledStressExample('deposit-revised-income-ledger-1'),api.modeledStressExample('deposit-performing-income-ledger-1'),api.modeledStressExample('deposit-performing-portfolio-ledger-2'),api.modeledStressExample('commercial-credit-ledger-1'),api.modeledStressExample('commercial-generated-candidate-journal-1'),api.modeledStressExample('commercial-generated-candidate-fee-journal-1')]).then(([caps, example, dated, credit,creditPath,graph,driven,depositGraph,depositIncome,mortgageMixed,depositRevised,depositContinuation,depositPortfolio,commercial,commercialGenerated,commercialGeneratedFees]) => {
       if (!active) return;
       setCapabilities(caps); setText(JSON.stringify(example.specification, null, 2));
       setDatedText(JSON.stringify(dated.specification, null, 2));
@@ -67,7 +67,7 @@ export default function StreamedBalanceStress() {
       setDepositRevisedText(JSON.stringify(depositRevised.specification,null,2));
       setDepositContinuationText(JSON.stringify(depositContinuation.specification,null,2));
       setDepositPortfolioText(JSON.stringify(depositPortfolio.specification,null,2));
-      setCommercialDrafts({commercial:JSON.stringify(commercial.specification,null,2),commercial_generated:JSON.stringify(commercialGenerated.specification,null,2)});
+      setCommercialDrafts({commercial:JSON.stringify(commercial.specification,null,2),commercial_generated:JSON.stringify(commercialGenerated.specification,null,2),commercial_generated_fees:JSON.stringify(commercialGeneratedFees.specification,null,2)});
       try {
         const saved = caps.scope_id && sessionStorage.getItem(storageKey(caps.scope_id));
         if (saved) { setId(saved); setOpenId(saved); }
@@ -204,11 +204,13 @@ export default function StreamedBalanceStress() {
             <option value="mortgage_mixed">Mortgage research expected accounting</option>
             <option value="commercial">Commercial loan cashflows and reviewed accounting</option>
             <option value="commercial_generated">Generated commercial purchases and journal</option>
+            <option value="commercial_generated_fees">Commercial purchases with service fees</option>
           </select>
         </label>
         {timing === 'dated' && <p className="text-xs text-paper-faint">Use complete source schedules and explicit recognition policies. The example is synthetic contractual cashflow; credit and behavioral changes must be supplied by their source model.</p>}
         {commercialSelected && <p className="text-xs text-paper-faint">Retain original loan cost and yield, supplied credit policies and complete coupon and recovery rights. Sources and saved postings are independently checked before publication. The examples use synthetic assumptions.</p>}
         {generatedCommercial && <p className="text-xs text-paper-faint">Generate separate pricing and borrower paths, then post actual purchases in one journal. Results are saved in parts for browsing and download. Model calibration, reviewed opening evidence and full mixed-book acceptance remain separate.</p>}
+        {timing === 'commercial_generated_fees' && <p className="text-xs text-paper-faint">Service fees have separate quotes, earnings, costs and gross rights. Reviewed releases do not change the original loan yield. This example uses synthetic assumptions; transfers and fees on later advances need their own reviewed sources.</p>}
         {timing === 'credit' && <p className="text-xs text-paper-faint">Use explicit physical credit transitions, loan boundaries and reviewed accounting policies. The synthetic example demonstrates expected daily state transitions and recovery claims. Combined mixed-book execution and empirical calibration remain separate acceptance gates.</p>}
         {timing === 'credit_path' && <p className="text-xs text-paper-faint">Simulate physical borrower paths with explicit draws, repayments, default and complete recovery tails. Reviewed accounting policies determine recognition. Every saved path and posting is independently recomputed before publication; the example uses synthetic assumptions.</p>}
         {timing === 'graph' && <p className="text-xs text-paper-faint">Generate physical auto/personal cashflows from explicit histories and reviewed par-note recognition. Raw source economics and saved postings are verified. Default, delinquency, nonaccrual and fees require their own accounting route and are rejected here.</p>}

@@ -255,11 +255,14 @@ pub fn audit_source_work(r: &Request) -> Result<usize, String> {
             .ok_or("commercial unit joined work overflow")?;
     }
     let coefficient_lanes = 10
-        + usize::from(
-            r.units
-                .iter()
-                .any(|u| u.graph.positions.iter().any(|p| p.fees.is_some())),
-        );
+        + usize::from(r.units.iter().any(|u| {
+            u.graph.positions.iter().any(|p| {
+                p.fees.is_some()
+                    || p.generated_policy
+                        .as_ref()
+                        .is_some_and(|g| g.fee_acquisition.is_some())
+            })
+        }));
     let cells = r.units.len()
         * r.units[0].graph.scenarios.len()
         * coefficient_lanes
@@ -296,11 +299,14 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
     let n = r.units.len();
     let h = r.reporting_ordinals.len() - 1;
     let mut values = vec![0.; s * n * 10 * h];
-    let mut fee_income_values = if r
-        .units
-        .iter()
-        .any(|u| u.graph.positions.iter().any(|p| p.fees.is_some()))
-    {
+    let mut fee_income_values = if r.units.iter().any(|u| {
+        u.graph.positions.iter().any(|p| {
+            p.fees.is_some()
+                || p.generated_policy
+                    .as_ref()
+                    .is_some_and(|g| g.fee_acquisition.is_some())
+        })
+    }) {
         vec![0.; s * n * h]
     } else {
         Vec::new()
@@ -317,10 +323,16 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
             .position(|d| *d == purchase)
             .ok_or("commercial purchase report boundary absent")?;
         let loan_quote = g.original_oas[0].original_signed_cash_quote / u.unit_face;
-        let quote = u.graph.positions[0]
-            .fees
-            .as_ref()
-            .map_or(loan_quote, |f| f.total_purchase_cost / u.unit_face);
+        let quote = u.graph.positions[0].fees.as_ref().map_or_else(
+            || {
+                u.graph.positions[0]
+                    .generated_policy
+                    .as_ref()
+                    .and_then(|g| g.fee_acquisition.as_ref())
+                    .map_or(loan_quote, |f| f.total_purchase_cost / u.unit_face)
+            },
+            |f| f.total_purchase_cost / u.unit_face,
+        );
         for source in g
             .native_sources
             .iter()
@@ -351,6 +363,13 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
                             + source.weight * fees.income_period(left, right)? / u.unit_face,
                     )?;
                 }
+                if let Some(fees) = source.generated_fee_source() {
+                    let fee_at = (scene * n + ui) * h + pi;
+                    fee_income_values[fee_at] = money(
+                        fee_income_values[fee_at]
+                            + source.weight * fees.income_period(left, right)? / u.unit_face,
+                    )?;
+                }
                 let principal = money(native_principal / u.unit_face)?;
                 let at = ((scene * n + ui) * 10) * h + pi;
                 let metrics = [
@@ -373,6 +392,12 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
                 .cash
                 .iter()
                 .chain(source.fee_projection.iter().flat_map(|f| f.cash.iter()))
+                .chain(
+                    source
+                        .generated_fee_source()
+                        .into_iter()
+                        .flat_map(|f| f.cash().iter()),
+                )
             {
                 let principal = source.weight * c.principal / u.unit_face;
                 let interest = source.weight * c.interest / u.unit_face;

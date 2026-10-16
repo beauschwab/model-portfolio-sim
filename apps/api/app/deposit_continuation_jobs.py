@@ -54,7 +54,7 @@ def prepare_publication(request,output,*,payload_identity,expected_deadline,job,
     verify_modeled_persisted(raw,result,job=job,stopping=stopping,expected_deadline=expected_deadline)
     probe()
     descriptors=[ref,bound_job['request'],result['execution']['input'],result['execution']['modeled_source'],result['execution']['producer_completion']]
-    if raw['specification']['schema']=='commercial-generated-candidate-journal-1':
+    if raw['specification']['schema']in {'commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:
         descriptors.append(result['execution']['producer_trailer'])
     for name in model_ledger.SCHEMAS[raw['specification']['schema']]:
         for part in result[name]['parts']:

@@ -9,8 +9,12 @@ use crate::{
 use portfolio_model_core::{credit::CreditMeasure, strict_json};
 use serde::{Deserialize, Serialize};
 mod capacity;
+pub(crate) mod fees;
+pub use fees::{Acquisition as FeeAcquisition, Projection as FeeProjection};
 #[cfg(test)]
 mod counted_work_tests;
+#[cfg(test)]
+mod fee_tests;
 mod physical;
 #[cfg(test)]
 mod physical_tests;
@@ -34,6 +38,8 @@ pub struct Request {
     pub physical_path_inputs: Option<PhysicalPathInputs>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oas_calibration: Option<stochastic::calibration::Policy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fee_acquisition: Option<Box<FeeAcquisition>>,
 }
 #[derive(Debug, Serialize)]
 pub struct Admission {
@@ -48,19 +54,25 @@ pub struct EconomicSource {
     native_stops: Vec<owner::NativeStop>,
     cash: Vec<EconomicCash>,
     pub weight: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) generated_fee_projection: Option<FeeProjection>,
 }
 impl EconomicSource {
-    pub(crate) fn replay_pricing(
+    pub(crate) fn replay_pricing_with_fees(
         raw_request: owner::Request,
         native_stops: Vec<owner::NativeStop>,
         weight: f64,
+        context: Option<&std::sync::Arc<fees::Context>>,
     ) -> Result<Self, String> {
         let result = owner::evaluate_economic_with_stops(
             &raw_request,
             CreditMeasure::Pricing,
             &native_stops,
         )?;
+        let generated_fee_projection =
+            FeeProjection::build(context, &raw_request, result.carry(), &native_stops)?;
         Ok(Self {
+            generated_fee_projection,
             raw_request,
             native_stops,
             cash: economic_cash(result.carry())?,
@@ -83,8 +95,15 @@ impl EconomicSource {
         Vec<owner::NativeStop>,
         Vec<EconomicCash>,
         f64,
+        Option<FeeProjection>,
     ) {
-        (self.raw_request, self.native_stops, self.cash, self.weight)
+        (
+            self.raw_request,
+            self.native_stops,
+            self.cash,
+            self.weight,
+            self.generated_fee_projection,
+        )
     }
 }
 #[derive(Serialize)]
@@ -100,6 +119,8 @@ pub struct PhysicalSource {
     native_stops: Vec<owner::NativeStop>,
     cash: Vec<EconomicCash>,
     book_points: Vec<BookPoint>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) generated_fee_projection: Option<FeeProjection>,
 }
 #[derive(Serialize)]
 pub struct BookPoint {
@@ -260,6 +281,7 @@ fn same_contract_source(
 }
 fn compatible(q: &stochastic::Request, p: &stochastic::Request) -> Result<(), String> {
     same_contract(&q.source, &p.source)?;
+    fees::compatible(q, p)?;
     physical::same_draw_catalog(&q.source, &p.source)?;
     if q.regression_policy != p.regression_policy
         || !encoded_equal(&q.policy, &p.policy)?
@@ -308,7 +330,7 @@ pub(crate) fn compact_upper(law: &stochastic::Request) -> Result<usize, String> 
         )?,
     )?;
     add(
-        samples,
+        add(samples, fees::compact_upper(law)?)?,
         add(
             add(
                 mul(strict_json::serialized_size(law, 1 << 20)?, 20)?,
@@ -332,7 +354,7 @@ fn acquisition_law(r: &Request) -> Result<stochastic::Request, String> {
 }
 fn pricing_admission(r: &Request, law: &stochastic::Request) -> Result<(usize, usize), String> {
     let (mut work, bytes) = stochastic::admitted_law(law, CreditMeasure::Pricing)?;
-    if r.physical_path_inputs.is_some() {
+    if r.physical_path_inputs.is_some() || r.fee_acquisition.is_some() {
         // This owner fits one Q training sample, then compiles each evaluation
         // prefix and stopped tail. Standalone exercise's extra hypothetical
         // training replay is not executed here. Preserve all regression work.
@@ -355,11 +377,16 @@ pub(crate) fn refresh_counted_source(raw: &mut owner::Request) -> Result<(), Str
     }
     Ok(())
 }
-pub(crate) fn selected_request(r: &Request) -> Result<std::borrow::Cow<'_, Request>, String> {
-    if r.physical_path_inputs
+fn counted_selected(r: &Request) -> bool {
+    r.physical_path_inputs
         .as_ref()
-        .is_none_or(|p| p.source_work_policy.is_none())
-    {
+        .is_some_and(|p| p.source_work_policy.is_some())
+        || r.fee_acquisition
+            .as_ref()
+            .is_some_and(|p| p.source_work_policy == "counted_native_contract_factor_work-1")
+}
+pub(crate) fn selected_request(r: &Request) -> Result<std::borrow::Cow<'_, Request>, String> {
+    if !counted_selected(r) {
         return Ok(std::borrow::Cow::Borrowed(r));
     }
     let mut selected = r.clone();
@@ -385,10 +412,7 @@ pub(crate) fn shared_authority_lower(
 ) -> Result<usize, String> {
     let selected = selected_request(r)?;
     let r = selected.as_ref();
-    if r.physical_path_inputs
-        .as_ref()
-        .is_none_or(|p| p.source_work_policy.is_none())
-    {
+    if !counted_selected(r) {
         return Ok(0);
     }
     let mut law = law.clone();
@@ -428,9 +452,11 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
     {
         return Err("explicit bounded generated Pricing/Physical role tier required".into());
     }
+    let (fee_work, fee_bytes) = fees::audit(r)?;
     let (mut work, trainbytes) = pricing_admission(r, &r.pricing_training)?;
+    work = add(work, fee_work)?;
     let mut peak_bytes = trainbytes;
-    let mut bytes = compact_upper(&r.pricing_training)?;
+    let mut bytes = add(compact_upper(&r.pricing_training)?, fee_bytes)?;
     compatible(&r.pricing_training, &r.original_physical)?;
     let original_law = acquisition_law(r)?;
     physical::validate(r)?;
@@ -592,6 +618,7 @@ fn pricing_role_with_policy(
         return Err("original generated fitted policy source identity differs".into());
     }
     let tape = stochastic::generate_tape(law, &law.evaluation)?;
+    let fee_context = fees::Context::pricing(law);
     let mut sources = Vec::new();
     for i in 0..law.evaluation.paths {
         check()?;
@@ -605,7 +632,10 @@ fn pricing_role_with_policy(
         if raw.counted_work.is_some() && cash.len() > stochastic::cash_event_bound(&raw)? {
             return Err("native cash output exceeds counted source inventory".into());
         }
+        let generated_fee_projection =
+            FeeProjection::build(fee_context.as_ref(), &raw, result.carry(), &stops)?;
         sources.push(EconomicSource {
+            generated_fee_projection,
             raw_request: raw,
             native_stops: stops,
             cash,
@@ -653,6 +683,7 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
     let acquisition_law = acquisition_law(r)?;
     let original_tape = stochastic::generate_tape(&acquisition_law, &acquisition_law.evaluation)?;
     let mut original_physical_sources = Vec::new();
+    let original_fee_context = fees::Context::physical(r, &acquisition_law, true)?;
     for i in 0..r.original_physical.evaluation.paths {
         check()?;
         let mut raw = physical::generated_path(
@@ -682,7 +713,10 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
         if raw.counted_work.is_some() && cash.len() > stochastic::cash_event_bound(&raw)? {
             return Err("native cash output exceeds counted source inventory".into());
         }
+        let generated_fee_projection =
+            FeeProjection::build(original_fee_context.as_ref(), &raw, stopped.carry(), &stops)?;
         original_physical_sources.push(EconomicSource {
+            generated_fee_projection,
             raw_request: raw,
             native_stops: stops,
             cash,
@@ -712,6 +746,7 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
     }
     let mut current_physical = Vec::new();
     for law in &r.current_physical {
+        let fee_context = fees::Context::physical(r, law, false)?;
         let tape = stochastic::generate_tape(law, &law.evaluation)?;
         let policy = &current_pricing
             .iter()
@@ -750,8 +785,11 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
                 year:g.year, principal:g.next.principal,
                 interest_income_lines:g.postings.iter().filter(|p|p.posting.account == portfolio_model_core::credit_accounting::AccountCode::InterestIncome).map(|p|p.posting.amount).collect(),
             }).collect();
+            let generated_fee_projection =
+                FeeProjection::build(fee_context.as_ref(), &raw, projection.carry(), &stops)?;
             drop(projection);
             sources.push(PhysicalSource {
+                generated_fee_projection,
                 weight: 1. / law.evaluation.paths as f64,
                 raw_request: raw,
                 native_stops: stops,
@@ -821,6 +859,7 @@ mod tests {
             current_physical: vec![p],
             current_pricing: vec![q],
             oas_calibration: None,
+            fee_acquisition: None,
             physical_path_inputs: None,
         }
     }
@@ -923,10 +962,7 @@ pub fn current_physical_source_capacity(
     let selected = selected_request(r)?;
     let r = selected.as_ref();
     let mut selected_law = law.clone();
-    if r.physical_path_inputs
-        .as_ref()
-        .is_some_and(|p| p.source_work_policy.is_some())
-    {
+    if counted_selected(r) {
         bind_counted_source(&mut selected_law.source)?;
     }
     let law = &selected_law;
@@ -963,6 +999,35 @@ pub fn current_physical_source_capacity(
             .full_credit_end_year
             .max(admitted.full_credit_end_year);
         result.raw_recipe_bytes_upper = result.raw_recipe_bytes_upper.max(raw_bytes);
+    }
+    if let Some(fee) = &law.nonintegral_fees {
+        let (work, bytes) =
+            crate::products::commercial::fee_source::admit(&fee.policy, &law.source)?;
+        let a = r
+            .fee_acquisition
+            .as_ref()
+            .ok_or("generated fee acquisition absent")?;
+        let releases = a
+            .physical_releases_by_scenario
+            .iter()
+            .find(|h| h.scenario_id == law.source.source.current.scenario_id)
+            .ok_or("generated fee release coverage absent")?;
+        let events = add(
+            add(
+                crate::products::commercial::fee_source::event_bound(&fee.policy),
+                a.allocations.len(),
+            )?,
+            releases.acquisition_releases.len(),
+        )?;
+        result.work_upper = add(result.work_upper, add(mul(work, 2)?, mul(events, 1024)?)?)?;
+        result.retained_bytes_upper = add(
+            result.retained_bytes_upper,
+            add(mul(bytes, 2)?, mul(events, 4096)?)?,
+        )?;
+        result.full_credit_end_year = result.full_credit_end_year.max(
+            f64::from(fee.policy.complete_end_ordinal - law.source.source.current.asof_ordinal)
+                / 365.,
+        );
     }
     Ok(result)
 }

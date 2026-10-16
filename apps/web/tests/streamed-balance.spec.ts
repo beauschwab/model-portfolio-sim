@@ -7,6 +7,7 @@ function fullResultsFor(urls:string[],id:string){
 for (const selected of [
   {mode:'commercial',schema:'commercial-credit-ledger-1',proof:'Commercial source and credit rights verified'},
   {mode:'commercial_generated',schema:'commercial-generated-candidate-journal-1',proof:'Generated purchase sources and allocations verified'},
+  {mode:'commercial_generated_fees',schema:'commercial-generated-candidate-fee-journal-1',proof:'Generated purchase sources and allocations verified'},
 ]) test(`${selected.mode} publishes, pages and reopens its independently verified journal`,async({page})=>{
   test.setTimeout(180_000);
   const errors:string[]=[],fullResults:string[]=[];
@@ -18,7 +19,7 @@ for (const selected of [
   const editor=panel.getByLabel('Explicit balance-sheet specification',{exact:true});
   const raw=JSON.parse(await editor.inputValue());
   expect(raw.schema).toBe(selected.schema);
-  if(selected.mode==='commercial_generated'){
+  if(selected.mode.startsWith('commercial_generated')){
     await expect(panel.getByRole('checkbox',{name:/Large book/})).toBeDisabled();
     await expect(panel.getByRole('checkbox',{name:/Large book/})).not.toBeChecked();
     await expect(panel.getByText(/Generated commercial runs use separate path and journal limits/)).toBeVisible();
@@ -41,6 +42,34 @@ for (const selected of [
   await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
   await expect(restored.getByText(selected.proof,{exact:true})).toBeVisible();
   expect(fullResultsFor(fullResults,id)).toEqual([]);expect(errors).toEqual([]);
+});
+
+test('generated fee selection retains its explicit source and independent draft',async({page})=>{
+  await page.route('**/balance-stress/capabilities',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,json:{...(await response.json()),durable:true,rust:true}});
+  });
+  const panel=await open(page);
+  await panel.getByLabel('Cashflow timing',{exact:true}).selectOption('commercial_generated_fees');
+  await expect(panel.getByText(/Service fees have separate quotes/)).toBeVisible();
+  await expect(panel.getByRole('checkbox',{name:/Large book/})).toBeDisabled();
+  await panel.getByText('Edit partitioned specification (JSON)',{exact:true}).click();
+  const editor=panel.getByLabel('Explicit balance-sheet specification',{exact:true});
+  const raw=JSON.parse(await editor.inputValue());
+  expect(raw.schema).toBe('commercial-generated-candidate-fee-journal-1');
+  raw.identity='browser-selected-fees';
+  await editor.fill(JSON.stringify(raw));
+  await panel.getByLabel('Cashflow timing',{exact:true}).selectOption('commercial_generated');
+  expect(JSON.parse(await editor.inputValue()).schema).toBe('commercial-generated-candidate-journal-1');
+  await panel.getByLabel('Cashflow timing',{exact:true}).selectOption('commercial_generated_fees');
+  expect(JSON.parse(await editor.inputValue()).identity).toBe('browser-selected-fees');
+  await page.route('**/balance-stress/modeled',async route=>{
+    expect(route.request().postDataJSON().specification).toEqual(raw);
+    expect(route.request().postDataJSON().large_book).toBe(false);
+    await route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({detail:'selection control only'})});
+  });
+  await panel.getByRole('button',{name:'Run partitioned simulation',exact:true}).click();
+  await expect(panel.getByText(/selection control only/)).toBeVisible();
 });
 
 test('revised deposit expectations retain original yield in a durable verified journal', async ({page}) => {

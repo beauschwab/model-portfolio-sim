@@ -23,7 +23,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 pub const SCHEMA: &str = "commercial-generated-exercise-1";
 mod basis;
+pub(crate) mod fees;
 mod sources;
+pub use fees::FeeLaw;
 pub(crate) use sources::feature_bound;
 pub mod calibration;
 // Separate explicitly selected sampling tier; ordinary graphs/source budgets
@@ -86,6 +88,8 @@ pub struct Request {
     pub training: Sample,
     pub evaluation: Sample,
     pub regression_policy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonintegral_fees: Option<Box<FeeLaw>>,
 }
 #[derive(Clone, Serialize)]
 pub struct Regression {
@@ -398,8 +402,13 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .checked_mul(r.policy.exercise_dates.len() + 1)
         .and_then(|v| v.checked_mul(columns * columns * 16))
         .ok_or("regression work overflow")?;
+    let (fee_work, fee_bytes) = fees::admit(r, n, &source)?;
+    let bytes = bytes
+        .checked_add(fee_bytes)
+        .ok_or("generated joint fee capacity overflow")?;
     let total = work
-        .checked_add(regress_work)
+        .checked_add(fee_work)
+        .and_then(|v| v.checked_add(regress_work))
         .ok_or("generated aggregate overflow")?;
     if total > MAX_WORK || bytes > MAX_BYTES || strict_json::serialized_size(r, 1 << 20)? > 1 << 20
     {
@@ -603,8 +612,10 @@ pub(crate) struct Point {
     pub(crate) principal: f64,
     pub(crate) legal: f64,
     pub(crate) surviving_rights: bool,
+    fee_payoffs: Option<fees::Payoffs>,
 }
 struct Path {
+    fee_cash: Vec<EconomicCash>,
     cash: Vec<EconomicCash>,
     points: Vec<Point>,
 }
@@ -632,7 +643,16 @@ fn collect(r: &Request, sample: &Sample, tape: &Tape) -> Result<Vec<Path>, Strin
                 date,
             )?);
         }
-        paths.push(Path { cash, points });
+        let fee_cash = fees::bind(r, &raw, generated.carry(), &[])?
+            .as_ref()
+            .map(fees::cash)
+            .transpose()?
+            .unwrap_or_default();
+        paths.push(Path {
+            cash,
+            points,
+            fee_cash,
+        });
     }
     Ok(paths)
 }
@@ -687,8 +707,8 @@ pub(crate) fn compiled_point_features(
     }
     let point = exercise::point(carry, raw.credit.paths[0].path_key, t, date.timing)?;
     sources::append_observed_features(raw, point, date, opening, &mut features)?;
-    Ok(Point {
-        features,
+    let mut result = Point {
+        features: Vec::new(),
         state,
         principal,
         legal,
@@ -698,7 +718,11 @@ pub(crate) fn compiled_point_features(
             date.ordinal,
             date.timing,
         )?,
-    })
+        fee_payoffs: None,
+    };
+    result.fee_payoffs = fees::point(r, raw, carry, date, &result, &mut features)?;
+    result.features = features;
+    Ok(result)
 }
 fn fit(
     ordinal: i32,
@@ -824,6 +848,15 @@ fn targets(r: &Request, paths: &[Path], index: usize, next: &[f64]) -> Result<Ve
                     value = amount(value + cash.total()? * df(r, cash.year)? / discount)?;
                 }
             }
+            for cash in &p.fee_cash {
+                if exercise::cash_after(cash.year, t, date.timing)
+                    && end
+                        .is_none_or(|(year, timing)| exercise::cash_before(cash.year, year, timing))
+                {
+                    value =
+                        amount(value + cash.total()? * fees::discount(r, cash.year)? / discount)?;
+                }
+            }
             Ok(value)
         })
         .collect()
@@ -845,6 +878,14 @@ fn decide(
     }
     if p.principal == 0. && !rights {
         return Ok((Decision::Continue, continuation));
+    }
+    if r.nonintegral_fees.is_some() {
+        return exercise::select_values(
+            r.policy.simultaneous_priority,
+            continuation,
+            fees::action_value(r, date, p, true)?,
+            fees::action_value(r, date, p, false)?,
+        );
     }
     exercise::select(
         date,
@@ -876,6 +917,11 @@ fn root_values(r: &Request, paths: &[Path], next: &[f64]) -> Result<Vec<f64>, St
                         .is_none_or(|(year, timing)| exercise::cash_before(c.year, year, timing))
                 {
                     value = amount(value + c.total()? * df(r, c.year)?)?;
+                }
+            }
+            for c in &p.fee_cash {
+                if first.is_none_or(|(year, timing)| exercise::cash_before(c.year, year, timing)) {
+                    value = amount(value + c.total()? * fees::discount(r, c.year)?)?;
                 }
             }
             Ok(value)
@@ -1056,6 +1102,11 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
         for c in economic_cash(stopped.carry())? {
             if c.year > 0. {
                 replayed = amount(replayed + c.total()? * df(r, c.year)?)?;
+            }
+        }
+        if let Some(bound) = fees::bind(r, &raw, stopped.carry(), &stops)? {
+            for c in fees::cash(&bound)? {
+                replayed = amount(replayed + c.total()? * fees::discount(r, c.year)?)?;
             }
         }
         if (replayed - values[i]).abs() > 1e-9 + 1e-12 * replayed.abs() {
@@ -1267,6 +1318,7 @@ mod tests {
             principal: 0.,
             legal: 0.,
             surviving_rights: true,
+            fee_payoffs: None,
         };
         // Same observed future coupon right and fitted Q continuation. One
         // Physical outcome later pays zero; another pays a positive coupon.
@@ -1297,6 +1349,7 @@ mod tests {
                 principal: 100.,
                 legal: 0.,
                 surviving_rights: true,
+                fee_payoffs: None,
             })
             .collect();
         let rows: Vec<_> = points.iter().collect();
@@ -1312,6 +1365,7 @@ mod tests {
                 principal: 100.,
                 legal: 0.,
                 surviving_rights: true,
+                fee_payoffs: None,
             };
             near(forecast(&fitted, &point).unwrap(), function(x));
         }

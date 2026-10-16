@@ -58,7 +58,7 @@ impl Sim<'_> {
                     if self.detail {
                         self.sink.emit("commercial_fee_lineage",json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,
                         "path_key":b.path_key,"native_year":f.native_years[i],"source_weight":b.source_weight,"allocation_factor":b.allocated_face/b.native_unit_face,
-                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.groups()[i]}))?;
+                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.group(i)}))?;
                     }
                     state.fees[fi] = next;
                     continue;

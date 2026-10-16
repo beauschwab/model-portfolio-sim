@@ -126,11 +126,70 @@ pub struct Binding<'a> {
     pub native_unit_face: f64,
     pub accounting: &'a dyn AccountingSource,
 }
+/// Sealed borrowed or compact native fee owner. A caller cannot implement it.
+pub trait FeeSource: sealed::Sealed {
+    fn measure(&self) -> portfolio_model_core::cashflow::CashflowMeasure;
+    fn asof(&self) -> i32;
+    fn fee_count(&self) -> usize;
+    fn positions_match(&self, position: &str) -> bool;
+    fn group_count(&self) -> usize;
+    fn group(&self, index: usize) -> Cow<'_, portfolio_model_core::nonintegral_fee::Group>;
+    fn compact_bytes(&self) -> Option<usize> {
+        None
+    }
+}
+impl sealed::Sealed for portfolio_model_core::nonintegral_fee::ResultData {}
+impl FeeSource for portfolio_model_core::nonintegral_fee::ResultData {
+    fn measure(&self) -> portfolio_model_core::cashflow::CashflowMeasure {
+        self.raw_request().measure
+    }
+    fn asof(&self) -> i32 {
+        self.raw_request().asof_ordinal
+    }
+    fn fee_count(&self) -> usize {
+        self.raw_request().fees.len()
+    }
+    fn positions_match(&self, position: &str) -> bool {
+        self.raw_request()
+            .fees
+            .iter()
+            .all(|f| f.position_id == position)
+    }
+    fn group_count(&self) -> usize {
+        self.groups().len()
+    }
+    fn group(&self, index: usize) -> Cow<'_, portfolio_model_core::nonintegral_fee::Group> {
+        Cow::Borrowed(&self.groups()[index])
+    }
+}
+/// Numeric compact fee replay: cloning current gross states/stocks is bounded
+/// by fee count, each posting performs tree lookups, and every daily snapshot
+/// visits all eight gross endpoints. Tuple/calendar ordering is charged too.
+pub fn compact_fee_work_upper(
+    groups: usize,
+    postings: usize,
+    fees: usize,
+    days: usize,
+) -> Result<usize, String> {
+    let work = groups
+        .checked_mul(
+            fees.checked_mul(128)
+                .and_then(|v| v.checked_add(512))
+                .ok_or("compact fee work overflow")?,
+        )
+        .and_then(|v| v.checked_add(postings.checked_mul(128)?))
+        .and_then(|v| v.checked_add(fees.checked_mul(days.checked_add(1)?)?.checked_mul(128)?))
+        .ok_or("compact fee work overflow")?;
+    if work > 8_000_000 {
+        return Err("compact fee numeric work exceeds8M".into());
+    }
+    Ok(work)
+}
 pub struct FeeBinding<'a> {
     pub loan_binding: usize,
     /// Producer-retained native position before an explicit candidate mapping.
     pub native_position_id: &'a str,
-    pub source: &'a portfolio_model_core::nonintegral_fee::ResultData,
+    pub source: &'a dyn FeeSource,
     pub native_years: &'a [f64],
 }
 #[derive(Clone, Copy)]
@@ -220,22 +279,24 @@ impl<'a> Compiled<'a> {
                 .bindings
                 .get(f.loan_binding)
                 .ok_or("fee parent binding missing")?;
-            if f.source.raw_request().measure
-                != portfolio_model_core::cashflow::CashflowMeasure::Physical
-            {
+            if f.source.measure() != portfolio_model_core::cashflow::CashflowMeasure::Physical {
                 return Err("daily fee ownership requires Physical source measure".into());
             }
-            if !seen.insert(f.loan_binding) || f.native_years.len() != f.source.groups().len() {
+            if !seen.insert(f.loan_binding) || f.native_years.len() != f.source.group_count() {
                 return Err("unique complete fee group timeline required".into());
             }
-            for fee in &f.source.raw_request().fees {
-                if fee.position_id != f.native_position_id {
-                    return Err("fee source position mismatch".into());
-                }
+            if !f.source.positions_match(f.native_position_id) {
+                return Err("fee source position mismatch".into());
             }
-            for (i, (g, year)) in f.source.groups().iter().zip(f.native_years).enumerate() {
+            let compact = f.source.compact_bytes();
+            let mut postings = 0usize;
+            for (i, year) in f.native_years.iter().enumerate() {
+                let g = f.source.group(i);
+                postings = postings
+                    .checked_add(g.postings.len())
+                    .ok_or("fee posting overflow")?;
                 let elapsed = day(*year, spec.horizon_days - b.origin_day)?;
-                if f.source.raw_request().asof_ordinal + elapsed as i32 != g.event.ordinal {
+                if f.source.asof() + elapsed as i32 != g.event.ordinal {
                     return Err("fee action cannot be retimed against native calendar".into());
                 }
                 self.fee_events
@@ -243,14 +304,39 @@ impl<'a> Compiled<'a> {
                     .or_default()
                     .push((fi, i));
                 let rows = g.postings.len() + 2;
-                self.work_upper = self
-                    .work_upper
-                    .checked_add(rows * (spec.horizon_days + 1) * 16)
-                    .ok_or("fee work overflow")?;
+                if compact.is_none() {
+                    self.work_upper = self
+                        .work_upper
+                        .checked_add(rows * (spec.horizon_days + 1) * 16)
+                        .ok_or("fee work overflow")?;
+                    self.retained_bytes_upper = self
+                        .retained_bytes_upper
+                        .checked_add(rows * 4096)
+                        .ok_or("fee byte overflow")?;
+                }
+            }
+            if let Some(bytes) = compact {
+                let runtime = f
+                    .source
+                    .group_count()
+                    .checked_mul(1024)
+                    .and_then(|v| v.checked_add(f.source.fee_count().checked_mul(4096)?))
+                    .and_then(|v| v.checked_add(256))
+                    .ok_or("compact fee runtime bytes overflow")?;
                 self.retained_bytes_upper = self
                     .retained_bytes_upper
-                    .checked_add(rows * 4096)
-                    .ok_or("fee byte overflow")?;
+                    .checked_add(bytes)
+                    .and_then(|v| v.checked_add(runtime))
+                    .ok_or("compact fee bytes overflow")?;
+                self.work_upper = self
+                    .work_upper
+                    .checked_add(compact_fee_work_upper(
+                        f.source.group_count(),
+                        postings,
+                        f.source.fee_count(),
+                        spec.horizon_days,
+                    )?)
+                    .ok_or("compact fee work overflow")?;
             }
         }
         if self.work_upper > 8_000_000 || self.retained_bytes_upper > 32 << 20 {

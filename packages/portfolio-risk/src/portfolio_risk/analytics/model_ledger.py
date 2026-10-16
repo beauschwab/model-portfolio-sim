@@ -25,6 +25,8 @@ SCHEMAS={PORTFOLIO_DEPOSIT_SCHEMA:PORTFOLIO_DEPOSIT_SCHEMAS,CONTINUATION_DEPOSIT
 SCHEMAS[COMMERCIAL_SCHEMA]=COMMERCIAL_SCHEMAS
 from .commercial_generated_transport import SCHEMA as GENERATED_CANDIDATE_SCHEMA, SCHEMAS as GENERATED_CANDIDATE_SCHEMAS
 SCHEMAS[GENERATED_CANDIDATE_SCHEMA]=GENERATED_CANDIDATE_SCHEMAS
+from .commercial_generated_transport import FEE_SCHEMA as GENERATED_FEE_SCHEMA, FEE_SCHEMAS as GENERATED_FEE_SCHEMAS
+SCHEMAS[GENERATED_FEE_SCHEMA]=GENERATED_FEE_SCHEMAS
 
 def binary_path():
     name='portfolio-model-ledger.exe' if sys.platform=='win32' else 'portfolio-model-ledger'
@@ -67,7 +69,7 @@ def _publish_directory(staging,final,check,*,owned_output_root=None):
         return
 
 def run_model_ledger(raw,directory,*,large_book=False,partition_rows=65536,progress=None,cancelled=None,timeout=1800.):
-    if raw.get('schema') == GENERATED_CANDIDATE_SCHEMA:
+    if raw.get('schema') in (GENERATED_CANDIDATE_SCHEMA, GENERATED_FEE_SCHEMA):
         from .commercial_generated_ledger import run_generated_candidate_ledger
         return run_generated_candidate_ledger(raw,directory,large_book=large_book,
             partition_rows=partition_rows,progress=progress,cancelled=cancelled,timeout=timeout,

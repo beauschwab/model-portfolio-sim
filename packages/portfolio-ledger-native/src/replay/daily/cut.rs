@@ -150,7 +150,7 @@ fn validate_revision(
                     )?,
                     (Scheduled::Fee(x, i), Scheduled::Fee(y, j)) if x == y && i == j => {
                         equal(&a.fees[x].native_years[i], &b.fees[y].native_years[j])?;
-                        equal(&a.fees[x].source.groups()[i], &b.fees[y].source.groups()[j])?;
+                        equal(&*a.fees[x].source.group(i), &*b.fees[y].source.group(j))?;
                     }
                     _ => return Err("native cut ordered source ownership changed".into()),
                 }

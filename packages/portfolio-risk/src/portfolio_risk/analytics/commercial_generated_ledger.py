@@ -12,7 +12,7 @@ from .balance_stream import _hash, _rust, source_identity
 from .bounded_native_records import loads
 from .commercial_generated_transport import (SCHEMA, WORKFLOW, SCHEMAS, RAW_BYTES,
     RECORD_BYTES, MANIFEST_BYTES, SERIALIZED_BYTES, TRAILER_BYTES, GeneratedWriter,
-    VerificationFrames, validate_trailer)
+    VerificationFrames, validate_trailer, selected)
 from .ledger_native import library_path
 from .modeled_json_identity import exact_json_identity as exact
 
@@ -37,10 +37,10 @@ def run_generated_candidate_ledger(raw, directory, *, large_book=False, partitio
     deadline = started + timeout
     if type(partition_rows) is not int or not 1 <= partition_rows <= 65536:
         raise ValueError('invalid generated partition bound')
-    if raw.get('schema') != SCHEMA:
-        raise ValueError('explicit generated candidate selection required')
+    model=raw.get('schema')
+    workflow, protocol, schemas, _, operation=selected(model)
     raw = deepcopy(raw)
-    envelope = dict(op='analyze_commercial_generated_candidate_journal', schema=SCHEMA,
+    envelope = dict(op=operation, schema=model,
         request=raw, execution_timeout_ms=max(1, int(timeout * 1000)))
     if len(json.dumps(envelope, allow_nan=False, separators=(',', ':')).encode()) > RAW_BYTES:
         raise ValueError('generated candidate raw input byte bound')
@@ -59,16 +59,16 @@ def run_generated_candidate_ledger(raw, directory, *, large_book=False, partitio
     root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.partial-', dir=root) as attempt:
         staging = Path(attempt)
-        writer = GeneratedWriter(staging, partition_rows, check=check)
+        writer = GeneratedWriter(staging, partition_rows, check=check, model=model)
         header, completion, trailer = {}, {}, {}
         _rust(envelope, writer, progress, check, deadline - time.perf_counter(),
-            executable=binary, workflow=header, completion_protocol=6, retain_input=True,
+            executable=binary, workflow=header, completion_protocol=protocol, retain_input=True,
             completion=completion, completion_trailer=trailer, decode_record=loads,
             record_bytes=RECORD_BYTES)
         if (set(header) != {'schema', 'model_schema', 'prepared_request', 'source_receipt'}
-                or header['schema'] != WORKFLOW or header['model_schema'] != SCHEMA):
+                or header['schema'] != workflow or header['model_schema'] != model):
             raise ArithmeticError('generated preparation header identity differs')
-        if not exact(completion, {'complete': True, 'protocol': 6}):
+        if not exact(completion, {'complete': True, 'protocol': protocol}):
             raise ArithmeticError('generated native Sim completion differs')
         validate_trailer(header, trailer)
         references = {
@@ -91,12 +91,12 @@ def run_generated_candidate_ledger(raw, directory, *, large_book=False, partitio
             lambda: loads((staging/'producer-trailer.json').read_bytes()))
         validation = verify_stream(raw, source, frames, check)
         check()
-        manifest = dict(version='dated-balance-partitions-1', model_version=SCHEMA, backend='rust',
+        manifest = dict(version='dated-balance-partitions-1', model_version=model, backend='rust',
             binary_sha256=binary_sha, validation_library_sha256=library_sha, source_sha256=source_sha,
             specification=envelope, large_book=large_book, partition_rows=partition_rows,
             validation=validation, **references,
             tables={name: dict(schema={key: str(dtype) for key, dtype in schema.items()},
-                parts=writer.parts[name]) for name, schema in SCHEMAS.items()})
+                parts=writer.parts[name]) for name, schema in schemas.items()})
         metadata_bytes = sum((staging/ref['path']).stat().st_size for ref in references.values())
         if metadata_bytes + writer.serialized_bytes > SERIALIZED_BYTES:
             raise ValueError('generated aggregate serialized phase byte bound')

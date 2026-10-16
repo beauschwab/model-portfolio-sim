@@ -162,10 +162,10 @@ def verify_units(raw,result,check=lambda:False):
     n=len(raw['units']);scenarios=[s['scenario_id'] for s in raw['units'][0]['graph']['scenarios']];s=len(scenarios);h=len(raw['reporting_ordinals'])-1
     compare([s,n,10,h],result['shape'],check=check);compare(scenarios,result['scenario_ids'],check=check);compare(METRICS,result['metrics'],check=check)
     if len(result['native_graphs'])!=n:raise ArithmeticError('commercial coefficient graph coverage differs')
-    values=[0.]*(s*n*10*h);fee_values=[0.]*(s*n*h)if any(p.get('fees')for u in raw['units']for p in u['graph']['positions'])else[];cash=[];unit_ids=[]
+    values=[0.]*(s*n*10*h);fee_values=[0.]*(s*n*h)if any((p.get('fees')or p.get('generated_policy',{}).get('fee_acquisition'))for u in raw['units']for p in u['graph']['positions'])else[];cash=[];unit_ids=[]
     for ui,u in enumerate(raw['units']):
         graph=verify_graph(u['graph'],result['native_graphs'][ui],check);purchase=u['graph']['as_of_ordinal'];face=u['unit_face'];loan_quote=graph['original_oas'][0]['original_signed_cash_quote']/face
-        selection=u['graph']['positions'][0].get('fees');quote=selection['total_purchase_cost']/face if selection else loan_quote
+        selection=u['graph']['positions'][0].get('fees')or u['graph']['positions'][0].get('generated_policy',{}).get('fee_acquisition');quote=selection['total_purchase_cost']/face if selection else loan_quote
         unit_ids.append(dict(unit_id=u['unit_id'],template_id=u['template_id'],purchase_ordinal=purchase,purchase_period=raw['reporting_ordinals'][:-1].index(purchase),side=1.,accounting_category=u['accounting_category'],capital_policy_revision=u['capital_policy_revision'],quote_price_per_face_unit=quote))
         for source in (v for v in graph['sources'] if v['role']=='physical'):
             si=scenarios.index(source['scenario_id']);w=source['weight'];gs=source['groups']

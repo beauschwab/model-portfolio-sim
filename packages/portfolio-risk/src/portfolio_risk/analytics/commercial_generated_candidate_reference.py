@@ -19,7 +19,7 @@ from .commercial_candidate_reference import allocation
 from .commercial_credit_reference import full_end
 from .commercial_dto import graph_typed
 from .commercial_generated_graph_reference import accounting_spool
-from .commercial_generated_transport import SCHEMA, WORKFLOW, METADATA_TABLES, SCHEMAS, validate_trailer
+from .commercial_generated_transport import SCHEMA, WORKFLOW, METADATA_TABLES, SCHEMAS, validate_trailer, FEE_SCHEMA, SELECTED_SCHEMAS, selected
 from .commercial_graph_reference import verify_units, verify_graph
 from .commercial_ledger_reference import verify_stream as verify_journal
 from .commercial_reports_reference import normalize_specification, scope, reports
@@ -45,13 +45,15 @@ def _elapsed(year):
 def verify_preparation(raw, prepared, receipt, check=lambda: False):
     check()
     wanted = set('original_request allocation_replay admitted_work_upper retained_bytes_upper reporting_end_ordinal full_end_ordinal physical_paths maximum_live_full_physical_owners shared_daily_sim_adoption graph_exercise_source_adoption opening_identity_verified mixed_ledger_adoption empirical_validation'.split())
-    if raw.get('schema') != SCHEMA or set(receipt) != wanted or not exact(raw, receipt['original_request']):
+    if raw.get('schema')==FEE_SCHEMA:wanted.add('maximum_live_full_fee_owners')
+    if raw.get('schema') not in SELECTED_SCHEMAS or set(receipt) != wanted or not exact(raw, receipt['original_request']):
         raise ArithmeticError('generated immutable original request/receipt differs')
     for name, value in dict(maximum_live_full_physical_owners=1,
             shared_daily_sim_adoption=True, graph_exercise_source_adoption=True,
             opening_identity_verified=False, mixed_ledger_adoption=False, empirical_validation=False).items():
         if not exact(receipt[name], value):
             raise ArithmeticError('generated source ownership/eligibility differs/' + name)
+    if raw.get('schema')==FEE_SCHEMA and not exact(receipt['maximum_live_full_fee_owners'],1):raise ArithmeticError('generated paired fee owner bound differs')
     for key, maximum in [('admitted_work_upper', 4_000_000_000), ('retained_bytes_upper', 128 << 20)]:
         if type(receipt[key]) is not int or not 0 < receipt[key] <= maximum:
             raise ArithmeticError('generated exact admission integer differs')
@@ -80,6 +82,8 @@ def verify_preparation(raw, prepared, receipt, check=lambda: False):
         position = graph['positions'][0]
         if position.get('fees'):
             raise ArithmeticError('generated fee adoption requires explicit same-policy economics')
+        fees=position['generated_policy'].get('fee_acquisition')
+        if bool(fees) != (raw['schema']==FEE_SCHEMA):raise ArithmeticError('explicit generated fee stream ownership differs')
         offset = graph['as_of_ordinal'] - raw['as_of_ordinal']
         if offset < 0 or graph['reporting_ordinals'][0] != graph['as_of_ordinal']:
             raise ArithmeticError('generated original purchase offset differs')
@@ -116,6 +120,7 @@ def verify_preparation(raw, prepared, receipt, check=lambda: False):
                 raise ArithmeticError('generated physical sample count differs')
             count += paths
             inputs=role_inputs(generated,law)
+            if law.get('nonintegral_fees'):horizon=max(horizon,offset+law['nonintegral_fees']['policy']['complete_end_ordinal']-graph['as_of_ordinal'])
             if inputs is None:horizon=max(horizon,offset+_elapsed(full_end(law['source'])))
             else:
                 for index in range(paths):horizon=max(horizon,offset+_elapsed(full_end(physical_source(law,inputs,index))))
@@ -236,14 +241,15 @@ class Storage:
 def verify_stream(raw, prepared, frames, check=lambda: False):
     if not exact(raw, prepared['raw']):
         raise ArithmeticError('generated verification original source differs')
-    if set(frames.schemas) != set(SCHEMAS):
+    workflow, protocol, schemas, _, _=selected(raw['schema'])
+    if set(frames.schemas) != set(schemas):
         raise ArithmeticError('generated exact persisted table coverage differs')
-    for table, schema in SCHEMAS.items():
+    for table, schema in schemas.items():
         if frames.schemas[table] != {name: str(dtype) for name, dtype in schema.items()}:
             raise ArithmeticError('generated persisted column schema differs/' + table)
-    header = dict(schema=WORKFLOW, model_schema=SCHEMA, prepared_request={}, source_receipt=prepared['receipt'])
+    header = dict(schema=workflow, model_schema=raw['schema'], prepared_request={}, source_receipt=prepared['receipt'])
     validate_trailer(header, frames.trailer)
-    if not exact(frames.completion, dict(complete=True, protocol=6)):
+    if not exact(frames.completion, dict(complete=True, protocol=protocol)):
         raise ArithmeticError('generated actual native Sim completion differs')
     coefficients = list(_rows(frames, 'commercial_candidate_units', check))
     if len(coefficients) != 1 or coefficients[0]['unit_index'] != 0 or coefficients[0]['source_index'] != 0:
@@ -267,7 +273,7 @@ def verify_stream(raw, prepared, frames, check=lambda: False):
             if not actual.pop('scope', None):
                 raise ArithmeticError('generated allocation scope absent')
             compare(wanted, actual, check=check)
-            controls, allocations, participations = [], [], []
+            controls, allocations, participations, fee_sources = [], [], [], []
             mapping = {m['source_scenario_id']: m for m in raw['run_mapping']}
             for ui, (unit, owner) in enumerate(zip(raw['commercial']['units'], raw['owners'], strict=True)):
                 graph = verify_graph(unit['graph'], graphs[ui], check)
@@ -281,12 +287,20 @@ def verify_stream(raw, prepared, frames, check=lambda: False):
                     controls.append(dict(raw=request, groups=source['groups'],
                         origin_day=unit['graph']['as_of_ordinal'] - raw['as_of_ordinal'],
                         source_class='issuer_ac_security-1' if unit['graph']['positions'][0]['credit_identity'] == 'issuer_credit_debt' else 'commercial_loan-1'))
+                    if raw['schema']==FEE_SCHEMA:
+                        fee=source.get('fee_projection')
+                        if fee is None: raise ArithmeticError('independent paired generated fee source absent')
+                        fee_sources.append([fee['bound_path']])
                     participations.append(dict(scenario=scene, position_id=owner['position_id'],
                         path_key=source['path_key'], source_weight=source['weight']))
             if len(participations) != prepared['receipt']['physical_paths']:
                 raise ArithmeticError('generated complete native Physical paths differ')
             control = dict(spec=prepared['spec'], horizon=prepared['horizon'], sources=controls)
-            validation = verify_journal(dict(allocations=allocations, participations=participations), control, frames, check, storage=storage)
+            if raw['schema']==FEE_SCHEMA:
+                from .commercial_generated_fee_journal_reference import verify as verify_fee_journal
+                validation=verify_fee_journal(control,fee_sources,dict(allocations=allocations,participations=participations),frames,storage,check)
+            else:
+                validation = verify_journal(dict(allocations=allocations, participations=participations), control, frames, check, storage=storage)
             validation.update(raw_graph_units_recomputed=True, allocation_replayed=True,
                 purchased_journal_replayed=True, complete_tail_replayed=True,
                 maximum_live_full_physical_owners=1, compact_absolute_endpoints_replayed=True,

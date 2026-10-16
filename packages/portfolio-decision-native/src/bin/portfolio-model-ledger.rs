@@ -17,7 +17,13 @@ fn main() {
             .get("request")
             .and_then(|r| r.get("schema"))
             .and_then(Value::as_str)
-            == Some("commercial-generated-candidate-journal-1")
+            .is_some_and(|s| {
+                matches!(
+                    s,
+                    "commercial-generated-candidate-journal-1"
+                        | "commercial-generated-candidate-fee-journal-1"
+                )
+            })
         {
             return portfolio_decision_native::commercial_candidate_journal::run_generated_stream_started(
                 &input,

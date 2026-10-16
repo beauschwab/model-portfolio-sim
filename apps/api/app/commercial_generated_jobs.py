@@ -8,7 +8,7 @@ import polars as pl
 
 from portfolio_risk.analytics.bounded_native_records import loads
 from portfolio_risk.analytics.commercial_generated_transport import (SCHEMA, SCHEMAS,
-    RECORD_BYTES, SERIALIZED_BYTES, DECODED_BYTES, MAX_OBJECTS, VerificationFrames)
+    RECORD_BYTES, SERIALIZED_BYTES, DECODED_BYTES, MAX_OBJECTS, VerificationFrames, selected)
 from portfolio_risk.analytics.modeled_json_identity import exact_json_identity as exact
 from portfolio_risk.analytics._deposit_continuation_partition_bounds import parquet_metadata
 from .commercial_generated_artifacts import SOURCE_FILES, validate_sources
@@ -19,8 +19,10 @@ def verify_persisted(request, result, *, job, stopping, expected_deadline):
     from portfolio_risk.analytics import model_ledger, ledger_native
     from portfolio_risk.analytics.balance_stream import _hash, source_identity
     execution, raw = result['execution'], request['specification']
+    model=raw.get('schema')
+    _,_,schemas,_,_=selected(model)
     deadline = request.get('publication_deadline_unix')
-    if (raw.get('schema') != SCHEMA or execution.get('model_version') != SCHEMA
+    if (execution.get('model_version') != model
             or type(deadline) is not float or not math.isfinite(deadline)
             or not exact(deadline, expected_deadline)
             or not exact(execution.get('publication_deadline_unix'), deadline)
@@ -66,7 +68,7 @@ def verify_persisted(request, result, *, job, stopping, expected_deadline):
     validate_sources(*(saved[key] for key in SOURCE_FILES))
     if not exact(saved['input']['request'], raw):
         raise ValueError('generated uploaded raw source differs from queued input')
-    if set(result) != set(SCHEMAS) | {'execution', 'revision'}:
+    if set(result) != set(schemas) | {'execution', 'revision'}:
         raise ValueError('generated persisted table inventory differs')
     partition_rows = execution.get('partition_rows')
     if type(partition_rows) is not int or not 1 <= partition_rows <= 65536:
@@ -74,10 +76,10 @@ def verify_persisted(request, result, *, job, stopping, expected_deadline):
 
     class StoredFrames:
         def __init__(self):
-            self.schemas, self.parts = SCHEMAS, {}
+            self.schemas, self.parts = schemas, {}
             count = len(SOURCE_FILES) + 2
             serialized = sum(execution[key]['bytes'] for key in SOURCE_FILES)
-            for name, schema in SCHEMAS.items():
+            for name, schema in schemas.items():
                 table = result[name]
                 if (table.get('format') != 'partitioned-parquet'
                         or table.get('schema') != {key: str(dtype) for key, dtype in schema.items()}
@@ -116,7 +118,7 @@ def verify_persisted(request, result, *, job, stopping, expected_deadline):
                     decoded=decoded, logical=logical, check=check,
                     decoded_limit=DECODED_BYTES, logical_limit=DECODED_BYTES)
                 frame = pl.read_parquet(io.BytesIO(data), n_rows=part['rows'] + 1)
-                if frame.height != part['rows'] or frame.schema != SCHEMAS[name]:
+                if frame.height != part['rows'] or frame.schema != schemas[name]:
                     raise ValueError('generated uploaded partition schema/rows differ')
                 check(True)
                 yield frame

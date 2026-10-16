@@ -356,7 +356,7 @@ def credit_path_balance_stress(req: CreditPathBalanceStressRequest):
 def modeled_balance_stress_example(schema:str):
     import json
     from .storage_config import ROOT
-    if schema not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}:raise HTTPException(404,'unsupported modeled source schema')
+    if schema not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:raise HTTPException(404,'unsupported modeled source schema')
     raw=json.loads((ROOT/'examples/models'/f'{schema}.json').read_text())
     return dict(specification=raw,revision=store.snapshot()['revision'],scope='Synthetic explicit native model sources and reviewed daily policies')
 
@@ -369,7 +369,7 @@ async def _selected_commercial_ledger_body(http:Request):
         nonlocal selected_seen
         result={}
         for key,value in pairs:
-            if key=='schema' and type(value)is str and value in {'commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}:selected_seen=True
+            if key=='schema' and type(value)is str and value in {'commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:selected_seen=True
             if key in result:duplicates.append(key)
             result[key]=value
         return result
@@ -391,7 +391,7 @@ def modeled_balance_stress(req:ModeledBalanceStressRequest, raw_body:Annotated[t
         from portfolio_risk.analytics.cd_sequence_graph_reference import exact
         try:exact(original,req.specification,'original accepted commercial ledger JSON')
         except ValueError as exc:raise HTTPException(422,str(exc)) from exc
-    if req.specification.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}:raise HTTPException(422,'unsupported modeled source schema')
+    if req.specification.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:raise HTTPException(422,'unsupported modeled source schema')
     return _submit_source_stress(req,'modeled_balance_stress',store.run_modeled_balance_stress,executable=binary_path(),accepted_start=accepted_start)
 
 
@@ -417,7 +417,7 @@ def _submit_source_stress(req, kind, execute, *, executable=None,accepted_start=
     if executable is not None:
         from portfolio_risk.analytics.balance_stream import source_identity
         request['source_sha256']=source_identity()
-    if req.specification.get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}:
+    if req.specification.get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:
         import time
         # Trusted accepted budget is immutable queued metadata, including retries.
         request['publication_deadline_unix'] = (time.time() if accepted_start is None else accepted_start) + 1800.

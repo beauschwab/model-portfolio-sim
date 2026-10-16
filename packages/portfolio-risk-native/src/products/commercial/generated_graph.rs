@@ -106,6 +106,18 @@ pub fn admit(
             }
         }
     }
+    if let Some(fees) = &g.fee_acquisition {
+        if (fees.total_purchase_cost
+            - p.original_signed_cash_quote
+            - fees.original_signed_fee_quote)
+            .abs()
+            > 1e-9 + 1e-12 * fees.total_purchase_cost.abs()
+        {
+            return Err(
+                "generated total purchase cash must equal separate loan and fee quotes".into(),
+            );
+        }
+    }
     let mut upper = generated::admit(g)?;
     let add = |a: usize, b: usize| a.checked_add(b).ok_or("generated graph capacity overflow");
     let mul = |a: usize, b: usize| a.checked_mul(b).ok_or("generated graph capacity overflow");
@@ -161,7 +173,7 @@ fn source(
     role: Role,
     s: generated::EconomicSource,
 ) -> graph::NativeSource {
-    let (raw, stops, cash, weight) = s.into_parts();
+    let (raw, stops, cash, weight, generated_fee_projection) = s.into_parts();
     graph::NativeSource {
         position_id: p.position_id.clone(),
         scenario_id: scene.scenario_id.clone(),
@@ -176,6 +188,7 @@ fn source(
         physical_projection: None,
         generated_projection: None,
         fee_projection: None,
+        generated_fee_projection: generated_fee_projection.map(Box::new),
     }
 }
 fn receipt(
@@ -201,7 +214,7 @@ fn weighted(
 ) -> Result<f64, String> {
     sources.iter().try_fold(0., |sum, s| {
         graph::money(
-            sum + s.weight * graph::price(s, &scene.collateral_curve, asof, mark, oas, bump)?,
+            sum + s.weight * graph::loan_price(s, &scene.collateral_curve, asof, mark, oas, bump)?,
         )
     })
 }
@@ -267,6 +280,31 @@ pub fn analyze(
     {
         return Err("locked original generated OAS does not reconcile separately retained original Q fitted-policy cash quote".into());
     }
+    if let Some(fees) = &g.fee_acquisition {
+        let actual = native_sources.iter().try_fold(0., |sum, source| {
+            let fee = source
+                .generated_fee_source()
+                .ok_or("original generated fee source absent")?;
+            graph::money(
+                sum + source.weight
+                    * fee.price(
+                        &r.original_scenario.collateral_curve,
+                        r.as_of_ordinal,
+                        r.as_of_ordinal,
+                        0.,
+                        true,
+                    )?,
+            )
+        })?;
+        if (actual - fees.original_signed_fee_quote).abs()
+            > 1e-9 + 1e-12 * fees.original_signed_fee_quote.abs()
+        {
+            return Err(
+                "generated original separate fee quote differs from joint stopped native Q cash"
+                    .into(),
+            );
+        }
+    }
     let original_physical_sources = prepared
         .original_physical_sources
         .into_iter()
@@ -301,6 +339,7 @@ pub fn analyze(
                 physical_projection: None,
                 generated_projection: Some((Box::new(s), original_proof.clone())),
                 fee_projection: None,
+                generated_fee_projection: None,
             });
         }
     }

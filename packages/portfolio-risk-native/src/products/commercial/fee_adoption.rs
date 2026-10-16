@@ -118,6 +118,14 @@ fn validate_releases(
     raw: &loan::Request,
     role: Role,
 ) -> Result<(), String> {
+    validate_releases_parts(&s.allocations, h, raw, role)
+}
+pub(crate) fn validate_releases_parts(
+    allocations: &[Allocation],
+    h: &History,
+    raw: &loan::Request,
+    role: Role,
+) -> Result<(), String> {
     if role == Role::Physical && h.acquisition_releases.len() > 512 {
         return Err("fee acquisition release capacity exceeded".into());
     }
@@ -138,7 +146,7 @@ fn validate_releases(
         let stock = opening
             .as_ref()
             .ok_or("prepaid acquisition requires sealed native transfer")?;
-        for a in &s.allocations {
+        for a in allocations {
             let net = stock.prepaid_refund_stock(&a.fee_id)?;
             if a.allocated_cost != 0. && a.allocated_cost.signum() != net.signum() {
                 return Err(
@@ -151,8 +159,7 @@ fn validate_releases(
     if role != Role::Physical {
         return Ok(());
     }
-    let mut remaining: BTreeMap<_, _> = s
-        .allocations
+    let mut remaining: BTreeMap<_, _> = allocations
         .iter()
         .map(|a| {
             Ok((
@@ -433,7 +440,7 @@ pub fn audit(
     }
     Ok((work, bytes))
 }
-fn acquired(s: &Selection, h: &History, bound: &mut BoundPath) -> Result<(), String> {
+fn acquired(allocations: &[Allocation], h: &History, bound: &mut BoundPath) -> Result<(), String> {
     if bound.source.raw_request().measure
         != portfolio_model_core::cashflow::CashflowMeasure::Physical
     {
@@ -450,7 +457,7 @@ fn acquired(s: &Selection, h: &History, bound: &mut BoundPath) -> Result<(), Str
         .zip(raw.events.iter().cloned())
         .map(|(year, e)| (year, 1u8, e))
         .collect::<Vec<_>>();
-    for (fi, a) in s.allocations.iter().enumerate() {
+    for (fi, a) in allocations.iter().enumerate() {
         let basis = a.allocated_cost
             - opening
                 .as_ref()
@@ -542,9 +549,19 @@ pub(crate) fn require_complete(bound: &BoundPath) -> Result<(), String> {
     }
     Ok(())
 }
-fn projection(s: &Selection, h: &History, mut bound_path: BoundPath) -> Result<Projection, String> {
+fn projection(s: &Selection, h: &History, bound_path: BoundPath) -> Result<Projection, String> {
+    from_bound_parts(s.discount_spread, &s.allocations, h, bound_path)
+}
+/// Reuse the same sealed service/cost owner from a generated native loan pass.
+/// The caller must admit and validate complete history/allocation coverage first.
+pub(crate) fn from_bound_parts(
+    discount_spread: f64,
+    allocations: &[Allocation],
+    h: &History,
+    mut bound_path: BoundPath,
+) -> Result<Projection, String> {
     require_complete(&bound_path)?;
-    acquired(s, h, &mut bound_path)?;
+    acquired(allocations, h, &mut bound_path)?;
     let mut cash = Vec::new();
     for (year, g) in bound_path
         .native_years()
@@ -580,8 +597,8 @@ fn projection(s: &Selection, h: &History, mut bound_path: BoundPath) -> Result<P
         raw_fee_history: h.clone(),
         bound_path,
         cash,
-        discount_spread: s.discount_spread,
-        allocations: s.allocations.clone(),
+        discount_spread,
+        allocations: allocations.to_vec(),
         loan_original_cost_yield_unchanged: true,
     })
 }

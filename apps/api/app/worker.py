@@ -87,7 +87,7 @@ def execute(job):
     deposit_job=(payload['operation']=='store.run_modeled_balance_stress' and
         payload['args'][0].get('specification',{}).get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2'})
     accepted_deposit_deadline=payload['args'][0].get('publication_deadline_unix') if deposit_job else None
-    commercial_job=(payload['operation']=='store.run_modeled_balance_stress' and payload['args'][0].get('specification',{}).get('schema') in {'commercial-credit-ledger-1','commercial-generated-candidate-journal-1'})
+    commercial_job=(payload['operation']=='store.run_modeled_balance_stress' and payload['args'][0].get('specification',{}).get('schema') in {'commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'})
     commercial_guard=None
     accepted_commercial_deadline=payload['args'][0].get('publication_deadline_unix') if commercial_job else None
     commercial_library=payload['operation']=='store.build_aged_unitlib_job' and payload['args'][0].get('schema')=='commercial-units-1'

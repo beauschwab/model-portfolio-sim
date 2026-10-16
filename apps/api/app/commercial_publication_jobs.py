@@ -7,4 +7,4 @@ def prepare_publication(request,output,*,payload_identity,expected_deadline,job,
     from .deposit_continuation_jobs import prepare_publication as prepare
     return prepare(request,output,payload_identity=payload_identity,
         expected_deadline=expected_deadline,job=job,stopping=stopping,
-        selected_schemas=frozenset({'commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}))
+        selected_schemas=frozenset({'commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}))

@@ -40,6 +40,12 @@ def _typed(value, key=""):
             out.pop("rights_only_termination", None)
         if {"period_id","observation_index","driver_index","loading"}<=out.keys() and out.get("draw_tranche_id") is None:
             out.pop("draw_tranche_id",None)
+        if out.get("schema") == SCHEMA:
+            if out.get("nonintegral_fees") is None:
+                out.pop("nonintegral_fees", None)
+            else:
+                from .commercial_dto import graph_typed
+                out["nonintegral_fees"] = graph_typed(out["nonintegral_fees"])
         return out
     if type(value) is list:
         return [_typed(v, key) for v in value]
@@ -69,6 +75,8 @@ def _admit(r, measure="pricing"):
         "evaluation",
         "regression_policy",
     }
+    if r.get("nonintegral_fees") is not None:
+        required.add("nonintegral_fees")
     if set(r) != required:
         raise ArithmeticError("generated request fields differ")
     if (
@@ -80,6 +88,11 @@ def _admit(r, measure="pricing"):
     if r["policy"]["information_policy"] != "native_observable_markov_state-1":
         raise ArithmeticError("observable Markov policy required")
     source = r["source"]
+    if r.get("nonintegral_fees") is not None:
+        from .commercial_generated_fee_reference import validate_law
+        validate_law(r["nonintegral_fees"], source)
+        if source.get("performing_draw_tranches") or source["source"].get("transfer") is not None:
+            raise ArithmeticError("generated drawn/secondary fee rights require separate ownership")
     asof = source["source"]["current"]["asof_ordinal"]
     grid = r["time_ordinals"]
     drivers = r["drivers"]
@@ -244,7 +257,7 @@ def _admit(r, measure="pricing"):
         ][h["destination_index"]]
         if base == 0.0 and any(h["betas"]):
             raise ArithmeticError("zero hazard cannot acquire implicit modeled credit")
-    feature_upper = feature_bound(r)
+    feature_upper = feature_bound(r) + 11 * len(r.get("nonintegral_fees", {}).get("policy", {}).get("fees", []))
     if feature_upper > 64:
         raise ArithmeticError(
             "generated observable contractual state exceeds 64 features"
@@ -437,9 +450,15 @@ def _paths(r, sample, levels, check,source_factory=None):
                     "features": features,
                 }
             )
-        paths.append(
-            {"raw": raw, "cash": _cash(projection["credit"]), "points": points}
-        )
+        path = {"raw": raw, "cash": _cash(projection["credit"]), "points": points}
+        if r.get("nonintegral_fees") is not None:
+            from .commercial_generated_fee_reference import bound, cash, observed_features, trial_payoffs
+            source = bound(r["nonintegral_fees"], raw, projection, check)
+            path["fee_cash"] = cash(source, check)
+            for point, date in zip(points, r["policy"]["exercise_dates"], strict=True):
+                point["features"].extend(observed_features(r["nonintegral_fees"], source, raw, date))
+                point["fee_payoffs"] = trial_payoffs(r, raw, date, point, check)
+        paths.append(path)
     return paths
 
 
@@ -551,6 +570,11 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
             for c in p["cash"]:
                 if _after(c["year"], now) and (end is None or _before(c["year"], end)):
                     value += cash(c) * discount(c["year"]) / discount(now[0])
+            if r.get("nonintegral_fees") is not None:
+                from .commercial_generated_fee_reference import discount as fee_discount
+                for c in p["fee_cash"]:
+                    if _after(c["year"], now) and (end is None or _before(c["year"], end)):
+                        value += cash(c) * fee_discount(r, c["year"]) / discount(now[0])
             values.append(value)
         return values
 
@@ -574,6 +598,9 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
             if f is None:
                 continue
             exercise = point["principal"] * f + point["legal"] + d[action + "_fee"]
+            if r.get("nonintegral_fees") is not None:
+                from .commercial_generated_fee_reference import action_value
+                exercise = action_value(r, d, point, action)
             if (
                 action == "call"
                 and exercise < value
@@ -592,6 +619,11 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
             for c in p["cash"]:
                 if c["year"] > 0.0 and (first is None or _before(c["year"], first)):
                     value += cash(c) * discount(c["year"])
+            if r.get("nonintegral_fees") is not None:
+                from .commercial_generated_fee_reference import discount as fee_discount
+                for c in p["fee_cash"]:
+                    if first is None or _before(c["year"], first):
+                        value += cash(c) * fee_discount(r, c["year"])
             values.append(value)
         return values
 
@@ -675,6 +707,10 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
             for c in _cash(stopped["credit"])
             if c["year"] > 0.0
         )
+        if r.get("nonintegral_fees") is not None:
+            from .commercial_generated_fee_reference import bound, cash as fee_cash, discount as fee_discount
+            source = bound(r["nonintegral_fees"], p["raw"], stopped, check, stops)
+            actual += sum(cash(c) * fee_discount(r, c["year"]) for c in fee_cash(source, check))
         compare(float(values[i]), float(actual), check=check)
         outcomes.append(
             {
@@ -765,6 +801,9 @@ def generated_policy_sources(
                 exercise = (
                     point["principal"] * factor + point["legal"] + date[action + "_fee"]
                 )
+                if q.get("nonintegral_fees") is not None:
+                    from .commercial_generated_fee_reference import action_value
+                    exercise = action_value(q, date, point, action)
                 if (
                     action == "call"
                     and exercise < value

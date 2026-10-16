@@ -1,7 +1,7 @@
 //! Bounded record emission for the explicit generated candidate tier. The
 //! journal is streamed directly from the existing Sim, never decoded/reencoded
 //! into one enlarged buffered result.
-use super::{prepare_and_run, Request, GENERATED_SCHEMA};
+use super::{prepare_and_run, Request, GENERATED_FEE_SCHEMA, GENERATED_SCHEMA};
 use portfolio_model_core::strict_json;
 use portfolio_risk_native::commercial_units;
 use serde::{Deserialize, Serialize};
@@ -52,7 +52,8 @@ pub(super) fn execute(
     mut output: Box<dyn Write + Send>,
 ) -> Result<(Option<super::Preparation>, i32, usize), String> {
     use portfolio_ledger_native::{
-        commercial_intent_owner as ledger, daily, owners::commercial::compact::CompactSource,
+        commercial_intent_owner as ledger, daily,
+        owners::commercial::{compact::CompactSource, compact_fee::CompactFeeSource},
     };
     use portfolio_risk_native::{advanced_graph::Role, commercial_graph::CreditIdentity};
     let full_end = r
@@ -102,6 +103,7 @@ pub(super) fn execute(
         })
         .collect::<Vec<_>>();
     let mut compact = Vec::new();
+    let mut compact_fees = Vec::new();
     let mut retained = 0usize;
     for native in physical.iter().flatten() {
         portfolio_compute_control::checkpoint()?;
@@ -119,7 +121,27 @@ pub(super) fn execute(
         if retained > 32 << 20 {
             return Err("generated compact journal exceeds32MiB".into());
         }
+        let fees = native.materialize_generated_fees(&full)?;
+        let fee_journal = if let Some(fees) = fees {
+            // The retained native clock lives beside the compact posting owner.
+            // Reserve its complete allocation before copying either component.
+            let timeline_bytes = fee_timeline_bytes(fees.bound_path.native_years().len())?;
+            let remaining = (32usize << 20)
+                .checked_sub(retained)
+                .and_then(|v| v.checked_sub(timeline_bytes))
+                .ok_or("compact fee timeline exceeds remaining32MiB")?;
+            let journal =
+                CompactFeeSource::from_native_bounded(fees.bound_path.source(), remaining)?;
+            retained = retained
+                .checked_add(journal.retained_bytes())
+                .and_then(|v| v.checked_add(timeline_bytes))
+                .ok_or("compact fee retained overflow")?;
+            Some((journal, fees.bound_path.native_years().to_vec()))
+        } else {
+            None
+        };
         compact.push(journal);
+        compact_fees.push(fee_journal);
         // `full` drops here; there is never a vector of expanded P owners.
     }
     let mut bindings = Vec::new();
@@ -154,7 +176,26 @@ pub(super) fn execute(
             index += 1;
         }
     }
-    let compiled = ledger::Compiled::new(&s, bindings)?;
+    let mut compiled = ledger::Compiled::new(&s, bindings)?;
+    if r.schema == GENERATED_FEE_SCHEMA {
+        let native_sources = physical.iter().flatten().collect::<Vec<_>>();
+        let fees = compact_fees
+            .iter()
+            .enumerate()
+            .map(|(index, source)| {
+                let (source, years) = source
+                    .as_ref()
+                    .ok_or("generated paired compact fee owner absent")?;
+                Ok(ledger::FeeBinding {
+                    loan_binding: index,
+                    native_position_id: &native_sources[index].position_id,
+                    source,
+                    native_years: years,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        compiled.attach_fees(&s, fees)?;
+    }
     daily::run_with_commercial(&s, None, &compiled, output)?;
     portfolio_compute_control::checkpoint()?;
     Ok((None, full_end, paths))
@@ -197,6 +238,8 @@ struct Coefficients<'a> {
     shape: [usize; 4],
     metrics: &'a [&'static str],
     values: &'a [f64],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    fee_income_values: &'a Vec<f64>,
     funding: &'a commercial_units::Funding,
     admitted_work_upper: usize,
     scope: &'static str,
@@ -228,21 +271,22 @@ pub(super) fn preparation(
     full_end: i32,
     physical_paths: usize,
 ) -> Result<(), String> {
-    emit(
-        output,
-        &json!({"workflow":{
-            "schema":"commercial-generated-candidate-preparation-1","model_schema":GENERATED_SCHEMA,
-            "prepared_request":specification,
-            "source_receipt":{
-                "original_request":raw,"allocation_replay":allocation,
-                "admitted_work_upper":work,"retained_bytes_upper":bytes,
-                "reporting_end_ordinal":raw["reporting_end_ordinal"],"full_end_ordinal":full_end,
-                "physical_paths":physical_paths,"maximum_live_full_physical_owners":1,
-                "shared_daily_sim_adoption":true,"graph_exercise_source_adoption":true,
-                "opening_identity_verified":false,"mixed_ledger_adoption":false,"empirical_validation":false
-            }
-        }}),
-    )?;
+    let mut header = json!({"workflow":{
+        "schema":if raw["schema"]==GENERATED_FEE_SCHEMA {"commercial-generated-candidate-fee-preparation-1"}else{"commercial-generated-candidate-preparation-1"},"model_schema":raw["schema"],
+        "prepared_request":specification,
+        "source_receipt":{
+            "original_request":raw,"allocation_replay":allocation,
+            "admitted_work_upper":work,"retained_bytes_upper":bytes,
+            "reporting_end_ordinal":raw["reporting_end_ordinal"],"full_end_ordinal":full_end,
+            "physical_paths":physical_paths,"maximum_live_full_physical_owners":1,
+            "shared_daily_sim_adoption":true,"graph_exercise_source_adoption":true,
+            "opening_identity_verified":false,"mixed_ledger_adoption":false,"empirical_validation":false
+        }
+    }});
+    if raw["schema"] == GENERATED_FEE_SCHEMA {
+        header["workflow"]["source_receipt"]["maximum_live_full_fee_owners"] = json!(1);
+    }
+    emit(output, &header)?;
     let s = prepared.source();
     table(
         output,
@@ -256,6 +300,7 @@ pub(super) fn preparation(
             shape: s.shape,
             metrics: &s.metrics,
             values: &s.values,
+            fee_income_values: &s.fee_income_values,
             funding: &s.funding,
             admitted_work_upper: s.admitted_work_upper,
             scope: s.scope,
@@ -344,7 +389,14 @@ pub fn run_generated_stream_started(
     let raw = strict_json::parse_checked(input, 1 << 20, portfolio_compute_control::checkpoint)?;
     let original = raw["request"].clone();
     let e: Envelope = serde_json::from_value(raw).map_err(|e| e.to_string())?;
-    if e.op != "analyze_commercial_generated_candidate_journal" || e.schema != GENERATED_SCHEMA {
+    let fees = e.schema == GENERATED_FEE_SCHEMA;
+    if e.schema != e.request.schema
+        || !(if fees {
+            e.op == "analyze_commercial_generated_candidate_fee_journal"
+        } else {
+            e.op == "analyze_commercial_generated_candidate_journal" && e.schema == GENERATED_SCHEMA
+        })
+    {
         return Err("explicit generated commercial candidate operation required".into());
     }
     let control = match portfolio_compute_control::active() {
@@ -362,14 +414,33 @@ pub fn run_generated_stream_started(
             super::PreparationMode::Execute,
             None,
         )?;
-        emit(
-            &mut output,
-            &json!({"record":"commercial_generated_complete","complete":true,"schema":GENERATED_SCHEMA,
-            "protocol":6,"physical_paths":paths,"maximum_live_full_physical_owners":1,"full_end_ordinal":full_end,
+        let mut trailer = json!({"record":if fees {"commercial_generated_fee_complete"}else{"commercial_generated_complete"},"complete":true,"schema":e.schema,
+            "protocol":if fees {7}else{6},"physical_paths":paths,"maximum_live_full_physical_owners":1,"full_end_ordinal":full_end,
             "independent_persisted_verification":false,"opening_identity_verified":false,
-            "mixed_ledger_adoption":false,"empirical_validation":false}),
-        )?;
+            "mixed_ledger_adoption":false,"empirical_validation":false});
+        if fees {
+            trailer["maximum_live_full_fee_owners"] = json!(1);
+        }
+        emit(&mut output, &trailer)?;
         output.flush().map_err(|e| e.to_string())?;
         portfolio_compute_control::checkpoint()
     })
+}
+
+fn fee_timeline_bytes(groups: usize) -> Result<usize, String> {
+    groups
+        .checked_mul(std::mem::size_of::<f64>())
+        .and_then(|v| v.checked_add(std::mem::size_of::<Vec<f64>>()))
+        .ok_or_else(|| "compact fee timeline capacity overflow".into())
+}
+
+#[cfg(test)]
+mod fee_timeline_tests {
+    #[test]
+    fn clock_vector_and_header_are_reserved_before_copy_and_overflow_refuses() {
+        let header = std::mem::size_of::<Vec<f64>>();
+        assert_eq!(super::fee_timeline_bytes(0).unwrap(), header);
+        assert_eq!(super::fee_timeline_bytes(256).unwrap(), header + 2048);
+        assert!(super::fee_timeline_bytes(usize::MAX).is_err());
+    }
 }

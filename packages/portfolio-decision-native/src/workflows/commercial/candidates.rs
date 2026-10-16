@@ -17,6 +17,7 @@ use std::{
 };
 pub const SCHEMA: &str = "commercial-candidate-journal-1";
 pub const GENERATED_SCHEMA: &str = "commercial-generated-candidate-journal-1";
+pub const GENERATED_FEE_SCHEMA: &str = "commercial-generated-candidate-fee-journal-1";
 #[path = "generated_candidates.rs"]
 mod generated_stream;
 pub use generated_stream::run_generated_stream_started;
@@ -145,8 +146,12 @@ fn prepare_and_run(
     }
     validate_ordinal(r.as_of_ordinal)?;
     validate_ordinal(r.reporting_end_ordinal)?;
-    if r.schema != if generated { GENERATED_SCHEMA } else { SCHEMA }
-        || r.commercial.reporting_ordinals.first() != Some(&r.as_of_ordinal)
+    let generated_fees = generated && r.schema == GENERATED_FEE_SCHEMA;
+    if !(if generated {
+        r.schema == GENERATED_SCHEMA || generated_fees
+    } else {
+        r.schema == SCHEMA
+    }) || r.commercial.reporting_ordinals.first() != Some(&r.as_of_ordinal)
         || r.commercial.reporting_ordinals.last() != Some(&r.reporting_end_ordinal)
     {
         return Err("commercial candidate actual reporting identity differs".into());
@@ -167,6 +172,15 @@ fn prepare_and_run(
             }
             if position.generated_policy.is_some() && !generated {
                 return Err("generated commercial candidates require bounded streaming native Sim adoption; compact generated coefficient recipes are not borrowed journal owners".into());
+            }
+            if generated
+                && position
+                    .generated_policy
+                    .as_ref()
+                    .is_some_and(|g| g.fee_acquisition.is_some())
+                    != generated_fees
+            {
+                return Err("generated fee ownership requires the explicitly versioned fee stream schema on every unit".into());
             }
             if generated && position.generated_policy.is_none() {
                 return Err(

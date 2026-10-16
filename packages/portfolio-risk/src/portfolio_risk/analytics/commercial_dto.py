@@ -15,6 +15,7 @@ RAW_LEDGER_FIELDS={
     'commercial-credit-ledger-1':frozenset({'spec'}),
     'commercial-candidate-journal-1':frozenset({'specification'}),
     'commercial-generated-candidate-journal-1':frozenset({'specification'}),
+    'commercial-generated-candidate-fee-journal-1':frozenset({'specification'}),
 }
 
 
@@ -60,7 +61,7 @@ def graph_typed(value,key=''):
         opaque=RAW_LEDGER_FIELDS.get(value.get('schema'),())
         result={k:deepcopy(v)if k in opaque else graph_typed(v,k)for k,v in value.items()}
         if result.get('schema')=='commercial-generated-policy-1':
-            for optional in ('oas_calibration','physical_path_inputs'):
+            for optional in ('oas_calibration','physical_path_inputs','fee_acquisition'):
                 if result.get(optional) is None:result.pop(optional,None)
         if {'period_id','observation_index','driver_index','loading'} <= result.keys():
             if result.get('draw_tranche_id') is None:result.pop('draw_tranche_id',None)
