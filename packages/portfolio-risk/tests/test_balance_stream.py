@@ -149,7 +149,11 @@ def test_deadline_kills_child_that_emits_no_output(tmp_path,monkeypatch):
     original=subprocess.Popen
     launched=[]
     def sleeping(_command,**kwargs):
-        process=original([sys.executable,'-c','import time; time.sleep(60)'],**kwargs)
+        # A Windows venv redirector can leave its Python child holding stderr
+        # after the watchdog kills the redirector. Model the direct native
+        # executable with a direct interpreter, not that extra launcher process.
+        interpreter=getattr(sys,'_base_executable',None) or sys.executable
+        process=original([interpreter,'-c','import time; time.sleep(60)'],**kwargs)
         launched.append(process)
         return process
     monkeypatch.setattr(balance_stream.subprocess,'Popen',sleeping)

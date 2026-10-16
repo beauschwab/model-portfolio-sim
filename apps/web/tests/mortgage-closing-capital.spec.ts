@@ -7,8 +7,9 @@ test('completed mortgage source separately publishes reviewed closing capital an
   test.setTimeout(150_000);
   const api = '/api';
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open Balance-sheet Stress', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  await page.getByRole('button', { name: 'Open Stress', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Stress', exact: true });
+  await panel.getByRole('tab', { name: 'Balance sheet', exact: true }).click();
   await panel.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await panel.getByLabel('Cashflow timing', { exact: true }).selectOption('mortgage_mixed');
   await panel.getByRole('button', { name: 'Run partitioned simulation', exact: true }).click();
@@ -36,7 +37,8 @@ test('completed mortgage source separately publishes reviewed closing capital an
   });
   expect(result.execution.source_binding.id).toBe(source);
   await page.reload();
-  const reopened = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  const reopened = page.getByRole('region', { name: 'Stress', exact: true });
+  await reopened.getByRole('tab', { name: 'Balance sheet', exact: true }).click();
   await reopened.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(reopened.getByLabel('Saved run ID', { exact: true })).toHaveValue(source);
   await expect(reopened.getByText('Research journal only; capital and FTP unavailable', { exact: true })).toBeVisible();

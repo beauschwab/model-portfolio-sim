@@ -21,5 +21,6 @@ test('saved derivative raw source queues and reopens native mixed journal partit
   await page.reload();
   const reopen=await page.request.get(`/api/jobs/${queued.id}/table?path=${encodeURIComponent('/derivative_journal_lineage')}&offset=0&limit=10`);
   expect(reopen.ok()).toBeTruthy();expect((await reopen.json()).total).toBeGreaterThan(0);
-  expect(hydration).toEqual([]);
+  // Background KPI refreshes may load their own results; this journal must stay partitioned.
+  expect(hydration.filter(url=>new URL(url).pathname.endsWith(`/jobs/${queued.id}/result`))).toEqual([]);
 });

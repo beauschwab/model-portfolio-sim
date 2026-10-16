@@ -1,5 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
+function fullResultsFor(urls:string[],id:string){
+  return urls.filter(url=>new URL(url).pathname.endsWith(`/jobs/${id}/result`));
+}
+
 test('revised deposit expectations retain original yield in a durable verified journal', async ({page}) => {
   test.setTimeout(90_000);
   const errors:string[]=[], fullResults:string[]=[];
@@ -16,15 +20,19 @@ test('revised deposit expectations retain original yield in a durable verified j
   await expect(panel.getByRole('table',{name:'Partitioned results',exact:true}).getByRole('columnheader',{name:'basis revision',exact:true})).toBeVisible();
   const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
   await page.reload();
-  const restored=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+  const restored=await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
   await expect(restored.getByText('Original yield revision and gross cash origins verified',{exact:true})).toBeVisible();
-  expect(errors).toEqual([]);expect(fullResults).toEqual([]);
+  expect(errors).toEqual([]);expect(fullResultsFor(fullResults,id)).toEqual([]);
 });
 
 async function open(page: Page) {
   await page.goto('/');
+  return partitionedPanel(page);
+}
+
+async function partitionedPanel(page: Page) {
   const button = page.getByRole('button', { name: 'Open Stress', exact: true });
   await button.click();
   await page.getByRole('region', { name: 'Stress', exact: true }).getByRole('tab', { name: 'Balance sheet', exact: true }).click();
@@ -88,11 +96,11 @@ test('actual-date Rust run retains source evidence when reopened', async ({ page
   await panel.getByLabel('Partitioned result table', { exact: true }).selectOption('/dated_rights');
   await expect(panel.getByRole('table', { name: 'Partitioned results', exact: true })).toContainText('source');
   await page.reload();
-  const restored = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  const restored = await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID', { exact: true })).toHaveValue(id);
   await expect(restored.getByText('Dated source reconciled', { exact: true })).toBeVisible();
-  expect(fullResults).toEqual([]); expect(errors).toEqual([]);
+  expect(fullResultsFor(fullResults,id)).toEqual([]); expect(errors).toEqual([]);
 });
 
 test('daily credit run publishes states and complete claims through Rust', async ({ page }) => {
@@ -108,7 +116,7 @@ test('daily credit run publishes states and complete claims through Rust', async
   await expect(panel.getByRole('table', { name: 'Partitioned results', exact: true })).toContainText('recovery tail after reporting');
   const id = await panel.getByLabel('Saved run ID', { exact: true }).inputValue();
   await page.reload();
-  const restored = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  const restored = await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID', { exact: true })).toHaveValue(id);
   await expect(restored.getByText('Credit source reconciled', { exact: true })).toBeVisible();
@@ -144,7 +152,7 @@ test('real Rust run pages, downloads, reopens and never fetches full result', as
   await restored.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID', { exact: true })).toHaveValue(id);
   await expect(restored.getByText('Saved journal verified', { exact: true })).toBeVisible();
-  expect(fullResults).toEqual([]); expect(errors).toEqual([]);
+  expect(fullResultsFor(fullResults,id)).toEqual([]); expect(errors).toEqual([]);
 });
 
 test('Rust production, empty tables and failed page retry preserve selection', async ({ page }) => {
@@ -226,7 +234,7 @@ test('realized physical credit paths publish verified rights and reopen', async 
   await panel.getByRole('button', {name:'Download partition',exact:true}).click();
   expect((await download).suggestedFilename()).toContain(`${id}-credit_path_claims-0.parquet`);
   await page.reload();
-  const restored=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+  const restored=await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
   await expect(restored.getByText('Realized credit paths reconciled',{exact:true})).toBeVisible();
@@ -244,7 +252,7 @@ for(const timing of ['graph','driven','deposit_graph','deposit_income']) test(`n
   await panel.getByLabel('Partitioned result table',{exact:true}).selectOption(timing==='driven'?'/credit_path_lineage':'/event_lineage');
   await expect(panel.getByRole('table',{name:'Partitioned results',exact:true})).toContainText(timing==='graph'?'personal-1':timing.startsWith('deposit_')?'deposit':'loan');
   const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
-  await page.reload();const restored=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+  await page.reload();const restored=await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
   await expect(restored.getByText(badge,{exact:true})).toBeVisible();
@@ -291,12 +299,12 @@ test('mortgage expected accounting publishes one verified journal with its resea
   await panel.getByRole('button', { name: 'Download partition', exact: true }).click();
   expect((await download).suggestedFilename()).toContain(`${id}-mortgage_lineage-0.parquet`);
   await page.reload();
-  const restored = page.getByRole('region', { name: 'Balance-sheet Stress', exact: true });
+  const restored = await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow', { exact: true }).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID', { exact: true })).toHaveValue(id);
   await expect(restored.getByText('Mortgage source economics verified', { exact: true })).toBeVisible();
   await expect(restored.getByText('Research journal only; capital and FTP unavailable', { exact: true })).toBeVisible();
-  expect(fullResults).toEqual([]);
+  expect(fullResultsFor(fullResults,id)).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -316,11 +324,11 @@ test('deposit purchase prefix and revised future preserve verified gross rights 
   const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
   const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Download partition',exact:true}).click();
   expect((await download).suggestedFilename()).toContain(`${id}-deposit_principal_lineage-0.parquet`);
-  await page.reload();const restored=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+  await page.reload();const restored=await partitionedPanel(page);
   await restored.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
   await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
   await expect(restored.getByText('Original anchors, native principal and gross cash origins verified',{exact:true})).toBeVisible();
-  expect(errors).toEqual([]);expect(fullResults).toEqual([]);
+  expect(errors).toEqual([]);expect(fullResultsFor(fullResults,id)).toEqual([]);
 });
 
 test('multiple performing deposit sources retain pooled verified journal on durable reopen',async({page})=>{
@@ -336,10 +344,10 @@ test('multiple performing deposit sources retain pooled verified journal on dura
  const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Download partition',exact:true}).click();
  expect((await download).suggestedFilename()).toContain(`${id}-deposit_revision-0.parquet`);
- await page.reload();const restored=page.getByRole('region',{name:'Balance-sheet Stress',exact:true});
+ await page.reload();const restored=await partitionedPanel(page);
  await restored.getByLabel('Simulation workflow',{exact:true}).selectOption('partitioned');
  await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
  await expect(restored.getByText('Complete owner sources and pooled gross-right journal verified',{exact:true})).toBeVisible();
  await expect(restored.getByText('Reviewed research policy; capital and FTP unavailable',{exact:true})).toBeVisible();
- expect(errors).toEqual([]);expect(full).toEqual([]);
+ expect(errors).toEqual([]);expect(fullResultsFor(full,id)).toEqual([]);
 });

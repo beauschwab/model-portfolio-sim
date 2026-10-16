@@ -23,5 +23,6 @@ test('joint deposit and derivative raw sources queues and reopens native mixed j
   expect(reopen.ok()).toBeTruthy();expect((await reopen.json()).total).toBeGreaterThan(0);
   const deposit=await page.request.get(`/api/jobs/${queued.id}/table?path=${encodeURIComponent('/deposit_principal_lineage')}&offset=0&limit=10`);
   expect(deposit.ok()).toBeTruthy();expect((await deposit.json()).total).toBeGreaterThan(0);
-  expect(hydration).toEqual([]);
+  // Background KPI refreshes may load their own results; this journal must stay partitioned.
+  expect(hydration.filter(url=>new URL(url).pathname.endsWith(`/jobs/${queued.id}/result`))).toEqual([]);
 });

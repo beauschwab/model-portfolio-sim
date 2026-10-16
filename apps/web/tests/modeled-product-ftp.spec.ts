@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
 
+// Background refreshes may load unrelated KPI results. Guard every source/report
+// owned by the test while retaining both full-result and manifest prohibitions.
+function fullHydrationFor(urls:string[],jobIds:string[]){
+  return urls.filter(url=>{
+    const path=new URL(url).pathname;
+    return jobIds.some(id=>path.endsWith(`/jobs/${id}/result`)||path.endsWith(`/jobs/${id}/manifest`));
+  });
+}
+
 test('raw modeled sources publish native FTP offsets and reopen bounded verified journal partitions',async({page})=>{
   test.setTimeout(150_000);
   const failures:string[]=[];const hydration:string[]=[];
@@ -28,7 +37,7 @@ test('raw modeled sources publish native FTP offsets and reopen bounded verified
   await reopened.getByLabel('Saved modeled FTP report ID').fill(id);
   await reopened.getByRole('button',{name:'Reopen modeled FTP report',exact:true}).click();
   await expect(reopened.getByText('Verified modeled-source journal',{exact:true})).toBeVisible({timeout:30_000});
-  expect(failures).toEqual([]);expect(hydration).toEqual([]);
+  expect(failures).toEqual([]);expect(fullHydrationFor(hydration,[id])).toEqual([]);
 });
 
 
@@ -69,7 +78,7 @@ for(const kind of ['card_v2','deposit_performing'] as const){
       await expect(panel.getByRole('status')).toHaveCount(0);
       const refused=await(await page.request.get(`/api/jobs/${ftpId}`)).json();expect(refused.status).toBe('error');
       const noResult=await page.request.get(`/api/jobs/${ftpId}/table?path=${encodeURIComponent('/tables/source_journal')}`);expect(noResult.ok()).toBeFalsy();
-      expect(hydration).toEqual([]);return;
+      expect(fullHydrationFor(hydration,[sourceJob,ftpId])).toEqual([]);return;
     }
     await expect.poll(async()=>{if(await panel.getByRole('alert').count())throw new Error(await panel.getByRole('alert').innerText());return panel.getByRole('status').count();},{timeout:100_000}).toBe(1);
     await expect(panel.getByRole('status')).toContainText('Report saved:',{timeout:100_000});
@@ -81,7 +90,7 @@ for(const kind of ['card_v2','deposit_performing'] as const){
     await page.reload();await page.getByRole('button',{name:'Open Capital & FTP',exact:true}).click();
     const reopened=page.getByRole('region',{name:'Capital & FTP',exact:true});await reopened.getByLabel('Treasury input source').selectOption('completed_products');
     await reopened.getByLabel('Saved modeled FTP report ID').fill(id);await reopened.getByRole('button',{name:'Reopen modeled FTP report',exact:true}).click();
-    await expect(reopened.getByText('Verified modeled-source journal',{exact:true})).toBeVisible({timeout:30_000});expect(hydration).toEqual([]);
+    await expect(reopened.getByText('Verified modeled-source journal',{exact:true})).toBeVisible({timeout:30_000});expect(fullHydrationFor(hydration,[sourceJob,id])).toEqual([]);
   });
 }
 
@@ -112,7 +121,7 @@ test('two completed source families retain explicit indexed reviews and native F
   await expect.poll(async()=>{if(await panel.getByRole('alert').count())throw new Error(await panel.getByRole('alert').innerText());return panel.getByRole('status').count();},{timeout:100_000}).toBe(1);
   const id=await panel.getByLabel('Saved modeled FTP report ID').inputValue();const response=await page.request.get(`/api/jobs/${id}/table?path=${encodeURIComponent('/tables/ftp_positions')}&offset=0&limit=100`);
   expect(response.ok()).toBeTruthy();const table=await response.json();expect(table.total).toBeGreaterThan(1);
-  const wire=JSON.stringify(table);for(const s of selections)expect(wire).toContain(s.source_id);expect(hydration).toEqual([]);
+  const wire=JSON.stringify(table);for(const s of selections)expect(wire).toContain(s.source_id);expect(fullHydrationFor(hydration,[...jobs,id])).toEqual([]);
 });
 
 for(const caseName of ['two40','one90'] as const){
@@ -154,7 +163,7 @@ for(const caseName of ['two40','one90'] as const){
       await expect(panel.getByRole('status')).toHaveCount(0);
       const refused=await(await page.request.get(`/api/jobs/${ftpId}`)).json();expect(refused.status).toBe('error');
       const noResult=await page.request.get(`/api/jobs/${ftpId}/table?path=${encodeURIComponent('/tables/source_journal')}`);expect(noResult.ok()).toBeFalsy();
-      expect(hydration).toEqual([]);return;
+      expect(fullHydrationFor(hydration,[sourceJob,ftpId])).toEqual([]);return;
     }
     await expect.poll(async()=>{if(await panel.getByRole('alert').count())throw new Error(await panel.getByRole('alert').innerText());return panel.getByRole('status').count();},{timeout:100_000}).toBe(1);
     await expect(panel.getByRole('status')).toContainText('Report saved:',{timeout:100_000});
@@ -166,7 +175,7 @@ for(const caseName of ['two40','one90'] as const){
     await page.reload();await page.getByRole('button',{name:'Open Capital & FTP',exact:true}).click();
     const reopened=page.getByRole('region',{name:'Capital & FTP',exact:true});await reopened.getByLabel('Treasury input source').selectOption('completed_products');
     await reopened.getByLabel('Saved modeled FTP report ID').fill(id);await reopened.getByRole('button',{name:'Reopen modeled FTP report',exact:true}).click();
-    await expect(reopened.getByText('Verified modeled-source journal',{exact:true})).toBeVisible({timeout:30_000});expect(hydration).toEqual([]);
+    await expect(reopened.getByText('Verified modeled-source journal',{exact:true})).toBeVisible({timeout:30_000});expect(fullHydrationFor(hydration,[sourceJob,id])).toEqual([]);
   });
 }
 
