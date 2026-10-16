@@ -114,7 +114,7 @@ fn fee_prefix(a: &fee::History, b: &fee::History, cut: i32) -> Result<(), String
 /// Retain all original Q/P proofs, model/contract identities, costs, quotes,
 /// original yields/spreads and allocation authorities. Only future histories
 /// may change; their observed source prefix is checked before generation.
-fn raw_prefix(r: &Request) -> Result<(), String> {
+pub(super) fn raw_prefix(r: &Request) -> Result<(), String> {
     let a = &r.completed_candidate;
     let b = &r.revised_candidate;
     if a.commercial.units.len() != b.commercial.units.len() {

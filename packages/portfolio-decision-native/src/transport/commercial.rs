@@ -33,6 +33,7 @@ impl<'de> Deserialize<'de> for Selection {
                                         | "analyze_commercial_treasury"
                                         | "analyze_commercial_candidate_fee_treasury"
                                         | "analyze_commercial_candidate_holding_journal"
+                                        | "analyze_commercial_cut_mixed_journal"
                                         | "analyze_commercial_candidate_journal"
                                         | "analyze_commercial_holding_journal"
                                         | "analyze_commercial_fee_journal"
@@ -48,6 +49,7 @@ impl<'de> Deserialize<'de> for Selection {
                                             | "commercial-treasury-1"
                                             | "commercial-candidate-fee-treasury-1"
                                             | "commercial-candidate-holding-journal-1"
+                                            | "commercial-cut-mixed-journal-1"
                                             | "commercial-candidate-journal-1"
                                             | "commercial-holding-journal-1"
                                     )
@@ -104,6 +106,8 @@ mod tests {
             r#"{"schema":"commercial-candidate-fee-treasury-1","schema":"legacy"}"#,
             r#"{"op":"analyze_commercial_candidate_holding_journal","op":"linear_program"}"#,
             r#"{"schema":"commercial-candidate-holding-journal-1","schema":"legacy"}"#,
+            r#"{"op":"analyze_commercial_cut_mixed_journal","op":"linear_program"}"#,
+            r#"{"schema":"commercial-cut-mixed-journal-1","schema":"legacy"}"#,
         ] {
             assert!(parse(raw.as_bytes())
                 .unwrap_err()

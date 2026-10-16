@@ -359,7 +359,8 @@ pub fn run_generated_stream_started(
             Some(&original),
             Box::new(output.clone()),
             (0, 0),
-            false,
+            super::PreparationMode::Execute,
+            None,
         )?;
         emit(
             &mut output,

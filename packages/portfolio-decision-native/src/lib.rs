@@ -16,6 +16,7 @@ pub use workflows::candidates as product_candidate_journal;
 pub use workflows::commercial::candidate_holdings as commercial_candidate_holding;
 pub use workflows::commercial::candidates as commercial_candidate_journal;
 pub use workflows::commercial::credit as commercial_ledger;
+pub use workflows::commercial::cut_mixed as commercial_cut_mixed;
 pub use workflows::commercial::fee_candidate_treasury as commercial_fee_candidate_treasury;
 pub use workflows::commercial::fees as commercial_fee_journal;
 pub use workflows::commercial::holdings as commercial_holding_journal;

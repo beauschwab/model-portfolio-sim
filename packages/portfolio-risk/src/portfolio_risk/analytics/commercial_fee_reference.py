@@ -148,6 +148,17 @@ def verify_tables(prepared,fee_sources,loan,tables,check):
         group=dict(phase='commercial_nonintegral_fee'if kind else meta['native_atomic_group']['phase'])
         converted.append((scenario,day,year,bi,i,dict(position_id=meta['position_id'],native_atomic_group=group),lines))
     wanted=reports(prepared,converted,check)
+    # Explicit independent-oracle mode derives complete tables from raw owners.
+    # Production callers still provide tables and take every existing gate below.
+    if tables is None:
+        daily.sort(key=lambda r:(order[r['scenario']],r['day'],binding_order[r['scenario'],r['position_id'],r['path_key']]))
+        fee_daily.sort(key=lambda r:(order[r['scenario']],r['day'],binding_order[r['scenario'],r['position_id'],r['path_key']],r['fee_id']))
+        for row in wanted['journal']:
+            number=int(row.pop('transaction_id').rsplit(':',1)[1]);value=row.pop('debit')-row.pop('credit')
+            row.update(transaction_number=number,value=value)
+        wanted.update(commercial_source_lineage=loan_lineage,commercial_fee_lineage=fee_lineage,commercial_daily=daily,commercial_fee_daily=fee_daily,
+            commercial_closing=[r for r in daily if r['day']==prepared['horizon']],commercial_fee_closing=[r for r in fee_daily if r['day']==prepared['horizon']])
+        return wanted
     allowed=set(wanted)|{'commercial_source_lineage','commercial_fee_lineage','commercial_daily','commercial_closing','commercial_fee_daily','commercial_fee_closing'}
     if set(tables)-allowed:raise ValueError('fee journal table ownership differs')
     for table,rows in wanted.items():

@@ -112,15 +112,37 @@ fn days(year: f64) -> Result<usize, String> {
     }
     Ok(result as usize)
 }
+#[path = "candidate_preparation_capacity.rs"]
+mod preparation_capacity;
+#[derive(Clone, Copy)]
+enum PreparationMode {
+    Execute,
+    AdmitOrdinary,
+    AdmitBorrowed,
+}
+
+type FiniteConsumer<'consumer> = dyn for<'source> FnMut(
+        &'source portfolio_ledger_native::types::Spec,
+        &'source units::Prepared,
+        &ledger::Compiled<'source>,
+    ) -> Result<(), String>
+    + 'consumer;
+
 fn prepare_and_run(
     r: &Request,
     generated: bool,
     original: Option<&Value>,
     mut output: Box<dyn Write + Send>,
     bridge_reservation: (usize, usize),
-    admission_only: bool,
+    mode: PreparationMode,
+    consumer: Option<&mut FiniteConsumer<'_>>,
 ) -> Result<(Option<Preparation>, i32, usize, Admission), String> {
     portfolio_compute_control::checkpoint()?;
+    if generated && consumer.is_some() {
+        return Err(
+            "finite native preparation callback cannot borrow compact generated owners".into(),
+        );
+    }
     validate_ordinal(r.as_of_ordinal)?;
     validate_ordinal(r.reporting_end_ordinal)?;
     if r.schema != if generated { GENERATED_SCHEMA } else { SCHEMA }
@@ -177,6 +199,7 @@ fn prepare_and_run(
             }
         }
     }
+    let preparation_only = consumer.is_some() || matches!(mode, PreparationMode::AdmitBorrowed);
     let mut work = add(mul(raw_bytes, 8)?, units::audit_source_work(&r.commercial)?)?;
     let mut bytes = mul(raw_bytes, 20)?;
     let mut s = spec::normalize(r.specification.clone(), 512, 8_000_000)?;
@@ -230,6 +253,7 @@ fn prepare_and_run(
     let mut generated_owner_bytes = 0usize;
     let mut generated_retained_bytes = 0usize;
     let mut fee_groups_upper = 0usize;
+    let mut preparation_groups = 0usize;
     for ((u, a), o) in r.commercial.units.iter().zip(&r.allocation).zip(&r.owners) {
         if a.unit_id != u.unit_id
             || o.unit_id != u.unit_id
@@ -356,8 +380,14 @@ fn prepare_and_run(
             add(admitted.lots_per_path_upper, 1)?,
             s.horizon_days,
         )?;
-        work = add(work, upper.0)?;
-        bytes = add(bytes, add(admitted.joined_bytes_upper, upper.1)?)?;
+        if !preparation_only {
+            work = add(work, upper.0)?;
+            bytes = add(bytes, add(admitted.joined_bytes_upper, upper.1)?)?;
+        }
+        preparation_groups = add(
+            preparation_groups,
+            add(admitted.accounting_groups_upper, 8)?,
+        )?;
         reserved = (add(reserved.0, upper.0)?, add(reserved.1, upper.1)?);
     }
     if fee_groups_upper > 0 {
@@ -366,17 +396,44 @@ fn prepare_and_run(
         let rows = mul(fee_groups_upper, 10)?;
         let fee_work = mul(mul(rows, add(s.horizon_days, 1)?)?, 16)?;
         let fee_bytes = mul(rows, 4096)?;
-        work = add(work, fee_work)?;
-        bytes = add(bytes, fee_bytes)?;
+        if !preparation_only {
+            work = add(work, fee_work)?;
+            bytes = add(bytes, fee_bytes)?;
+        }
         reserved = (add(reserved.0, fee_work)?, add(reserved.1, fee_bytes)?);
     }
-    work = add(
-        work,
-        mul(
-            mul(s.horizon_days, s.positions.len() + s.accounts.len())?,
-            ledger_runs.len(),
-        )?,
-    )?;
+    if preparation_only {
+        let graph_bytes = r.commercial.units.iter().try_fold(0usize, |total, unit| {
+            add(
+                total,
+                portfolio_risk_native::commercial_graph::audit_capacity(&unit.graph)?
+                    .retained_bytes_upper,
+            )
+        })?;
+        let cells = mul(
+            mul(r.commercial.units.len(), ledger_runs.len())?,
+            r.commercial.reporting_ordinals.len(),
+        )?;
+        let capacity = preparation_capacity::census(preparation_capacity::Input {
+            groups: add(preparation_groups, fee_groups_upper)?,
+            bindings: add(reservations.len(), fee_groups_upper)?,
+            positions: s.positions.len(),
+            accounts: s.accounts.len(),
+            scenario_label_bytes: ledger_runs.iter().map(|s| s.len()).max().unwrap_or(0),
+            coefficient_cells: mul(cells, 11)?,
+            graph_bytes,
+        })?;
+        work = add(work, capacity.work)?;
+        bytes = add(bytes, capacity.bytes)?;
+    } else {
+        work = add(
+            work,
+            mul(
+                mul(s.horizon_days, s.positions.len() + s.accounts.len())?,
+                ledger_runs.len(),
+            )?,
+        )?;
+    }
     if generated {
         // Metadata/Q ownership is released before the compact accounting phase.
         // Both phases retain raw input; only the P recipe/proof phase coexists
@@ -404,7 +461,7 @@ fn prepare_and_run(
             .ok_or("candidate ordinal overflow")?,
         output_bytes_upper: MAX_BYTES,
     };
-    if admission_only {
+    if !matches!(mode, PreparationMode::Execute) {
         return Ok((None, admission.full_end_ordinal, 0, admission));
     }
     let prepared = units::prepare(&r.commercial)?;
@@ -509,7 +566,11 @@ fn prepare_and_run(
             physical_paths,
         )?;
     }
-    daily::run_with_commercial(&s, None, &compiled, output)?;
+    if let Some(consume) = consumer {
+        consume(&s, &prepared, &compiled)?;
+    } else {
+        daily::run_with_commercial(&s, None, &compiled, output)?;
+    }
     drop(compiled);
     portfolio_compute_control::checkpoint()?;
     Ok((
@@ -535,9 +596,54 @@ pub(super) struct Admission {
 }
 /// Exact ordinary admission, with no graph, stopped owner or Sim generation.
 pub(super) fn admit_finite(r: &Request) -> Result<Admission, String> {
-    let (_, _, _, admission) =
-        prepare_and_run(r, false, None, Box::new(std::io::sink()), (0, 0), true)?;
+    let (_, _, _, admission) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        (0, 0),
+        PreparationMode::AdmitOrdinary,
+        None,
+    )?;
     Ok(admission)
+}
+
+/// Preparation-only admission is selected only by the native cut callback.
+/// Original source/graph work is unchanged; full daily runtime is separately
+/// charged by the cut component before either source can be generated.
+pub(super) fn admit_finite_preparation(r: &Request) -> Result<Admission, String> {
+    let (_, _, _, admission) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        (0, 0),
+        PreparationMode::AdmitBorrowed,
+        None,
+    )?;
+    Ok(admission)
+}
+
+/// Native-only borrow scope. Prepared source and Compiled remain genuine and
+/// live for the callback; no financial checkpoint can be supplied or escaped.
+pub(super) fn with_finite_compiled(
+    r: &Request,
+    reservation: (usize, usize),
+    consumer: &mut FiniteConsumer<'_>,
+) -> Result<(Preparation, Admission), String> {
+    let (prepared, _, _, admission) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        reservation,
+        PreparationMode::Execute,
+        Some(consumer),
+    )?;
+    Ok((
+        prepared.ok_or("finite native preparation absent")?,
+        admission,
+    ))
 }
 
 pub fn evaluate(r: &Request) -> Result<ResultData, String> {
@@ -562,10 +668,116 @@ pub(super) fn evaluate_reserved_bounded(
         return Err("candidate bounded result tier exceeds ordinary output capacity".into());
     }
     let output = Buffer(Arc::default(), output_limit);
-    let (preparation, full_end, _, _) =
-        prepare_and_run(r, false, None, Box::new(output.clone()), reservation, false)?;
+    let (preparation, full_end, _, _) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(output.clone()),
+        reservation,
+        PreparationMode::Execute,
+        None,
+    )?;
     let preparation = preparation.ok_or("finite candidate preparation absent")?;
     let data = std::mem::take(&mut *output.0.lock().map_err(|_| "candidate buffer poisoned")?);
+    let protocol = if r
+        .commercial
+        .units
+        .iter()
+        .any(|u| u.graph.positions.iter().any(|p| p.fees.is_some()))
+    {
+        7
+    } else {
+        ledger::PROTOCOL
+    };
+    let (tables, completion) = decode_stream(&data, protocol)?;
+    let result=ResultData{schema:SCHEMA,preparation,tables,producer_completion:completion,reporting_end_ordinal:r.reporting_end_ordinal,full_end_ordinal:full_end,shared_daily_sim_adoption:true,graph_exercise_source_adoption:true,independent_persisted_verification:false,opening_identity_verified:false,mixed_ledger_adoption:false,empirical_validation:false,scope:"actual purchased commercial candidates from sealed native unit/conditional-exercise Physical sources; original Pricing OAS and separate stopped Physical acquisition/EIR anchors retained; complete daily source/default/coupon/recovery tails in one existing Sim; no caller monetary owner or generic mixed book; supplied opening receipt identity is not verified opening evidence"};
+    strict_json::serialized_size(&result, output_limit)?;
+    portfolio_compute_control::checkpoint()?;
+    Ok(result)
+}
+/// Admit the complete columnar-to-row Value expansion before materialization.
+/// The ordinary decoder and its historical outputs remain unchanged.
+pub(super) fn decode_stream_bounded(
+    data: &[u8],
+    protocol: u32,
+    value_bytes: usize,
+) -> Result<(BTreeMap<String, Vec<Value>>, Value), String> {
+    // Parsed source rows and their ordinary cloned rows can coexist. Forty
+    // times encoded bytes bounds both Values under the retained JSON policy.
+    let mut upper = mul(data.len(), 40)?;
+    if upper > value_bytes {
+        return Err("native cut decoded Value phase exceeds64MiB".into());
+    }
+    let mut dictionary = Vec::<String>::new();
+    for line in data.split(|b| *b == b'\n').filter(|b| !b.is_empty()) {
+        portfolio_compute_control::checkpoint()?;
+        let row = strict_json::parse(line, MAX_BYTES)?;
+        if row.get("table").and_then(Value::as_str) != Some("journal") {
+            continue;
+        }
+        let labels = row["dictionary"]
+            .as_array()
+            .ok_or("candidate journal dictionary absent")?;
+        for label in labels {
+            dictionary.push(
+                label
+                    .as_str()
+                    .ok_or("candidate journal dictionary label differs")?
+                    .to_string(),
+            );
+        }
+        let columns = row["columns"]
+            .as_object()
+            .ok_or("candidate journal columns absent")?;
+        let count = columns
+            .get("value")
+            .and_then(Value::as_array)
+            .ok_or("candidate journal values absent")?
+            .len();
+        if columns.len() != 8
+            || columns
+                .values()
+                .any(|v| v.as_array().is_none_or(|v| v.len() != count))
+        {
+            return Err("candidate journal column shape differs".into());
+        }
+        for i in 0..count {
+            let mut encoded = 2usize;
+            for (key, values) in columns {
+                encoded = add(encoded, add(mul(key.len(), 6)?, 8)?)?;
+                let value = &values[i];
+                let amount = if matches!(
+                    key.as_str(),
+                    "scenario" | "account" | "event" | "gl_account" | "instrument_id"
+                ) {
+                    let index = usize::try_from(
+                        value
+                            .as_u64()
+                            .ok_or("candidate journal dictionary index differs")?,
+                    )
+                    .map_err(|_| "candidate dictionary overflow")?;
+                    let label = dictionary
+                        .get(index)
+                        .ok_or("candidate journal dictionary index absent")?;
+                    add(mul(label.len(), 6)?, 2)?
+                } else {
+                    64
+                };
+                encoded = add(encoded, amount)?;
+            }
+            upper = add(upper, mul(encoded, 20)?)?;
+            if upper > value_bytes {
+                return Err("native cut decoded dictionary expansion exceeds64MiB".into());
+            }
+        }
+    }
+    decode_stream(data, protocol)
+}
+
+pub(super) fn decode_stream(
+    data: &[u8],
+    protocol: u32,
+) -> Result<(BTreeMap<String, Vec<Value>>, Value), String> {
     let mut tables: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut completion = None;
     let mut dictionary = Vec::<String>::new();
@@ -631,17 +843,7 @@ pub(super) fn evaluate_reserved_bounded(
                     .extend(rows.iter().cloned());
             }
         } else if row.get("complete") == Some(&Value::Bool(true))
-            && row.get("protocol")
-                == Some(&json!(if r.commercial.units.iter().any(|u| u
-                    .graph
-                    .positions
-                    .iter()
-                    .any(|p| p.fees.is_some()))
-                {
-                    7
-                } else {
-                    ledger::PROTOCOL
-                }))
+            && row.get("protocol") == Some(&json!(protocol))
             && completion.is_none()
         {
             completion = Some(row);
@@ -650,11 +852,9 @@ pub(super) fn evaluate_reserved_bounded(
         }
     }
     let completion = completion.ok_or("candidate native journal did not complete")?;
-    let result=ResultData{schema:SCHEMA,preparation,tables,producer_completion:completion,reporting_end_ordinal:r.reporting_end_ordinal,full_end_ordinal:full_end,shared_daily_sim_adoption:true,graph_exercise_source_adoption:true,independent_persisted_verification:false,opening_identity_verified:false,mixed_ledger_adoption:false,empirical_validation:false,scope:"actual purchased commercial candidates from sealed native unit/conditional-exercise Physical sources; original Pricing OAS and separate stopped Physical acquisition/EIR anchors retained; complete daily source/default/coupon/recovery tails in one existing Sim; no caller monetary owner or generic mixed book; supplied opening receipt identity is not verified opening evidence"};
-    strict_json::serialized_size(&result, output_limit)?;
-    portfolio_compute_control::checkpoint()?;
-    Ok(result)
+    Ok((tables, completion))
 }
+
 pub fn run_envelope_started(bytes: &[u8], started: Instant) -> Result<Value, String> {
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
@@ -683,4 +883,40 @@ pub fn run_envelope_started(bytes: &[u8], started: Instant) -> Result<Value, Str
         portfolio_compute_control::checkpoint()?;
         serde_json::to_value(result).map_err(|e| e.to_string())
     })
+}
+
+#[cfg(test)]
+mod cut_decoder_tests {
+    use super::*;
+    fn stream() -> Vec<u8> {
+        let row = json!({"table":"journal","dictionary":["baseline","bank","opening","cash",""],
+            "columns":{"transaction_number":[1],"scenario":[0],"day":[3],"account":[1],"event":[2],"gl_account":[3],"instrument_id":[4],"value":[2.0]}});
+        format!("{}\n{}\n", row, json!({"complete":true,"protocol":8})).into_bytes()
+    }
+    #[test]
+    fn bounded_decoder_preserves_every_ordinary_decoded_cell() {
+        let data = stream();
+        let expected = decode_stream(&data, 8).unwrap();
+        let actual = decode_stream_bounded(&data, 8, 1 << 20).unwrap();
+        assert_eq!(expected, actual);
+        assert_eq!(actual.0["journal"][0]["value"], 2.0);
+    }
+    #[test]
+    fn bounded_decoder_reserves_dictionary_expansion_before_cloning_rows() {
+        let data = stream();
+        let error = decode_stream_bounded(&data, 8, data.len() * 40).unwrap_err();
+        assert!(error.contains("dictionary expansion"));
+    }
+    #[test]
+    fn bounded_decoder_rejects_incomplete_or_malformed_native_stream() {
+        assert!(decode_stream_bounded(
+            b"{\"table\":\"journal\",\"dictionary\":[],\"columns\":{}}",
+            8,
+            1 << 20
+        )
+        .is_err());
+        assert!(
+            decode_stream_bounded(b"{\"complete\":true,\"protocol\":7}\n", 8, 1 << 20).is_err()
+        );
+    }
 }

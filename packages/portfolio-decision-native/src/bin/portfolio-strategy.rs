@@ -15,6 +15,11 @@ fn main() {
             return Err("request exceeds 128 MiB".into());
         }
         let request = portfolio_decision_native::commercial_intake::parse(&input)?;
+        if request["op"] == "analyze_commercial_cut_mixed_journal" {
+            return portfolio_decision_native::commercial_cut_mixed::run_envelope_started(
+                &input, started,
+            );
+        }
         if request["op"] == "analyze_commercial_candidate_holding_journal" {
             return portfolio_decision_native::commercial_candidate_holding::run_envelope_started(
                 &input, started,

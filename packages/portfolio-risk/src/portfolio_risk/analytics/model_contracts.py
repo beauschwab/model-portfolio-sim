@@ -7,6 +7,12 @@ There is no selectable Python financial implementation or fallback here.
 from ..core.quant_native import term_call
 
 
+def journal_commercial_cut_mixed(request: dict, **execution_options) -> dict:
+    """Transport complete source authority into a genuinely resumed native Sim."""
+    from ..core.commercial_cut_mixed_native import run
+    return run(request, **execution_options)[0]
+
+
 def journal_commercial_candidate_holding(request: dict, **execution_options) -> dict:
     """Transport original candidate anchors and an unchanged observed holding prefix."""
     from ..core.commercial_candidate_holding_native import run

@@ -71,10 +71,8 @@ def allocation(source,allocations,check):
     return dict(schema='commercial-strategy-replay-1',units=source['units'],allocated_face=faces,total_asset_face=face,total_asset_purchase_cost=cost,worst_incremental_external_nii=worst,scenarios=scenarios,source_cash_replayed=True)
 
 
-def verify(raw,actual,check=lambda:False):
-    names='schema preparation tables producer_completion reporting_end_ordinal full_end_ordinal shared_daily_sim_adoption graph_exercise_source_adoption independent_persisted_verification opening_identity_verified mixed_ledger_adoption empirical_validation scope'
-    if set(actual)!=set(names.split())or raw['schema']!=SCHEMA or actual['schema']!=SCHEMA:raise ArithmeticError('candidate strict schema differs')
-    prep=actual['preparation']
+def verify_preparation(raw,prep,check=lambda:False):
+    """Recompute raw graph/allocation/specification without consuming a daily journal."""
     if set(prep)!=set('raw_request native_preparation allocation_replay resolved_specification admitted_work_upper retained_bytes_upper'.split())or not exact_json_identity(raw,prep['raw_request'])or set(prep['native_preparation'])!={'source'}:raise ArithmeticError('candidate immutable raw/preparation differs')
     units=raw['commercial'];source=prep['native_preparation']['source'];verify_units(units,source,check)
     expected=allocation(source,raw['allocation'],check);received=deepcopy(prep['allocation_replay']);scope=received.pop('scope',None)
@@ -121,6 +119,13 @@ def verify(raw,actual,check=lambda:False):
     from .commercial_reports_reference import scope as verify_scope
     verify_scope(spec,[a['position_id']for a in alloc])
     derived=dict(allocations=alloc,participations=participations);control=dict(spec=spec,horizon=full,sources=controls)
+    return control,derived,fee_sources
+
+
+def verify(raw,actual,check=lambda:False):
+    names='schema preparation tables producer_completion reporting_end_ordinal full_end_ordinal shared_daily_sim_adoption graph_exercise_source_adoption independent_persisted_verification opening_identity_verified mixed_ledger_adoption empirical_validation scope'
+    if set(actual)!=set(names.split())or raw['schema']!=SCHEMA or actual['schema']!=SCHEMA:raise ArithmeticError('candidate strict schema differs')
+    prep=actual['preparation'];control,derived,fee_sources=verify_preparation(raw,prep,check);full=control['horizon']
     if any(f is not None for rows in fee_sources for f in rows):
         if not exact_json_identity(actual['producer_completion'],dict(complete=True,protocol=7)):raise ArithmeticError('purchased fee protocol differs')
         from .commercial_fee_reference import verify_tables
