@@ -1530,6 +1530,14 @@ paths or complete recovery tails, infer monetary checkpoints, enlarge budgets or
 provide an aggregate RSS guarantee. Broader joint exercise/holding and cut-route
 admission remain separate engineering and evidence gates.
 
+The selected complete-tail census keeps contractual cash rows separate from
+coupon-claim lots and uses every supplied recovery policy across prepared
+intervals. Before-growth guards cover all retained categories, nested bodies and
+terminal traces. Explicit economic-only owners omit only the accounting book
+they never compile; reviewed Physical owners retain that book. Original/buyer
+source passes, signed rights and complete tails remain charged. Historical
+omission is unchanged. See docs/models/commercial-finite-tail-work.md.
+
 `commercial-generated-candidate-fee-journal-1` retains joint loan/fee exercise,
 separate fee spread/quote/acquired cost, full signed fee cash and recovery tails,
 and bounded compact native owners in protocol 7. Loan OAS/EIR/NII are separate;
