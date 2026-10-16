@@ -42,19 +42,24 @@ See [the caller audit](../reviews/2026-10-16-native-svd-secondary-audit.md).
 
 The bounded checked native solver is now integrated as development code. Its
 matching isolated replay passes all 48 unchanged cases, plus the earlier 60- and
-24-case families. The unchanged 107-case family retains four newly exposed work
-refusals in addition to its original expected refusal. Those four are not
-reclassified or removed: a raw-law column/work census is being corrected while
-preserving every feature and source evaluation. A combined fee-product fixture
-also newly refuses at 4,472,547,840 work; a separately tested proof of constant
-unstopped fee observations under zero credit hazards is not yet integrated into
-that census. All component limits remain unchanged.
+24-case families. The first unchanged 107-case replay exposed four new work
+refusals in addition to its original expected refusal. The integrated raw-law
+column/scan census restores all four: subsequent unchanged replay has 106 passes
+and only the original declared refusal. Every feature and source evaluation
+remains. The combined fee graph's original 4,472,547,840-work refusal is retained;
+the integrated fixed-fee observation proof restores that exact raw graph at
+3,261,133,520 work with independent source replay. All limits remain unchanged.
+Two cubic cases have tiny coefficient/spectrum changes from repair of a separately
+confirmed invalid legacy decomposition; their decisions, cash and valuation fields
+are identical. The actual-matrix audit retains all eight two-date matrices.
 
 The shared tall/wide history correction is also integrated as development code.
 It passes all 28 actual-public-fit/NumPy comparisons, 82 public calibration
 controls, 16 focused native controls and strict risk checks in its matching
-isolated build. The four original incorrect financial fits are repaired. Two
-generated-product work refusals remain in the broader native run. These contained
+isolated build. The four original incorrect financial fits are repaired. Both
+generated-product work refusals in the initial broader native run are restored by
+the integrated census. The combined native run passes 197 tests; four focused
+fee-proof controls and 25 independent reserve controls also pass. These contained
 results do not establish combined installed acceptance; see
 [the history contract](native-history-least-squares.md).
 
@@ -66,7 +71,7 @@ results do not establish combined installed acceptance; see
 | Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims; later separate dated principal and retained coupon nominal | Alternative legal true-up policies and delayed-publication generated loadings |
 | Generated paths | Explicit complete Physical path catalogs, canonical source dimensions and paired original anchors; compact candidate journals, positive reviewed actions, counted actual draw-source construction and generated loan/fee streams | Final combined regression is pending; generated draw fees, secondary generated rights and wider joint/mixed scale remain |
 | Source capacity | Explicit finite transfer authority counts the true origin and both actual buyer builds, canonical scans and source operations. Complete carry/claim/recovery/body census and before-growth guards now retain separate economic/book roles; selected prepaid exercise and no-option dual holdings have positive independent/persisted component controls | With the new complete-tail census, joint exercise plus dual holding still refuses at 49,586,912 work /54,466,096 bytes. Caps, samples, all actual source passes and complete tails remain unchanged |
-| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. Exact-constant classification is corrected with unchanged paired financial output. The checked correction passes all 48 formerly failing-family cases and all 28 actual history comparisons in matching isolated builds | Restore the unchanged 107-case family and existing generated-product capacity gates, then run combined installed acceptance. Broader contract/driver/seed/step/basis convergence and observed validation remain |
+| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. The checked correction passes all 48 formerly failing-family cases and all 28 actual history comparisons. The unchanged 107 cases again have 106 passes and the original declared refusal; both generated-product native fixtures are restored | Complete matching combined installed acceptance. Broader contract/driver/seed/step/basis convergence and observed validation remain |
 | Application | Durable generated stream, fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening passed the accepted 0.29.19 checkpoint | Matching release/full regression and browser acceptance for the subsequent combined changes; deployment/restarts and explicit saved-library/session rebuilds |
 
 See [fee adoption](commercial-fee-adoption.md),

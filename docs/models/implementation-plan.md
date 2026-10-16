@@ -47,9 +47,14 @@ The integrated development correction now has matching isolated passes for all
 48 original stochastic-coupon cases and all 28 actual history/NumPy comparisons;
 the old failed receipts remain immutable. Public history calibration has 82
 additional/retained controls and 16 focused native controls. The complete
-107-case replay exposes four new work refusals, and two existing generated-role
-native fixtures also refuse. A structural numerical-column/scan census is being
-refined without removing features or widening limits. Full matching installed
+initial 107-case replay exposed four new work refusals. The integrated structural
+column/scan census restores all four; the unchanged replay has 106 passes and its
+original declared refusal. Both generated-role native fixtures are restored, and
+the genuine fee graph independently replays at 3,261,133,520 work. All features,
+source passes and limits remain. The combined native run passes 197 tests, with
+four focused fee-proof and 25 independent work controls also passing. Two tiny
+cubic coefficient/spectrum changes are traced to actual invalid legacy factors;
+their decisions, cash and valuation outputs are identical. Full matching installed
 acceptance remains pending.
 
 The selected cut receipt-lifetime stage is diagnostic only. Its complete source,
