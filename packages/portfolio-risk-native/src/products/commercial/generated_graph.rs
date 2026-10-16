@@ -27,6 +27,8 @@ pub fn admit(
     p: &graph::Position,
     g: &generated::Request,
 ) -> Result<generated::Admission, String> {
+    let selected = generated::selected_request(g)?;
+    let g = selected.as_ref();
     if r.positions.len() != 1
         || p.exercise.is_some()
         || !p.histories.is_empty()
@@ -119,7 +121,9 @@ pub fn admit(
             mul(
                 generated::current_physical_source_capacity(g, law)?.raw_recipe_bytes_upper,
                 law.evaluation.paths,
-            )?,
+            )?
+            .checked_sub(generated::shared_authority_lower(g, law, false)?)
+            .ok_or("shared Physical authority reservation differs")?,
         )?;
     }
     // The public proof is a Serialize view of the SAME native Arc owner. There
@@ -207,6 +211,8 @@ pub fn analyze(
     g: &generated::Request,
     work: usize,
 ) -> Result<graph::ResultData, String> {
+    let selected = generated::selected_request(g)?;
+    let g = selected.as_ref();
     check()?;
     let (prepared, base_oas, calibration) = if let Some(policy) = &g.oas_calibration {
         let solved = stochastic::calibration::solve(

@@ -99,7 +99,9 @@ def validate(g,check=lambda:False):
     same_draw_catalog(g['original_physical']['source'],original)
     inputs=g.get('physical_path_inputs')
     if inputs is None:return
-    if set(inputs)!={'schema','identity','original_physical','current_physical'}or inputs['schema']!=SCHEMA or len(inputs['current_physical'])!=len(g['current_physical']):raise ArithmeticError('versioned complete Physical path schema required')
+    if set(inputs)-{'schema','identity','original_physical','current_physical','source_work_policy'} or not {'schema','identity','original_physical','current_physical'}<=set(inputs) or inputs.get('source_work_policy')not in(None,'counted_native_contract_factor_work-1') or inputs['schema']!=SCHEMA or len(inputs['current_physical'])!=len(g['current_physical']):raise ArithmeticError('versioned complete Physical path schema required')
+    from .commercial_factor_work_reference import validate_generated
+    validate_generated(g)
     _id(inputs['identity']);_role(g['original_physical'],inputs['original_physical'],check);seen=set()
     for scene,law in zip(inputs['current_physical'],g['current_physical'],strict=True):
         if set(scene)!={'scenario_id','inputs'}or scene['scenario_id']!=law['source']['source']['current']['scenario_id']or scene['scenario_id']in seen:raise ArithmeticError('Physical path scenario order differs')

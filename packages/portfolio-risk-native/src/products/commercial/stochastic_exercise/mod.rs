@@ -355,7 +355,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .map(Vec::len)
         .max()
         .unwrap_or(0);
-    let cash_upper = r
+    let legacy_cash_upper = r
         .source
         .source
         .current
@@ -370,6 +370,11 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         )
         .and_then(|n| n.checked_add(recovery_cash + 4))
         .ok_or("generated cash upper overflow")?;
+    let cash_upper = if r.source.counted_work.is_some() {
+        cash_event_bound(&r.source)?
+    } else {
+        legacy_cash_upper
+    };
     let features = feature_bound(r)?;
     // Include observed reset history and gross coupon entitlements. Net A/current
     // OU state alone is not Markov for coupons fixed earlier or lagged hazards.
@@ -399,6 +404,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     }
     Ok((total, bytes))
 }
+pub(crate) use sources::cash_event_bound;
 pub(crate) fn regression_columns_upper(r: &Request) -> Result<usize, String> {
     Ok(
         basis::columns(feature_bound(r)?, basis::degree(&r.regression_policy)?)
@@ -585,6 +591,7 @@ pub(crate) fn generated_path_from_source(
         raw.credit.intervals[loading.interval_index].hazards_per_year[loading.origin_index]
             [loading.destination_index] = value;
     }
+    crate::commercial_generated_policy::refresh_counted_source(&mut raw)?;
     Ok(raw)
 }
 pub(crate) struct Point {
@@ -608,6 +615,9 @@ fn collect(r: &Request, sample: &Sample, tape: &Tape) -> Result<Vec<Path>, Strin
         let raw = path_request(r, sample, tape, i)?;
         let generated = owner::evaluate_economic_with_measure(&raw, CreditMeasure::Pricing)?;
         let cash = economic_cash(generated.carry())?;
+        if raw.counted_work.is_some() && cash.len() > cash_event_bound(&raw)? {
+            return Err("native cash output exceeds counted source inventory".into());
+        }
         let mut points = Vec::new();
         for date in &r.policy.exercise_dates {
             points.push(compiled_point_features(

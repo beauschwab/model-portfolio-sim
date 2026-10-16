@@ -18,7 +18,7 @@ pub use crate::products::commercial::factor_source::draws::{
 };
 
 #[cfg(test)]
-thread_local! { pub(crate) static OWNER_EVALUATIONS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; }
+thread_local! {pub(crate) static COUNTED_OWNER_WORK: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; pub(crate) static OWNER_EVALUATIONS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; }
 pub const SCHEMA: &str = "commercial-source-credit-accounting-proof-1";
 const MAX_WORK: usize = 8_000_000;
 const MAX_BYTES: usize = 128 << 20;
@@ -78,6 +78,9 @@ pub struct Request {
     pub performing_draw_tranches: Vec<PerformingDrawTranche>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reviewed_credit_actions: Option<book::reviews::ReviewedActions>,
+    #[serde(skip)]
+    pub(crate) counted_work:
+        Option<Box<crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -890,6 +893,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
             if cut <= 0. {
                 continue;
             }
+            view.source.count_terminal_scan()?;
             let mut clocks: Vec<_> = view
                 .source
                 .segments()
@@ -1676,17 +1680,19 @@ fn evaluate_economic_internal(
     let Prepared {
         credit, admission, ..
     } = prepare(r, 0, 0, measure, stops)?;
-    let original_source = NativeFactors::compile_for_measure(
+    let original_source = NativeFactors::compile_for_measure_with_work(
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
         source_measure(measure),
+        r.counted_work.as_deref(),
     )?;
-    let current_source = NativeFactors::compile_for_measure(
+    let current_source = NativeFactors::compile_for_measure_with_work(
         r.source.current.clone(),
         r.factor_policy.clone(),
         admission.maximum_queries,
         source_measure(measure),
+        r.counted_work.as_deref(),
     )?;
     let draw_sources = if check_original_quote {
         project_draws(r, measure, admission.maximum_queries)?
@@ -1713,7 +1719,13 @@ fn evaluate_economic_internal(
         return Err("observed economic credit/source output exceeds native admission".into());
     }
     #[cfg(test)]
-    OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+    {
+        OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+        if r.counted_work.is_some() {
+            COUNTED_OWNER_WORK
+                .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
+        }
+    }
     check()?;
     let result = EconomicResult {
         original_source,
@@ -1763,6 +1775,9 @@ fn prepare(
     stops: &[NativeStop],
 ) -> Result<Prepared, String> {
     check()?;
+    if let Some(authority) = &r.counted_work {
+        authority.verify(r)?;
+    }
     if r.schema != SCHEMA {
         return Err("unsupported commercial native compiler schema".into());
     }
@@ -1787,17 +1802,19 @@ fn prepare(
         add(r.credit.max_jumps_per_path, 1)?,
     )?;
     let queries = mul(r.credit.paths.len(), mul(sojourns, 2)?)?;
-    let original_admission = NativeFactors::admit_for_measure(
+    let original_admission = NativeFactors::admit_for_measure_with_work(
         &r.source.original,
         &r.factor_policy,
         0,
         source_measure(measure),
+        r.counted_work.as_deref(),
     )?;
-    let current_admission = NativeFactors::admit_for_measure(
+    let current_admission = NativeFactors::admit_for_measure_with_work(
         &r.source.current,
         &r.factor_policy,
         queries,
         source_measure(measure),
+        r.counted_work.as_deref(),
     )?;
     let mut source_work = add(original_admission.work_upper, current_admission.work_upper)?;
     let mut source_bytes = add(
@@ -1807,17 +1824,19 @@ fn prepare(
     let mut segments = current_admission.segment_bound;
     let mut periods = r.source.current.periods.len();
     for draw in &r.performing_draw_tranches {
-        let o = NativeFactors::admit_for_measure(
+        let o = NativeFactors::admit_for_measure_with_work(
             &draw.source.original,
             &r.factor_policy,
             0,
             source_measure(measure),
+            r.counted_work.as_deref(),
         )?;
-        let c = NativeFactors::admit_for_measure(
+        let c = NativeFactors::admit_for_measure_with_work(
             &draw.source.current,
             &r.factor_policy,
             queries,
             source_measure(measure),
+            r.counted_work.as_deref(),
         )?;
         source_work = add(source_work, add(o.work_upper, c.work_upper)?)?;
         source_bytes = add(
@@ -1887,17 +1906,49 @@ fn prepare(
         book_admission.retained_bytes_upper,
         mul(review_cells, 1024)?,
     )?;
-    let work = add(
-        add(carry_admission.work_upper, mul(retained_raw_bytes, 8)?)?,
-        book_work,
-    )?;
-    let bytes = add(
-        add(
-            carry_admission.retained_bytes_upper,
-            mul(retained_raw_bytes, 20)?,
-        )?,
-        book_bytes,
-    )?;
+    let (work, bytes) = if let Some(authority) = &r.counted_work {
+        let raw_upper = crate::products::term::contracts::indexed::work::request_bytes(r)?;
+        let core_upper = crate::products::term::contracts::indexed::work::core_request_bytes(&p)?;
+        if carry_admission.raw_bytes > core_upper {
+            return Err("expanded carry metadata exceeds counted raw source inventory".into());
+        }
+        let carry_work = carry_admission
+            .work_upper
+            .checked_sub(mul(carry_admission.raw_bytes, 4)?)
+            .ok_or("counted carry work differs")?;
+        let carry_bytes = carry_admission
+            .retained_bytes_upper
+            .checked_sub(mul(carry_admission.raw_bytes, 20)?)
+            .ok_or("counted carry bytes differ")?;
+        (
+            add(
+                add(carry_work, add(mul(raw_upper, 24)?, mul(core_upper, 4)?)?)?,
+                add(mul(native_stop_bytes, 8)?, book_work)?,
+            )?,
+            add(
+                add(
+                    carry_bytes,
+                    mul(add(add(raw_upper, core_upper)?, native_stop_bytes)?, 20)?,
+                )?,
+                add(authority.retained_bytes(), book_bytes)?,
+            )?,
+        )
+    } else {
+        (
+            add(
+                add(carry_admission.work_upper, mul(retained_raw_bytes, 8)?)?,
+                book_work,
+            )?,
+            add(
+                add(
+                    carry_admission.retained_bytes_upper,
+                    mul(retained_raw_bytes, 20)?,
+                )?,
+                book_bytes,
+            )?,
+        )
+    };
+
     if add(work, reserved_work)? > MAX_WORK || add(bytes, reserved_bytes)? > MAX_BYTES {
         return Err(
             "commercial joined preflight exceeds 8M/128MiB before any source generation".into(),
@@ -1975,8 +2026,18 @@ fn evaluate_accounting_internal(
         stops,
     )?;
     let queries = admission.maximum_queries;
-    let original = project_source(r.source.original.clone(), r.factor_policy.clone(), 0)?;
-    let current = project_source(r.source.current.clone(), r.factor_policy.clone(), queries)?;
+    let original = project_source(
+        r.source.original.clone(),
+        r.factor_policy.clone(),
+        0,
+        r.counted_work.as_deref(),
+    )?;
+    let current = project_source(
+        r.source.current.clone(),
+        r.factor_policy.clone(),
+        queries,
+        r.counted_work.as_deref(),
+    )?;
     let draw_sources = if proof.is_some() {
         project_draws_for_acquisition(r, CreditMeasure::Physical, queries)?
     } else {
@@ -2022,7 +2083,13 @@ fn evaluate_accounting_internal(
         )?;
     }
     #[cfg(test)]
-    OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+    {
+        OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+        if r.counted_work.is_some() {
+            COUNTED_OWNER_WORK
+                .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
+        }
+    }
     check()?;
     let result = ResultData {
         schema: SCHEMA,
@@ -2053,10 +2120,17 @@ fn project_source(
     raw: crate::products::term::contracts::indexed::ContractPathRequest,
     policy: FactorPolicy,
     queries: usize,
+    authority: Option<&crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>,
 ) -> Result<NativeFactors, String> {
     #[cfg(test)]
     SOURCE_CALLS.with(|n| n.set(n.get() + 1));
-    NativeFactors::compile(raw, policy, queries)
+    NativeFactors::compile_for_measure_with_work(
+        raw,
+        policy,
+        queries,
+        portfolio_model_core::cashflow::CashflowMeasure::Physical,
+        authority,
+    )
 }
 
 #[cfg(test)]

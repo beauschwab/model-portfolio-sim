@@ -91,7 +91,7 @@ fn inputs(law: &stochastic::Request) -> RoleInputs {
             .collect(),
     }
 }
-fn request() -> Request {
+pub(super) fn request() -> Request {
     let mut r = tests::request();
     for law in std::iter::once(&mut r.pricing_training)
         .chain(std::iter::once(&mut r.original_physical))
@@ -101,6 +101,7 @@ fn request() -> Request {
         add_draw(law);
     }
     r.physical_path_inputs = Some(physical::PhysicalPathInputs {
+        source_work_policy: None,
         schema: physical::SCHEMA.into(),
         identity: crate::term_enhancements::Identity {
             id: "explicit-physical-path-inputs".into(),

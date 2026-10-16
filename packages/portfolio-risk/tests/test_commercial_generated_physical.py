@@ -170,6 +170,45 @@ def test_minimal_generated_draw_candidate_refuses_work_before_journal_publicatio
     # Complete source support never grants an over-budget journal receipt.
     # This is the minimal two-run128-path future draw; native source component
     # floors still put its genuine repeated owner passes above4B.
-    with pytest.raises(RuntimeError,match='generated policy role admission exceeds4B/128MiB: work=4800566464'):
+    with pytest.raises(RuntimeError,match='generated policy role admission exceeds4B/128MiB: work=4800566464,bytes=124155560'):
+        run_generated(raw,tmp_path)
+    assert not (tmp_path/'manifest.json').exists()
+
+
+def test_counted_minimal_generated_draw_candidate_has_complete_native_and_persisted_replay(tmp_path,record_property):
+    from test_commercial_generated_candidate import run_generated
+    from portfolio_risk.analytics.commercial_generated_candidate_reference import verify_stream
+    raw=minimal_draw_candidate_request()
+    g=raw['commercial']['units'][0]['graph']['positions'][0]['generated_policy']
+    g['physical_path_inputs']['source_work_policy']='counted_native_contract_factor_work-1'
+    raw,prepared,frames=run_generated(raw,tmp_path)
+    checked=verify_stream(raw,prepared,frames)
+    assert checked['verified'] and checked['persisted_partitions_replayed']
+    assert prepared['receipt']['physical_paths']==256
+    assert prepared['receipt']['full_end_ordinal']==raw['as_of_ordinal']+30
+    for name,cap in [('admitted_work_upper',4_000_000_000),('retained_bytes_upper',128<<20)]:
+        assert 0<prepared['receipt'][name]<=cap
+        record_property(name,prepared['receipt'][name])
+    seen=0
+    for frame in frames.frames('commercial_candidate_native_sources'):
+        for row in frame.iter_rows(named=True):
+            cell=json.loads(row['native_json'])
+            draw=cell['source_request']['performing_draw_tranches'][0]
+            assert draw['draw_ordinal']==raw['as_of_ordinal']+1
+            assert draw['source']['acquisition']['cost']==20.
+            cash=[c for c in cell['cash']if c['kind']=='draw']
+            assert len(cash)==1 and cash[0]['principal']==-20.
+            assert sum(c['principal'] for c in cell['cash']if c['event_id']=='generated-draw-coupon')==20.
+            if cell['role']=='physical':seen+=1
+    assert seen==256
+
+
+def test_counted_large_draw_candidate_retains_aggregate_refusal_before_publication(tmp_path):
+    from test_commercial_generated_candidate import run_generated
+    raw=minimal_draw_candidate_request();g=raw['commercial']['units'][0]['graph']['positions'][0]['generated_policy']
+    for law in [g['pricing_training'],g['original_physical'],*g['current_pricing'],*g['current_physical']]:
+        law['training']['paths']=512;law['evaluation']['paths']=512
+    g['physical_path_inputs'].update(source_work_policy='counted_native_contract_factor_work-1',original_physical=role_inputs(g['original_physical']),current_physical=[dict(scenario_id=law['source']['source']['current']['scenario_id'],inputs=role_inputs(law))for law in g['current_physical']])
+    with pytest.raises(RuntimeError,match='aggregate|admission|preflight'):
         run_generated(raw,tmp_path)
     assert not (tmp_path/'manifest.json').exists()

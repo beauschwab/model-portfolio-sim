@@ -1,4 +1,5 @@
 //! Only the actual native coupon loop can construct these sealed descriptors.
+use crate::products::term::contracts::indexed::work::{self, WorkMeter};
 use crate::products::term::contracts::{indexed::RateSource, Identity};
 use portfolio_model_core::{
     cashflow::{actual_year_fraction, ActualDayCount},
@@ -206,6 +207,7 @@ impl FactorSegment {
         ordinal: i32,
         fraction: f64,
         information_year: f64,
+        meter: Option<&WorkMeter>,
     ) -> Result<bool, String> {
         portfolio_compute_control::checkpoint()?;
         let (day, part) = if ordinal >= self.end {
@@ -215,7 +217,7 @@ impl FactorSegment {
         } else {
             (ordinal, fraction)
         };
-        let tau = partial_tau(self.start, day, part, self.day_count)?;
+        let tau = partial_tau(self.start, day, part, self.day_count, meter)?;
         let known = self
             .observable_information_year
             .is_none_or(|t| information_year >= t);
@@ -231,11 +233,13 @@ impl FactorSegment {
                 ..
             } => {
                 let weight = if self.shifted {
-                    let full_interest = actual_year_fraction(self.start, self.end, self.day_count)?;
-                    let full_observation = actual_year_fraction(
+                    let full_interest =
+                        counted_year_fraction(self.start, self.end, self.day_count, meter)?;
+                    let full_observation = counted_year_fraction(
                         self.observation_start,
                         self.observation_end,
                         self.day_count,
+                        meter,
                     )?;
                     if day == self.end {
                         full_observation
@@ -246,6 +250,7 @@ impl FactorSegment {
                             self.observation_start + day - self.start,
                             part,
                             self.day_count,
+                            meter,
                         )?
                     } else {
                         full_observation * (tau / full_interest)
@@ -350,7 +355,12 @@ impl FactorSegment {
 
     /// Explicit reviewed convention: simple fractional native calendar day.
     /// Full integer endpoint returns the actual loop's value, never a plug.
-    pub(crate) fn cumulative(&self, ordinal: i32, fraction_of_day: f64) -> Result<f64, String> {
+    pub(crate) fn cumulative_metered(
+        &self,
+        ordinal: i32,
+        fraction_of_day: f64,
+        meter: Option<&WorkMeter>,
+    ) -> Result<f64, String> {
         portfolio_compute_control::checkpoint()?;
         if !fraction_of_day.is_finite()
             || !(0.0..1.0).contains(&fraction_of_day)
@@ -366,13 +376,14 @@ impl FactorSegment {
         if self.shifted && self.end - self.start != self.observation_end - self.observation_start {
             return Err("continuous shifted factor requires explicit equal calendar spans".into());
         }
-        let tau = partial_tau(self.start, ordinal, fraction_of_day, self.day_count)?;
+        let tau = partial_tau(self.start, ordinal, fraction_of_day, self.day_count, meter)?;
         let weight = if self.shifted {
             partial_tau(
                 self.observation_start,
                 self.observation_start + (ordinal - self.start),
                 fraction_of_day,
                 self.day_count,
+                meter,
             )?
         } else {
             tau
@@ -416,18 +427,28 @@ impl FactorSegment {
     }
 }
 
+fn counted_year_fraction(
+    start: i32,
+    end: i32,
+    basis: ActualDayCount,
+    meter: Option<&WorkMeter>,
+) -> Result<f64, String> {
+    work::calendar(meter, start, end, basis)?;
+    actual_year_fraction(start, end, basis)
+}
 fn partial_tau(
     start: i32,
     ordinal: i32,
     fraction: f64,
     basis: ActualDayCount,
+    meter: Option<&WorkMeter>,
 ) -> Result<f64, String> {
-    let complete = actual_year_fraction(start, ordinal, basis)?;
+    let complete = counted_year_fraction(start, ordinal, basis, meter)?;
     if fraction == 0. {
         return Ok(complete);
     }
     let next = ordinal.checked_add(1).ok_or("partial calendar overflow")?;
-    Ok(complete + fraction * actual_year_fraction(ordinal, next, basis)?)
+    Ok(complete + fraction * counted_year_fraction(ordinal, next, basis, meter)?)
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Serialize)]

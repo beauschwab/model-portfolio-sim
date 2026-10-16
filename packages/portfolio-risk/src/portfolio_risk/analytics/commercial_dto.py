@@ -62,6 +62,7 @@ def graph_typed(value,key=''):
             if result.get('draw_tranche_id') is None:result.pop('draw_tranche_id',None)
         if {'path_key','review','source_recipe_index'} <= result.keys():
             if result.get('reviewed_credit_actions') is None:result.pop('reviewed_credit_actions',None)
+        if result.get('schema')=='commercial-generated-physical-path-inputs-1' and result.get('source_work_policy') is None:result.pop('source_work_policy',None)
         if result.get('schema')=='commercial-product-graph-1':
             for position in result['positions']:
                 if position.get('fees') is None:position.pop('fees',None)

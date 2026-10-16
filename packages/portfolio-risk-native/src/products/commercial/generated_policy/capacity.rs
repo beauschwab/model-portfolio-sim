@@ -36,8 +36,17 @@ pub(super) fn raw_recipe_upper(raw: &owner::Request) -> Result<usize, String> {
     // keys. Twice this length reserves cloned String capacities/allocations;
     // all inline structs, Vec elements and Box allocations are counted below.
     let mut bytes = add(
-        size_of::<owner::Request>(),
+        size_of::<owner::Request>()
+            - size_of::<
+                Option<
+                    Box<crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>,
+                >,
+            >(),
         mul(strict_json::serialized_size(raw, 1 << 20)?, 2)?,
+    )?;
+    bytes = add(
+        bytes,
+        raw.counted_work.as_ref().map_or(0, |a| a.retained_bytes()),
     )?;
     bytes = add(bytes, contract(&raw.source.original)?)?;
     bytes = add(bytes, contract(&raw.source.current)?)?;

@@ -160,18 +160,21 @@ path-specific reviewed action replay and owner/source pass counts. Independent
 raw-source graph controls cover fixed and indexed generated draws and per-path
 reviews. A selected per-path review after the contractual cash tail has a positive
 complete persisted candidate replay, with ordered source/journal, gross closing
-and tamper checks. The minimal two-scenario128-path drawn candidate with a day-1 draw repaid
-on day2, no options, no indexed loading and no reviews still refuses before
-generation: work4,800,566,464 exceeds the unchanged four-billion bound while
-bytes124,155,560 stay below128MiB. Each source owner reserves four factor
-constructions, each retaining the existing250,000-work generic floor;3,712
-reserved genuine owner passes already charge3.712billion from those floors.
-Carry/default/book/query maxima remain additionally charged. Analytical draw
-support therefore does not complete candidate draw-journal adoption within this
-tier. Further component-bound refinement or genuine source reuse with independent
-controls remains required; caps and minimum path counts have not changed. The
-combined draw/late-review fixture separately refuses under the same admission. The reviewed
-owner still reserves the selected day-40 tail rather than the empty template. Source/executable identity, original
+and tamper checks. The historical omitted minimal two-scenario128-path drawn candidate, with a
+day-1 draw repaid on day2 and no options, indexed loading or reviews, retains its
+exact 4,800,566,464-work refusal. It keeps the 250,000 source-factor floor and
+historical generic cash reserve. The separately selected
+`source_work_policy="counted_native_contract_factor_work-1"` replaces those two
+admission components with bounded structural work and actual complete cash
+inventory; the same minimal candidate now has genuine native and independent
+persisted-journal replay under unchanged4B/128MiB caps. This policy accepts no
+caller numerical allowances and carries a private exact source/clock/path
+binding. Independently allocated equal source bodies receive no sharing discount.
+The larger512-path selected candidate still refuses before publication. See
+[counted source work](commercial-counted-source-work.md) for all operation,
+calendar, owner-pass, byte-retention and recovery-fragment formulas. The combined
+draw/late-review fixture remains independently subject to aggregate admission;
+a graph receipt never grants journal admission. Source/executable identity, original
 deadline, cancellation, lease/token and immutable publication fences still apply.
 No local control is a deployment, observed calibration, accounting approval or
 complete issue-15/25 mixed-book scale acceptance.

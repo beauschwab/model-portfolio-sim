@@ -34,10 +34,18 @@ pub struct ScenarioInputs {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PhysicalPathInputs {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_work_policy: Option<SourceWorkPolicy>,
     pub schema: String,
     pub identity: crate::term_enhancements::Identity,
     pub original_physical: RoleInputs,
     pub current_physical: Vec<ScenarioInputs>,
+}
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceWorkPolicy {
+    #[serde(rename = "counted_native_contract_factor_work-1")]
+    CountedNativeContractFactorWork,
 }
 fn identity(id: &crate::term_enhancements::Identity) -> Result<(), String> {
     crate::term_enhancements::identity(id, &mut 0)
@@ -92,6 +100,9 @@ pub(super) fn source(
     index: usize,
     original: bool,
 ) -> Result<owner::Request, String> {
+    if let Some(authority) = &law.source.counted_work {
+        authority.verify(&law.source)?;
+    }
     let mut raw = (*law.source).clone();
     raw.credit.paths[0].path_key = index as u64 + 1;
     raw.credit.paths[0].path_id = format!("generated-{index}");
@@ -122,6 +133,7 @@ pub(super) fn source(
             draw.source.current = draw.source.original.clone();
         }
     }
+    refresh_counted_source(&mut raw)?;
     Ok(raw)
 }
 fn validate_role(law: &stochastic::Request, inputs: &RoleInputs) -> Result<(), String> {
@@ -246,7 +258,7 @@ pub(super) fn upper(
     let mut result = (0usize, 0usize, 0usize, 0usize, 0usize);
     let mut source_work = 0usize;
     let features = stochastic::feature_bound(law)?;
-    let cash = law.source.source.current.periods.len()
+    let legacy_cash = law.source.source.current.periods.len()
         + 36
         + law
             .source
@@ -254,6 +266,11 @@ pub(super) fn upper(
             .iter()
             .map(|d| d.source.current.periods.len() + 1)
             .sum::<usize>();
+    let cash = if law.source.counted_work.is_some() {
+        stochastic::cash_event_bound(&law.source)?
+    } else {
+        legacy_cash
+    };
     let per_path_overhead = mul(
         256,
         add(

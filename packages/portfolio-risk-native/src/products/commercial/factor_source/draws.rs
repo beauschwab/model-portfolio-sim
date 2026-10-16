@@ -123,17 +123,19 @@ fn project_draws_internal(
         .iter()
         .map(|terms| {
             check()?;
-            let original = NativeFactors::compile_for_measure(
+            let original = NativeFactors::compile_for_measure_with_work(
                 terms.source.original.clone(),
                 r.factor_policy.clone(),
                 0,
                 source_measure(measure),
+                r.counted_work.as_deref(),
             )?;
-            let current = NativeFactors::compile_for_measure(
+            let current = NativeFactors::compile_for_measure_with_work(
                 terms.source.current.clone(),
                 r.factor_policy.clone(),
                 queries,
                 source_measure(measure),
+                r.counted_work.as_deref(),
             )?;
             if measure == CreditMeasure::Physical && check_quote {
                 source_income::original_cash_quote(&terms.source, original.source())?;

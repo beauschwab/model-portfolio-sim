@@ -1,6 +1,7 @@
 //! Actual observable source, credit-state and original-yield controls.
 use super::tests::request;
 use super::*;
+use crate::term_enhancements::indexed;
 use serde_json::json;
 
 fn observable_request(calculation: &str, margin_treatment: &str) -> Request {
@@ -433,4 +434,173 @@ fn observable_pending_default_reviews_retain_fragment_waivers_and_voluntary_cash
     assert!(evaluate(&raw)
         .unwrap_err()
         .contains("unknown native coupon claim"));
+}
+
+#[test]
+fn counted_observable_terminal_default_and_exit_meter_every_query_family() {
+    for destination in [3, 4] {
+        let mut raw = observable_request("daily_compounded", "simple");
+        enable_terminal(&mut raw);
+        terminal_at(&mut raw, destination, 0.5);
+        let expected = evaluate(&raw).unwrap();
+        crate::commercial_generated_policy::bind_counted_source(&mut raw).unwrap();
+        let result = evaluate(&raw).unwrap();
+        let source = result.current_source();
+        let operations = source.counted_operations().unwrap();
+        assert!(
+            operations.observations > 0
+                && operations.earned_calls > 0
+                && operations.canonical_calls > 0
+                && operations.pending_calls > 0
+                && operations.terminal_calls == 1
+        );
+        assert!(operations.binding > source.segments().len());
+        assert!(
+            operations.work().unwrap()
+                <= source
+                    .admission()
+                    .counted_work
+                    .as_ref()
+                    .unwrap()
+                    .upper
+                    .work()
+                    .unwrap()
+        );
+        assert_eq!(
+            portfolio_model_core::strict_json::encode(&result.accounting().groups(), 1 << 20)
+                .unwrap(),
+            portfolio_model_core::strict_json::encode(&expected.accounting().groups(), 1 << 20)
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn counted_cash_inventory_covers_signed_multi_draw_default_fragments_and_each_tail() {
+    for sign in [-1., 1.] {
+        let mut raw = observable_request("daily_compounded", "simple");
+        enable_terminal(&mut raw);
+        let at = raw.source.current.asof_ordinal;
+        for contract in [&mut raw.source.original, &mut raw.source.current] {
+            contract.tail_end_ordinal = at + 8;
+            contract.reporting_end_ordinal = at + 8;
+            contract.periods[0].payment_ordinal = at + 8;
+            let indexed::Coupon::Indexed {
+                observations,
+                margin,
+                ..
+            } = &mut contract.periods[0].coupon
+            else {
+                unreachable!()
+            };
+            *margin *= sign;
+            for (index, obs) in observations.iter_mut().enumerate() {
+                obs.rate *= sign;
+                let publication = (i64::from(at + 5) - 719163) * 86400 + index as i64 * 3600;
+                obs.selection_cutoff_unix_seconds = publication;
+                let indexed::RateSource::ConditionalPublishedProjection {
+                    publication_unix_seconds,
+                    ..
+                } = &mut obs.source
+                else {
+                    unreachable!()
+                };
+                *publication_unix_seconds = publication;
+            }
+        }
+        let product = [0.04, 0.05, 0.06]
+            .iter()
+            .fold(1., |p, r| p * (1. + sign * r / 365.));
+        raw.source.acquisition.cost = 100. * (product + sign * 0.01 * 3. / 365.);
+        raw.credit.intervals[0].end_year = 8. / 365.;
+        raw.credit.opening_undrawn_commitment = 40.;
+        raw.credit.max_jumps_per_path = 1;
+        for interval in &mut raw.credit.intervals {
+            for tails in &mut interval.complete_recovery_tails {
+                *tails = (0..3)
+                    .map(|i| path::RecoveryWeight {
+                        lag_years: f64::from(i) / 365.,
+                        weight: 1. / 3.,
+                    })
+                    .collect();
+            }
+        }
+        for index in 0..2 {
+            let mut source = raw.source.clone();
+            for contract in [&mut source.original, &mut source.current] {
+                contract.contract.id = format!("metered-draw-{index}");
+                contract.asof_ordinal = at + index + 1;
+                contract.opening_principal = 20.;
+                contract.principal_plan = indexed::PrincipalPlan::Supplied {
+                    principal_payments: vec![20.],
+                };
+                contract.periods[0].period_id = format!("metered-draw-coupon-{index}");
+                contract.periods[0].start_ordinal = at + index + 1;
+                contract.periods[0].end_ordinal = at + 4 + index;
+                contract.periods[0].payment_ordinal = at + 7 + index;
+                contract.periods[0].coupon = indexed::Coupon::Fixed { annual_rate: 0. };
+            }
+            source.acquisition.cost = 20.;
+            source.acquisition.original_annual_effective_rate = 0.;
+            raw.performing_draw_tranches.push(PerformingDrawTranche {
+                review: term::Identity {
+                    id: format!("draw-review-{index}"),
+                    revision: "1".into(),
+                },
+                draw_ordinal: at + index + 1,
+                eligible_origins: [true, false, false],
+                source,
+            });
+        }
+        let zero_hazard_bound =
+            crate::commercial_stochastic_exercise::cash_event_bound(&raw).unwrap();
+        terminal_at(&mut raw, 3, 2.5);
+        crate::commercial_generated_policy::bind_counted_source(&mut raw).unwrap();
+        assert_eq!(
+            zero_hazard_bound,
+            crate::commercial_stochastic_exercise::cash_event_bound(&raw).unwrap()
+        );
+        let actual = evaluate(&raw).unwrap();
+        let cash = crate::commercial_cash::economic_cash(actual.carry()).unwrap();
+        assert_eq!(cash.iter().filter(|c| c.kind == "draw").count(), 2);
+        assert_eq!(
+            cash.iter()
+                .filter(|c| c.kind == "pending_coupon_cash")
+                .count(),
+            3 * 3
+        );
+        assert!(cash.len() <= zero_hazard_bound);
+    }
+}
+#[test]
+fn counted_cash_inventory_covers_before_and_after_scheduled_exercise() {
+    for timing in [
+        NativeStopTiming::BeforeScheduledCash,
+        NativeStopTiming::AfterScheduledCash,
+    ] {
+        let mut raw = observable_request("daily_simple", "simple");
+        enable_terminal(&mut raw);
+        crate::commercial_generated_policy::bind_counted_source(&mut raw).unwrap();
+        let stop = NativeStop::from_compiled_policy_with_timing(
+            17,
+            "metered-timing-call".into(),
+            raw.source.current.asof_ordinal + 1,
+            NativeStopAction::Call,
+            1.,
+            0.,
+            term::Identity {
+                id: "metered-call-policy".into(),
+                revision: "1".into(),
+            },
+            timing,
+            None,
+        )
+        .unwrap();
+        let result = evaluate_with_stops(&raw, &[stop]).unwrap();
+        let cash = crate::commercial_cash::economic_cash(result.carry()).unwrap();
+        assert!(cash.iter().any(|c| c.kind == "pending_coupon_cash"));
+        assert!(
+            cash.len() <= crate::commercial_stochastic_exercise::cash_event_bound(&raw).unwrap()
+        );
+    }
 }

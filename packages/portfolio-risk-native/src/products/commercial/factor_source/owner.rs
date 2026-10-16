@@ -1,4 +1,7 @@
 //! Checked source compiler owns all factor descriptors; external input owns none.
+use crate::products::term::contracts::indexed::work::{
+    self, ContractWorkSummary, GeneratedCatalogAuthority, Op, WorkMeter,
+};
 use crate::{
     commercial_factor_source::segments::{FactorPolicy, FactorSegment},
     term_enhancements::indexed::{self, ContractPathRequest, ContractPathResult, Coupon},
@@ -19,6 +22,8 @@ pub struct Admission {
     pub retained_bytes_upper: usize,
     pub typed_source_structural_upper: usize,
     pub calendar_year_scan_bound: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) counted_work: Option<ContractWorkSummary>,
 }
 
 #[cfg(test)]
@@ -219,6 +224,7 @@ pub struct NativeFactors {
     cash_indices: Vec<usize>,
     admission: Admission,
     queries_used: Cell<usize>,
+    meter: Option<WorkMeter>,
 }
 
 fn add(a: usize, b: usize) -> Result<usize, String> {
@@ -272,6 +278,15 @@ impl NativeFactors {
         policy: &FactorPolicy,
         queries: usize,
         measure: CashflowMeasure,
+    ) -> Result<Admission, String> {
+        Self::admit_for_measure_with_work(raw, policy, queries, measure, None)
+    }
+    pub(crate) fn admit_for_measure_with_work(
+        raw: &ContractPathRequest,
+        policy: &FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Admission, String> {
         portfolio_compute_control::checkpoint()?;
         policy.validate()?;
@@ -420,7 +435,7 @@ impl NativeFactors {
         } else {
             0
         };
-        let work = add(
+        let legacy_work = add(
             contingent_work,
             add(
                 add(add(250_000, mul(16, r)?)?, mul(128, s)?)?,
@@ -432,11 +447,31 @@ impl NativeFactors {
         } else {
             0
         };
+        let counted_work = authority
+            .map(|_| {
+                ContractWorkSummary::census(
+                    raw,
+                    queries,
+                    policy.observable(),
+                    policy.terminal_obligations.is_some(),
+                )
+            })
+            .transpose()?;
+        let work = if let Some(summary) = &counted_work {
+            summary.upper.work()?
+        } else {
+            legacy_work
+        };
         let bytes = add(
-            contingent_bytes,
+            counted_work
+                .as_ref()
+                .map_or(0, ContractWorkSummary::retained_bytes),
             add(
-                mul(16, r)?,
-                mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+                contingent_bytes,
+                add(
+                    mul(16, r)?,
+                    mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+                )?,
             )?,
         )?;
         if work > 8_000_000 || bytes > 32 * 1024 * 1024 {
@@ -451,6 +486,7 @@ impl NativeFactors {
             retained_bytes_upper: bytes,
             typed_source_structural_upper: r,
             calendar_year_scan_bound: year_scan,
+            counted_work,
         };
         Ok(admission)
     }
@@ -467,31 +503,69 @@ impl NativeFactors {
         queries: usize,
         measure: CashflowMeasure,
     ) -> Result<Self, String> {
-        let admission = Self::admit_for_measure(&raw, &policy, queries, measure)?;
+        Self::compile_for_measure_with_work(raw, policy, queries, measure, None)
+    }
+    pub(crate) fn compile_for_measure_with_work(
+        raw: ContractPathRequest,
+        policy: FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        authority: Option<&GeneratedCatalogAuthority>,
+    ) -> Result<Self, String> {
+        let admission =
+            Self::admit_for_measure_with_work(&raw, &policy, queries, measure, authority)?;
+        let meter = admission.counted_work.as_ref().map(WorkMeter::new);
         let s = admission.segment_bound;
         let mut segments = Vec::new();
         segments.try_reserve_exact(s).map_err(|e| e.to_string())?;
         #[cfg(test)]
         SOURCE_CALLS.with(|n| n.set(n.get() + 1));
-        let source = indexed::build_path_with_segments(&raw, &mut |segment| {
+        let mut capture = |segment| {
             portfolio_compute_control::checkpoint()?;
             if segments.len() == s {
                 return Err("native segment count exceeds admitted source bound".into());
             }
+            work::bump(meter.as_ref(), Op::Segment, 1)?;
             segments.push(segment);
             Ok(())
-        })?;
+        };
+        let source = if let Some(meter) = meter.as_ref() {
+            indexed::build_path_with_counted_segments(&raw, &mut capture, meter)?
+        } else {
+            indexed::build_path_with_segments(&raw, &mut capture)?
+        };
+        if meter.is_some() {
+            work::bump(
+                meter.as_ref(),
+                Op::OutputBytes,
+                portfolio_model_core::strict_json::serialized_size(&source, 32 << 20)?,
+            )?;
+            work::bump(
+                meter.as_ref(),
+                Op::OutputBytes,
+                portfolio_model_core::strict_json::serialized_size(
+                    &segments.iter().map(|s| s.evidence()).collect::<Vec<_>>(),
+                    32 << 20,
+                )?,
+            )?;
+        }
         if segments.len() != s {
             return Err("native complete segment coverage mismatch".into());
         }
         let mut cash_by_id = BTreeMap::new();
         for (index, event) in source.schedule.events.iter().enumerate() {
             portfolio_compute_control::checkpoint()?;
+            work::bump(meter.as_ref(), Op::Binding, raw.periods.len())?;
             if cash_by_id.insert(event.event_id.as_str(), index).is_some() {
                 return Err("duplicate native coupon cash origin".into());
             }
         }
         let mut cash_indices = Vec::with_capacity(s);
+        work::bump(
+            meter.as_ref(),
+            Op::Binding,
+            mul(raw.periods.len(), raw.periods.len())?,
+        )?;
         let audit_by_id: BTreeMap<_, _> = source
             .audit
             .iter()
@@ -499,6 +573,7 @@ impl NativeFactors {
             .map(|(i, a)| (a.period_id.as_str(), i))
             .collect();
         for segment in &mut segments {
+            work::bump(meter.as_ref(), Op::Binding, mul(2, raw.periods.len())?)?;
             let index = *audit_by_id
                 .get(segment.period_id())
                 .ok_or("native coupon audit origin missing")?;
@@ -513,6 +588,9 @@ impl NativeFactors {
                     let observation = observations
                         .iter()
                         .find(|o| {
+                            if let Some(meter) = meter.as_ref() {
+                                meter.tick(Op::Binding, 1);
+                            }
                             o.interest_start_ordinal == segment.start_ordinal()
                                 && o.interest_end_ordinal == segment.end_ordinal()
                         })
@@ -545,6 +623,9 @@ impl NativeFactors {
                     .ok_or("native coupon-to-cash origin is missing")?,
             );
         }
+        if let Some(meter) = meter.as_ref() {
+            meter.check()?;
+        }
         Ok(Self {
             raw,
             source,
@@ -553,9 +634,29 @@ impl NativeFactors {
             cash_indices,
             admission,
             queries_used: Cell::new(0),
+            meter,
         })
     }
 
+    pub(crate) fn count_terminal_scan(&self) -> Result<(), String> {
+        work::bump(self.meter.as_ref(), Op::TerminalCall, 1)?;
+        work::bump(
+            self.meter.as_ref(),
+            Op::TerminalStep,
+            add(
+                mul(self.segments.len(), self.segments.len())?,
+                mul(self.source.audit.len(), self.segments.len())?,
+            )?,
+        )
+    }
+    #[cfg(test)]
+    pub(crate) fn counted_operations(&self) -> Option<work::OperationLedger> {
+        let measured = self.meter.as_ref().map(WorkMeter::observed);
+        if let (Some(summary), Some(measured)) = (&self.admission.counted_work, measured) {
+            work::export_receipt(&self.raw, summary, measured);
+        }
+        measured
+    }
     pub fn raw(&self) -> &ContractPathRequest {
         &self.raw
     }
@@ -581,16 +682,16 @@ impl NativeFactors {
         if self.policy.observable() {
             return self.observable_coupon_factors(year);
         }
+        work::bump(self.meter.as_ref(), Op::CanonicalCall, 1)?;
         let mut result = Vec::new();
         for (audit_index, _) in self.source.audit.iter().enumerate() {
             let mut factor = 0.;
             let mut cash_index = None;
-            for (index, segment) in self
-                .segments
-                .iter()
-                .enumerate()
-                .filter(|(_, s)| s.audit_index() == audit_index)
-            {
+            for (index, segment) in self.segments.iter().enumerate() {
+                work::bump(self.meter.as_ref(), Op::CanonicalStep, 1)?;
+                if segment.audit_index() != audit_index {
+                    continue;
+                }
                 portfolio_compute_control::checkpoint()?;
                 cash_index = Some(self.cash_indices[index]);
                 let start = f64::from(segment.start_ordinal() - self.raw.asof_ordinal) / 365.;
@@ -600,7 +701,7 @@ impl NativeFactors {
                 }
                 let time = year.min(end);
                 let (day, fraction) = self.clock(segment, time, start, end)?;
-                factor = segment.cumulative(day, fraction)?;
+                factor = segment.cumulative_metered(day, fraction, self.meter.as_ref())?;
                 if year < end {
                     break;
                 }
@@ -624,17 +725,25 @@ impl NativeFactors {
         served_year: f64,
         information_year: f64,
     ) -> Result<Vec<(usize, usize, f64)>, String> {
+        work::bump(self.meter.as_ref(), Op::CanonicalCall, 1)?;
         let (ordinal, fraction) = self.absolute_clock(served_year)?;
         let mut result = Vec::with_capacity(self.source.audit.len());
         let mut state = portfolio_model_core::coupon_factor_state::CouponFactorState::new();
         let mut active = None;
         for (index, segment) in self.segments.iter().enumerate() {
             portfolio_compute_control::checkpoint()?;
+            work::bump(self.meter.as_ref(), Op::CanonicalStep, 1)?;
             if active != Some(segment.audit_index()) {
                 state = portfolio_model_core::coupon_factor_state::CouponFactorState::new();
                 active = Some(segment.audit_index());
             }
-            segment.observe(&mut state, ordinal, fraction, information_year)?;
+            segment.observe(
+                &mut state,
+                ordinal,
+                fraction,
+                information_year,
+                self.meter.as_ref(),
+            )?;
             let value = segment.observed_factor(state);
             if !value.is_finite() {
                 return Err("observable native factor overflow".into());
@@ -658,6 +767,8 @@ impl NativeFactors {
         if !self.policy.observable() {
             return Ok(Vec::new());
         }
+        work::bump(self.meter.as_ref(), Op::PendingCall, 1)?;
+        work::bump(self.meter.as_ref(), Op::PendingStep, self.segments.len())?;
         let (day, fraction) = self.absolute_clock(served_year)?;
         Ok(self
             .segments
@@ -675,6 +786,8 @@ impl NativeFactors {
         if !self.policy.observable() {
             return Ok(Vec::new());
         }
+        work::bump(self.meter.as_ref(), Op::PendingCall, 1)?;
+        work::bump(self.meter.as_ref(), Op::PendingStep, self.segments.len())?;
         let (ordinal, fraction) = self.absolute_clock(year)?;
         let mut result = Vec::new();
         for segment in &self.segments {
@@ -712,6 +825,7 @@ impl NativeFactors {
     /// Factor-only sojourn query; the consuming Core owner supplies actual P.
     pub fn earned(&self, start_year: f64, end_year: f64) -> Result<Vec<FactorAtom<'_>>, String> {
         portfolio_compute_control::checkpoint()?;
+        work::bump(self.meter.as_ref(), Op::EarnedCall, 1)?;
         if self.queries_used.get() >= self.admission.query_bound {
             return Err("factor query count exceeds retained admission".into());
         }
@@ -731,12 +845,14 @@ impl NativeFactors {
             let mut atoms = Vec::with_capacity(before.len());
             let mut segment_index = 0;
             for ((audit, cash, start_factor), (_, _, end_factor)) in before.into_iter().zip(after) {
+                work::bump(self.meter.as_ref(), Op::EarnedStep, 1)?;
                 while self
                     .segments
                     .get(segment_index)
                     .is_some_and(|s| s.audit_index() != audit)
                 {
                     portfolio_compute_control::checkpoint()?;
+                    work::bump(self.meter.as_ref(), Op::EarnedStep, 1)?;
                     segment_index += 1;
                 }
                 if segment_index == self.segments.len() {
@@ -765,6 +881,7 @@ impl NativeFactors {
             .map_err(|e| e.to_string())?;
         for (index, segment) in self.segments.iter().enumerate() {
             portfolio_compute_control::checkpoint()?;
+            work::bump(self.meter.as_ref(), Op::EarnedStep, 1)?;
             let start = f64::from(segment.start_ordinal() - self.raw.asof_ordinal) / 365.;
             let end = f64::from(segment.end_ordinal() - self.raw.asof_ordinal) / 365.;
             let lo = start_year.max(start);
@@ -774,8 +891,8 @@ impl NativeFactors {
             }
             let (lo_day, lo_fraction) = self.clock(segment, lo, start, end)?;
             let (hi_day, hi_fraction) = self.clock(segment, hi, start, end)?;
-            let before = segment.cumulative(lo_day, lo_fraction)?;
-            let after = segment.cumulative(hi_day, hi_fraction)?;
+            let before = segment.cumulative_metered(lo_day, lo_fraction, self.meter.as_ref())?;
+            let after = segment.cumulative_metered(hi_day, hi_fraction, self.meter.as_ref())?;
             let delta = after - before;
             if !delta.is_finite() {
                 return Err("factor delta overflow".into());

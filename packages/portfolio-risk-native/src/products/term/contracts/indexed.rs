@@ -1,4 +1,5 @@
 //! Complete supplied conditional-index paths; no front-quarter proxy.
+pub(crate) mod work;
 use super::*;
 use crate::products::commercial::factor_source::segments::{FactorSegment, SegmentSink};
 use portfolio_model_core::cashflow::*;
@@ -183,16 +184,33 @@ fn utc_day(t: i64) -> i32 {
     719_163 + (t / 86_400) as i32
 }
 
+fn counted_year_fraction(
+    start: i32,
+    end: i32,
+    basis: portfolio_model_core::cashflow::ActualDayCount,
+    meter: Option<&work::WorkMeter>,
+) -> Result<f64, String> {
+    work::calendar(meter, start, end, basis)?;
+    actual_year_fraction(start, end, basis)
+}
+struct CaptureMode<'a> {
+    daily_fragments: bool,
+    meter: Option<&'a work::WorkMeter>,
+}
 fn coupon_factor(
     request: &ContractPathRequest,
     p: &ContractPeriod,
     bytes: &mut usize,
     work: &mut usize,
     capture: &mut Option<&mut EarnedFactorSink<'_>>,
-    daily_fragments: bool,
     segments: &mut Option<&mut SegmentSink<'_>>,
+    mode: CaptureMode<'_>,
 ) -> Result<(f64, Vec<RateSource>, bool), String> {
-    let tau = actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count)?;
+    let CaptureMode {
+        daily_fragments,
+        meter,
+    } = mode;
+    let tau = counted_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count, meter)?;
     match &p.coupon {
         Coupon::Fixed { annual_rate } => {
             if !annual_rate.is_finite() || annual_rate * tau <= -1. {
@@ -224,7 +242,7 @@ fn coupon_factor(
                     } else {
                         CouponFactorState::fixed_factor(
                             *annual_rate,
-                            actual_year_fraction(p.start_ordinal, day, p.day_count)?,
+                            counted_year_fraction(p.start_ordinal, day, p.day_count, meter)?,
                         )
                     };
                     sink(EarnedFactorPoint {
@@ -301,6 +319,7 @@ fn coupon_factor(
             let mut factor_state = CouponFactorState::new();
             let mut sources = Vec::with_capacity(observations.len());
             for o in observations {
+                work::bump(meter, work::Op::Observation, 1)?;
                 domain(o.interest_start_ordinal, o.interest_end_ordinal)?;
                 domain(o.observation_start_ordinal, o.observation_end_ordinal)?;
                 validate_ordinal(o.fixing_ordinal)?;
@@ -408,16 +427,18 @@ fn coupon_factor(
                 if !all_in.is_finite() {
                     return Err("index plus margin overflow".into());
                 }
-                let interest_tau = actual_year_fraction(
+                let interest_tau = counted_year_fraction(
                     o.interest_start_ordinal,
                     o.interest_end_ordinal,
                     p.day_count,
+                    meter,
                 )?;
                 let weight = if *observation_shift {
-                    actual_year_fraction(
+                    counted_year_fraction(
                         o.observation_start_ordinal,
                         o.observation_end_ordinal,
                         p.day_count,
+                        meter,
                     )?
                 } else {
                     interest_tau
@@ -493,13 +514,18 @@ fn coupon_factor(
                         let cumulative_factor = if day == o.interest_end_ordinal {
                             full_factor
                         } else {
-                            let partial_tau =
-                                actual_year_fraction(o.interest_start_ordinal, day, p.day_count)?;
+                            let partial_tau = counted_year_fraction(
+                                o.interest_start_ordinal,
+                                day,
+                                p.day_count,
+                                meter,
+                            )?;
                             let partial_weight = if *observation_shift {
-                                actual_year_fraction(
+                                counted_year_fraction(
                                     o.observation_start_ordinal,
                                     o.observation_start_ordinal + (day - o.interest_start_ordinal),
                                     p.day_count,
+                                    meter,
                                 )?
                             } else {
                                 partial_tau
@@ -562,7 +588,7 @@ fn coupon_factor(
 }
 
 pub fn build_path(request: &ContractPathRequest) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, None)
+    build_path_owned(request, None, false, None, None)
 }
 
 /// Opt-in factor-only actual-loop descriptors, provisional until complete Ok.
@@ -571,7 +597,7 @@ pub(crate) fn build_path_with_segments(
     request: &ContractPathRequest,
     sink: &mut SegmentSink<'_>,
 ) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, Some(sink))
+    build_path_owned(request, None, false, Some(sink), None)
 }
 
 /// Observation-boundary receipts; no interpolation, fixing substitution or cash generation.
@@ -698,15 +724,24 @@ fn build_path_capture_owned(
             );
         }
     }
-    build_path_owned(request, Some(sink), daily_fragments, None)
+    build_path_owned(request, Some(sink), daily_fragments, None, None)
 }
 
+pub(crate) fn build_path_with_counted_segments(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    meter: &work::WorkMeter,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(request, None, false, Some(sink), Some(meter))
+}
 fn build_path_owned(
     request: &ContractPathRequest,
     mut capture: Option<&mut EarnedFactorSink<'_>>,
     daily_fragments: bool,
     mut segments: Option<&mut SegmentSink<'_>>,
+    meter: Option<&work::WorkMeter>,
 ) -> Result<ContractPathResult, String> {
+    work::builder_start(meter, request)?;
     header(
         &request.schema,
         &request.model_version,
@@ -768,6 +803,7 @@ fn build_path_owned(
     let mut work = 0;
     let mut after_report = request.opening_principal;
     for (i, p) in request.periods.iter().enumerate() {
+        work::bump(meter, work::Op::Period, 1)?;
         text(&p.period_id, &mut bytes)?;
         domain(p.start_ordinal, p.end_ordinal)?;
         domain(request.asof_ordinal, p.payment_ordinal)?;
@@ -790,8 +826,11 @@ fn build_path_owned(
             &mut bytes,
             &mut work,
             &mut capture,
-            daily_fragments,
             &mut segments,
+            CaptureMode {
+                daily_fragments,
+                meter,
+            },
         )?;
         let interest = amount(balance * factor)?;
         let last = i + 1 == request.periods.len();
@@ -872,7 +911,16 @@ fn build_path_owned(
     if !near(balance, 0.) {
         return Err("complete contractual tail leaves unpaid principal".into());
     }
-    events.sort_by_key(|e| e.payment_ordinal);
+    if let Some(meter) = meter {
+        events.sort_by(|a, b| {
+            meter.tick(work::Op::Ordering, 1);
+            a.payment_ordinal.cmp(&b.payment_ordinal)
+        });
+        meter.check()?;
+    } else {
+        events.sort_by_key(|e| e.payment_ordinal);
+    }
+
     let schedule = DatedSchedule {
         schema: DATED_CASHFLOW_SCHEMA.into(),
         as_of_ordinal: request.asof_ordinal,
@@ -881,5 +929,10 @@ fn build_path_owned(
         events,
     };
     schedule.validate()?;
+    work::bump(
+        meter,
+        work::Op::OutputBytes,
+        portfolio_model_core::strict_json::serialized_size(&schedule, 32 << 20)?,
+    )?;
     Ok(ContractPathResult{schema:SCHEMA.into(),model_version:MODEL_VERSION.into(),contract:request.contract.clone(),assumption:request.assumption.clone(),path:request.path.clone(),schedule,audit,principal_after_reporting:after_report.max(0.),disclosure:"Explicit supplied conditional index path, not calibrated projection. Calendar identities/lookbacks and interval coverage retained; business-day calendar mapping is supplied and not independently verified. No default, prepayment, option exercise, OAS solve or book amortization. Complete maturity tail retained beyond report horizon.".into()})
 }

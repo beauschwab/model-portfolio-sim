@@ -130,3 +130,53 @@ pub(super) fn append_observed_features(
     }
     Ok(())
 }
+
+/// Complete extracted economic cash inventory, including supplied recovery tails.
+/// Four residual events cover terminal/default transfer, maturity/exit and the
+/// generic conversion funding event. No hazard value removes a legal cash tail.
+pub(crate) fn cash_event_bound(
+    raw: &crate::commercial_credit_compiler::Request,
+) -> Result<usize, String> {
+    let add = |a: usize, b: usize| {
+        a.checked_add(b)
+            .ok_or_else(|| "native cash inventory overflow".to_string())
+    };
+    let mut n = raw.source.current.periods.len();
+    let mut segments = 0usize;
+    for contract in std::iter::once(&raw.source.current).chain(
+        raw.performing_draw_tranches
+            .iter()
+            .map(|d| &d.source.current),
+    ) {
+        for period in &contract.periods {
+            segments = add(
+                segments,
+                match &period.coupon {
+                    Coupon::Fixed { .. } => 1,
+                    Coupon::Indexed { observations, .. } => observations.len(),
+                },
+            )?;
+        }
+    }
+    for draw in &raw.performing_draw_tranches {
+        n = add(n, add(draw.source.current.periods.len(), 1)?)?;
+    }
+    let tail = raw
+        .credit
+        .intervals
+        .iter()
+        .flat_map(|p| p.complete_recovery_tails.iter())
+        .map(Vec::len)
+        .max()
+        .unwrap_or(0);
+    n = add(n, add(tail, 4)?)?;
+    if raw.factor_policy.terminal_obligations.is_some() {
+        n = add(
+            n,
+            segments
+                .checked_mul(tail + 1)
+                .ok_or("native contingent cash inventory overflow")?,
+        )?;
+    }
+    Ok(n)
+}
