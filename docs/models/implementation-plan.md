@@ -25,6 +25,15 @@ independently checked native numerical correction and complete replay of the
 unchanged families are required before combined release acceptance can resume.
 No financial tolerance, case, path count, rank cutoff or acceptance gate is relaxed.
 
+A separate 28-case history-shaped audit also confirms four incorrect returned
+fits from the actual native current-coupon calibration routine versus NumPy.
+The maximum fitted-coupon error is about 13.4 basis points; some adjustment-speed
+estimates change from one to the 0.02 floor. Two more cases have invalid SVD
+reconstruction despite small fitted-output errors. The earlier 29 passing caller
+controls remain bounded evidence. Shared tall/wide history repair is therefore
+an additional release gate; a commercial-only correction is insufficient. See
+[the retained caller audit](../reviews/2026-10-16-native-svd-secondary-audit.md).
+
 The cut-date coordinator is separately under implementation. Its historical
 omitted receipts remain unchanged; a positive raw, independently verified and
 persisted publication has not yet been accepted. The

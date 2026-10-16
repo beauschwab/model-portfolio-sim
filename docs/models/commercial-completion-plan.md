@@ -30,6 +30,16 @@ and API acceptance has not been claimed. See
 from the earlier exact-constant metadata correction, whose paired financial
 outputs remain identical.
 
+A separate 28-case current-coupon-shaped history family confirms four incorrect
+fits returned by the actual native calibration routine, with fitted-coupon error
+up to about 13.4 basis points and some adjustment speeds changing from one to
+0.02. Two additional cases fail reconstruction checks while fitted-output errors
+remain small. The earlier 29 representative caller controls still pass their
+declared cases. A shared checked numerical module must preserve the historical
+caller's epsilon, floating cutoff and accepted tall/wide shapes; a correction
+limited to commercial continuation does not clear this additional release gate.
+See [the caller audit](../reviews/2026-10-16-native-svd-secondary-audit.md).
+
 | Work | Implemented bounded scope | Remaining acceptance or engineering |
 |---|---|---|
 | Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later conveyed fee capital/FTP, signed prepaid refund acquisitions and generated fee stopping/journals | Combined installed acceptance; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |
