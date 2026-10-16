@@ -148,3 +148,17 @@ The correction changes previously spurious active-feature metadata and redundant
 fit coefficients for exactly constant columns. The initial receipts remain
 immutable; the corrected build must replay the complete unchanged family into a
 separate source- and binary-pinned receipt.
+
+The contained corrected run passes all 60 unchanged cells and all 73 new tests.
+The prior 24-cell credit family passes 34 controls; the prior 107-cell general
+family retains 106 numerical passes and its one declared capacity refusal, plus
+27 controls. Across the paired 60-cell runs, native path summaries, financial
+values, decisions, standard errors and admission figures are exactly unchanged.
+Thirty-two regression metadata records change, including the eight spurious
+active-feature cases. Public output exposes path summaries rather than raw cash
+rows; every corrected case separately passes full independent raw-source replay.
+The isolated stage receipt has SHA256
+`c9a7c9d0e091cf2bc9dc8ddc79e775688e57f50dfc0a3751df17ba9ac6ff94e4`;
+the corrected matrix has SHA256
+`6667ba1d910de6f5eb50c1e5244757cba5e12c00322bafa4b7c044a6ef47514c`.
+Matching combined installed release acceptance remains separate.
