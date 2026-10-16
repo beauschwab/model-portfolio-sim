@@ -343,7 +343,17 @@ pub(crate) fn validate_history(
 }
 /// Charges original calibration, all roles, report marks and retained receipts
 /// before any financial generator executes.
+/// Historical admission metadata remains exactly unchanged.
 pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
+    Ok(audit_capacity(r)?.work_upper)
+}
+/// Complete existing graph census, including retained Q/P receipts and owners.
+/// Borrowing coordinators must charge the byte census as well as source work.
+pub struct Capacity {
+    pub work_upper: usize,
+    pub retained_bytes_upper: usize,
+}
+pub fn audit_capacity(r: &Request) -> Result<Capacity, String> {
     check()?;
     if r.schema != SCHEMA
         || r.positions.is_empty()
@@ -709,7 +719,10 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
             "joined commercial graph work/retention exceeds 32M/128MiB before generation".into(),
         );
     }
-    Ok(work)
+    Ok(Capacity {
+        work_upper: work,
+        retained_bytes_upper: bytes,
+    })
 }
 fn generate(
     p: &Position,
