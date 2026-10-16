@@ -29,9 +29,10 @@ loan default or exercise does not automatically create a fee disposition.
 
 For one fee let T be signed total entitlement, E cumulative earning, C cancelled
 unearned entitlement, W waived unpaid earning, R recovered waived amounts and K
-net ordinary service cash (receipts less prepaid refunds). The signed unsettled
-service balance is E-W-K and remaining earning capacity is T-E-C. With s=sign(T),
-n=s*(E-W-K), the positive-fee owner retains receivable=max(n,0) and deferred
+net ordinary service cash (receipts less refunds). Local 0.29.18 additionally
+retains F, cumulative reviewed earned-fee refunds. The signed unsettled
+service balance is E-F-W-K and remaining earning capacity is T-E-C. With s=sign(T),
+n=s*(E-F-W-K), the positive-fee owner retains receivable=max(n,0) and deferred
 income=min(n,0). The negative-fee owner retains payable=-max(n,0) and prepaid
 expense=-min(n,0). Separate lots never net opposite obligations.
 
@@ -49,9 +50,31 @@ Every action retains an ordered balanced intent and its exact next gross snapsho
 Reporting snapshots include actions on the report date; complete-tail closing and
 all subsequent cash/recovery events remain separately retained. Unsettled closing
 claims stay visible. `full_source_tail_replayed` means every supplied event was
-processed; it does not certify that an omitted legal event never exists. Earned-fee
-refunds, opening/secondary fee acquisition checkpoints and periodic earned refund
-reversals require further explicit contracts and reject at this boundary.
+processed; it does not certify that an omitted legal event never exists.
+Opening/secondary fee acquisition checkpoints remain unsupported.
+
+## Explicit earned-fee refunds (0.29.18)
+
+A fee can explicitly select `earned_refunds_allowed=true`; omission/false retains
+historical refusal. A `refund_earned` event requires a default, exercise, maturity
+or other-reviewed reason and a separate review identity. It is bounded by
+`min(s*(E-F-W), s*K)`: both remaining recognized earning and actual collected
+service cash must exist. Prepaid cash and waived-claim recoveries cannot enlarge
+that right. The signed amount increases F and decreases K, posting cash -amount
+and fee income +amount. Gross earning E, service capacity, loan cost/EIR and
+recovery claims remain unchanged. An earned refund never grants a right to earn
+or collect that amount again. Prepaid refunds remain a separate action and policy.
+
+For a receipt-positive fee5 earned and paid, refund2 retains E5/F2/K3 and zero
+unsettled rights; net income and cash are3. A fee5 prepaid with only2 earned can
+refund1 of earned service and3 of prepaid cash independently, leaving net income
+and cash1. Negative fee entitlements mirror the signed postings. No tolerance
+grants extra collected or earned rights.
+
+The additive permission and `refunded_earned` state omit false/zero values from
+typed output. Historical omitted requests retain their source, snapshot and
+admission layouts. New fields/actions require matching binaries. Both standalone
+and native loan/fee journal routes retain independent raw and persisted replay.
 
 ## Admission and transport
 

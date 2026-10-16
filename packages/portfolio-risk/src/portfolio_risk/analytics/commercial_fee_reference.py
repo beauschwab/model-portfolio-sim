@@ -43,10 +43,13 @@ def bind(policy,raw,source,check):
                         timeline.append((year,dict(event_id=f"native-fee:{path['path_key']}:{fi}:{label}",fee_id=fee['fee_id'],source=deepcopy(fee['source']),review=deepcopy(rule['review']),ordinal=origin+_day(year),sequence=0,action=action,reason=reason,amount=amount)))
                 year=exit['native_year'];reason=exit['reason']
                 if rule['cancel_unearned_entitlement']:emit('cancel','cancel_unearned',s['unearned_entitlement'],year,reason)
-                waived=max((s['earned']-s['waived_earned']-s['net_service_cash'])*sign,0.)*sign*rule['waive_unpaid_earned_fraction']
+                refunded=s.get('refunded_earned',0.)
+                waived=max((s['earned']-refunded-s['waived_earned']-s['net_service_cash'])*sign,0.)*sign*rule['waive_unpaid_earned_fraction']
                 emit('waive','waive_unpaid_earned',waived,year,reason)
-                refund=max((s['net_service_cash']-s['earned']+s['waived_earned'])*sign,0.)*sign*rule['refund_prepaid_fraction']
+                refund=max((s['net_service_cash']-s['earned']+refunded+s['waived_earned'])*sign,0.)*sign*rule['refund_prepaid_fraction']
                 emit('refund','refund_prepaid',refund,year,'settlement')
+                collected=max(min((s['earned']-refunded-s['waived_earned'])*sign,s['net_service_cash']*sign),0.)*sign
+                emit('earned-refund','refund_earned',collected*rule.get('refund_earned_fraction',0.),year,reason)
                 for i,v in enumerate(rule['recoveries']):emit(f'recovery:{i}','recover_waived',waived*v['fraction'],year+v['lag_days']/365.,reason)
             for e in policy['events']:
                 year=(e['ordinal']-origin)/365.
@@ -74,7 +77,7 @@ def verify(raw,result,check=lambda:False):
     from .commercial_dto import typed
     nested=result['loan_receipt'];expected=typed(loan)
     prepared=verify_preparation(expected,expected,nested,check,expected_protocol=7)
-    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
+    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))+int(any(p[k].get('refund_earned_fraction',0.)>0. for k in('default','prepayment','exercise','maturity')))))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
     bounds=dict(admitted_work_upper=nested['admitted_work_upper']+cells*128+cells*8*(prepared['horizon']+1)*16,
         retained_bytes_upper=nested['retained_bytes_upper']+cells*4096+cells*8*4096+(32<<20))
     for name,wanted in bounds.items():

@@ -23,6 +23,84 @@ def exited(destination=3,day=12.5):
 def execute(r):
     result,_=run(r);assert verify(r,result)['verified'];return result
 
+
+def earned_refund_request(destination=3, sign=1.):
+    r=exited(destination)
+    for p,s in zip(r['fees'],r['loan']['commercial'],strict=True):
+        origin=s['source']['current']['asof_ordinal']
+        p['fees'][0].update(entitlement=5.*sign,earned_refunds_allowed=True)
+        p['events'][0].update(ordinal=origin+5,amount=5.*sign)
+        p['events'][1].update(ordinal=origin+10,amount=5.*sign)
+        p['default'if destination==3 else'prepayment']['refund_earned_fraction']=.4
+    return r
+
+
+@pytest.mark.parametrize('sign',[1.,-1.])
+@pytest.mark.parametrize('destination',[3,4])
+def test_reviewed_native_exit_refunds_collected_earned_fee_without_refitting_loan(sign,destination):
+    r=earned_refund_request(destination,sign);v=execute(r)
+    for paths in v['fee_sources']:
+        path=paths[0];state=path['source']['closing'][0]['state']
+        assert state['earned']==5.*sign and state['refunded_earned']==2.*sign
+        assert state['net_service_cash']==3.*sign and state['unearned_entitlement']==0.
+        assert state['fee_receivable']==state['fee_payable']==0.
+        refunds=[g for g in path['source']['groups']if g['event']['action']=='refund_earned']
+        assert len(refunds)==1 and refunds[0]['event']['reason']==path['exit']['reason']
+        assert refunds[0]['event']['amount']==2.*sign
+    # The added fee policy cannot alter the sampled credit owner or acquisition.
+    control=deepcopy(r)
+    for p in control['fees']:p['default'if destination==3 else'prepayment'].pop('refund_earned_fraction')
+    base=execute(control)
+    assert v['loan_receipt']==base['loan_receipt']
+    assert v['admitted_work_upper']>base['admitted_work_upper']
+    assert v['retained_bytes_upper']>base['retained_bytes_upper']
+
+
+@pytest.mark.parametrize('sign',[1.,-1.])
+def test_supplied_refund_and_exit_refund_spend_remaining_collected_earning_once(sign):
+    r=earned_refund_request(sign=sign)
+    for p,s in zip(r['fees'],r['loan']['commercial'],strict=True):
+        e=deepcopy(p['events'][1]);e.update(event_id='prior-earned-refund',ordinal=s['source']['current']['asof_ordinal']+11,
+            sequence=2,action='refund_earned',reason='other_reviewed',amount=sign)
+        p['events'].append(e);p['default']['refund_earned_fraction']=.5
+    v=execute(r)
+    for paths in v['fee_sources']:
+        state=paths[0]['source']['closing'][0]['state']
+        assert state['refunded_earned']==3.*sign and state['net_service_cash']==2.*sign
+
+
+@pytest.mark.parametrize('face',[0.,50.,100.])
+def test_earned_refund_gross_state_and_ordered_cash_are_weighted_once(face):
+    r=earned_refund_request();r['loan']['allocations'][0]['allocated_face']=face;v=execute(r)
+    assert all(f['source']['closing'][0]['state']['refunded_earned']==2. for paths in v['fee_sources']for f in paths)
+    assert all(row['allocation_factor']==face/100. for row in v['tables']['commercial_fee_daily'])
+    baseline=[row for row in v['tables']['journal']if row['scenario']=='baseline'and row['event']=='commercial_nonintegral_fee'and row['gl_account']=='cash']
+    assert sum(row['value']for row in baseline)==3.*face/100.
+
+
+@pytest.mark.parametrize('case',['permission','negative','over_one','bool','nonfinite','manual_reason','over_refund'])
+def test_earned_refund_invalid_terms_and_rights_reject(case):
+    r=earned_refund_request();p=r['fees'][0]
+    if case=='permission':p['fees'][0].pop('earned_refunds_allowed')
+    elif case in('negative','over_one','bool','nonfinite'):
+        p['default']['refund_earned_fraction']={'negative':-.1,'over_one':1.01,'bool':True,'nonfinite':float('inf')}[case]
+    else:
+        e=deepcopy(p['events'][1]);e.update(event_id='bad-refund',ordinal=e['ordinal']+1,sequence=2,action='refund_earned',reason='settlement'if case=='manual_reason'else'other_reviewed',amount=6. if case=='over_refund'else 1.)
+        p['events'].append(e)
+    with pytest.raises(ValueError):run(r)
+
+
+@pytest.mark.parametrize('target',['refunded','permission','fraction','cash'])
+def test_independent_earned_refund_replay_rejects_rehashed_money_and_policy(target):
+    r=earned_refund_request();v=execute(r)
+    if target=='refunded':v['fee_sources'][0][0]['source']['closing'][0]['state']['refunded_earned']+=1.
+    elif target=='permission':v['fee_sources'][0][0]['source']['raw_request']['fees'][0]['earned_refunds_allowed']=False
+    elif target=='fraction':v['raw_source']['fees'][0]['default']['refund_earned_fraction']=.5
+    else:
+        row=next(row for row in v['tables']['journal']if row['event']=='commercial_nonintegral_fee'and row['gl_account']=='cash'and row['value']<0.)
+        row['value']-=1.
+    with pytest.raises((ValueError,ArithmeticError)):verify(r,v)
+
 def short_contract(r):
     # A genuine complete six-day instrument, not a truncated report or relaxed cap.
     r['loan']['spec']['horizon_days']=30
@@ -193,7 +271,8 @@ def test_fee_multiple_paths_follow_source_binding_order_and_weight_once():
     assert [p['path_key']for p in rows]==[33,8]
     assert [p['source_weight']for p in rows]==[.25,.75]
 
-def test_fee_fresh_native_execution_forbids_python_financial_callbacks():
+@pytest.mark.parametrize('earned_refund',[False,True])
+def test_fee_fresh_native_execution_forbids_python_financial_callbacks(tmp_path,earned_refund):
     import subprocess,sys
     from portfolio_risk.core import product_strategy_native
     script='''import json,sys
@@ -207,7 +286,10 @@ commercial_fee_reference.verify=forbidden;nonintegral_fee_reference.replay=forbi
 product_strategy_native.binary_path=lambda:Path(sys.argv[2])
 r=json.load(open(sys.argv[1]));v=model_contracts.analyze_commercial_fees(r)
 assert v['shared_daily_sim_adoption']is True and v['completion']==dict(complete=True,protocol=7)
+if r['fees'][0]['fees'][0].get('earned_refunds_allowed'):
+    assert v['fee_sources'][0][0]['source']['closing'][0]['state']['refunded_earned']==2.
 print('fresh native fee journal ownership passed')
 '''
-    p=subprocess.run([sys.executable,'-c',script,str(ROOT/'examples/models/commercial-fee-journal-1.json'),str(product_strategy_native.binary_path())],capture_output=True,text=True,timeout=60)
+    request=tmp_path/'raw.json';request.write_text(json.dumps(earned_refund_request()if earned_refund else raw()))
+    p=subprocess.run([sys.executable,'-c',script,str(request),str(product_strategy_native.binary_path())],capture_output=True,text=True,timeout=60)
     assert p.returncode==0,p.stdout+p.stderr

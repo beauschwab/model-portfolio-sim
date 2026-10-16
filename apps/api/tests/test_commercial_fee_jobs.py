@@ -7,11 +7,56 @@ from test_persistence import durable
 
 ROOT=Path(__file__).resolve().parents[3]
 
-def queued():
-    raw=json.loads((ROOT/'examples/models/commercial-fee-journal-1.json').read_text(encoding='utf-8'))
+def queued(raw=None):
+    if raw is None:raw=json.loads((ROOT/'examples/models/commercial-fee-journal-1.json').read_text(encoding='utf-8'))
     submitted=model_routes.submit(model_routes.ModelRunRequest(schema_name=raw['schema'],request=raw,expected_revision=0))
     db.WORKER='commercial-fee-test-worker';worker.STOP.clear();assert db.REPO.acquire(db.WORKER)
     return submitted.id,db.REPO.claim(db.WORKER)
+
+
+def earned_refund_raw():
+    raw=json.loads((ROOT/'examples/models/commercial-fee-journal-1.json').read_text(encoding='utf-8'))
+    for source,policy in zip(raw['loan']['commercial'],raw['fees'],strict=True):
+        source['maturity_basis_policy']=dict(review=dict(id='reviewed-maturity',revision='1'),disposition='dispose_financial_basis_after_exact_legal_close-1')
+        origin=source['source']['current']['asof_ordinal']
+        policy['fees'][0]['earned_refunds_allowed']=True
+        policy['events'][1]['ordinal']=origin+20
+        policy['maturity']['refund_earned_fraction']=.4
+    return raw
+
+
+def test_earned_refund_job_persists_raw_policy_gross_rights_and_reconciled_income(durable):
+    raw=earned_refund_raw();jid,job=queued(raw);worker.execute(job)
+    row=db.REPO.job(jid);assert row['status']=='done',row['detail']
+    saved=db.CODEC.load(db.result_ref(jid))
+    from app.model_tables import restore_sources
+    result=restore_sources(saved['model_result'],saved['execution']['table_layouts'])
+    assert result['raw_source']==raw
+    assert result['completion']==dict(complete=True,protocol=7)
+    for paths in result['fee_sources']:
+        state=paths[0]['source']['closing'][0]['state']
+        assert state['earned']==5. and state['refunded_earned']==2. and state['net_service_cash']==3.
+    assert saved['execution']['source_verification']['single_sim_ordered_journal_replayed']is True
+
+
+@pytest.mark.parametrize('target',['right','review','posting'])
+def test_rehashed_earned_refund_cannot_pass_persisted_publication(durable,monkeypatch,target):
+    jid,job=queued(earned_refund_raw());dump=db.CODEC.dump;load=db.CODEC.load
+    def changed(value):
+        ref=dump(value)
+        if type(value)is not dict or value.get('execution',{}).get('schema')!='commercial-fee-journal-1':return ref
+        saved=load(ref)
+        from app.model_tables import restore_sources,format_sources
+        result=restore_sources(saved['model_result'],saved['execution']['table_layouts'])
+        if target=='right':result['fee_sources'][0][0]['source']['closing'][0]['state']['refunded_earned']+=1.
+        elif target=='review':result['raw_source']['fees'][0]['maturity']['refund_earned_fraction']=.9
+        else:
+            row=next(row for row in result['tables']['journal']if row['event']=='commercial_nonintegral_fee'and row['gl_account']=='cash'and row['value']<0.)
+            row['value']-=1.
+        saved['model_result'],saved['execution']['table_layouts']=format_sources(result)
+        return dump(saved)
+    monkeypatch.setattr(db.CODEC,'dump',changed);worker.execute(job)
+    row=db.REPO.job(jid);assert row['status']!='done'and row['result']is None
 
 def test_fee_job_publishes_only_independently_replayed_source_and_shared_journal(durable):
     jid,job=queued();budget=db.CODEC.load(job['request'])['args'][0]['publication_deadline_unix']

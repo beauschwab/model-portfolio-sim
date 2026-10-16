@@ -1274,3 +1274,15 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+
+## Earned-fee refund gates (0.29.18)
+
+`test_nonintegral_fee.py` and `test_commercial_fee_journal.py` gate signed,
+reviewed refunds bounded by both earned and collected service, separate prepaid
+and waived recovery ownership, unchanged loan anchors, once-only source weights,
+historical omission and independently rejected monetary/policy tampering.
+Core native `tests/nonintegral_fee.rs` supplies hand controls and strict capacity
+refusals. API `test_commercial_fee_jobs.py` gates durable raw/persisted source,
+gross refund snapshots and rehashed refund/approval/posting publication failures.
+These numerical/source gates do not establish observed model or policy approval.

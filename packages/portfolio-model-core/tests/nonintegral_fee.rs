@@ -210,6 +210,116 @@ fn cancellation_fences_fee_validation_and_full_tail_generation() {
 }
 
 #[test]
+fn earned_refund_reverses_only_collected_income_and_preserves_gross_service() {
+    for sign in [1., -1.] {
+        let mut r = raw();
+        r["fees"][0]["entitlement"] = json!(5. * sign);
+        r["fees"][0]["earned_refunds_allowed"] = json!(true);
+        r["events"] = json!([
+            event(5, 0, "earn", 5. * sign, "service"),
+            event(10, 1, "cash", 5. * sign, "settlement"),
+            event(20, 2, "refund_earned", 2. * sign, "other_reviewed")
+        ]);
+        let v = result(r).unwrap();
+        assert!(v["reporting"][0]["state"].get("refunded_earned").is_none());
+        let state = &v["closing"][0]["state"];
+        assert_eq!(state["earned"], 5. * sign);
+        assert_eq!(state["refunded_earned"], 2. * sign);
+        assert_eq!(state["net_service_cash"], 3. * sign);
+        assert_eq!(state["fee_receivable"], 0.);
+        assert_eq!(state["fee_payable"], 0.);
+        assert_eq!(state["unearned_entitlement"], 0.);
+        assert_eq!(
+            v["groups"][2]["postings"],
+            json!([
+                {"account":"cash", "amount":-2. * sign},
+                {"account":"fee_income", "amount":2. * sign}
+            ])
+        );
+    }
+}
+
+#[test]
+fn earned_and_prepaid_refunds_are_distinct_without_reopening_service_capacity() {
+    let mut r = raw();
+    r["fees"][0]["earned_refunds_allowed"] = json!(true);
+    r["events"] = json!([
+        event(2, 0, "cash", 5., "settlement"),
+        event(5, 1, "earn", 2., "service"),
+        event(10, 2, "refund_earned", 1., "exercise"),
+        event(11, 3, "cancel_unearned", 3., "exercise"),
+        event(12, 4, "refund_prepaid", 3., "settlement")
+    ]);
+    let v = result(r.clone()).unwrap();
+    assert_eq!(v["groups"][2]["next"]["deferred_fee_income"], -3.);
+    assert_eq!(v["closing"][0]["state"]["net_service_cash"], 1.);
+    assert_eq!(v["closing"][0]["state"]["unearned_entitlement"], 0.);
+    for action in ["earn", "cash", "refund_prepaid"] {
+        let mut changed = r.clone();
+        changed["events"].as_array_mut().unwrap().push(event(
+            13,
+            5,
+            action,
+            1.,
+            if action == "earn" {
+                "service"
+            } else {
+                "settlement"
+            },
+        ));
+        assert!(result(changed).unwrap_err().contains("exceeds"));
+    }
+}
+
+#[test]
+fn earned_refund_requires_permission_review_and_remaining_collected_right() {
+    for case in 0..6 {
+        let mut r = raw();
+        r["fees"][0]["earned_refunds_allowed"] = json!(true);
+        r["events"] = json!([
+            event(2, 0, "earn", 5., "service"),
+            event(5, 1, "cash", 2., "settlement"),
+            event(10, 2, "refund_earned", 2., "other_reviewed")
+        ]);
+        match case {
+            0 => r["fees"][0]["earned_refunds_allowed"] = json!(false),
+            1 => r["events"][2]["amount"] = json!(2. + 1e-12),
+            2 => r["events"][2]["reason"] = json!("settlement"),
+            3 => r["events"][2]["review"]["id"] = json!(""),
+            4 => r["events"].as_array_mut().unwrap().push(event(
+                11,
+                3,
+                "refund_earned",
+                1.,
+                "default",
+            )),
+            _ => r["events"][0]["amount"] = json!(1.),
+        }
+        assert!(result(r).is_err(), "case {case}");
+    }
+}
+
+#[test]
+fn waived_recovery_is_not_collected_service_eligible_for_refund() {
+    let mut r = raw();
+    r["fees"][0]["earned_refunds_allowed"] = json!(true);
+    r["events"] = json!([
+        event(2, 0, "earn", 5., "service"),
+        event(5, 1, "waive_unpaid_earned", 3., "default"),
+        event(10, 2, "cash", 2., "settlement"),
+        event(11, 3, "recover_waived", 3., "default"),
+        event(12, 4, "refund_earned", 2., "other_reviewed")
+    ]);
+    let v = result(r.clone()).unwrap();
+    assert_eq!(v["closing"][0]["state"]["recovered_waived"], 3.);
+    r["events"]
+        .as_array_mut()
+        .unwrap()
+        .push(event(13, 5, "refund_earned", 1., "default"));
+    assert!(result(r).unwrap_err().contains("exceeds"));
+}
+
+#[test]
 fn preflight_rejects_excessive_cardinality_and_calendar_before_generation() {
     let mut r = raw();
     let f = r["fees"][0].clone();

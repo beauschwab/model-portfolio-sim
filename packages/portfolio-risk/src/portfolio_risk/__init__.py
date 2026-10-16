@@ -21,7 +21,7 @@ from .products.cds import CDDeck, run_cd_risk
 from .analytics.stress import run_stress
 from . import demo
 
-__version__ = "0.29.17"
+__version__ = "0.29.18"
 __all__ = ["run_risk", "run_stress", "run_corp_risk", "CorpDeck",
            "run_deposit_risk", "run_deposit_stress", "DepositDeck",
            "deposit_horizon_sensitivity",

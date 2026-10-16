@@ -354,3 +354,24 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+
+## Reviewed earned-fee refunds (0.29.18)
+
+The standalone nonintegral fee owner and native commercial loan/fee journal
+support explicitly permitted earned AND collected service refunds. A reviewed
+refund reverses fee cash/income, retaining separate cumulative refunded earning
+and historical gross service. It cannot grant new earning/collection capacity,
+use prepaid cash or waived recoveries, or change loan original cost/EIR/credit
+paths. Native exit policies optionally select a bounded refund fraction and
+reserve the additional group before generation; absent/zero selections retain
+historical outputs and admission. Signed gross rights, full tails, independent
+raw-source/persisted replay and original publication fences remain required.
+
+See docs/models/nonintegral-fees.md and commercial-fee-journal.md for the supplied
+policies, controls and exclusions. Fee Pricing/acquisition/units/capital/FTP,
+exercise/candidate/holding and draw/secondary adoption, in-arrears earning,
+generated streaming/convergence, full saved/cohort/mixed adoption and observed/
+reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
+ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
+libraries before new execution; local validation does not deploy or close15.

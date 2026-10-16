@@ -23,6 +23,8 @@ pub struct ExitPolicy {
     pub cancel_unearned_entitlement: bool,
     pub waive_unpaid_earned_fraction: f64,
     pub refund_prepaid_fraction: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub refund_earned_fraction: f64,
     pub recoveries: Vec<Recovery>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +70,9 @@ impl BoundPath {
         &self.native_years
     }
 }
+fn is_zero(v: &f64) -> bool {
+    *v == 0.
+}
 fn checked_policy(p: &ExitPolicy) -> Result<(), String> {
     if p.review.id.is_empty()
         || p.review.revision.is_empty()
@@ -79,6 +84,8 @@ fn checked_policy(p: &ExitPolicy) -> Result<(), String> {
         || !(0. ..=1.).contains(&p.waive_unpaid_earned_fraction)
         || !p.refund_prepaid_fraction.is_finite()
         || !(0. ..=1.).contains(&p.refund_prepaid_fraction)
+        || !p.refund_earned_fraction.is_finite()
+        || !(0. ..=1.).contains(&p.refund_earned_fraction)
         || p.recoveries.len() > 32
     {
         return Err("explicit bounded fee exit review required".into());
@@ -130,11 +137,21 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
         {
             return Err("fee exit refund policy contradicts supplied fee terms".into());
         }
+        if !f.earned_refunds_allowed
+            && [&p.default, &p.prepayment, &p.exercise, &p.maturity]
+                .iter()
+                .any(|policy| policy.refund_earned_fraction > 0.)
+        {
+            return Err("earned fee exit refund policy contradicts supplied fee terms".into());
+        }
     }
     for e in &p.events {
         if !matches!(
             e.action,
-            fee::Action::Earn | fee::Action::Cash | fee::Action::RefundPrepaid
+            fee::Action::Earn
+                | fee::Action::Cash
+                | fee::Action::RefundPrepaid
+                | fee::Action::RefundEarned
         ) {
             return Err(
                 "fee disposition money must derive from the actual native loan exit".into(),
@@ -158,12 +175,7 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
         &request(p, r, p.events.clone()),
         portfolio_compute_control::checkpoint,
     )?;
-    let recoveries = [&p.default, &p.prepayment, &p.exercise, &p.maturity]
-        .iter()
-        .map(|p| p.recoveries.len())
-        .max()
-        .unwrap_or(0);
-    let events = p.events.len() + p.fees.len() * (3 + recoveries);
+    let events = event_bound(p);
     let cells = events
         .checked_mul(r.credit.paths.len())
         .ok_or("fee admission overflow")?;
@@ -173,6 +185,18 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
         return Err("native fee joined capacity exceeds8M/32MiB before loan generation".into());
     }
     Ok((work, bytes))
+}
+/// Reserve the additive exit group only when an earned-refund policy selects it.
+/// Omitted policies retain the historical admission and output exactly.
+pub fn event_bound(p: &Policy) -> usize {
+    let policies = [&p.default, &p.prepayment, &p.exercise, &p.maturity];
+    let recoveries = policies
+        .iter()
+        .map(|p| p.recoveries.len())
+        .max()
+        .unwrap_or(0);
+    let earned_refund = usize::from(policies.iter().any(|p| p.refund_earned_fraction > 0.));
+    p.events.len() + p.fees.len() * (3 + recoveries + earned_refund)
 }
 fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
     if !year.is_finite() || year < 0. {
@@ -308,7 +332,9 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
                     )?;
                 }
                 let unpaid =
-                    ((s.earned - s.waived_earned - s.net_service_cash) * sign).max(0.) * sign;
+                    ((s.earned - s.refunded_earned - s.waived_earned - s.net_service_cash) * sign)
+                        .max(0.)
+                        * sign;
                 let waived = unpaid * policy.waive_unpaid_earned_fraction;
                 emit(
                     "waive",
@@ -318,13 +344,26 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
                     x.reason,
                 )?;
                 let prepaid =
-                    ((s.net_service_cash - s.earned + s.waived_earned) * sign).max(0.) * sign;
+                    ((s.net_service_cash - s.earned + s.refunded_earned + s.waived_earned) * sign)
+                        .max(0.)
+                        * sign;
                 emit(
                     "refund",
                     fee::Action::RefundPrepaid,
                     prepaid * policy.refund_prepaid_fraction,
                     x.native_year,
                     fee::Reason::Settlement,
+                )?;
+                let collected_earned = ((s.earned - s.refunded_earned - s.waived_earned) * sign)
+                    .min(s.net_service_cash * sign)
+                    .max(0.)
+                    * sign;
+                emit(
+                    "earned-refund",
+                    fee::Action::RefundEarned,
+                    collected_earned * policy.refund_earned_fraction,
+                    x.native_year,
+                    x.reason,
                 )?;
                 for (i, v) in policy.recoveries.iter().enumerate() {
                     emit(

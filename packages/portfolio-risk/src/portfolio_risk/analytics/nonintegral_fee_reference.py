@@ -16,6 +16,9 @@ FIELDS = ('earned', 'cancelled_unearned', 'waived_earned', 'recovered_waived',
 def _typed_money(raw):
     """Mirror only the DTO's f64 fields, retaining strict original clock categories."""
     source=deepcopy(raw)
+    for fee in source['fees']:
+        if fee.get('earned_refunds_allowed') is False:
+            fee.pop('earned_refunds_allowed')
     for rows,key in ((source['fees'],'entitlement'),(source['events'],'amount')):
         for row in rows:
             if type(row[key])not in(int,float) or not math.isfinite(row[key]) or abs(row[key])>1e15:
@@ -53,19 +56,21 @@ def replay(raw, check=lambda: False):
         if not raw['asof_ordinal'] <= e['ordinal'] <= raw['complete_end_ordinal']: raise ValueError('fee source date differs')
         ids.add(e['event_id']); previous = clock
         f = fees[e['fee_id']]; s = states[e['fee_id']]; old = deepcopy(s)
+        refunded=s.get('refunded_earned',0.)
         sign = 1. if f['entitlement'] > 0. else -1.; amount = float(e['amount']); magnitude = sign * amount
         if magnitude <= 0. or not exact_json_identity(f['source'], e['source']): raise ValueError('fee sign/source differs')
         action = e['action']; capacity = {
             'earn': s['unearned_entitlement'], 'cancel_unearned': s['unearned_entitlement'],
-            'cash': f['entitlement']-s['cancelled_unearned']-s['waived_earned']-s['net_service_cash'],
-            'refund_prepaid': s['net_service_cash']-s['earned']+s['waived_earned'],
-            'waive_unpaid_earned': s['earned']-s['waived_earned']-s['net_service_cash'],
+            'cash': f['entitlement']-s['cancelled_unearned']-refunded-s['waived_earned']-s['net_service_cash'],
+            'refund_prepaid': s['net_service_cash']-s['earned']+refunded+s['waived_earned'],
+            'refund_earned': min((s['earned']-refunded-s['waived_earned'])*sign,s['net_service_cash']*sign)*sign,
+            'waive_unpaid_earned': s['earned']-refunded-s['waived_earned']-s['net_service_cash'],
             'recover_waived': s['waived_earned']-s['recovered_waived'],
         }[action] * sign
         if magnitude > capacity: raise ValueError('fee event exceeds reviewed rights')
         if action == 'earn' and e['reason'] != 'service' or action in ('cash', 'refund_prepaid') and e['reason'] != 'settlement':
             raise ValueError('fee service/settlement reason differs')
-        if action in ('waive_unpaid_earned', 'cancel_unearned', 'recover_waived') and e['reason'] not in ('default', 'exercise', 'maturity', 'other_reviewed'):
+        if action in ('waive_unpaid_earned', 'cancel_unearned', 'recover_waived', 'refund_earned') and e['reason'] not in ('default', 'exercise', 'maturity', 'other_reviewed'):
             raise ValueError('fee disposition review differs')
         postings = []
         def post(account, value):
@@ -75,10 +80,14 @@ def replay(raw, check=lambda: False):
         elif action == 'refund_prepaid':
             if f['prepaid_refunds_allowed'] is not True: raise ValueError('fee refund terms differ')
             s['net_service_cash'] -= amount; post('cash', -amount)
+        elif action == 'refund_earned':
+            if f.get('earned_refunds_allowed') is not True: raise ValueError('earned fee refund terms differ')
+            s['refunded_earned']=refunded+amount
+            s['net_service_cash']-=amount;post('cash',-amount);post('fee_income',amount)
         elif action == 'waive_unpaid_earned': s['waived_earned'] += amount; post('fee_writeoff_expense', amount)
         elif action == 'cancel_unearned': s['cancelled_unearned'] += amount
         else: s['recovered_waived'] += amount; post('cash', amount); post('fee_recovery_income', -amount)
-        net = sign * (s['earned']-s['waived_earned']-s['net_service_cash'])
+        net = sign * (s['earned']-s.get('refunded_earned',0.)-s['waived_earned']-s['net_service_cash'])
         s['fee_receivable'] = max(net, 0.) if sign > 0. else 0.
         s['fee_payable'] = -max(net, 0.) if sign < 0. else 0.
         s['deferred_fee_income'] = min(net, 0.) if sign > 0. else 0.

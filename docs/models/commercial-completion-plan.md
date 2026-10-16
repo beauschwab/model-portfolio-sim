@@ -202,3 +202,20 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+## Reviewed earned-fee refunds (0.29.18 follow-through)
+
+The standalone fee owner and native loan/fee journal now implement explicitly
+permitted refunds of earned AND collected service, with separate cumulative
+refund ownership, reviewed exit fractions, gross signed snapshots and reversed
+fee income/cash. Refunds cannot recreate service/collection capacity or use
+prepaid cash or waived recovery as collected earning. Loan original cost/EIR and
+credit paths remain unchanged. Omitted selections retain historical layouts and
+admission. Independent raw-source and persisted replay remain required.
+
+This removes the earned-refund subtask from the earlier exclusion lists. All
+other remaining engineering, data/policy and complete combined acceptance work
+above stays open, including fee Pricing/acquisition/unit/capital/FTP adoption,
+exercise/candidate/holding and draw/secondary rights, in-arrears coupons,
+generated streaming/convergence and full saved/cohort/mixed adoption. It does
+not establish observed accuracy, policy approval, deployment or issue completion.
