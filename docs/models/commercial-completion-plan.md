@@ -1,20 +1,30 @@
 # Remaining commercial acceptance work
 
-## Current development reconciliation (local 0.29.19)
+## Current development reconciliation (2026-10-16)
 
 This section supersedes the older implementation exclusions below without
 removing their wider acceptance requirements. The last accepted installed stage
-is 0.29.18. The following additions are implemented in the working tree and have
-targeted native/independent checks; combined installed acceptance is still pending.
+is 0.29.19: 1,299 native tests, 2,998 engine tests (two skips), 1,311 API tests
+(one skip), 24 browser journeys, strict native checks and contract checks passed.
+Its source and eight installed artifacts are sealed separately in
+[the acceptance review](../reviews/2026-10-16-commercial-source-adoption.md).
+Skips, deployment, empirical evidence and complete joint-scale acceptance are not
+covered by those results.
+
+Subsequent committed components below have contained native and independent
+checks. They have not yet passed a combined installed release regression. Work
+still being implemented is identified explicitly.
 
 | Work | Implemented bounded scope | Remaining acceptance or engineering |
 |---|---|---|
-| Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP | Generated fee candidates, draw-tranche/secondary fee rights, wider mixed/saved/cohort adoption and reviewed policies |
-| Candidate holdings | Complete-origin finite loan/fee replay, identical completed raw/monetary prefixes, prospective gross rights/basis and future postings; exact-cut ordinary modeled predecessor binding with independent publication evidence | Cut-started mixed Sim, seasoned graph/cohort/strategy coefficients, conveyed secondary rights and observed bank reconciliation |
-| Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims | Contingent retained-payment principal, alternative legal true-up policies and delayed-publication generated loadings |
-| Generated paths | Explicit complete path catalogs for Physical draws/reviews; canonical source dimensions and paired original anchors; compact candidate journals and partitioned publication; positive reviewed-action candidate replay | Generated draw journal adoption: the minimal supplied draw case still refuses at 4,800,566,464 work against the unchanged 4B cap; proven component-bound refinement or source reuse, generated fees and wider joint/mixed scale remain required |
-| Numerical evidence | Explicit nested linear/quadratic/cubic training-only bases, exact normal/one-date controls, two-date independently integrated learned-policy value and sampling diagnostics | Broad contract/driver/seed/step/basis convergence, uncertainty coverage and observed validation |
-| Application | Durable generated stream route, new fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening | Matching release build/full regression, browser acceptance, deployment/restarts and explicit saved-library/session rebuilds |
+| Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later bounded conveyed fee capital/FTP and signed prepaid refund acquisitions | Generated fee integration is being completed; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |
+| Candidate holdings | Complete-origin finite loan/fee replay, identical completed raw/monetary prefixes, prospective gross rights/basis and future postings; exact-cut ordinary modeled predecessor binding; later complete-origin secondary acquisition and coupon entitlement100/live principal80 | Seasoned graph/cohort/strategy coefficients, broader acquired/default/draw rights and observed bank reconciliation |
+| Native cut replay | The native component moves the actual Sim through a positive cut into a distinct resumed Sim on the original calendar; component controls cover future acquisitions, gross signed fees, cancellation and historical parity | The public raw specimen still refuses at 36,844,632 work /223,261,940 bytes before generation. Selected complete-tail census, positive raw/persisted publication, predecessor binding and complete union-tail adoption remain under implementation or open |
+| Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims; later separate dated principal and retained coupon nominal | Alternative legal true-up policies and delayed-publication generated loadings |
+| Generated paths | Explicit complete Physical path catalogs, canonical source dimensions and paired original anchors; compact candidate journals, positive reviewed actions and counted actual draw-source construction | Generated loan/fee stream integration and final combined regression are pending; generated draw fees, secondary generated rights and wider joint/mixed scale remain |
+| Source capacity | Explicit finite transfer authority counts the true origin and both actual buyer builds, canonical scans and source operations; selected prepaid exercise and no-option dual holdings have positive independent/persisted component controls | Joint exercise plus dual holding still refuses at 48,261,092 work /94,333,264 bytes. A separately reviewed complete carry/claim/body census is being implemented; caps, samples and tails remain unchanged |
+| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independently integrated learned-policy value; a later predeclared 24-cell credit-loss benchmark passes 34 controls with exact binomial sampling diagnostics | Credit-sensitive call/put validation and an exact-constant regression correction are in progress. Broad contract/driver/seed/step/basis convergence and observed validation remain |
+| Application | Durable generated stream, fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening passed the accepted 0.29.19 checkpoint | Matching release/full regression and browser acceptance for the subsequent combined changes; deployment/restarts and explicit saved-library/session rebuilds |
 
 See [fee adoption](commercial-fee-adoption.md),
 [fee funding](commercial-fee-funding.md), [candidate holdings](commercial-fee-holding.md),
@@ -23,7 +33,13 @@ See [fee adoption](commercial-fee-adoption.md),
 [generated Physical sources](commercial-generated-physical-sources.md),
 [generated candidates](commercial-generated-candidates.md),
 [publication](commercial-generated-publication.md) and
-[policy refinement](commercial-policy-refinement.md).
+[policy refinement](commercial-policy-refinement.md),
+[conveyed fee treasury](../reviews/2026-10-16-commercial-conveyed-fee-treasury.md),
+[signed acquired prepaid rights](commercial-secondary-prepaid.md),
+[principal and coupon entitlement](commercial-principal-entitlement.md),
+[finite source work](commercial-finite-source-work.md),
+[native cut coordinator](commercial-cut-mixed.md) and
+[credit sampling diagnostics](commercial-credit-convergence.md).
 
 Original OAS/EIR, separate Physical/Pricing ownership, shared random streams,
 final-output tolerances and historical omitted paths remain required. Component
