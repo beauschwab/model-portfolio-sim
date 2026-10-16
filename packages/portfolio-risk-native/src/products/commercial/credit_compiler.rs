@@ -19,6 +19,8 @@ pub use crate::products::commercial::factor_source::draws::{
 
 #[cfg(test)]
 thread_local! {pub(crate) static COUNTED_OWNER_WORK: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; pub(crate) static OWNER_EVALUATIONS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; }
+#[cfg(test)]
+thread_local! {static BOOK_EVALUATIONS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)};}
 pub const SCHEMA: &str = "commercial-source-credit-accounting-proof-1";
 const MAX_WORK: usize = 8_000_000;
 const MAX_BYTES: usize = 128 << 20;
@@ -227,6 +229,8 @@ pub struct ResultData {
     schema: &'static str,
     raw_request: Request,
     admission: Admission,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_accounting_owner: Option<&'static str>,
     #[serde(serialize_with = "serialize_factors")]
     original_source: NativeFactors,
     #[serde(serialize_with = "serialize_factors")]
@@ -762,6 +766,7 @@ fn rates(r: &Request, p: &carry::Request) -> Result<(), String> {
 }
 
 struct SourceAdapter<'a> {
+    selected_finite_tail: bool,
     source: &'a NativeFactors,
     path_keys: Vec<u64>,
     stops: &'a [NativeStop],
@@ -796,6 +801,17 @@ fn relative_source_year(base_asof: i32, source_asof: i32, global: f64) -> Result
     }
 }
 impl<'a> SourceAdapter<'a> {
+    fn with_tail_census(mut self, selected: bool) -> Self {
+        self.selected_finite_tail = selected;
+        self
+    }
+    fn selected_width(&self, len: usize, upper: usize) -> Result<(), String> {
+        if self.selected_finite_tail && len > upper {
+            return Err("selected native inventory exceeded before allocation".into());
+        }
+        Ok(())
+    }
+
     fn with_draws(
         mut self,
         sources: &'a [NativeDrawSource],
@@ -851,6 +867,7 @@ impl<'a> SourceAdapter<'a> {
         transfer: Option<&'a super::acquisition::NativeTransfer>,
     ) -> Result<Self, String> {
         Ok(Self {
+            selected_finite_tail: false,
             source,
             path_keys,
             stops,
@@ -866,6 +883,15 @@ impl<'a> SourceAdapter<'a> {
     }
 }
 impl carry::NativeEarnedFactors for SourceAdapter<'_> {
+    fn selected_tail_shape(&self) -> Option<carry::tail_bounds::SourceShape> {
+        self.selected_finite_tail
+            .then_some(carry::tail_bounds::SourceShape {
+                canonical_coupons: self.source.source().audit.len(),
+                pending_indices: self.source.admission().segment_bound,
+                draw_tranches: 0,
+            })
+    }
+
     fn acquired_opening_coupons(
         &self,
         path_key: u64,
@@ -876,6 +902,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
         let Some(t) = self.transfer else {
             return Ok(Vec::new());
         };
+        self.selected_width(t.coupons().len(), self.source.source().audit.len())?;
         t.coupons()
             .iter()
             .map(|c| {
@@ -922,6 +949,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
                 information_year,
             )?;
             for index in view.source.pending_indices(served, information)? {
+                self.selected_width(result.len() + 1, self.source.admission().segment_bound)?;
                 result.push(index + view.segment_offset);
             }
         }
@@ -984,6 +1012,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
                         view.source.source().schedule.events[*cash].payment_ordinal
                             - self.source.raw().asof_ordinal,
                     ) / 365.;
+                    self.selected_width(result.len() + 1, self.source.admission().segment_bound)?;
                     result.push(carry::NativeTerminalCouponStep {
                         year,
                         original_settlement_year: settlement,
@@ -1107,6 +1136,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
                 .max(0.),
             )? {
                 let a = &v.source.source().audit[audit];
+                self.selected_width(result.len() + 1, self.source.source().audit.len())?;
                 result.push(carry::NativeCumulativeCouponFactor {
                     coupon_id: a.period_id.clone(),
                     native_audit_index: audit + v.audit_offset,
@@ -1388,6 +1418,8 @@ pub struct EconomicResult {
     pub current_source: NativeFactors,
     pub carry: carry::ResultData,
     pub admission: Admission,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_accounting_owner: Option<&'static str>,
     pub physical_journal_eligible: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub native_stops: Vec<NativeStop>,
@@ -1738,7 +1770,7 @@ fn evaluate_economic_internal(
         mut credit,
         admission,
         ..
-    } = prepare(r, 0, 0, measure, stops)?;
+    } = prepare(r, 0, 0, measure, stops, AccountingOwner::EconomicCarry)?;
     let origin = if r.source.transfer.is_some() {
         Some(super::acquisition::prepare_origin(&r.source)?)
     } else {
@@ -1795,7 +1827,8 @@ fn evaluate_economic_internal(
         r.maturity_basis_policy.as_ref(),
         transfer.as_ref(),
     )?
-    .with_draws(&draw_sources, &policy, &credit);
+    .with_draws(&draw_sources, &policy, &credit)
+    .with_tail_census(selected_tail(r));
     let carry = carry::evaluate_economic_with_native_factors(&credit, &mut adapter, &mut check)?;
     if carry.carry_points().len() > admission.carry_points_upper
         || carry.admission().work_upper > admission.carry.work_upper
@@ -1818,6 +1851,7 @@ fn evaluate_economic_internal(
     }
     check()?;
     let result = EconomicResult {
+        selected_accounting_owner: selected_tail(r).then_some("economic_carry_only-1"),
         original_source,
         current_source,
         carry,
@@ -1837,7 +1871,15 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
     admit_with_stops(r, &[])
 }
 pub fn admit_with_stops(r: &Request, stops: &[NativeStop]) -> Result<Admission, String> {
-    Ok(prepare(r, 0, 0, CreditMeasure::Physical, stops)?.admission)
+    Ok(prepare(
+        r,
+        0,
+        0,
+        CreditMeasure::Physical,
+        stops,
+        AccountingOwner::ReviewedBook,
+    )?
+    .admission)
 }
 pub fn admit_economic_with_measure(
     r: &Request,
@@ -1850,7 +1892,7 @@ pub fn admit_economic_with_stops(
     measure: CreditMeasure,
     stops: &[NativeStop],
 ) -> Result<Admission, String> {
-    Ok(prepare(r, 0, 0, measure, stops)?.admission)
+    Ok(prepare(r, 0, 0, measure, stops, AccountingOwner::EconomicCarry)?.admission)
 }
 fn source_measure(measure: CreditMeasure) -> portfolio_model_core::cashflow::CashflowMeasure {
     match measure {
@@ -1858,12 +1900,25 @@ fn source_measure(measure: CreditMeasure) -> portfolio_model_core::cashflow::Cas
         CreditMeasure::Pricing => portfolio_model_core::cashflow::CashflowMeasure::Pricing,
     }
 }
+fn selected_tail(r: &Request) -> bool {
+    r.source
+        .transfer
+        .as_ref()
+        .is_some_and(|t| t.source_work_policy.is_some())
+}
+#[derive(Clone, Copy)]
+enum AccountingOwner {
+    EconomicCarry,
+    ReviewedBook,
+}
+#[allow(clippy::too_many_arguments)]
 fn prepare(
     r: &Request,
     reserved_work: usize,
     reserved_bytes: usize,
     measure: CreditMeasure,
     stops: &[NativeStop],
+    accounting_owner: AccountingOwner,
 ) -> Result<Prepared, String> {
     check()?;
     if r.source.transfer.is_some() && r.counted_work.is_some() {
@@ -1983,32 +2038,52 @@ fn prepare(
         retained_source_bytes: source_bytes,
         source_work,
     };
-    let carry_admission = carry::admit_economic_with_native_bound(
-        &p,
-        &bound,
-        add(
-            periods,
-            term::indexed::principal::events(&r.source.current.principal_plan).len(),
-        )?,
-        add(
-            mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
-            terminal_steps,
-        )?,
-        &mut check,
+    let cash = add(
+        periods,
+        term::indexed::principal::events(&r.source.current.principal_plan).len(),
     )?;
-    let per_path_points = add(
-        mul(terminal_steps, 33)?,
+    let claim_lots = add(
+        mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
+        terminal_steps,
+    )?;
+    let census = if selected_tail(r) {
+        Some(carry::tail_bounds::NativeTailCensus::derive(
+            &p,
+            &bound,
+            cash,
+            claim_lots,
+            carry::tail_bounds::SourceShape {
+                canonical_coupons: periods,
+                pending_indices: segments,
+                draw_tranches: 0,
+            },
+            &mut check,
+        )?)
+    } else {
+        None
+    };
+    let carry_admission = if let Some(census) = &census {
+        carry::admit_economic_with_tail_census(&p, &bound, cash, claim_lots, census, &mut check)?
+    } else {
+        carry::admit_economic_with_native_bound(&p, &bound, cash, claim_lots, &mut check)?
+    };
+    let per_path_points = if let Some(census) = &census {
+        census.point_upper()? / r.credit.paths.len()
+    } else {
         add(
-            sojourns,
+            mul(terminal_steps, 33)?,
             add(
+                sojourns,
                 add(
-                    p.raw_credit_path.boundaries.len(),
-                    r.credit.max_jumps_per_path,
+                    add(
+                        p.raw_credit_path.boundaries.len(),
+                        r.credit.max_jumps_per_path,
+                    )?,
+                    68,
                 )?,
-                68,
             )?,
-        )?,
-    )?;
+        )?
+    };
     let lots = add(
         mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
         terminal_steps,
@@ -2036,11 +2111,17 @@ fn prepare(
     // Each selected legal waiver remains explicit in every later snapshot.
     // Charge the full bounded reviewed-history clone before generation.
     let review_cells = mul(accounting_groups_upper, reviewed_count)?;
-    let book_work = add(book_admission.work_upper, mul(review_cells, 128)?)?;
-    let book_bytes = add(
+    let mut book_work = add(book_admission.work_upper, mul(review_cells, 128)?)?;
+    let mut book_bytes = add(
         book_admission.retained_bytes_upper,
         mul(review_cells, 1024)?,
     )?;
+    // Selected economic carry never invokes book::compile. Keep all carry,
+    // origin/current factors and metadata alive; only the absent Book is zero.
+    if selected_tail(r) && matches!(accounting_owner, AccountingOwner::EconomicCarry) {
+        book_work = 0;
+        book_bytes = 0;
+    }
     let (work, bytes) = if let Some(authority) = &r.counted_work {
         let raw_upper = crate::products::term::contracts::indexed::work::request_bytes(r)?;
         let core_upper = crate::products::term::contracts::indexed::work::core_request_bytes(&p)?;
@@ -2159,6 +2240,7 @@ fn evaluate_accounting_internal(
         reserved_bytes,
         CreditMeasure::Physical,
         stops,
+        AccountingOwner::ReviewedBook,
     )?;
     let queries = admission.maximum_queries;
     let origin = if r.source.transfer.is_some() {
@@ -2216,7 +2298,8 @@ fn evaluate_accounting_internal(
         r.maturity_basis_policy.as_ref(),
         transfer.as_ref(),
     )?
-    .with_draws(&draw_sources, &prepared_policy, &p);
+    .with_draws(&draw_sources, &prepared_policy, &p)
+    .with_tail_census(selected_tail(r));
     let carry = carry::evaluate_with_native_factors(&p, &mut adapter, &mut check)?;
     if carry.carry_points().len() > admission.carry_points_upper
         || carry.admission().work_upper > admission.carry.work_upper
@@ -2224,6 +2307,8 @@ fn evaluate_accounting_internal(
     {
         return Err("observed native carry exceeds admitted complete source upper".into());
     }
+    #[cfg(test)]
+    BOOK_EVALUATIONS.with(|n| n.set(n.get() + 1));
     let mut accounting = book::compile(&carry, &prepared_policy, &mut check)?;
     if let Some(actions) = &r.reviewed_credit_actions {
         let end = r
@@ -2256,6 +2341,7 @@ fn evaluate_accounting_internal(
     }
     check()?;
     let result = ResultData {
+        selected_accounting_owner: selected_tail(r).then_some("reviewed_coupon_book-1"),
         schema: SCHEMA,
         raw_request: r.clone(),
         admission,
@@ -2351,6 +2437,34 @@ fn project_source(
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn selected_economic_phase_never_compiles_book_but_full_owner_does() {
+        let value: serde_json::Value=serde_json::from_slice(include_bytes!("../../../../../packages/portfolio-risk/tests/fixtures/commercial-short-secondary-cut-refusal.json")).unwrap();
+        let raw: Request = serde_json::from_value(
+            value["completed_candidate"]["commercial"]["units"][0]["graph"]["positions"][0]
+                ["histories"][0]["physical"][0]["source"]
+                .clone(),
+        )
+        .unwrap();
+        BOOK_EVALUATIONS.with(|n| n.set(0));
+        OWNER_EVALUATIONS.with(|n| n.set(0));
+        let economic = evaluate_economic_with_measure(&raw, CreditMeasure::Physical).unwrap();
+        assert_eq!(
+            economic.selected_accounting_owner,
+            Some("economic_carry_only-1")
+        );
+        assert_eq!(economic.admission.book_work_upper, 0);
+        assert_eq!(economic.admission.book_bytes_upper, 0);
+        BOOK_EVALUATIONS.with(|n| assert_eq!(n.get(), 0));
+        OWNER_EVALUATIONS.with(|n| assert_eq!(n.get(), 1));
+        let full = evaluate(&raw).unwrap();
+        BOOK_EVALUATIONS.with(|n| assert_eq!(n.get(), 1));
+        assert!(full.admission.book_work_upper > 0);
+        assert_eq!(
+            serde_json::to_value(full.carry()).unwrap(),
+            serde_json::to_value(economic.carry()).unwrap()
+        );
+    }
     fn reviewed_maturity(raw: &mut Request) {
         raw.maturity_basis_policy = Some(MaturityBasisPolicy {
             review: term::Identity {

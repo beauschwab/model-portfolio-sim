@@ -470,6 +470,14 @@ fn add_earned(
     c: &EarnedOriginContribution,
     recognized: bool,
 ) -> Result<(), String> {
+    add_earned_bounded(lots, c, recognized, None)
+}
+fn add_earned_bounded(
+    lots: &mut Vec<CouponLot>,
+    c: &EarnedOriginContribution,
+    recognized: bool,
+    limit: Option<usize>,
+) -> Result<(), String> {
     let entitlement = c
         .native_entitlement
         .as_ref()
@@ -480,6 +488,9 @@ fn add_earned(
     {
         i
     } else {
+        if limit.is_some_and(|limit| lots.len() >= limit) {
+            return Err("native coupon lot exceeds selected census before growth".into());
+        }
         lots.push(CouponLot {
             coupon_id: c.coupon_id.clone(),
             source_event_id: c.source_event_id.clone(),
@@ -522,6 +533,15 @@ pub(crate) fn native_default_lots(
     cash: &[SourceCashReceipt],
     check: &mut dyn FnMut() -> Result<(), String>,
 ) -> Result<Vec<CouponLot>, String> {
+    native_default_lots_bounded(path, contributions, cash, None, check)
+}
+pub(crate) fn native_default_lots_bounded(
+    path: &crate::models::credit::paths::CreditPathResult,
+    contributions: &[EarnedOriginContribution],
+    cash: &[SourceCashReceipt],
+    limit: Option<usize>,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<Vec<CouponLot>, String> {
     let mut lots = Vec::new();
     let mut earned = contributions
         .iter()
@@ -531,10 +551,11 @@ pub(crate) fn native_default_lots(
         check()?;
         while earned.peek().is_some_and(|c| c.end_year <= cash.year) {
             check()?;
-            add_earned(
+            add_earned_bounded(
                 &mut lots,
                 earned.next().ok_or("native earned cursor")?,
                 false,
+                limit,
             )?;
         }
         let event = path
@@ -552,7 +573,7 @@ pub(crate) fn native_default_lots(
     }
     for c in earned {
         check()?;
-        add_earned(&mut lots, c, false)?;
+        add_earned_bounded(&mut lots, c, false, limit)?;
     }
     Ok(lots)
 }
@@ -903,5 +924,44 @@ mod principal_cash_tests {
         assert!(apply_cash(&mut [], &cash(20., -1.), 0).is_err());
         assert!(apply_cash(&mut [], &cash(0., 0.), 0).is_err());
         assert!(apply_cash(&mut [], &cash(f64::INFINITY, 0.), 0).is_err());
+    }
+}
+
+#[cfg(test)]
+mod selected_lot_tests {
+    use super::*;
+    #[test]
+    fn bounded_new_lots_refuse_growth_but_keep_existing_monetary_order() {
+        let mut c = EarnedOriginContribution {
+            path_key: 1,
+            interval_index: 0,
+            origin_index: 0,
+            start_year: 0.,
+            end_year: 1.,
+            coupon_id: "coupon".into(),
+            source_event_id: "coupon".into(),
+            source_id: "source".into(),
+            source_revision: "1".into(),
+            captured_segment_index: 0,
+            delta_factor: 0.1,
+            actual_principal: 100.,
+            contractual_earned: 10.,
+            native_entitlement: Some(crate::accounting::credit::income::NativeCouponEntitlement {
+                native_audit_index: 0,
+                native_cash_index: 0,
+                opening_entitlement_principal: 100.,
+            }),
+        };
+        let mut lots = Vec::new();
+        assert!(add_earned_bounded(&mut lots, &c, false, Some(0)).is_err());
+        assert!(lots.is_empty());
+        add_earned_bounded(&mut lots, &c, false, Some(1)).unwrap();
+        add_earned_bounded(&mut lots, &c, false, Some(1)).unwrap();
+        assert_eq!(lots[0].contractual_earned, 20.);
+        c.origin_index = 1;
+        assert!(add_earned_bounded(&mut lots, &c, false, Some(1)).is_err());
+        assert_eq!(lots.len(), 1);
+        add_earned_bounded(&mut lots, &c, false, Some(2)).unwrap();
+        assert_eq!(lots.len(), 2);
     }
 }

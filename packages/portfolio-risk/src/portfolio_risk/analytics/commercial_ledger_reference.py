@@ -92,6 +92,8 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
     expected=replay(raw,check,stops=stops);identity(expected['prepared'],actual['prepared_credit_request']);carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])
     from .commercial_factor_work_reference import verify_finite
     verify_finite(raw,actual,expected['prepared'],check)
+    from .commercial_tail_work_reference import verify as verify_tail
+    verify_tail(raw,actual,expected,check)
     if carry.get('schema')!='credit-path-income-proof-1':raise ArithmeticError('commercial carry schema differs')
     for name in ('original_anchor_refitted','corporate_source_binding','mixed_ledger_adoption','accounting_approval','complete_coupon_settlement_ownership'):
         if carry.get(name) is not False:raise ArithmeticError('commercial carry eligibility differs')

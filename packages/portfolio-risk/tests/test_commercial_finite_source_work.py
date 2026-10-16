@@ -43,14 +43,14 @@ def test_selected_dual_holding_keeps_both_complete_original_graphs():
     raw=dict(schema='commercial-candidate-holding-journal-1',cut_ordinal=original['as_of_ordinal']+5,completed_candidate=original,revised_candidate=deepcopy(original))
     actual,_=holding(raw,timeout=120.)
     assert verify_holding(raw,actual)['verified']
-    assert actual['admitted_work_upper']==26_469_840
-    assert actual['retained_bytes_upper']==96_501_392
+    assert actual['admitted_work_upper']==25_398_000
+    assert actual['retained_bytes_upper']==56_709_584
     assert actual['completed_candidate']['preparation']['native_preparation']['source']['native_graphs'][0]['original_oas']==actual['revised_candidate']['preparation']['native_preparation']['source']['native_graphs'][0]['original_oas']
 
 def test_larger_joint_dual_holding_retains_both_actual_preparations_and_refuses():
     from portfolio_risk.core.commercial_candidate_holding_native import run as holding
     original=request();raw=dict(schema='commercial-candidate-holding-journal-1',cut_ordinal=original['as_of_ordinal']+1,completed_candidate=original,revised_candidate=deepcopy(original))
-    with pytest.raises(ValueError,match='work=48261092,bytes=94333264'):holding(raw,timeout=60.)
+    with pytest.raises(ValueError,match='work=49586912,bytes=54466096'):holding(raw,timeout=60.)
 
 def test_selected_complete_source_keeps_deadline_and_cancellation_before_publication():
     with pytest.raises((TimeoutError,ValueError)):run(request(),timeout=.001)
@@ -90,8 +90,8 @@ def test_actual_js_selected_complete_journal_persisted_ordered_replay(tmp_path,m
         actual,_=holding(raw,timeout=120.)
     else:
         actual,_=run(raw,timeout=60.)
-        assert actual['preparation']['admitted_work_upper']==21_807_634
-        assert actual['preparation']['retained_bytes_upper']==34_208_376
+        assert actual['preparation']['admitted_work_upper']==22_470_544
+        assert actual['preparation']['retained_bytes_upper']==14_274_792
     assert replay(raw,actual)['verified']
     import polars as pl
     monkeypatch.syspath_prepend(str(ROOT/'apps/api'))

@@ -32,6 +32,8 @@ def _economic(raw,actual,check,stops=(),measure='pricing',original_acquisition=N
     from .commercial_factor_work_reference import verify_finite
     verify_finite(raw,actual,expected['prepared'],check)
     expected['prepared']['raw_credit_path']['measure']=measure;expected['credit']['result']['measure']=measure
+    from .commercial_tail_work_reference import verify as verify_tail
+    verify_tail(raw,actual,expected,check)
     carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])
     if carry.get('schema')!='credit-path-income-proof-1':raise ArithmeticError('Pricing carry schema differs')
     for key in ('credit','carry_points','earned_origin_contributions','complete_recovery_receipts'):

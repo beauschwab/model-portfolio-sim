@@ -75,6 +75,16 @@ pub(super) fn continue_obligations(
     if steps.is_empty() {
         return Ok(());
     }
+    let event_upper = owner
+        .tail_meter
+        .as_ref()
+        .map(|m| {
+            mul(
+                owner.maximum_terminal_steps,
+                add(1, m.maximum_recoveries())?,
+            )
+        })
+        .transpose()?;
     let mut events = Vec::new();
     let mut amounts = Vec::with_capacity(steps.len());
     for (index, step) in steps.iter().enumerate() {
@@ -100,6 +110,7 @@ pub(super) fn continue_obligations(
         let amount = step.entitlement.opening_entitlement_principal * step.delta_factor;
         bounded(amount)?;
         amounts.push(amount);
+        check_event_capacity(events.len(), event_upper)?;
         events.push((step.year, 0, Event::Fix(index)));
         if is_default {
             let term = &owner.request.raw_credit_path.intervals[interval_index];
@@ -110,6 +121,7 @@ pub(super) fn continue_obligations(
                 if cash_year > horizon {
                     return Err("pending default recovery exceeds admitted complete tail".into());
                 }
+                check_event_capacity(events.len(), event_upper)?;
                 events.push((
                     cash_year,
                     1,
@@ -122,6 +134,7 @@ pub(super) fn continue_obligations(
         } else {
             // Retain original legal coupon settlement. Publication is not an
             // authorization to accelerate payment or invent a terminal payoff.
+            check_event_capacity(events.len(), event_upper)?;
             events.push((
                 step.original_settlement_year,
                 1,
@@ -188,6 +201,7 @@ pub(super) fn continue_obligations(
                     point.effective_interest = amount;
                 }
                 point.kind = "pending_coupon_fixing";
+                owner.retain(tail_bounds::Kind::Contribution)?;
                 owner.contributions.push(EarnedOriginContribution {
                     path_key: p.path_key,
                     interval_index,
@@ -218,6 +232,7 @@ pub(super) fn continue_obligations(
                 extra_legal -= amount;
                 point.cash = amount;
                 point.kind = "pending_coupon_cash";
+                owner.retain(tail_bounds::Kind::TerminalCash)?;
                 owner.source_cash.push(SourceCashReceipt {
                     path_key: p.path_key,
                     year: clock,
@@ -233,6 +248,7 @@ pub(super) fn continue_obligations(
                 });
                 p.cash_received += amount;
                 bounded(p.cash_received)?;
+                owner.retain(tail_bounds::Kind::TerminalEvent)?;
                 p.events.push(PathEvent {
                     year: clock,
                     event_id: format!(
@@ -267,6 +283,7 @@ pub(super) fn continue_obligations(
         {
             return Err("pending coupon rows exceed admitted retained capacity".into());
         }
+        owner.retain(tail_bounds::Kind::Point)?;
         owner.points.push(point);
     }
     for baseline_ in old {
@@ -288,5 +305,12 @@ pub(super) fn continue_obligations(
     bounded(owner.gross)?;
     bounded(p.closing_accrued_interest)?;
     bounded(p.closing_book_adjustment)?;
+    Ok(())
+}
+
+fn check_event_capacity(len: usize, upper: Option<usize>) -> Result<(), String> {
+    if upper.is_some_and(|upper| len >= upper) {
+        return Err("selected terminal event buffer exceeded before growth".into());
+    }
     Ok(())
 }

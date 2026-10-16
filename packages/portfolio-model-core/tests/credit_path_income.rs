@@ -624,3 +624,116 @@ fn historical_none_errors_remain_exact() {
         }
     }
 }
+
+use income::NativeEarnedFactors;
+struct SelectedFactors {
+    inner: HandNativeFactors,
+    selected: bool,
+}
+impl income::NativeEarnedFactors for SelectedFactors {
+    fn selected_tail_shape(&self) -> Option<income::tail_bounds::SourceShape> {
+        self.selected.then_some(income::tail_bounds::SourceShape {
+            canonical_coupons: 1,
+            pending_indices: 1,
+            draw_tranches: 0,
+        })
+    }
+    fn bound(&self) -> income::NativeFactorBound {
+        self.inner.bound()
+    }
+    fn maximum_gross_coupon_claims_per_path(&self) -> usize {
+        4
+    }
+    fn entitlement(
+        &self,
+        _atom: &income::NativeFactorAtom<'_>,
+    ) -> Result<Option<income::NativeCouponEntitlement>, String> {
+        Ok(Some(income::NativeCouponEntitlement {
+            native_audit_index: 0,
+            native_cash_index: 0,
+            opening_entitlement_principal: 100.,
+        }))
+    }
+    fn earned(
+        &mut self,
+        q: &income::NativeFactorQuery,
+        sink: &mut dyn FnMut(income::NativeFactorAtom<'_>) -> Result<(), String>,
+    ) -> Result<(), String> {
+        self.inner.earned(q, sink)
+    }
+}
+#[test]
+fn selected_tail_finance_is_exact_for_full_zero_hazard_and_default_tails() {
+    for count in [1, 32] {
+        for default in [false, true] {
+            let mut r = request();
+            for tail in &mut r.raw_credit_path.intervals[0].complete_recovery_tails {
+                *tail = (0..count)
+                    .map(|index| RecoveryWeight {
+                        lag_years: index as f64 / 128.,
+                        weight: 1. / count as f64,
+                    })
+                    .collect();
+            }
+            if default {
+                r.raw_credit_path.intervals[0].hazards_per_year[0][3] = 1.;
+            }
+            let make = |selected| SelectedFactors {
+                inner: hand_factors(),
+                selected,
+            };
+            let old =
+                income::evaluate_with_native_factors(&r, &mut make(false), &mut || Ok(())).unwrap();
+            let selected =
+                income::evaluate_with_native_factors(&r, &mut make(true), &mut || Ok(())).unwrap();
+            let mut a = serde_json::to_value(old).unwrap();
+            let mut b = serde_json::to_value(selected).unwrap();
+            let census = b.as_object_mut().unwrap().remove("tail_census").unwrap();
+            assert_eq!(census["maximum_recoveries"], count);
+            if count == 32 {
+                assert_eq!(a["admission"]["row_upper"], b["admission"]["row_upper"]);
+            } else {
+                assert!(
+                    b["admission"]["row_upper"].as_u64() < a["admission"]["row_upper"].as_u64()
+                );
+            }
+            a.as_object_mut().unwrap().remove("admission");
+            b.as_object_mut().unwrap().remove("admission");
+            assert_eq!(a, b);
+        }
+    }
+}
+#[test]
+fn selected_tail_capability_rejects_foreign_request_bound_cash_and_claims() {
+    let r = request();
+    let bound = hand_factors().bound();
+    let shape = income::tail_bounds::SourceShape {
+        canonical_coupons: 1,
+        pending_indices: 1,
+        draw_tranches: 0,
+    };
+    let cap =
+        income::tail_bounds::NativeTailCensus::derive(&r, &bound, 0, 4, shape, &mut || Ok(()))
+            .unwrap();
+    income::admit_economic_with_tail_census(&r, &bound, 0, 4, &cap, &mut || Ok(())).unwrap();
+    let mut foreign = r.clone();
+    foreign.policy_review = "another reviewed owner".into();
+    assert!(
+        income::admit_economic_with_tail_census(&foreign, &bound, 0, 4, &cap, &mut || Ok(()))
+            .is_err()
+    );
+    foreign = r.clone();
+    foreign.raw_credit_path.measure = CreditMeasure::Pricing;
+    assert!(
+        income::admit_economic_with_tail_census(&foreign, &bound, 0, 4, &cap, &mut || Ok(()))
+            .is_err()
+    );
+    assert!(
+        income::admit_economic_with_tail_census(&r, &bound, 0, 3, &cap, &mut || Ok(())).is_err()
+    );
+    let mut bound = bound;
+    bound.retained_source_bytes += 1;
+    assert!(
+        income::admit_economic_with_tail_census(&r, &bound, 0, 4, &cap, &mut || Ok(())).is_err()
+    );
+}
