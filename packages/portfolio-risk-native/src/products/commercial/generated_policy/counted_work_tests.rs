@@ -224,7 +224,8 @@ fn counted_inline_runtime_fields_fit_charged_source_and_recipe_cells() {
     // headers. Per-observation model/path changes have their own 2048 reserve.
     let inline = size_of::<
         Option<Box<crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>>,
-    >();
+    >() + (1 + 2 * 32)
+        * size_of::<Option<Box<crate::products::commercial::acquisition::Transfer>>>();
     let labels_and_stop =
         inline + size_of::<owner::NativeStop>() + 2 * (256 + 4 * 128 + 6 * 128 + 13) + 64;
     assert!(labels_and_stop <= 8192);

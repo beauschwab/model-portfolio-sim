@@ -119,6 +119,17 @@ cover complete inline source/owner headers. A native test checks the complete
 stop header, bounded event/review/global-generation labels, String capacity and
 allocation headers are checked against the existing 8192-byte recipe block;
 per-observation model/path expansion retains its independent 2048-byte reserve.
+The secondary transfer option additionally occupies one pointer in the main
+source and one in each draw source. The twice-capacity draw-vector reserve
+therefore has at most65 transfer slots, plus the counted-authority slot. All
+slots, complete stop/label capacities and headers are explicitly checked against
+the same8192-byte cell; removing those slots from historical inline/Vec bases
+preserves omitted admission rather than leaving runtime memory uncharged.
+A selected transfer separately charges twice its concrete boxed body, its coupon
+allocation vector, complete origin period/principal/observation/calendar
+allocations and the already twice-encoded raw strings. Generated transfer remains
+unsupported; this structural accounting does not grant execution adoption.
+
 
 Each selected raw recipe additionally reserves the authority body's actual byte
 length, its boxed/Arc headers and the compiler pointer. Retained law authorities,
