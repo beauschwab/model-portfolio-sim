@@ -177,6 +177,7 @@ def _capital(request,actual,frames,check,*,fees=False,secondary_fees=False):
     for row in rows:
         check(); key=(row['scenario'],row['account']); p=policies[key]
         v=row['balance']*multiplier; gl=row['gl_account']; ident=row['instrument_id']
+        if secondary_fees and (gl=='commercial_acquired_fee_asset_valuation_adjustment'and v>0. or gl=='commercial_acquired_fee_liability_valuation_adjustment'and v<0.):raise ArithmeticError('conveyed fee adjustment normal balance')
         a=amounts.setdefault(key,[0.]*7)
         if gl in PENDING_GLS: financial.near(row['balance'],0.,'closed pending key')
         if gl in ('opening_equity','equity_distributions'): a[2]-=v

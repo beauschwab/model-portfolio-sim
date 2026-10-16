@@ -356,6 +356,12 @@ pub(crate) fn ledger_with_exposure(
         let s = sums.entry((&r.scenario, &r.account)).or_default();
         let gl = r.gl_account.as_str();
         let v = r.balance;
+        if secondary_fees
+            && (gl == SECONDARY_FEE_ASSET_ADJUSTMENT && v > 0.
+                || gl == SECONDARY_FEE_LIABILITY_ADJUSTMENT && v < 0.)
+        {
+            return Err("conveyed fee adjustment has incompatible gross normal balance".into());
+        }
         if credit_source
             && !(CREDIT_ASSET_GLS.contains(&gl)
                 || CREDIT_PNL_GLS.contains(&gl)
@@ -1047,6 +1053,27 @@ mod fee_closing_tests {
         assert_eq!(fee["accounting_net_carrying"], 5.);
         assert_eq!(fee["policy_rwa_contribution"], 3.75);
         assert_eq!(out["conveyed_fee_asset_adjustment_grouped"], true);
+    }
+
+    #[test]
+    fn conveyed_fee_adjustment_normal_balances_cannot_be_reclassified_by_sign() {
+        for gl in [
+            SECONDARY_FEE_ASSET_ADJUSTMENT,
+            SECONDARY_FEE_LIABILITY_ADJUSTMENT,
+        ] {
+            let (t, mut rows, p, exposure) = secondary_fixture();
+            rows.iter_mut()
+                .find(|r| r.gl_account == gl)
+                .unwrap()
+                .balance *= -1.;
+            let error =
+                prepare_reviewed_commercial_secondary_fee_exposure(t, rows, p, 1., &exposure)
+                    .unwrap_err();
+            assert_eq!(
+                error,
+                "conveyed fee adjustment has incompatible gross normal balance"
+            );
+        }
     }
 
     #[test]
