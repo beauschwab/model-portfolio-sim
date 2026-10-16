@@ -15,6 +15,16 @@ fn main() {
             return Err("request exceeds 128 MiB".into());
         }
         let request = portfolio_decision_native::commercial_intake::parse(&input)?;
+        if request["op"] == "analyze_commercial_candidate_holding_journal" {
+            return portfolio_decision_native::commercial_candidate_holding::run_envelope_started(
+                &input, started,
+            );
+        }
+        if request["op"] == "analyze_commercial_candidate_fee_treasury" {
+            return portfolio_decision_native::commercial_fee_candidate_treasury::run_envelope_started(
+                &input, started,
+            );
+        }
         if request["op"] == "analyze_commercial_fee_journal" {
             return portfolio_decision_native::commercial_fee_journal::run_started(&input, started);
         }

@@ -34,6 +34,15 @@ pub enum RateSource {
         information_unix_seconds: i64,
         measure: CashflowMeasure,
     },
+    /// A supplied modeled overnight rate with distinct conditioning and
+    /// publication clocks. This is never an observed future fixing.
+    ConditionalPublishedProjection {
+        model: Identity,
+        path: Identity,
+        state_information_unix_seconds: i64,
+        publication_unix_seconds: i64,
+        measure: CashflowMeasure,
+    },
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -326,6 +335,32 @@ fn coupon_factor(
                         }
                         if utc_day(*publication_unix_seconds) < o.fixing_ordinal {
                             return Err("fixing publication precedes value date".into());
+                        }
+                        *publication_unix_seconds
+                    }
+                    RateSource::ConditionalPublishedProjection {
+                        model,
+                        path,
+                        state_information_unix_seconds,
+                        publication_unix_seconds,
+                        measure,
+                    } => {
+                        identity(model, bytes)?;
+                        identity(path, bytes)?;
+                        timestamp(*state_information_unix_seconds)?;
+                        timestamp(*publication_unix_seconds)?;
+                        let midnight = |day: i32| (i64::from(day) - 719163) * 86400;
+                        if term
+                            || index.kind != IndexKind::Overnight
+                            || path != &request.path
+                            || *measure != request.measure
+                            || request.measure == CashflowMeasure::Contractual
+                            || *state_information_unix_seconds
+                                > midnight(o.observation_start_ordinal)
+                            || *publication_unix_seconds < midnight(o.observation_end_ordinal)
+                            || *state_information_unix_seconds > *publication_unix_seconds
+                        {
+                            return Err("published projection requires overnight native observation prefix, matching model/path/measure and separate subsequent publication clock".into());
                         }
                         *publication_unix_seconds
                     }
@@ -622,7 +657,8 @@ fn build_path_capture_owned(
                     }
                     match &o.source {
                         RateSource::Observed { fixing, .. } => identity(fixing, &mut metadata)?,
-                        RateSource::ConditionalProjection { model, path, .. } => {
+                        RateSource::ConditionalProjection { model, path, .. }
+                        | RateSource::ConditionalPublishedProjection { model, path, .. } => {
                             identity(model, &mut metadata)?;
                             identity(path, &mut metadata)?;
                         }

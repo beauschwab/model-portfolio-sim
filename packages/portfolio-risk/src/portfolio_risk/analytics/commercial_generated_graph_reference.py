@@ -1,5 +1,19 @@
 """Independent generated law/policy, compact source and coefficient graph replay."""
 from copy import deepcopy
+from contextlib import contextmanager
+from contextvars import ContextVar
+
+_ACCOUNTING_SPOOL = ContextVar("commercial_generated_accounting_spool", default=None)
+
+@contextmanager
+def accounting_spool(factory):
+    """Optional bounded independent group store; default receipts are unchanged."""
+    token = _ACCOUNTING_SPOOL.set(factory)
+    try:
+        yield
+    finally:
+        _ACCOUNTING_SPOOL.reset(token)
+
 from .commercial_stochastic_reference import fit_pricing_law,generated_policy_sources
 from .commercial_credit_reference import replay
 from .commercial_accounting_reference import groups
@@ -10,6 +24,8 @@ from .commercial_dto import graph_identity
 
 def verify(raw,result,check=lambda:False):
     graph_identity(raw,result['raw_source']);p=raw['positions'][0];g=deepcopy(p['generated_policy'])
+    from .commercial_generated_physical_reference import validate as validate_physical,current as current_inputs
+    validate_physical(g,check)
     if len(raw['positions'])!=1 or p.get('histories') or p.get('original_pricing') or p.get('exercise'):raise ArithmeticError('exclusive generated graph required')
     if p['oas_target']['kind']=='calibrate_positive_cash' and g.get('oas_calibration'):
         from .commercial_calibration_reference import verify as verify_calibration
@@ -24,7 +40,7 @@ def verify(raw,result,check=lambda:False):
     qpolicy=fit_pricing_law(g['pricing_training'],check)
     original=generated_policy_sources(g['pricing_training'],qpolicy,check)
     original_law=deepcopy(g['original_physical']);original_law['source']['source']['current']=deepcopy(original_law['source']['source']['original'])
-    op=generated_policy_sources(original_law,qpolicy,check,original=True)
+    op=generated_policy_sources(original_law,qpolicy,check,original=True,physical_inputs=g.get('physical_path_inputs',{}).get('original_physical'))
     proof=compile_original_acquisition([dict(source=s['raw_request'],weight=s['weight']) for s in op],[s['native_stops'] for s in op],check,compact_generated=True)
     actual=result['original_acquisition_proofs']
     keys={'original_stopped_cash_quote','conditional_tranche_proofs','acquired_cash_partitions','acquisition','weights','stopped_physical','generated_original_physical'}
@@ -37,9 +53,13 @@ def verify(raw,result,check=lambda:False):
         if physical and not original:
             match=next(s for s in op if s['raw_request']['credit']['paths'][0]['path_key']==r['credit']['paths'][0]['path_key'])
             r['source']['original']=deepcopy(match['raw_request']['source']['original'])
+            for draw,anchor in zip(r.get('performing_draw_tranches',[]),match['raw_request'].get('performing_draw_tranches',[]),strict=True):draw['source']['original']=deepcopy(anchor['source']['original'])
         projected=replay(r,check,stops=stops)
         if physical:
             book,_=groups(projected,check)
+            factory = _ACCOUNTING_SPOOL.get()
+            if factory is not None:
+                book = factory(r, book)
         receipt=dict(schema='commercial-generated-source-1',source_binding='retained_source_request-1',native_stops=stops,credit_measure='physical' if physical else 'pricing')
         if physical and not original:receipt['book_points']=[dict(year=s['year'],principal=s['next']['principal'],interest_income_lines=[line['posting']['amount'] for line in s['postings'] if line['posting']['account']=='interest_income']) for s in book]
         wanted=dict(position_id=p['position_id'],scenario_id=scene['scenario_id'],run_id=scene['run_id'],path_id=r['credit']['paths'][0]['path_id'],path_key=r['credit']['paths'][0]['path_key'],weight=source['weight'],role=role,source_request=r,cash=_cash(projected['credit']),projection=receipt)
@@ -59,7 +79,7 @@ def verify(raw,result,check=lambda:False):
     for law in g['current_physical']:
         scene=next(s for s in raw['scenarios'] if s['scenario_id']==law['source']['source']['current']['scenario_id'])
         fitted_policy=next(f for q,f in fitted if q['parallel_bump']==0. and q['source']['source']['current']['scenario_id']==scene['scenario_id'])
-        sources.extend(native(s,scene,'physical',physical=True) for s in generated_policy_sources(law,fitted_policy,check))
+        sources.extend(native(s,scene,'physical',physical=True) for s in generated_policy_sources(law,fitted_policy,check,physical_inputs=current_inputs(g,law)))
     for law,f in fitted:
         scene=next(s for s in raw['scenarios'] if s['scenario_id']==law['source']['source']['current']['scenario_id']);bump=law['parallel_bump'];role='pricing' if bump==0. else 'pricing_down' if bump<0. else 'pricing_up'
         policy(scene,role,f);sources.extend(native(s,scene,role) for s in generated_policy_sources(law,f,check))

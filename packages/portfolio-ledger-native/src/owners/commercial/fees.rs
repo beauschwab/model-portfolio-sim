@@ -13,6 +13,9 @@ pub(crate) fn gl(account: Account) -> &'static str {
         Account::FeeIncome => "pnl:commercial_nonintegral_fee_income",
         Account::FeeWriteoffExpense => "pnl:commercial_fee_writeoff_expense",
         Account::FeeRecoveryIncome => "pnl:commercial_fee_recovery_income",
+        Account::AcquiredFeeAsset => "commercial_acquired_fee_asset",
+        Account::AcquiredFeeLiability => "commercial_acquired_fee_liability",
+        Account::FeeAcquisitionExpense => "pnl:commercial_fee_acquisition_expense",
     }
 }
 fn money(v: f64) -> Result<f64, String> {
@@ -89,11 +92,16 @@ impl FeeTracking {
         Ok(out)
     }
 }
-fn stocks(s: &State) -> [(&'static str, f64); 4] {
+fn stocks(s: &State) -> [(&'static str, f64); 6] {
     [
         ("commercial_fee_receivable", s.fee_receivable),
         ("commercial_fee_payable", s.fee_payable),
         ("commercial_deferred_fee_income", s.deferred_fee_income),
         ("commercial_prepaid_fee_expense", s.prepaid_fee_expense),
+        ("commercial_acquired_fee_asset", s.acquired_fee_asset),
+        (
+            "commercial_acquired_fee_liability",
+            s.acquired_fee_liability,
+        ),
     ]
 }

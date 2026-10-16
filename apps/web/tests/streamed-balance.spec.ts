@@ -4,6 +4,45 @@ function fullResultsFor(urls:string[],id:string){
   return urls.filter(url=>new URL(url).pathname.endsWith(`/jobs/${id}/result`));
 }
 
+for (const selected of [
+  {mode:'commercial',schema:'commercial-credit-ledger-1',proof:'Commercial source and credit rights verified'},
+  {mode:'commercial_generated',schema:'commercial-generated-candidate-journal-1',proof:'Generated purchase sources and allocations verified'},
+]) test(`${selected.mode} publishes, pages and reopens its independently verified journal`,async({page})=>{
+  test.setTimeout(180_000);
+  const errors:string[]=[],fullResults:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('request',request=>{if(/\/jobs\/[^/]+\/result$/.test(new URL(request.url()).pathname))fullResults.push(request.url());});
+  const panel=await open(page);
+  await panel.getByLabel('Cashflow timing',{exact:true}).selectOption(selected.mode);
+  await panel.getByText('Edit partitioned specification (JSON)',{exact:true}).click();
+  const editor=panel.getByLabel('Explicit balance-sheet specification',{exact:true});
+  const raw=JSON.parse(await editor.inputValue());
+  expect(raw.schema).toBe(selected.schema);
+  if(selected.mode==='commercial_generated'){
+    await expect(panel.getByRole('checkbox',{name:/Large book/})).toBeDisabled();
+    await expect(panel.getByRole('checkbox',{name:/Large book/})).not.toBeChecked();
+    await expect(panel.getByText(/Generated commercial runs use separate path and journal limits/)).toBeVisible();
+  }
+  const submitted=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname.endsWith('/balance-stress/modeled'));
+  await panel.getByRole('button',{name:'Run partitioned simulation',exact:true}).click();
+  const body=(await submitted).postDataJSON();
+  expect(body.specification).toEqual(raw);
+  expect(body.large_book).toBe(false);
+  await expect(panel.getByText(selected.proof,{exact:true})).toBeVisible({timeout:120_000});
+  await expect(panel.getByText('Saved journal verified',{exact:true})).toBeVisible();
+  const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
+  await panel.getByLabel('Partitioned result table',{exact:true}).selectOption('/commercial_source_lineage');
+  await expect(panel.getByRole('table',{name:'Partitioned results',exact:true})).toContainText('native atomic group json');
+  const download=page.waitForEvent('download');
+  await panel.getByRole('button',{name:'Download partition',exact:true}).click();
+  expect((await download).suggestedFilename()).toContain(`${id}-commercial_source_lineage-0.parquet`);
+  await page.reload();
+  const restored=await partitionedPanel(page);
+  await expect(restored.getByLabel('Saved run ID',{exact:true})).toHaveValue(id);
+  await expect(restored.getByText(selected.proof,{exact:true})).toBeVisible();
+  expect(fullResultsFor(fullResults,id)).toEqual([]);expect(errors).toEqual([]);
+});
+
 test('revised deposit expectations retain original yield in a durable verified journal', async ({page}) => {
   test.setTimeout(90_000);
   const errors:string[]=[], fullResults:string[]=[];

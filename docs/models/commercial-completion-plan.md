@@ -1,5 +1,36 @@
 # Remaining commercial acceptance work
 
+## Current development reconciliation (local 0.29.19)
+
+This section supersedes the older implementation exclusions below without
+removing their wider acceptance requirements. The last accepted installed stage
+is 0.29.18. The following additions are implemented in the working tree and have
+targeted native/independent checks; combined installed acceptance is still pending.
+
+| Work | Implemented bounded scope | Remaining acceptance or engineering |
+|---|---|---|
+| Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP | Generated fee candidates, draw-tranche/secondary fee rights, wider mixed/saved/cohort adoption and reviewed policies |
+| Candidate holdings | Complete-origin finite loan/fee replay, identical completed raw/monetary prefixes, prospective gross rights/basis and future postings; exact-cut ordinary modeled predecessor binding with independent publication evidence | Cut-started mixed Sim, seasoned graph/cohort/strategy coefficients, conveyed secondary rights and observed bank reconciliation |
+| Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims | Contingent retained-payment principal, alternative legal true-up policies and delayed-publication generated loadings |
+| Generated paths | Explicit complete path catalogs for Physical draws/reviews; canonical source dimensions and paired original anchors; compact candidate journals and partitioned publication; positive reviewed-action candidate replay | Generated draw journal adoption: the minimal supplied draw case still refuses at 4,800,566,464 work against the unchanged 4B cap; proven component-bound refinement or source reuse, generated fees and wider joint/mixed scale remain required |
+| Numerical evidence | Explicit nested linear/quadratic/cubic training-only bases, exact normal/one-date controls, two-date independently integrated learned-policy value and sampling diagnostics | Broad contract/driver/seed/step/basis convergence, uncertainty coverage and observed validation |
+| Application | Durable generated stream route, new fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening | Matching release build/full regression, browser acceptance, deployment/restarts and explicit saved-library/session rebuilds |
+
+See [fee adoption](commercial-fee-adoption.md),
+[fee funding](commercial-fee-funding.md), [candidate holdings](commercial-fee-holding.md),
+[candidate prior openings](commercial-candidate-prior-opening.md),
+[observable coupons](commercial-observable-coupons.md),
+[generated Physical sources](commercial-generated-physical-sources.md),
+[generated candidates](commercial-generated-candidates.md),
+[publication](commercial-generated-publication.md) and
+[policy refinement](commercial-policy-refinement.md).
+
+Original OAS/EIR, separate Physical/Pricing ownership, shared random streams,
+final-output tolerances and historical omitted paths remain required. Component
+and phase admission bounds are not a process RSS cap. Observed histories and
+reviewed accounting/regulatory policies have not been supplied; synthetic controls
+cannot complete those evidence gates. Issues 15 and 25 remain open.
+
 This plan preserves the original scope of issues 15 and 25. It describes work
 that remains **not implemented or accepted** after the bounded local stages. The 0.29.11 supported
 stage and its validation are recorded in

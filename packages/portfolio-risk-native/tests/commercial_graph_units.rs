@@ -43,7 +43,7 @@ fn request() -> graph::Request {
     graph::Request{schema:graph::SCHEMA.into(),identity:serde_json::from_value(json!({"model_revision":"commercial-credit-1","input_revision":"1","paired_history_source":"hand","paired_history_revision":"1","randomness_domain":"shared-crn"})).unwrap(),
         as_of_ordinal:738886,currency:"USD".into(),reporting_ordinals:vec![738886,738901],base_scenario_id:"baseline".into(),bump_bp:1.,original_scenario:scene("original"),scenarios:vec![scene("baseline")],positions:vec![graph::Position{position_id:"commercial".into(),credit_identity:graph::CreditIdentity::CommercialLending,
         oas_target:serde_json::from_value(json!({"kind":"locked","base_oas":0.,"source_id":"quote","source_revision":"1"})).unwrap(),original_signed_cash_quote:p.source.source.acquisition.cost,
-        original_pricing:vec![original],original_physical:Vec::new(),histories:vec![graph::Histories{scenario_id:"baseline".into(),physical:vec![p],pricing:vec![q.clone()],pricing_down:vec![q.clone()],pricing_up:vec![q]}],exercise:None,generated_policy:None}]}
+        original_pricing:vec![original],original_physical:Vec::new(),histories:vec![graph::Histories{scenario_id:"baseline".into(),physical:vec![p],pricing:vec![q.clone()],pricing_down:vec![q.clone()],pricing_up:vec![q]}],exercise:None,generated_policy:None,fees:None}]}
 }
 #[test]
 fn credit_off_exact_source_cash_and_hand_dv01() {
@@ -253,6 +253,476 @@ fn reject_changed_crn_original_anchor_and_credit_free_credit() {
 }
 fn unit_request() -> units::Request {
     serde_json::from_value(json!({"schema":units::SCHEMA,"identity":{"model_revision":"commercial-units-1","grid_revision":"actual","crn_id":"shared-crn","input_revision":"1"},"currency":"USD","reporting_ordinals":[738886,738901],"base_scenario_id":"baseline","units":[{"unit_id":"commercial","template_id":"commercial","unit_face":100.,"accounting_category":"HTM","capital_policy_revision":"explicit-zero","weights":{"hqla_l2a":0.,"outflow30":0.,"asf":0.,"rsf":0.,"rwa":0.},"graph":request()}]})).unwrap()
+}
+fn fee_request(sign: f64) -> graph::Request {
+    let mut r = request();
+    let original: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../examples/models/commercial-fee-journal-1.json"
+    ))
+    .unwrap();
+    let mut policy = original["fees"][0].clone();
+    policy["fees"][0]["entitlement"] = json!(sign * 5.);
+    for event in policy["events"].as_array_mut().unwrap() {
+        event["amount"] = json!(sign * 5.);
+    }
+    let history = json!({"path_id":r.positions[0].original_pricing[0].path_id,"policy":policy});
+    let mut physical = history.clone();
+    physical["acquisition_releases"] = json!([
+        {"fee_id":"service-fee","ordinal":738896,"sequence":0,"amount":sign*2.,"review":{"id":"supplied-acquisition-release","revision":"1"}},
+        {"fee_id":"service-fee","ordinal":738926,"sequence":1,"amount":sign*3.,"review":{"id":"supplied-acquisition-release","revision":"1"}}
+    ]);
+    r.positions[0].fees=Some(serde_json::from_value(json!({"schema":"commercial-fee-adoption-1","identity":{"id":"supplied-fee-allocation","revision":"1"},"discount_spread":0.,"original_signed_fee_quote":sign*5.,"total_purchase_cost":r.positions[0].original_signed_cash_quote+sign*5.,
+        "allocations":[{"fee_id":"service-fee","allocated_cost":sign*5.,"review":{"id":"supplied-fee-allocation","revision":"1"}}],"original_pricing":[history.clone()],"histories":[{"scenario_id":"baseline","physical":[physical],"pricing":[history.clone()],"pricing_down":[history.clone()],"pricing_up":[history]}]})).unwrap());
+    r
+}
+#[test]
+fn separate_fee_graph_price_and_original_loan_anchors_do_not_mix() {
+    let plain = graph::analyze(&request()).unwrap();
+    for sign in [1., -1.] {
+        let r = fee_request(sign);
+        let result = graph::analyze(&r).unwrap();
+        assert_eq!(
+            result.original_oas[0].base_oas.to_bits(),
+            plain.original_oas[0].base_oas.to_bits()
+        );
+        assert_eq!(
+            result.original_oas[0].original_signed_cash_quote,
+            plain.original_oas[0].original_signed_cash_quote
+        );
+        assert!((result.metrics[0].pv - plain.metrics[0].pv - sign * 5.).abs() < 1e-10);
+        for (source, loan) in result.native_sources.iter().zip(&plain.native_sources) {
+            assert_eq!(
+                serde_json::to_value(&source.projection).unwrap(),
+                loan.projection
+            );
+            assert_eq!(
+                serde_json::to_value(&source.cash).unwrap(),
+                serde_json::to_value(&loan.cash).unwrap()
+            );
+            assert_eq!(source.fee_projection.as_ref().unwrap().cash.len(), 1);
+        }
+    }
+}
+#[test]
+fn acquired_fee_cost_funding_and_income_are_separate_from_loan_nii() {
+    for sign in [1., -1.] {
+        let mut r = unit_request();
+        r.units[0].graph = fee_request(sign);
+        let p = units::prepare(&r).unwrap();
+        assert_eq!(p.source().values[0], 0.);
+        assert!((p.source().fee_income_values[0] - sign * 3. / 100.).abs() < 1e-12);
+        let allocation = [Allocation {
+            unit_id: "commercial".into(),
+            face: 100.,
+        }];
+        let full = units::evaluate(&p, &allocation).unwrap();
+        let coefficient = units::evaluate_coefficients(&p, &allocation).unwrap();
+        assert_eq!(full["scenarios"][0]["incremental_external_nii"], 0.);
+        assert_eq!(
+            full["scenarios"][0]["incremental_nonintegral_fee_income"],
+            coefficient["scenarios"][0]["incremental_nonintegral_fee_income"]
+        );
+        assert!(
+            (full["scenarios"][0]["incremental_nonintegral_fee_income"]
+                .as_f64()
+                .unwrap()
+                - sign * 3.)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            (full["total_asset_purchase_cost"].as_f64().unwrap()
+                - r.units[0].graph.positions[0]
+                    .fees
+                    .as_ref()
+                    .unwrap()
+                    .total_purchase_cost)
+                .abs()
+                < 1e-10
+        );
+        assert!(p.source().funding.ordinals.contains(&738926));
+        assert!(
+            full["scenarios"][0]["cash"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap()["cumulative_bank_cash"]
+                .as_f64()
+                .unwrap()
+                .abs()
+                < 1e-9
+        );
+        let zero = units::evaluate_coefficients(
+            &p,
+            &[Allocation {
+                unit_id: "commercial".into(),
+                face: 0.,
+            }],
+        )
+        .unwrap();
+        assert_eq!(
+            zero["scenarios"][0]["incremental_nonintegral_fee_income"],
+            0.
+        );
+        assert!(!p.source().native_graphs[0].native_sources[0]
+            .fee_projection
+            .as_ref()
+            .unwrap()
+            .cash
+            .is_empty());
+    }
+}
+#[test]
+fn acquired_fee_rejects_unowned_quote_missing_basis_and_exercise() {
+    let mut r = fee_request(1.);
+    r.positions[0].fees.as_mut().unwrap().histories[0].physical[0]
+        .acquisition_releases
+        .pop();
+    assert!(graph::analyze(&r)
+        .err()
+        .unwrap()
+        .contains("complete cost releases"));
+    let mut r = fee_request(1.);
+    r.positions[0]
+        .fees
+        .as_mut()
+        .unwrap()
+        .original_signed_fee_quote += 1.;
+    assert!(graph::analyze(&r).err().unwrap().contains("reconcile"));
+    let mut r = fee_request(1.);
+    r.positions[0].fees.as_mut().unwrap().discount_spread = 0.1;
+    assert!(graph::analyze(&r)
+        .err()
+        .unwrap()
+        .contains("original fee quote"));
+    let mut r = fee_request(1.);
+    r.positions[0].exercise=Some(serde_json::from_value(json!({"schema":"commercial-native-exercise-1","identity":{"id":"call","revision":"1"},"information_policy":"native_full_observed_prefix-1","exercise_dates":[],"simultaneous_priority":"issuer"})).unwrap());
+    assert!(graph::analyze(&r)
+        .err()
+        .unwrap()
+        .contains("joint loan/fee continuation"));
+}
+fn joint_fee_request(timing: &str, coincident: bool, factor: f64) -> graph::Request {
+    let mut r = fee_request(1.);
+    let origin = r.as_of_ordinal;
+    let stopped = 100. * factor + 100. * 0.1 * 10. / 365.;
+    let fee_quote = if timing == "before_scheduled_cash" {
+        0.
+    } else {
+        5.
+    };
+    let p = &mut r.positions[0];
+    p.original_signed_cash_quote = stopped;
+    p.exercise=Some(serde_json::from_value(json!({"schema":"commercial-native-exercise-1","identity":{"id":"joint-fee-call","revision":"1"},"information_policy":"native_full_observed_prefix-1","exercise_dates":[{"ordinal":origin+10,"timing":timing,"call_clean_price_factor":factor,"put_clean_price_factor":null,"call_fee":0.,"put_fee":0.}],"simultaneous_priority":"issuer"})).unwrap());
+    for h in p
+        .original_pricing
+        .iter_mut()
+        .chain(p.histories.iter_mut().flat_map(|h| {
+            h.physical
+                .iter_mut()
+                .chain(&mut h.pricing)
+                .chain(&mut h.pricing_down)
+                .chain(&mut h.pricing_up)
+        }))
+    {
+        h.source.source.acquisition.cost = stopped;
+    }
+    p.original_physical = p.histories[0].physical.clone();
+    for h in &mut p.original_physical {
+        h.source.source.current = h.source.source.original.clone();
+    }
+    let fees = p.fees.as_mut().unwrap();
+    fees.original_signed_fee_quote = fee_quote;
+    fees.total_purchase_cost = stopped + fee_quote;
+    fees.allocations[0].allocated_cost = fee_quote;
+    for h in fees
+        .original_pricing
+        .iter_mut()
+        .chain(fees.histories.iter_mut().flat_map(|h| {
+            h.physical
+                .iter_mut()
+                .chain(&mut h.pricing)
+                .chain(&mut h.pricing_down)
+                .chain(&mut h.pricing_up)
+        }))
+    {
+        h.policy.coincident_order = "native_exit_follows_native_exercise_timing-1".into();
+        h.policy.exercise.cancel_future_service = true;
+        h.policy.exercise.cancel_future_cash = true;
+        h.policy.exercise.cancel_unearned_entitlement = true;
+        for e in &mut h.policy.events {
+            if coincident {
+                e.ordinal = origin + 10;
+            } else if e.action == portfolio_model_core::nonintegral_fee::Action::Earn {
+                e.ordinal = origin + 20;
+            }
+        }
+        if fee_quote == 0. {
+            h.acquisition_releases.clear();
+        }
+    }
+    fees.original_physical = fees.histories[0].physical.clone();
+    r
+}
+#[test]
+fn fee_economics_choose_same_native_call_and_cancel_its_future_service() {
+    let r = joint_fee_request("before_scheduled_cash", false, 1.02);
+    let result = graph::analyze(&r).unwrap();
+    let policy = &result.exercise_policies[0].policy;
+    assert_eq!(policy["nodes"][0]["decision"], "call");
+    let days = r.positions[0].original_pricing[0]
+        .source
+        .source
+        .original
+        .periods[0]
+        .end_ordinal
+        - r.as_of_ordinal;
+    assert!(
+        (policy["nodes"][0]["continuation_value"].as_f64().unwrap()
+            - (100. + 100. * 0.1 * f64::from(days) / 365. + 5.))
+            .abs()
+            < 1e-9
+    );
+    assert_eq!(policy["joint_fee_values"]["fee_value"], 0.);
+    assert!((result.metrics[0].pv - r.positions[0].original_signed_cash_quote).abs() < 1e-9);
+    for source in &result.native_sources {
+        assert!(source.fee_projection.as_ref().unwrap().cash.is_empty());
+    }
+    let mut units = unit_request();
+    units.units[0].graph = r;
+    let prepared = units::prepare(&units).unwrap();
+    assert_eq!(prepared.source().fee_income_values[0], 0.);
+    assert!(!prepared.source().funding.ordinals.contains(&738926));
+}
+#[test]
+fn native_before_after_cash_timing_owns_coincident_service_fee_once() {
+    for (timing, factor, fee_quote) in [
+        ("before_scheduled_cash", 1.02, 0.),
+        ("after_scheduled_cash", 0.99, 5.),
+    ] {
+        let r = joint_fee_request(timing, true, factor);
+        let result = graph::analyze(&r).unwrap();
+        assert_eq!(
+            result.exercise_policies[0].policy["nodes"][0]["decision"],
+            "call"
+        );
+        for source in &result.native_sources {
+            let fee = source.fee_projection.as_ref().unwrap();
+            assert_eq!(
+                fee.bound_path
+                    .source()
+                    .groups()
+                    .iter()
+                    .filter(
+                        |g| g.event.action == portfolio_model_core::nonintegral_fee::Action::Cash
+                    )
+                    .count(),
+                usize::from(fee_quote != 0.)
+            );
+        }
+    }
+}
+#[test]
+fn omitted_fee_locked_exercise_retains_exact_historical_admission_receipt() {
+    use portfolio_model_core::{credit::CreditMeasure, strict_json};
+    use portfolio_risk_native::commercial_exercise as exercise;
+    let base = request();
+    let base_bytes = strict_json::serialized_size(&base, 32 << 20).unwrap();
+    let mut r = base.clone();
+    let ordinal = r.as_of_ordinal + 10;
+    r.positions[0].exercise=Some(serde_json::from_value(json!({"schema":"commercial-native-exercise-1","identity":{"id":"historical-call","revision":"1"},"information_policy":"native_full_observed_prefix-1","exercise_dates":[{"ordinal":ordinal,"timing":"after_scheduled_cash","call_clean_price_factor":1.,"put_clean_price_factor":null,"call_fee":0.,"put_fee":0.}],"simultaneous_priority":"issuer"})).unwrap());
+    r.positions[0].original_signed_cash_quote = 100. + 100. * 0.1 * 10. / 365.;
+    let p = &r.positions[0];
+    let policy = p.exercise.as_ref().unwrap();
+    let mut expected = graph::audit_admitted_work(&base).unwrap()
+        + 8 * (strict_json::serialized_size(&r, 32 << 20).unwrap() - base_bytes);
+    let originals = p
+        .original_pricing
+        .iter()
+        .map(|h| (&h.source, h.weight))
+        .collect::<Vec<_>>();
+    expected += 102 * exercise::admitted_work(policy, &originals).unwrap();
+    for set in &p.histories {
+        for histories in [&set.pricing, &set.pricing_down, &set.pricing_up] {
+            expected += exercise::admitted_work(
+                policy,
+                &histories
+                    .iter()
+                    .map(|h| (&h.source, h.weight))
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
+        }
+    }
+    let mut paths = p
+        .original_pricing
+        .iter()
+        .map(|h| (false, h))
+        .collect::<Vec<_>>();
+    for set in &p.histories {
+        for (physical, histories) in [
+            (true, &set.physical),
+            (false, &set.pricing),
+            (false, &set.pricing_down),
+            (false, &set.pricing_up),
+        ] {
+            paths.extend(histories.iter().map(|h| (physical, h)));
+        }
+    }
+    let original_owner = compiler::evaluate_economic_with_measure(
+        &p.original_pricing[0].source,
+        CreditMeasure::Pricing,
+    )
+    .unwrap();
+    let selected = exercise::compile(
+        policy,
+        &[exercise::PricingView {
+            raw: &p.original_pricing[0].source,
+            carry: original_owner.carry(),
+            weight: 1.,
+        }],
+        &r.original_scenario.collateral_curve,
+        0.,
+        0.,
+    )
+    .unwrap();
+    for (physical, h) in paths {
+        let stops = if physical {
+            let owner = compiler::evaluate(&h.source).unwrap();
+            selected.stops_for(&h.source, owner.carry()).unwrap()
+        } else {
+            let owner = compiler::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing)
+                .unwrap();
+            selected.stops_for(&h.source, owner.carry()).unwrap()
+        };
+        assert_eq!(stops.len(), 1);
+        expected += if physical {
+            compiler::admit_with_stops(&h.source, &stops)
+                .unwrap()
+                .joined_work_upper
+        } else {
+            compiler::admit_economic_with_stops(&h.source, CreditMeasure::Pricing, &stops)
+                .unwrap()
+                .joined_work_upper
+        };
+    }
+    assert_eq!(graph::audit_admitted_work(&r).unwrap(), expected);
+    let result = graph::analyze(&r).unwrap();
+    assert_eq!(result.admitted_work_upper, expected);
+    assert!(result
+        .native_sources
+        .iter()
+        .all(|s| s.fee_projection.is_none()));
+    assert!(result
+        .exercise_policies
+        .iter()
+        .all(|p| p.policy.get("joint_fee_values").is_none()));
+}
+#[test]
+fn unequal_fee_spread_optimizes_the_same_root_total_in_one_numeraire() {
+    let mut r = joint_fee_request("before_scheduled_cash", false, 1.02);
+    let origin = r.as_of_ordinal;
+    let oas: f64 = 0.1;
+    let spread: f64 = 0.5;
+    let loan_cash = 100. + 100. * 0.1 * 30. / 365.;
+    let call_cash = 104.90;
+    let loan_quote = loan_cash * (-oas * 35. / 365.).exp();
+    let fee_quote = 5. * (-spread * 40. / 365.).exp();
+    let p = &mut r.positions[0];
+    p.original_signed_cash_quote = loan_quote;
+    p.oas_target=serde_json::from_value(json!({"kind":"locked","base_oas":oas,"source_id":"reviewed-original-loan-quote","source_revision":"1"})).unwrap();
+    p.exercise.as_mut().unwrap().exercise_dates[0].call_clean_price_factor =
+        Some((call_cash - 100. * 0.1 * 10. / 365.) / 100.);
+    for h in p
+        .original_pricing
+        .iter_mut()
+        .chain(&mut p.original_physical)
+        .chain(p.histories.iter_mut().flat_map(|h| {
+            h.physical
+                .iter_mut()
+                .chain(&mut h.pricing)
+                .chain(&mut h.pricing_down)
+                .chain(&mut h.pricing_up)
+        }))
+    {
+        h.source.source.acquisition.cost = loan_quote;
+        h.source.source.acquisition.original_annual_effective_rate = oas.exp() - 1.;
+        for rate in &mut h.source.accounting_rates {
+            rate.annual_effective_rates.fill(oas.exp() - 1.);
+        }
+    }
+    let fees = p.fees.as_mut().unwrap();
+    fees.discount_spread = spread;
+    fees.original_signed_fee_quote = fee_quote;
+    fees.total_purchase_cost = loan_quote + fee_quote;
+    fees.allocations[0].allocated_cost = fee_quote;
+    let review = fees.allocations[0].review.clone();
+    for h in fees
+        .original_physical
+        .iter_mut()
+        .chain(fees.histories.iter_mut().flat_map(|h| &mut h.physical))
+    {
+        h.acquisition_releases=serde_json::from_value(json!([
+            {"fee_id":"service-fee","ordinal":origin+10,"sequence":0,"amount":fee_quote*0.4,"review":review},
+            {"fee_id":"service-fee","ordinal":origin+40,"sequence":1,"amount":fee_quote-fee_quote*0.4,"review":review}
+        ])).unwrap();
+    }
+    let loan_local = loan_cash * (-oas * 25. / 365.).exp();
+    let fee_local = 5. * (-spread * 30. / 365.).exp();
+    assert!(loan_local + fee_local > call_cash);
+    let continuation_root = loan_quote + fee_quote;
+    let call_root = call_cash * (-oas * 10. / 365.).exp();
+    assert!(continuation_root < call_root);
+    let actual = graph::analyze(&r).unwrap();
+    let policy = &actual.exercise_policies[0].policy;
+    assert_eq!(policy["nodes"][0]["decision"], "continue");
+    assert!((policy["value"].as_f64().unwrap() - continuation_root).abs() < 1e-9);
+    assert_eq!(
+        policy["joint_fee_values"]["decision_criterion"],
+        "root_total_loan_and_fee_in_loan_numeraire-1"
+    );
+}
+#[test]
+fn joint_fee_original_calibration_reuses_cash_without_combining_loan_and_fee_quotes() {
+    let mut r = joint_fee_request("after_scheduled_cash", true, 0.99);
+    let expected: f64 = 0.037;
+    let undiscounted = r.positions[0].original_signed_cash_quote;
+    let target = undiscounted * (-expected * 10. / 365.).exp();
+    let fee_quote = 5.;
+    let p = &mut r.positions[0];
+    p.original_signed_cash_quote = target;
+    p.oas_target=serde_json::from_value(json!({"kind":"calibrate_positive_cash","target_cash_price":target,"source_id":"joint-original-loan-only","source_revision":"1"})).unwrap();
+    p.fees.as_mut().unwrap().total_purchase_cost = target + fee_quote;
+    for h in p
+        .original_pricing
+        .iter_mut()
+        .chain(&mut p.original_physical)
+        .chain(p.histories.iter_mut().flat_map(|h| {
+            h.physical
+                .iter_mut()
+                .chain(&mut h.pricing)
+                .chain(&mut h.pricing_down)
+                .chain(&mut h.pricing_up)
+        }))
+    {
+        h.source.source.acquisition.cost = target;
+        h.source.source.acquisition.original_annual_effective_rate = expected.exp() - 1.;
+        for rate in &mut h.source.accounting_rates {
+            rate.annual_effective_rates.fill(expected.exp() - 1.);
+        }
+    }
+    let out = graph::analyze(&r).unwrap();
+    assert!((out.original_oas[0].base_oas - expected).abs() < 1e-9);
+    let components = &out.exercise_policies[0].policy["joint_fee_values"];
+    assert!((components["loan_value"].as_f64().unwrap() - target).abs() < 1e-9);
+    assert_eq!(components["fee_value"], fee_quote);
+    assert!((out.metrics[0].pv - target - fee_quote).abs() < 1e-9);
+    for policy in &out.exercise_policies {
+        assert_eq!(
+            policy.policy["fixed_base_oas"].as_f64().unwrap().to_bits(),
+            out.original_oas[0].base_oas.to_bits()
+        );
+    }
 }
 #[test]
 fn coefficients_and_retained_source_cash_reconcile_and_zero_allocation_preserves_tail() {

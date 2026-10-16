@@ -22,6 +22,9 @@ use portfolio_model_core::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 pub const SCHEMA: &str = "commercial-generated-exercise-1";
+mod basis;
+mod sources;
+pub(crate) use sources::feature_bound;
 pub mod calibration;
 // Separate explicitly selected sampling tier; ordinary graphs/source budgets
 // remain unchanged. Retained compact paths are capped independently below.
@@ -40,6 +43,8 @@ pub struct Driver {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CouponLoading {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_tranche_id: Option<String>,
     pub period_id: String,
     pub observation_index: usize,
     pub driver_index: usize,
@@ -93,6 +98,8 @@ pub struct Regression {
     pub rank: usize,
     pub singular_values: Vec<f64>,
     pub observed_live_states: Vec<CreditState>,
+    #[serde(skip_serializing_if = "basis::quadratic")]
+    pub basis_degree: usize,
 }
 #[derive(Serialize)]
 pub struct PathOutcome {
@@ -168,6 +175,7 @@ pub fn admit(r: &Request) -> Result<(usize, usize), String> {
 }
 pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize, usize), String> {
     check()?;
+    let degree = basis::degree(&r.regression_policy)?;
     let cash_measure = match measure {
         CreditMeasure::Physical => CashflowMeasure::Physical,
         CreditMeasure::Pricing => CashflowMeasure::Pricing,
@@ -176,7 +184,6 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     let d = r.drivers.len();
     if r.schema != SCHEMA
         || r.admission_tier != "bounded_generated_1024_samples-1"
-        || r.regression_policy != "native_observable_quadratic_svd_train_evaluate-1"
         || !(1..=4).contains(&d)
         || !(2..=129).contains(&r.time_ordinals.len())
         || r.time_ordinals[0] != asof
@@ -187,7 +194,6 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         || r.source.credit.paths.len() != 1
         || r.source.source.current.measure != cash_measure
         || r.source.source.original.measure != cash_measure
-        || !r.source.performing_draw_tranches.is_empty()
     {
         return Err("bounded explicit Pricing generated commercial contract and chronological grid required".into());
     }
@@ -245,18 +251,15 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         if loading.driver_index >= d
             || !loading.loading.is_finite()
             || loading.loading.abs() > 100.
-            || !mapped.insert((loading.period_id.as_str(), loading.observation_index))
+            || !mapped.insert((
+                loading.draw_tranche_id.as_deref(),
+                loading.period_id.as_str(),
+                loading.observation_index,
+            ))
         {
             return Err("unique bounded coupon driver mapping required".into());
         }
-        let period = r
-            .source
-            .source
-            .current
-            .periods
-            .iter()
-            .find(|p| p.period_id == loading.period_id)
-            .ok_or("coupon loading period absent")?;
+        let period = sources::loading_period(&r.source, loading)?;
         let Coupon::Indexed { observations, .. } = &period.coupon else {
             return Err("generated rate loading requires indexed coupon".into());
         };
@@ -273,15 +276,18 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
             );
         }
     }
-    for period in &r.source.source.current.periods {
-        if let Coupon::Indexed { observations, .. } = &period.coupon {
-            for (i, observation) in observations.iter().enumerate() {
-                if observation.fixing_ordinal > asof
-                    && !mapped.contains(&(period.period_id.as_str(), i))
-                {
-                    return Err(
-                        "all future coupon observations require native generated mappings".into(),
-                    );
+    for (tranche, contract) in sources::contracts(&r.source) {
+        for period in &contract.periods {
+            if let Coupon::Indexed { observations, .. } = &period.coupon {
+                for (i, observation) in observations.iter().enumerate() {
+                    if observation.fixing_ordinal > asof
+                        && !mapped.contains(&(tranche, period.period_id.as_str(), i))
+                    {
+                        return Err(
+                            "all future coupon observations require native generated mappings"
+                                .into(),
+                        );
+                    }
                 }
             }
         }
@@ -329,29 +335,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     {
         return Err("training and fresh evaluation randomness domains/seeds must differ".into());
     }
-    let mut source = owner::admit_economic_with_measure(&r.source, measure)?;
-    for date in &r.policy.exercise_dates {
-        let stop = owner::NativeStop::from_compiled_policy_with_timing(
-            r.source.credit.paths[0].path_key,
-            format!("generated-exercise:{}:{}", r.identity.id, date.ordinal),
-            date.ordinal,
-            owner::NativeStopAction::Call,
-            10.,
-            date.call_fee.max(date.put_fee),
-            r.policy.identity.clone(),
-            match date.timing {
-                ExerciseTiming::BeforeScheduledCash => owner::NativeStopTiming::BeforeScheduledCash,
-                ExerciseTiming::AfterScheduledCash => owner::NativeStopTiming::AfterScheduledCash,
-            },
-            r.policy
-                .rights_only_termination
-                .as_ref()
-                .map(|p| p.review.clone()),
-        )?;
-        let candidate = owner::admit_economic_with_stops(&r.source, measure, &[stop])?;
-        source.joined_work_upper = source.joined_work_upper.max(candidate.joined_work_upper);
-        source.joined_bytes_upper = source.joined_bytes_upper.max(candidate.joined_bytes_upper);
-    }
+    let source = admitted_source(r, measure)?;
     let n = r
         .training
         .paths
@@ -377,20 +361,16 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .current
         .periods
         .len()
-        .checked_add(recovery_cash + 4)
+        .checked_add(
+            r.source
+                .performing_draw_tranches
+                .iter()
+                .map(|d| d.source.current.periods.len() + 1)
+                .sum::<usize>(),
+        )
+        .and_then(|n| n.checked_add(recovery_cash + 4))
         .ok_or("generated cash upper overflow")?;
-    let observations = r
-        .source
-        .source
-        .current
-        .periods
-        .iter()
-        .map(|p| match &p.coupon {
-            Coupon::Indexed { observations, .. } => observations.len(),
-            _ => 0,
-        })
-        .sum::<usize>();
-    let features = 2 * d + 4 + observations + 2 * r.source.source.current.periods.len();
+    let features = feature_bound(r)?;
     // Include observed reset history and gross coupon entitlements. Net A/current
     // OU state alone is not Markov for coupons fixed earlier or lagged hazards.
     if features > 64 {
@@ -405,7 +385,7 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         .checked_add(n * compact_per_path)
         .and_then(|v| v.checked_add(tape_bytes))
         .ok_or("generated retained bytes overflow")?;
-    let columns = (1 + features + features * (features + 1) / 2).min(r.training.paths / 2);
+    let columns = basis::columns(features, degree).min(r.training.paths / 2);
     let regress_work = n
         .checked_mul(r.policy.exercise_dates.len() + 1)
         .and_then(|v| v.checked_mul(columns * columns * 16))
@@ -418,6 +398,51 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
         return Err(format!("generated commercial aggregate work/byte admission exceeded: work={total}, bytes={bytes}, source_work={}", source.joined_work_upper));
     }
     Ok((total, bytes))
+}
+pub(crate) fn regression_columns_upper(r: &Request) -> Result<usize, String> {
+    Ok(
+        basis::columns(feature_bound(r)?, basis::degree(&r.regression_policy)?)
+            .min(r.training.paths / 2),
+    )
+}
+pub(crate) fn admitted_source(
+    r: &Request,
+    measure: CreditMeasure,
+) -> Result<owner::Admission, String> {
+    let mut source = owner::admit_economic_with_measure(&r.source, measure)?;
+    for date in &r.policy.exercise_dates {
+        let stop = owner::NativeStop::from_compiled_policy_with_timing(
+            r.source.credit.paths[0].path_key,
+            format!("generated-exercise:{}:{}", r.identity.id, date.ordinal),
+            date.ordinal,
+            owner::NativeStopAction::Call,
+            10.,
+            date.call_fee.max(date.put_fee),
+            r.policy.identity.clone(),
+            match date.timing {
+                ExerciseTiming::BeforeScheduledCash => owner::NativeStopTiming::BeforeScheduledCash,
+                ExerciseTiming::AfterScheduledCash => owner::NativeStopTiming::AfterScheduledCash,
+            },
+            r.policy
+                .rights_only_termination
+                .as_ref()
+                .map(|p| p.review.clone()),
+        )?;
+        let candidate = owner::admit_economic_with_stops(&r.source, measure, &[stop])?;
+        source.joined_work_upper = source.joined_work_upper.max(candidate.joined_work_upper);
+        source.joined_bytes_upper = source.joined_bytes_upper.max(candidate.joined_bytes_upper);
+        source.accounting_groups_upper = source
+            .accounting_groups_upper
+            .max(candidate.accounting_groups_upper);
+        source.carry_points_upper = source.carry_points_upper.max(candidate.carry_points_upper);
+        source.lots_per_path_upper = source
+            .lots_per_path_upper
+            .max(candidate.lots_per_path_upper);
+        source.full_credit_end_year = source
+            .full_credit_end_year
+            .max(candidate.full_credit_end_year);
+    }
+    Ok(source)
 }
 pub(crate) struct Tape {
     levels: Vec<f64>,
@@ -489,8 +514,17 @@ pub(crate) fn generated_path(
     path: usize,
     measure: CreditMeasure,
 ) -> Result<owner::Request, String> {
+    generated_path_from_source(r, sample, tape, path, measure, (*r.source).clone())
+}
+pub(crate) fn generated_path_from_source(
+    r: &Request,
+    sample: &Sample,
+    tape: &Tape,
+    path: usize,
+    measure: CreditMeasure,
+    mut raw: owner::Request,
+) -> Result<owner::Request, String> {
     check()?;
-    let mut raw = (*r.source).clone();
     // Stable path keys preserve paired base/bump CRN; the two sample streams remain independent.
     raw.credit.paths[0].path_key = path as u64 + 1;
     raw.credit.paths[0].path_id = format!("generated-{path}");
@@ -500,13 +534,8 @@ pub(crate) fn generated_path(
         seed: sample.credit_seed,
     };
     for loading in &r.coupon_loadings {
-        let period = raw
-            .source
-            .current
-            .periods
-            .iter_mut()
-            .find(|p| p.period_id == loading.period_id)
-            .ok_or("generated coupon absent")?;
+        let current_path = sources::loading_contract(&raw, loading)?.path.clone();
+        let period = sources::loading_period_mut(&mut raw, loading)?;
         let Coupon::Indexed { observations, .. } = &mut period.coupon else {
             return Err("generated indexed coupon absent".into());
         };
@@ -523,7 +552,7 @@ pub(crate) fn generated_path(
         )?;
         observation.source = RateSource::ConditionalProjection {
             model: r.identity.clone(),
-            path: raw.source.current.path.clone(),
+            path: current_path,
             information_unix_seconds: utc(observation.fixing_ordinal),
             measure: match measure {
                 CreditMeasure::Physical => CashflowMeasure::Physical,
@@ -643,34 +672,8 @@ pub(crate) fn compiled_point_features(
             features.extend(vec![0.; tape.d]);
         }
     }
-    for period in &raw.source.current.periods {
-        if let Coupon::Indexed { observations, .. } = &period.coupon {
-            for observation in observations {
-                features.push(
-                    if observation.fixing_ordinal <= date.ordinal
-                        && observation.selection_cutoff_unix_seconds <= utc(date.ordinal)
-                    {
-                        observation.rate
-                    } else {
-                        0.
-                    },
-                );
-            }
-        }
-    }
     let point = exercise::point(carry, raw.credit.paths[0].path_key, t, date.timing)?;
-    for period in &raw.source.current.periods {
-        let coupon = point.canonical_legal_coupons.iter().find(|p| {
-            p.coupon_id == period.period_id
-                && exercise::coupon_entitlement_observed(period, date.ordinal, date.timing)
-        });
-        features.extend(coupon.map_or([0., 0.], |p| {
-            [
-                p.opening_entitlement_principal / opening,
-                p.legal_remaining / opening,
-            ]
-        }));
-    }
+    sources::append_observed_features(raw, point, date, opening, &mut features)?;
     Ok(Point {
         features,
         state,
@@ -684,21 +687,12 @@ pub(crate) fn compiled_point_features(
         )?,
     })
 }
-fn basis(features: &[f64], means: &[f64], scales: &[f64], active: &[usize]) -> Vec<f64> {
-    let x: Vec<_> = active
-        .iter()
-        .map(|&i| (features[i] - means[i]) / scales[i])
-        .collect();
-    let mut b = vec![1.];
-    b.extend_from_slice(&x);
-    for i in 0..x.len() {
-        for j in i..x.len() {
-            b.push(x[i] * x[j]);
-        }
-    }
-    b
-}
-fn fit(ordinal: i32, rows: &[&Point], targets: &[f64]) -> Result<Regression, String> {
+fn fit(
+    ordinal: i32,
+    rows: &[&Point],
+    targets: &[f64],
+    degree: usize,
+) -> Result<Regression, String> {
     check()?;
     let features = rows
         .first()
@@ -727,13 +721,13 @@ fn fit(ordinal: i32, rows: &[&Point], targets: &[f64]) -> Result<Regression, Str
         }
     }
     let active = active_features.len();
-    let columns = 1 + active + active * (active + 1) / 2;
+    let columns = basis::columns(active, degree);
     if rows.len() < columns * 2 {
-        return Err("insufficient live training paths for quadratic continuation fit".into());
+        return Err("insufficient live training paths for selected continuation basis".into());
     }
     let data: Vec<_> = rows
         .iter()
-        .flat_map(|p| basis(&p.features, &means, &scales, &active_features))
+        .flat_map(|p| basis::values(&p.features, &means, &scales, &active_features, degree))
         .collect();
     let decomposition = DMatrix::from_row_slice(rows.len(), columns, &data).svd(true, true);
     let cutoff = f64::EPSILON * rows.len().max(columns) as f64 * decomposition.singular_values[0];
@@ -761,6 +755,7 @@ fn fit(ordinal: i32, rows: &[&Point], targets: &[f64]) -> Result<Regression, Str
         rank,
         singular_values: decomposition.singular_values.iter().copied().collect(),
         observed_live_states,
+        basis_degree: degree,
     })
 }
 fn forecast(regression: &Regression, point: &Point) -> Result<f64, String> {
@@ -775,11 +770,12 @@ fn forecast(regression: &Regression, point: &Point) -> Result<f64, String> {
         }
     }
     amount(
-        basis(
+        basis::values(
             &point.features,
             &regression.means,
             &regression.scales,
             &regression.active_features,
+            regression.basis_degree,
         )
         .iter()
         .zip(&regression.coefficients)
@@ -934,7 +930,12 @@ fn fit_paths(r: &Request, training: &[Path]) -> Result<NativeTrainedPolicy, Stri
         }
         let rows: Vec<_> = ids.iter().map(|i| &training[*i].points[index]).collect();
         let responses: Vec<_> = ids.iter().map(|i| target[*i]).collect();
-        let regression = fit(r.policy.exercise_dates[index].ordinal, &rows, &responses)?;
+        let regression = fit(
+            r.policy.exercise_dates[index].ordinal,
+            &rows,
+            &responses,
+            basis::degree(&r.regression_policy)?,
+        )?;
         for (i, p) in training.iter().enumerate() {
             let continuation = if live(p.points[index].state) {
                 forecast(&regression, &p.points[index])?
@@ -1057,11 +1058,29 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
             full_native_cash_replayed: true,
         });
     }
-    let result = ResultData { schema: SCHEMA, raw_source: r.clone(), admitted_work_upper: work, retained_bytes_upper: bytes,
-        regressions: trained.regressions, training_value, evaluation_value: mean, evaluation_standard_error: (variance / half as f64).sqrt(), evaluation_clusters: half,
-        evaluation_paths: outcomes, generated_joint_market_credit: true, evaluation_outcomes_used_for_fit: false, finite_distribution: false,
-        convergence_established: false, physical_journal_eligible: false, empirical_validation: false,
-        disclosure: "Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Quadratic LSM fit uses training only, fresh evaluation native cash is replayed. Sampling diagnostics do not establish model/basis convergence, observed accuracy, no-arbitrage calibration, or journal adoption." };
+    let result = ResultData {
+        schema: SCHEMA,
+        raw_source: r.clone(),
+        admitted_work_upper: work,
+        retained_bytes_upper: bytes,
+        regressions: trained.regressions,
+        training_value,
+        evaluation_value: mean,
+        evaluation_standard_error: (variance / half as f64).sqrt(),
+        evaluation_clusters: half,
+        evaluation_paths: outcomes,
+        generated_joint_market_credit: true,
+        evaluation_outcomes_used_for_fit: false,
+        finite_distribution: false,
+        convergence_established: false,
+        physical_journal_eligible: false,
+        empirical_validation: false,
+        disclosure: if basis::degree(&r.regression_policy)? == 2 {
+            "Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Quadratic LSM fit uses training only, fresh evaluation native cash is replayed. Sampling diagnostics do not establish model/basis convergence, observed accuracy, no-arbitrage calibration, or journal adoption."
+        } else {
+            "Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Explicit selected polynomial basis uses training only; fresh evaluation native cash is replayed. Basis/path refinement diagnostics do not establish general convergence, observed accuracy, no-arbitrage calibration, or journal adoption."
+        },
+    };
     strict_json::serialized_size(&result, 32 << 20)?;
     check()?;
     Ok(result)
@@ -1255,6 +1274,36 @@ mod tests {
         for cash in [&[][..], &future[..]] {
             assert!(decide(&r, 0, &observed, 0.5, cash).is_err());
         }
+    }
+    #[test]
+    fn selected_cubic_regression_recovers_known_function_and_requires_training_coverage() {
+        let points: Vec<_> = (-4..=4)
+            .map(|i| Point {
+                features: vec![f64::from(i)],
+                state: CreditState::Performing,
+                principal: 100.,
+                legal: 0.,
+                surviving_rights: true,
+            })
+            .collect();
+        let rows: Vec<_> = points.iter().collect();
+        let function = |x: f64| 100. + 2. * x - 0.5 * x * x + 0.1 * x * x * x;
+        let targets: Vec<_> = points.iter().map(|p| function(p.features[0])).collect();
+        let fitted = fit(738886, &rows, &targets, 3).unwrap();
+        assert_eq!(fitted.basis_degree, 3);
+        assert_eq!(fitted.rank, 4);
+        for x in [-3.5, -0.25, 0.75, 2.25] {
+            let point = Point {
+                features: vec![x],
+                state: CreditState::Performing,
+                principal: 100.,
+                legal: 0.,
+                surviving_rights: true,
+            };
+            near(forecast(&fitted, &point).unwrap(), function(x));
+        }
+        // Four cubic coefficients require at least eight live training rows.
+        assert!(fit(738886, &rows[..7], &targets[..7], 3).is_err());
     }
     #[test]
     fn future_coupon_entitlement_metadata_is_hidden_until_observed() {

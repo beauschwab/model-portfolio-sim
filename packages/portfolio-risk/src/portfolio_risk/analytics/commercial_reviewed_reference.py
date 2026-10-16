@@ -44,7 +44,7 @@ def apply(replay,source_groups,check=lambda:False):
             if key in seen or row['path_key'] not in [p['path_key']for p in paths] or type(review['recognition_ordinal'])is not int or not asof<=review['recognition_ordinal']<=asof+_day(replay['carry_points'][-1]['year']):raise ArithmeticError('review identity/path/date not independently admitted')
             seen.add(key)
     for path in paths:
-        key=path['path_key'];claim_prefix=f'commercial-default:{key}';claims=[];legal={};legal_p=0.;allowance=0.;waivers=[];base=None;recovery_index=0
+        key=path['path_key'];claim_prefix=f'commercial-default:{key}';claims=[];legal={};legal_p=0.;allowance=0.;waivers=[];base=None;recovery_index=0;pending_cash_index=0;source_cash=iter(c for c in replay['native_source_cash'] if c['path_key']==key)
         events=[]
         for g in source_groups:
             if g['path_key']==key:events.append((g['year'],0 if g['phase']=='reviewed_opening_snapshot' else 4 if g['phase']=='closing_claims_retained' else 2,'source',g))
@@ -59,7 +59,7 @@ def apply(replay,source_groups,check=lambda:False):
             except StopIteration as exc:raise ArithmeticError('review unknown independent default claim')from exc
         def add(lines,account,value,identity=None):
             if value==0.:return
-            lot=next((l for l in base['lots'] if f"commercial-interest:{key}:{l['coupon_id']}:{l['earning_origin_index']}"==identity),None) if base else None
+            lot=next((l for l in base['lots'] if (f"commercial-interest:{key}:{l['coupon_id']}:{l['earning_origin_index']}"==identity or l['coupon_id'].startswith('pending-coupon:') and f"commercial-legal-cash:{key}:{l['coupon_id']}:{l['earning_origin_index']}"==identity)),None) if base else None
             lines.append(dict(coupon_id=lot['coupon_id']if lot else None,earning_origin_index=lot['earning_origin_index']if lot else None,posting=dict(account=account,amount=float(value))))
         def initial(identity,recognized,p,b,loss,tail,at):
             return dict(claim_id=identity,economic_source=dict(id=replay['credit']['result']['source_id'],revision=replay['credit']['result']['source_revision']),recovery_schedule_review=deepcopy(policy['identity']),policy=deepcopy(policy),default_ordinal=at,initial_principal=p,economic_principal_loss=loss,initial_accrued_interest=recognized,initial_book_adjustment=b,outstanding_principal=p,outstanding_accrued_interest=0. if reverse else recognized,outstanding_book_adjustment=0. if expense else b,principal_charged_off=0.,accrued_reversed=recognized if reverse else 0.,basis_recognized=b if expense else 0.,recovery_cash_collected=0.,recovery_applied_to_principal=0.,interest_recovery_cash_collected=0.,interest_recovery_applied=0.,settled_interest_recovery_ids=[],remaining_recoveries=tail)
@@ -76,7 +76,29 @@ def apply(replay,source_groups,check=lambda:False):
             check()
             if kind=='source':
                 g=deepcopy(row)
-                if g['phase']=='default_gross_transfer':
+                cash=next(source_cash) if g['phase'] in ('contractual_cash','pending_coupon_cash') else None
+                if cash is not None and (cash['year']!=year or cash['path_key']!=key):raise ArithmeticError('reviewed source cash order differs')
+                if g['phase']=='pending_coupon_fixing' and g['next']['in_default']:
+                    base=deepcopy(g['next']);fresh=[l for l in base['lots'] if not any(c['claim_id']==f"commercial-interest:{key}:{l['coupon_id']}:{l['earning_origin_index']}" for c in claims)]
+                    if len(fresh)!=1 or not fresh[0]['coupon_id'].startswith('pending-coupon:'):raise ArithmeticError('pending publication requires separately owned native coupon')
+                    lot=fresh[0]
+                    if lot['recognized_remaining']!=0. or g['effective_interest']!=0.:raise ArithmeticError('pending default publication restarts income')
+                    identity=f"commercial-interest:{key}:{lot['coupon_id']}:{lot['earning_origin_index']}"
+                    if identity in legal:raise ArithmeticError('pending claim duplicate')
+                    legal[identity]=lot['legal_remaining'];claims.append(initial(identity,0.,0.,0.,0.,[],asof+_day(year)))
+                    cash_only=initial(f"commercial-legal-cash:{key}:{lot['coupon_id']}:{lot['earning_origin_index']}",lot['legal_remaining'],0.,0.,0.,[],asof+_day(year));cash_only['outstanding_accrued_interest']=0.;cash_only['accrued_reversed']=lot['legal_remaining'];claims.append(cash_only)
+                elif g['phase']=='pending_coupon_cash' and g['next']['in_default']:
+                    base=deepcopy(g['next']);g['postings']=[];paid=cash['cash'];lot=next(l for l in base['lots'] if l['coupon_id']==paid['coupon_id']);identity=f"commercial-interest:{key}:{lot['coupon_id']}:{lot['earning_origin_index']}";money=paid['interest']
+                    if paid['principal']!=0. or money!=g['cash']:raise ArithmeticError('pending reviewed cash amount differs')
+                    legal[identity]=_collect(legal[identity],money)
+                    if money!=0.:
+                        identity=f"commercial-legal-cash:{key}:{lot['coupon_id']}:{lot['earning_origin_index']}";c=claim(identity);account='allowance' if policy['excess_cash_recovery']=='credit_allowance' else 'recovery_income'
+                        if account=='allowance':allowance+=money
+                        if allowance<0.:raise ArithmeticError('signed reviewed recovery produces negative allowance')
+                        c['interest_recovery_cash_collected']+=money;c['settled_interest_recovery_ids'].append(dict(id=f"native-pending-interest:{key}:{pending_cash_index}:{lot['native_audit_index']}:{lot['earning_origin_index']}",revision='1'))
+                        add(g['postings'],'cash',money,identity);add(g['postings'],account,-money,identity)
+                    pending_cash_index+=1
+                elif g['phase']=='default_gross_transfer':
                     base=deepcopy(g['next']);d=path['default'];legal_p=base['principal'];tail=defaultdict(float)
                     for r in d['recoveries']:tail[asof+_day(r['year'])]+=r['principal']
                     tail=[dict(payment_ordinal=at,amount=float(v))for at,v in sorted(tail.items())if v!=0.]
@@ -129,6 +151,7 @@ def apply(replay,source_groups,check=lambda:False):
                         legal_p=_subtract(legal_p,float(r['principal_amount']))
                     else:
                         if r['principal_amount']!=0.:raise ArithmeticError('coupon waiver substitutes principal')
+                        if r['claim_id'] not in legal:raise ArithmeticError('waiver unknown independent native coupon claim')
                         legal[r['claim_id']]=_subtract(legal[r['claim_id']],float(r['accrued_interest_amount']))
                     waivers.append(deepcopy(r));review=deepcopy(r['review']);phase='reviewed_legal_waiver'
                 g=dict(path_key=key,year=year,phase=phase,policy=review,source_event_id=None,effective_interest=0.,basis_realization=0.,cash=0.,postings=lines,next=None)

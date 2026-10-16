@@ -243,6 +243,10 @@
     "job": true,
     "permission": "publish"
   },
+  "POST /models/candidate-holding-journals": {
+    "job": true,
+    "permission": "compute"
+  },
   "POST /models/holding-journals": {
     "job": true,
     "permission": "compute"

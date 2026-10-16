@@ -1,5 +1,16 @@
 # Native model contract entrypoints
 
+Local 0.29.19 development adds explicit commercial fee graph/unit acquisition,
+joint finite exercise, candidate holding and fee-aware treasury sources, observable
+indexed earning and reviewed late rights, selected generated path draw/review
+catalogs, and bounded generated candidate streaming. These changes require matching
+native artifacts. They are not accepted release evidence until the combined
+installed regression and publication gates pass. See the
+[completion ledger](commercial-completion-plan.md) for retained issue gates.
+The API source-ID [candidate prior-opening route](commercial-candidate-prior-opening.md)
+verifies one ordinary modeled predecessor at its exact published cut without
+changing native financial schemas or claiming observed opening evidence.
+
 Local0.29.15 adds [verified modeled prior openings](commercial-prior-opening.md) through a source-ID durable API route, with unchanged native financial schemas and final SQL/source/object fences. Cut-started mixed and observed bank adoption remain separate.
 
 Local0.29.14 adds explicit [complete-origin commercial holding journals](commercial-holding-journal.md), retaining full native daily replay and independent prospective window verification. Verified prior opening and cut-started mixed adoption remain separate.
@@ -41,9 +52,12 @@ native artifacts fail; there is no Python calculation fallback.
 | `commercial-holding-continuation-1` | `continue_commercial_holding(request)` | [Complete-origin holdings](commercial-continuation.md) | Sealed original acquisition replay, unchanged completed prefixes, retained credit clocks/yields and prospective group indices; verified prior-publication and mixed/secondary adoption remain separate |
 | `commercial-holding-journal-1` | `journal_commercial_holding(request)` | [Holding journals](commercial-holding-journal.md) | One existing complete-origin native daily Sim, derived balanced cut opening, prior P&L rolled into equity and ordered prospective postings; independent full/persisted replay; cut-started mixed/seasoned/secondary and prior-publication adoption remain separate |
 | `commercial-credit-ledger-1` | `analytics.model_ledger.run_model_ledger` | [Commercial ledger](commercial-credit-ledger.md) | Explicit commercial owners and cash accounts share one daily Sim; protocol 6, complete recovery clock and independently replayed durable publication gates |
-| `commercial-generated-exercise-1` | `core.model_native.run(schema, request)` | [Generated commercial exercise](commercial-generated-exercise.md) | Supplied joint Gaussian/credit laws, training-only quadratic continuation, fresh evaluation, exact native stopped cash replay and antithetic cluster diagnostics; no empirical or general convergence claim |
-| `commercial-generated-policy-1` | Explicit `generated_policy` within commercial graph | [Generated graph](commercial-graph-strategy.md#generated-policy-graphs) | Separately supplied Pricing/Physical laws, paired streams, locked original OAS and compact original acquisition/accounting recipes; generated candidate streaming rejects |
+| `commercial-generated-exercise-1` | `core.model_native.run(schema, request)` | [Generated commercial exercise](commercial-generated-exercise.md) | Supplied joint Gaussian/credit laws, training-only continuation with explicitly selected linear/quadratic/cubic bases, fresh evaluation, native stopped cash replay and antithetic cluster diagnostics; no empirical or general convergence claim |
+| `commercial-generated-policy-1` | Explicit `generated_policy` within commercial graph | [Generated graph](commercial-graph-strategy.md#generated-policy-graphs) | Separately supplied Pricing/Physical laws, paired streams, locked original OAS and selected path-specific draw/review catalogs; explicit generated candidate streaming has a separate bounded route |
 | `commercial-candidate-journal-1` | `core.commercial_candidate_native.run` | [Purchased journals](commercial-treasury-candidate.md) | Standalone finite native source acquisition in one daily Sim; commercial loans or AC issuer securities, complete tails; supplied opening provenance is not verified evidence |
+| `commercial-generated-candidate-journal-1` | `analytics.commercial_generated_ledger.run_generated_candidate_ledger` | [Generated candidate streaming](commercial-generated-candidates.md) | One live expanded Physical source, sealed compact accounting endpoints, ordered shared daily replay and bounded partitioned durable publication; generated fees and broader mixed acceptance remain separate |
+| `commercial-candidate-holding-journal-1` | `journal_commercial_candidate_holding(request)` | [Fee candidate holdings](commercial-fee-holding.md) | Complete-origin finite candidate loan/fee replay with identical completed prefixes and prospective gross openings; verified prior publication and cut-started mixed adoption remain separate |
+| `commercial-candidate-fee-treasury-1` | `analyze_commercial_candidate_fee_treasury(request)` | [Fee funding and treasury](commercial-fee-funding.md) | Reviewed finite candidate shared journal, separate fee GL capital weights and source-channels-3 daily FTP; eligibility and regulatory policies remain supplied |
 | `commercial-treasury-1` | `core.commercial_treasury_native.run` | [Commercial treasury](commercial-treasury-candidate.md) | Exact complete-tail closing capital and bounded daily FTP from independently replayed reviewed journals; regulatory policies remain supplied |
 | `product-candidate-journal-1` | `analyze_product_candidates(request)` | [Candidate acquisition](product-candidate-journal.md) | Standalone performing candidate acquisition, original-EIR recognition, ordered physical journals and complete tails; independently checked durable analysis, mixed backbook adoption remains open |
 | `product-mixed-dated-1` | `analyze_product_mixed_dated(request)` | [Performing mixed replay](product-mixed-dated.md) | Supplied dated backbook and performing candidate acquisition in one chronological expected journal; independent raw/persisted replay and explicit full-tail closing capital, broader credit/joint/saved-book adoption remains open |

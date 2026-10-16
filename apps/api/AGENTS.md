@@ -248,3 +248,39 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+## Commercial source and adoption follow-through (local 0.29.19)
+
+Explicit fee graphs retain separate original loan OAS/EIR and fee spread/quote/
+acquired cost, one joint exercise decision, complete signed fee rights and native
+unit coefficients. Interactive evaluation uses retained separate fee-income
+coefficients; external NII and the solver objective are unchanged. The additive
+income-coefficients version1 exports do not alter numeric product ABI10.
+
+Observable published-fixing prefixes and reviewed late coupon claims retain
+actual information, recognition, settlement and recovery clocks. Generated
+Physical path catalogs require complete ordered coverage, canonical draw sources,
+path-paired original anchors and explicit reviewed actions; P outcomes never fit
+Q continuation. Selected linear/cubic bases retain training-only fitting and the
+existing work cap; historical quadratic ordering/output remains unchanged.
+
+`commercial-generated-candidate-journal-1` uses compact native owners and bounded
+partitioned publication. `commercial-candidate-fee-treasury-1` replays actual
+candidate loan/fee journals and supplied separate capital/FTP policies.
+`commercial-candidate-holding-journal-1` checks complete-origin source and monetary
+prefixes before exposing a prospective window; it is not a cut-started mixed Sim.
+The source-ID route additionally verifies an ordinary modeled predecessor at its
+exact published cut, including gross unweighted loan/fee rights. Native prior
+verification flags remain false; independently verified API publication evidence
+retains source/object/current-job authority through the final SQL transaction.
+Raw/persisted independent replay, original deadlines and final SQL/source/artifact
+fences remain required. Historical omission/protocol paths remain separately
+readable; component/phase bounds are not an aggregate RSS guarantee.
+
+See docs/models/commercial-fee-adoption.md, commercial-fee-funding.md,
+commercial-observable-coupons.md, commercial-generated-publication.md,
+commercial-policy-refinement.md and the complete implementation plan. Matching
+product/ledger/decision artifacts, service restarts and explicit selected library/
+session rebuilding are required for adoption. Local implementation/tests do not
+deploy services or close15/25. Secondary/conveyed rights, broader mixed/saved/
+cohort adoption, reviewed/observed evidence and full60000 joint acceptance remain.

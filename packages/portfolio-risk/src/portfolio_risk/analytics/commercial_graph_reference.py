@@ -47,13 +47,28 @@ def verify_graph(raw,result,check=lambda:False):
         from .commercial_generated_graph_reference import verify
         return verify(raw,result,check)
     from .commercial_exercise_reference import compile_policy,stops_for
+    from . import commercial_fee_adoption_reference as fee_reference
+    from . import commercial_fee_exercise_reference as joint_reference
     sources=[];metrics=[];anchors=[];policies=[];native=result['native_sources'];at=0
     original_sources=result.get('original_physical_sources',[]);original_at=0;proof_at=0
     for p in raw['positions']:
+        fees=p.get('fees')
+        if fees:
+            fee_reference.validate(fees,raw,p,check)
         check();original=[(h['weight'],_cash(replay(h['source'],check)['credit'])) for h in p['original_pricing']]
         exercise=p.get('exercise')
+        def compile_current(hs,scenario,role,original,oas,bump):
+            if fees:
+                policies=[fee_reference._history(fees,scenario['scenario_id'],role,h['path_id'],original)['policy']for h in hs]
+                return joint_reference.compile_policy(exercise,hs,policies,scenario['collateral_curve'],oas,fees['discount_spread'],bump,check)
+            return compile_policy(exercise,hs,scenario['collateral_curve'],oas,bump,check)
+        def stops_current(compiled,h,scenario,role,original):
+            if fees:return joint_reference.stops_for(compiled,h['source'],fee_reference._history(fees,scenario['scenario_id'],role,h['path_id'],original)['policy'],check)
+            return stops_for(compiled,h['source'],check)
         def original_price(oas):
-            if exercise:return compile_policy(exercise,p['original_pricing'],raw['original_scenario']['collateral_curve'],oas,0.,check)['result']['value']
+            if exercise:
+                result=compile_current(p['original_pricing'],raw['original_scenario'],'pricing',True,oas,0.)['result']
+                return result['joint_fee_values']['loan_value']if fees else result['value']
             return math.fsum(w*_price(c,raw['original_scenario']['collateral_curve'],raw['as_of_ordinal'],raw['as_of_ordinal'],oas,0.) for w,c in original)
         target=p['original_signed_cash_quote'];oas=p['oas_target'].get('base_oas')
         if oas is None:oas=brentq(lambda v:original_price(v)-target,-5.,5.,xtol=2e-15)
@@ -61,12 +76,20 @@ def verify_graph(raw,result,check=lambda:False):
         if p['oas_target']['kind']=='locked' and struct.pack('>d',float(oas))!=struct.pack('>d',actual['base_oas']):raise ArithmeticError('original locked OAS changed bits')
         compare(float(target),float(original_price(oas)),check=check);anchors.append(actual)
         if exercise:
-            compiled=compile_policy(exercise,p['original_pricing'],raw['original_scenario']['collateral_curve'],oas,0.,check)
+            compiled=compile_current(p['original_pricing'],raw['original_scenario'],'pricing',True,oas,0.)
             policies.append(dict(position_id=p['position_id'],scenario_id=raw['original_scenario']['scenario_id'],role='pricing',policy=compiled['result']))
+        if fees:
+            original_fee=0.
+            for history in p['original_pricing']:
+                stops=stops_current(compiled,history,raw['original_scenario'],'pricing',True)if exercise else[]
+                projection=replay(history['source'],check,stops=stops)
+                fee=fee_reference.project(fees,raw['original_scenario']['scenario_id'],'pricing',history,projection,None,check,original=True,stops=stops)
+                original_fee+=history['weight']*fee_reference.price(fee,raw['original_scenario']['collateral_curve'],raw['as_of_ordinal'],raw['as_of_ordinal'],original=True)
+            compare(float(fees['original_signed_fee_quote']),float(original_fee),check=check)
         acquisition=None
         if p.get('original_physical'):
             from .commercial_ledger_reference import compile_original_acquisition
-            original_stops=[stops_for(compiled,h['source'],check) for h in p['original_physical']]
+            original_stops=[stops_current(compiled,h,raw['original_scenario'],'physical',True) for h in p['original_physical']]
             acquisition=compile_original_acquisition(p['original_physical'],original_stops,check)
             proof=result['original_acquisition_proofs'][proof_at];proof_at+=1
             if set(proof)!={'original_stopped_cash_quote','acquisition','weights','stopped_physical','conditional_tranche_proofs','acquired_cash_partitions'}:raise ArithmeticError('original Physical acquisition proof shape differs')
@@ -79,29 +102,35 @@ def verify_graph(raw,result,check=lambda:False):
                 compare(wanted,{k:actual[k] for k in wanted},check=check);identity(h['source'],actual['source_request'])
                 replayed=verify_compiler(h['source'],actual['projection'],check,stops=stops,original_acquisition=acquisition)
                 compare(_cash(replayed['replay']['credit']),actual['cash'],check=check)
+                if fees:fee_reference.project(fees,raw['original_scenario']['scenario_id'],'physical',h,replayed['replay'],actual.get('fee_projection'),check,original=True,stops=stops)
         for scenario in raw['scenarios']:
             hs=next(h for h in p['histories'] if h['scenario_id']==scenario['scenario_id']);bundle=[]
             current_policies={}
             if exercise:
                 for role in ROLES[1:]:
                     bump=-raw['bump_bp']*1e-4 if role=='pricing_down' else raw['bump_bp']*1e-4 if role=='pricing_up' else 0.
-                    compiled=compile_policy(exercise,hs[role],scenario['collateral_curve'],oas,bump,check);current_policies[role]=compiled
+                    compiled=compile_current(hs[role],scenario,role,False,oas,bump);current_policies[role]=compiled
                     policies.append(dict(position_id=p['position_id'],scenario_id=scenario['scenario_id'],role=role,policy=compiled['result']))
             for role in ROLES:
                 for history in hs[role]:
                     check();actual=native[at];at+=1
                     wanted=dict(position_id=p['position_id'],scenario_id=scenario['scenario_id'],run_id=scenario['run_id'],path_id=history['path_id'],path_key=history['source']['credit']['paths'][0]['path_key'],weight=float(history['weight']),role=role)
                     compare(wanted,{k:actual[k] for k in wanted},check=check);identity(history['source'],actual['source_request'])
-                    stops=stops_for(current_policies['pricing' if role=='physical' else role],history['source'],check) if exercise else []
+                    stops=stops_current(current_policies['pricing'if role=='physical'else role],history,scenario,role,False) if exercise else []
                     if role=='physical':verified=verify_compiler(history['source'],actual['projection'],check,stops=stops,original_acquisition=acquisition);ref=verified['replay'];gs=verified['groups']
                     else:ref=_economic(history['source'],actual['projection'],check,stops=stops);gs=None
                     cash=_cash(ref['credit']);compare(cash,actual['cash'],check=check)
-                    value=dict(**wanted,source_request=deepcopy(history['source']),cash=cash,reference=ref,groups=gs);bundle.append(value);sources.append(value)
+                    fee_projection=None
+                    if fees:
+                        if 'fee_projection'not in actual:raise ArithmeticError('fee native source ownership absent')
+                        fee_projection=fee_reference.project(fees,scenario['scenario_id'],role,history,ref,actual['fee_projection'],check,stops=stops)
+                    elif 'fee_projection'in actual:raise ArithmeticError('unselected fee source ownership')
+                    value=dict(**wanted,source_request=deepcopy(history['source']),cash=cash,reference=ref,groups=gs,fee_projection=fee_projection);bundle.append(value);sources.append(value)
             for mark in raw['reporting_ordinals']:
                 prices={}
                 for role in ROLES[1:]:
                     bump=-raw['bump_bp']*1e-4 if role=='pricing_down' else raw['bump_bp']*1e-4 if role=='pricing_up' else 0.
-                    prices[role]=math.fsum(s['weight']*_price(s['cash'],scenario['collateral_curve'],raw['as_of_ordinal'],mark,oas,bump) for s in bundle if s['role']==role)
+                    prices[role]=math.fsum(s['weight']*(_price(s['cash'],scenario['collateral_curve'],raw['as_of_ordinal'],mark,oas,bump)+(fee_reference.price(s['fee_projection'],scenario['collateral_curve'],raw['as_of_ordinal'],mark,bump)if s['fee_projection']else 0.)) for s in bundle if s['role']==role)
                 metrics.append(dict(position_id=p['position_id'],scenario_id=scenario['scenario_id'],ordinal=mark,pv=prices['pricing'],dv01=(prices['pricing_down']-prices['pricing_up'])/(2.*raw['bump_bp'])))
     if at!=len(native) or len(anchors)!=len(result['original_oas']):raise ArithmeticError('commercial native source/anchor coverage differs')
     if original_at!=len(original_sources) or proof_at!=len(result.get('original_acquisition_proofs',[])):raise ArithmeticError('original Physical acquisition coverage differs')
@@ -121,6 +150,7 @@ def _date(asof,year):
 
 
 def verify_units(raw,result,check=lambda:False):
+    from .commercial_fee_adoption_reference import income_period
     check();_raw(raw,result['raw_source'])
     if raw.get('schema')!='commercial-units-1' or result.get('schema')!=raw['schema']:raise ArithmeticError('commercial unit explicit model identity differs')
     if any(p.get('exercise') and not p.get('original_physical') for u in raw['units'] for p in u['graph']['positions']):raise ArithmeticError('commercial exercise unit original stopped Physical acquisition anchor is unavailable')
@@ -128,20 +158,22 @@ def verify_units(raw,result,check=lambda:False):
     n=len(raw['units']);scenarios=[s['scenario_id'] for s in raw['units'][0]['graph']['scenarios']];s=len(scenarios);h=len(raw['reporting_ordinals'])-1
     compare([s,n,10,h],result['shape'],check=check);compare(scenarios,result['scenario_ids'],check=check);compare(METRICS,result['metrics'],check=check)
     if len(result['native_graphs'])!=n:raise ArithmeticError('commercial coefficient graph coverage differs')
-    values=[0.]*(s*n*10*h);cash=[];unit_ids=[]
+    values=[0.]*(s*n*10*h);fee_values=[0.]*(s*n*h)if any(p.get('fees')for u in raw['units']for p in u['graph']['positions'])else[];cash=[];unit_ids=[]
     for ui,u in enumerate(raw['units']):
-        graph=verify_graph(u['graph'],result['native_graphs'][ui],check);purchase=u['graph']['as_of_ordinal'];face=u['unit_face'];quote=graph['original_oas'][0]['original_signed_cash_quote']/face
+        graph=verify_graph(u['graph'],result['native_graphs'][ui],check);purchase=u['graph']['as_of_ordinal'];face=u['unit_face'];loan_quote=graph['original_oas'][0]['original_signed_cash_quote']/face
+        selection=u['graph']['positions'][0].get('fees');quote=selection['total_purchase_cost']/face if selection else loan_quote
         unit_ids.append(dict(unit_id=u['unit_id'],template_id=u['template_id'],purchase_ordinal=purchase,purchase_period=raw['reporting_ordinals'][:-1].index(purchase),side=1.,accounting_category=u['accounting_category'],capital_policy_revision=u['capital_policy_revision'],quote_price_per_face_unit=quote))
         for source in (v for v in graph['sources'] if v['role']=='physical'):
             si=scenarios.index(source['scenario_id']);w=source['weight'];gs=source['groups']
-            compare(float(quote),float(source['source_request']['source']['acquisition']['cost']/face),check=check)
+            compare(float(loan_quote),float(source['source_request']['source']['acquisition']['cost']/face),check=check)
             for pi,(left,right) in enumerate(zip(raw['reporting_ordinals'],raw['reporting_ordinals'][1:])):
                 if left<purchase:continue
                 t0,t1=(left-purchase)/365.,(right-purchase)/365.;state=next(g for g in reversed(gs) if g['year']<=t0)['next'];balance=state['principal']/face
                 nii=-math.fsum(p['posting']['amount'] for g in gs if t0<g['year']<=t1 for p in g['postings'] if p['posting']['account']=='interest_income')/face
+                if source.get('fee_projection'):fee_values[(si*n+ui)*h+pi]+=w*income_period(source['fee_projection'],t0,t1)/face
                 weights=u['weights'];row=[nii,balance,0.,weights['hqla_l2a']*balance,weights['outflow30']*balance,weights['asf']*balance,weights['rsf']*balance,weights['rwa']*balance,balance,0.]
                 for mi,x in enumerate(row):values[((si*n+ui)*10+mi)*h+pi]+=w*x
-            for c in source['cash']:
+            for c in source['cash']+(source['fee_projection']['cash']if source.get('fee_projection')else[]):
                 principal=w*c['principal']/face;interest=w*c['interest']/face;fees=w*c['fees']/face
                 cash.append(dict(scenario_id=source['scenario_id'],unit_index=ui,path_id=source['path_id'],source_event_id=c['event_id'],year=c['year'],ordinal=_date(purchase,c['year']),source_weight=w,purchase_cash=0.,principal_cash=principal,interest_cash=interest,fee_cash=fees,bank_cash=principal+interest+fees))
         for si,id_ in enumerate(scenarios):
@@ -149,6 +181,8 @@ def verify_units(raw,result,check=lambda:False):
             for m in graph['metrics']:
                 if m['scenario_id']==id_ and m['ordinal'] in raw['reporting_ordinals'][:-1]:values[((si*n+ui)*10+2)*h+raw['reporting_ordinals'].index(m['ordinal'])]=m['dv01']/face
     compare(unit_ids,result['units'],check=check);compare(values,result['values'],check=check)
+    if fee_values:compare(fee_values,result.get('fee_income_values'),check=check)
+    elif 'fee_income_values'in result:raise ArithmeticError('unselected fee income coefficients')
     cash.sort(key=lambda e:e['ordinal']);dates=sorted(set(raw['reporting_ordinals'])|{e['ordinal'] for e in cash});f=len(dates);demand=[0.]*(s*n*f);balances=[0.]*(s*n);cursor=0
     for di,day in enumerate(dates):
         check()

@@ -7,6 +7,9 @@ use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 
+mod terminal;
+pub use terminal::{NativeTerminalCouponStep, NativeTerminalQuery};
+
 pub const SCHEMA: &str = "credit-path-income-proof-1";
 pub const MAX_RAW_BYTES: usize = 1 << 20;
 pub const MAX_RETAINED_BYTES: usize = 32 << 20;
@@ -17,6 +20,7 @@ pub struct NativeFactorBound {
     pub maximum_atoms_per_query: usize,
     pub retained_source_bytes: usize,
     pub source_work: usize,
+    pub maximum_terminal_steps_per_path: usize,
 }
 pub struct NativeFactorQuery {
     pub path_key: u64,
@@ -143,6 +147,25 @@ pub(crate) struct NativeRecoveryQuery {
     pub horizon: f64,
 }
 pub trait NativeEarnedFactors {
+    /// A source may retain unquantified legal service until its fixing arrives.
+    /// Legacy sources have no such clock; observable sources must preserve or
+    /// explicitly refuse terminal transfer, never silently erase that right.
+    fn validate_terminal(&self, _path_key: u64, _year: f64) -> Result<(), String> {
+        Ok(())
+    }
+    fn pending_coupon_indices(
+        &self,
+        _query: &NativeTerminalQuery,
+        _information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        Ok(Vec::new())
+    }
+    fn terminal_coupon_steps(
+        &self,
+        _query: &NativeTerminalQuery,
+    ) -> Result<Vec<NativeTerminalCouponStep>, String> {
+        Ok(Vec::new())
+    }
     fn begin_path(&mut self, _path_key: u64) -> Result<(), String> {
         Ok(())
     }
@@ -278,6 +301,8 @@ pub struct CarryPoint {
     pub draw_tranches: Vec<DrawTrancheCarry>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub undrawn_commitment: Option<f64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pending_coupon_obligation_indices: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -443,6 +468,16 @@ fn admit(
             return Err("native gross coupon claims require a bounded 0..4096 source upper".into());
         }
         rows = add(rows, mul(mul(p.paths.len(), coupon_claims_per_path)?, 33)?)?;
+        if source.maximum_terminal_steps_per_path > 4096 {
+            return Err("contingent source step bound exceeded".into());
+        }
+        rows = add(
+            rows,
+            mul(
+                mul(p.paths.len(), source.maximum_terminal_steps_per_path)?,
+                66,
+            )?,
+        )?;
         if source.maximum_atoms_per_query == 0 || source.maximum_atoms_per_query > 4096 {
             return Err("native factor atom bound must be 1..4096 per query".into());
         }
@@ -522,9 +557,41 @@ pub(crate) struct Owner<'a> {
     coupon_recoveries: Vec<NativeCouponRecovery>,
     canonical_legal_coupons: Vec<CanonicalCouponLegalBalance>,
     draw_tranches: Vec<DrawTrancheCarry>,
+    maximum_terminal_steps: usize,
+    contingent_service_cut: Option<f64>,
 }
 
 impl Owner<'_> {
+    pub(super) fn pending_indices(
+        &mut self,
+        path_key: u64,
+        served_year: f64,
+        information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        self.check()?;
+        let values = self
+            .factor_source
+            .as_deref()
+            .map_or(Ok(Vec::new()), |source| {
+                source.pending_coupon_indices(
+                    &NativeTerminalQuery {
+                        path_key,
+                        year: served_year,
+                    },
+                    information_year,
+                )
+            })?;
+        if values.len() > self.maximum_atoms_per_query
+            || values.iter().any(|i| *i >= self.maximum_atoms_per_query)
+            || values.windows(2).any(|p| p[0] >= p[1])
+        {
+            return Err(
+                "pending coupon memo indices exceed native source catalog authority".into(),
+            );
+        }
+        Ok(values)
+    }
+
     pub(crate) fn native_draw(
         &mut self,
         p: &CreditPathResult,
@@ -838,8 +905,12 @@ impl Owner<'_> {
         self.path_cash_count += 1;
         Ok(Some(amounts))
     }
-    pub(crate) fn default_begin(&mut self, p: &CreditPathResult) -> Result<(), String> {
+    pub(crate) fn default_begin(&mut self, p: &CreditPathResult, year: f64) -> Result<(), String> {
         self.check()?;
+        self.contingent_service_cut = Some(year);
+        if let Some(source) = self.factor_source.as_deref() {
+            source.validate_terminal(p.path_key, year)?;
+        }
         if self.coupon_claims_per_path == 0 {
             return Ok(());
         }
@@ -921,6 +992,11 @@ impl Owner<'_> {
         {
             return Err("observed carry rows exceeded admitted upper".into());
         }
+        let pending_indices = self.pending_indices(
+            p.path_key,
+            self.contingent_service_cut.unwrap_or(year),
+            year,
+        )?;
         self.points.push(CarryPoint {
             path_key: p.path_key,
             year,
@@ -936,6 +1012,7 @@ impl Owner<'_> {
             basis_realization: changes[2],
             canonical_legal_coupons: self.canonical_legal_coupons.clone(),
             draw_tranches: self.draw_tranches.clone(),
+            pending_coupon_obligation_indices: pending_indices,
             undrawn_commitment: self
                 .factor_source
                 .as_ref()
@@ -947,6 +1024,7 @@ impl Owner<'_> {
         self.check()?;
         self.path_cash_count = 0;
         self.default_lots.clear();
+        self.contingent_service_cut = None;
         self.canonical_legal_coupons.clear();
         self.draw_tranches.clear();
         if let Some(source) = self.factor_source.as_deref_mut() {
@@ -981,6 +1059,7 @@ impl Owner<'_> {
             basis_realization: 0.0,
             canonical_legal_coupons: Vec::new(),
             draw_tranches: Vec::new(),
+            pending_coupon_obligation_indices: Vec::new(),
             undrawn_commitment: self
                 .factor_source
                 .as_ref()
@@ -1077,6 +1156,7 @@ impl Owner<'_> {
         cash: f64,
         basis: f64,
     ) -> Result<(), String> {
+        self.contingent_service_cut = Some(year);
         // Cash and basis realization are distinct. No invented cash pays B.
         self.gross = 0.0;
         self.canonical_legal_coupons.clear();
@@ -1146,7 +1226,8 @@ impl Owner<'_> {
         bounded(old_formula_a)?;
         Ok(())
     }
-    pub(crate) fn finish(&mut self, p: &CreditPathResult, horizon: f64) -> Result<(), String> {
+    pub(crate) fn finish(&mut self, p: &mut CreditPathResult, horizon: f64) -> Result<(), String> {
+        terminal::continue_obligations(self, p, horizon)?;
         self.point(p, horizon, "closing_claims_retained", None, [0.0, 0.0, 0.0])
     }
 }
@@ -1248,6 +1329,10 @@ fn evaluate_owned<'a>(
         recoveries: Vec::new(),
         row_upper: admission.row_upper,
         factor_source: source,
+        contingent_service_cut: None,
+        maximum_terminal_steps: bound
+            .as_ref()
+            .map_or(0, |b| b.maximum_terminal_steps_per_path),
         maximum_atoms_per_query: bound.as_ref().map_or(0, |b| b.maximum_atoms_per_query),
         contributions: Vec::new(),
         source_cash: Vec::new(),

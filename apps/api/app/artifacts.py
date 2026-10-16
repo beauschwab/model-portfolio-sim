@@ -300,6 +300,11 @@ class Codec:
         """Transport independently recomputed commercial protocol-six sources."""
         return self._import_source_partitions(manifest_path,cancelled,'dated-balance-partitions-1','commercial_source_recomputed',selected_continuation=True)
 
+    def import_generated_commercial_partitions(self, manifest_path, cancelled):
+        from .commercial_generated_artifacts import import_partitions
+        return import_partitions(self, manifest_path, cancelled,object_reference=ObjectReference,
+            table_factory=PartitionedTable,read_file=_selected_file)
+
     def _import_source_partitions(self, manifest_path, cancelled, version, reconciliation, *, selected_continuation=False):
         path = Path(manifest_path).resolve()
         if selected_continuation and path.stat().st_size>1024*1024:raise ValueError('deposit manifest byte cap')

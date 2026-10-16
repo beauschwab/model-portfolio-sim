@@ -360,7 +360,7 @@ class ModeledBalanceStressRequest(BaseModel):
     @classmethod
     def finite_source(cls,value):
         import json
-        if value.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1'}:raise ValueError('unsupported modeled source ledger schema')
-        bound=1024*1024 if value.get('schema') in {'deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1'} else 32*1024*1024
+        if value.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1'}:raise ValueError('unsupported modeled source ledger schema')
+        bound=1024*1024 if value.get('schema') in {'deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1','commercial-generated-candidate-journal-1'} else 32*1024*1024
         if len(json.dumps(value,allow_nan=False,separators=(',',':')).encode())>bound-1024:raise ValueError('modeled ledger input exceeds declared byte bound')
         return value

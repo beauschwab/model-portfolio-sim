@@ -16,6 +16,10 @@ use std::{
     time::Instant,
 };
 pub const SCHEMA: &str = "commercial-candidate-journal-1";
+pub const GENERATED_SCHEMA: &str = "commercial-generated-candidate-journal-1";
+#[path = "generated_candidates.rs"]
+mod generated_stream;
+pub use generated_stream::run_generated_stream_started;
 const MAX_BYTES: usize = 32 << 20;
 const MAX_WORK: usize = 32_000_000;
 #[derive(Serialize, Deserialize)]
@@ -56,8 +60,13 @@ pub struct ResultData {
     pub empirical_validation: bool,
     pub scope: &'static str,
 }
-#[derive(Clone, Default)]
-struct Buffer(Arc<Mutex<Vec<u8>>>);
+#[derive(Clone)]
+struct Buffer(Arc<Mutex<Vec<u8>>>, usize);
+impl Default for Buffer {
+    fn default() -> Self {
+        Self(Arc::default(), MAX_BYTES)
+    }
+}
 impl Write for Buffer {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         portfolio_compute_control::checkpoint().map_err(io::Error::other)?;
@@ -68,7 +77,7 @@ impl Write for Buffer {
         if result
             .len()
             .checked_add(bytes.len())
-            .is_none_or(|n| n > MAX_BYTES)
+            .is_none_or(|n| n > self.1)
         {
             return Err(io::Error::other("commercial candidate stream exceeds32MiB"));
         }
@@ -103,11 +112,18 @@ fn days(year: f64) -> Result<usize, String> {
     }
     Ok(result as usize)
 }
-pub fn evaluate(r: &Request) -> Result<ResultData, String> {
+fn prepare_and_run(
+    r: &Request,
+    generated: bool,
+    original: Option<&Value>,
+    mut output: Box<dyn Write + Send>,
+    bridge_reservation: (usize, usize),
+    admission_only: bool,
+) -> Result<(Option<Preparation>, i32, usize, Admission), String> {
     portfolio_compute_control::checkpoint()?;
     validate_ordinal(r.as_of_ordinal)?;
     validate_ordinal(r.reporting_end_ordinal)?;
-    if r.schema != SCHEMA
+    if r.schema != if generated { GENERATED_SCHEMA } else { SCHEMA }
         || r.commercial.reporting_ordinals.first() != Some(&r.as_of_ordinal)
         || r.commercial.reporting_ordinals.last() != Some(&r.reporting_end_ordinal)
     {
@@ -121,11 +137,19 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
             return Err("explicit bounded opening receipt identity required".into());
         }
     }
-    let raw_bytes = strict_json::serialized_size(r, MAX_BYTES)?;
+    let raw_bytes = strict_json::serialized_size(r, if generated { 1 << 20 } else { MAX_BYTES })?;
     for unit in &r.commercial.units {
         for position in &unit.graph.positions {
-            if position.generated_policy.is_some() {
+            if position.fees.is_some() && generated {
+                return Err("commercial candidate fee acquisition/rights require explicit same-Sim adoption".into());
+            }
+            if position.generated_policy.is_some() && !generated {
                 return Err("generated commercial candidates require bounded streaming native Sim adoption; compact generated coefficient recipes are not borrowed journal owners".into());
+            }
+            if generated && position.generated_policy.is_none() {
+                return Err(
+                    "explicit generated journal requires generated native policy owners".into(),
+                );
             }
             if position.credit_identity
                 == portfolio_risk_native::commercial_graph::CreditIdentity::IssuerCreditDebt
@@ -160,7 +184,8 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
         .map_err(|_| "commercial candidate reporting before opening")?;
     // The existing Sim admits a minimum 30-day calendar. Reporting retains the
     // requested actual date; extending the empty calendar never retimes cash.
-    if s.horizon_days != reporting_days.max(30)
+    if ((!generated && s.horizon_days != reporting_days.max(30))
+        || (generated && (s.horizon_days < reporting_days.max(30) || s.horizon_days > 1080)))
         || !s.reverse_severities.is_empty()
         || !s.netting_sets.is_empty()
         || !s.policies.is_empty()
@@ -202,6 +227,9 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
     let mut owners = BTreeMap::new();
     let mut positions = BTreeSet::new();
     let mut reservations = Vec::new();
+    let mut generated_owner_bytes = 0usize;
+    let mut generated_retained_bytes = 0usize;
+    let mut fee_groups_upper = 0usize;
     for ((u, a), o) in r.commercial.units.iter().zip(&r.allocation).zip(&r.owners) {
         if a.unit_id != u.unit_id
             || o.unit_id != u.unit_id
@@ -252,6 +280,32 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
                 return Err("commercial source run severity changed".into());
             }
         }
+        if generated {
+            let position = &u.graph.positions[0];
+            let g = position
+                .generated_policy
+                .as_ref()
+                .ok_or("generated policy absent")?;
+            let graph_upper =
+                portfolio_risk_native::commercial_generated_graph::admit(&u.graph, position, g)?;
+            bytes = add(bytes, graph_upper.retained_bytes_upper)?;
+            generated_retained_bytes = add(
+                generated_retained_bytes,
+                portfolio_risk_native::commercial_generated_graph::physical_journal_retained_upper(
+                    g,
+                )?,
+            )?;
+            for law in &g.current_physical {
+                let admitted = portfolio_risk_native::commercial_generated_policy::current_physical_source_capacity(g,law)?;
+                s.horizon_days = s
+                    .horizon_days
+                    .max(add(offset, days(admitted.full_credit_end_year)?)?);
+                // At most one expanded genuine Physical owner is live. Its
+                // structural phase cap coexists with retained compact journal.
+                generated_owner_bytes = generated_owner_bytes.max(admitted.retained_bytes_upper);
+                work = add(work, mul(admitted.work_upper, law.evaluation.paths)?)?;
+            }
+        }
         for set in &u.graph.positions[0].histories {
             for h in &set.physical {
                 if u.graph.positions[0].credit_identity
@@ -271,6 +325,28 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
                 reservations.push((admitted, offset));
             }
         }
+        if !generated {
+            if let Some(fees) = &u.graph.positions[0].fees {
+                for set in &fees.histories {
+                    for history in &set.physical {
+                        let tail = usize::try_from(
+                            history.policy.complete_end_ordinal - u.graph.as_of_ordinal,
+                        )
+                        .map_err(|_| "candidate fee complete tail precedes acquisition")?;
+                        s.horizon_days = s.horizon_days.max(add(offset, tail)?);
+                        fee_groups_upper = add(
+                            fee_groups_upper,
+                            add(
+                                portfolio_risk_native::commercial_fee_source::event_bound(
+                                    &history.policy,
+                                ),
+                                add(fees.allocations.len(), history.acquisition_releases.len())?,
+                            )?,
+                        )?;
+                    }
+                }
+            }
+        }
     }
     spec::validate(&s, 512, 8_000_000)?;
     let mut reserved = (0usize, 0usize);
@@ -284,6 +360,16 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
         bytes = add(bytes, add(admitted.joined_bytes_upper, upper.1)?)?;
         reserved = (add(reserved.0, upper.0)?, add(reserved.1, upper.1)?);
     }
+    if fee_groups_upper > 0 {
+        // At most eight postings plus group/snapshot rows; unchanged joined
+        // ledger admission is charged before graph/source generation.
+        let rows = mul(fee_groups_upper, 10)?;
+        let fee_work = mul(mul(rows, add(s.horizon_days, 1)?)?, 16)?;
+        let fee_bytes = mul(rows, 4096)?;
+        work = add(work, fee_work)?;
+        bytes = add(bytes, fee_bytes)?;
+        reserved = (add(reserved.0, fee_work)?, add(reserved.1, fee_bytes)?);
+    }
     work = add(
         work,
         mul(
@@ -291,14 +377,52 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
             ledger_runs.len(),
         )?,
     )?;
-    if work > MAX_WORK || bytes > 128 << 20 {
-        return Err(
-            "commercial candidate joined32M/128MiB preflight exceeds bound before graph generation"
-                .into(),
-        );
+    if generated {
+        // Metadata/Q ownership is released before the compact accounting phase.
+        // Both phases retain raw input; only the P recipe/proof phase coexists
+        // with one expanded full owner and the complete compact journal.
+        bytes = bytes.max(add(
+            mul(raw_bytes, 20)?,
+            add(
+                generated_retained_bytes,
+                add(generated_owner_bytes, 32 << 20)?,
+            )?,
+        )?);
+        work = add(work, 8_000_000)?;
+    }
+    work = add(work, bridge_reservation.0)?;
+    bytes = add(bytes, bridge_reservation.1)?;
+    if work > if generated { 4_000_000_000 } else { MAX_WORK } || bytes > 128 << 20 {
+        return Err(format!("commercial candidate joined {}/128MiB preflight exceeds bound before graph generation: work={work},bytes={bytes},physical_retained={generated_retained_bytes},one_owner={generated_owner_bytes}",if generated {"4B"}else{"32M"}));
+    }
+    let admission = Admission {
+        work_upper: work,
+        retained_bytes_upper: bytes,
+        full_end_ordinal: r
+            .as_of_ordinal
+            .checked_add(i32::try_from(s.horizon_days).map_err(|_| "candidate ordinal overflow")?)
+            .ok_or("candidate ordinal overflow")?,
+        output_bytes_upper: MAX_BYTES,
+    };
+    if admission_only {
+        return Ok((None, admission.full_end_ordinal, 0, admission));
     }
     let prepared = units::prepare(&r.commercial)?;
     let allocation_replay = units::evaluate(&prepared, &r.allocation)?;
+    if generated {
+        return generated_stream::execute(
+            r,
+            original,
+            prepared,
+            allocation_replay,
+            s,
+            work,
+            bytes,
+            output,
+        )
+        .map(|(p, end, paths)| (p, end, paths, admission));
+    }
+    let physical_paths = 0;
     let mut bindings = Vec::new();
     for (ui, graph) in prepared.source().native_graphs.iter().enumerate() {
         let u = &r.commercial.units[ui];
@@ -310,9 +434,10 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
             .iter()
             .filter(|s| s.role == Role::Physical)
         {
-            let financial = native
+            let accounting: &dyn ledger::AccountingSource = native
                 .physical_accounting_source()
-                .ok_or("sealed native Physical graph financial owner absent")?;
+                .ok_or("sealed native Physical graph financial owner absent")?
+                .accounting();
             let m = runs[native.scenario_id.as_str()];
             bindings.push(ledger::Binding {
                 scenario: &m.ledger_scenario_id,
@@ -321,7 +446,7 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
                 source_weight: native.weight,
                 allocated_face: r.allocation[ui].face,
                 native_unit_face: u.unit_face,
-                accounting: financial.accounting(),
+                accounting,
                 origin_day,
                 source_class: if u.graph.positions[0].credit_identity
                     == portfolio_risk_native::commercial_graph::CreditIdentity::IssuerCreditDebt
@@ -333,14 +458,113 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
             });
         }
     }
-    let compiled = ledger::Compiled::new(&s, bindings)?;
-    if compiled.work_upper > reserved.0 || compiled.retained_bytes_upper > reserved.1 {
+    let mut compiled = ledger::Compiled::new(&s, bindings)?;
+    if !generated && fee_groups_upper > 0 {
+        let mut fee_bindings = Vec::new();
+        let mut parent = 0usize;
+        for graph in &prepared.source().native_graphs {
+            for native in graph
+                .native_sources
+                .iter()
+                .filter(|s| s.role == Role::Physical)
+            {
+                if let Some(fees) = &native.fee_projection {
+                    fee_bindings.push(ledger::FeeBinding {
+                        loan_binding: parent,
+                        native_position_id: &native.position_id,
+                        source: fees.bound_path.source(),
+                        native_years: fees.bound_path.native_years(),
+                    });
+                }
+                parent += 1;
+            }
+        }
+        compiled.attach_fees(&s, fee_bindings)?;
+    }
+    if !generated
+        && (compiled.work_upper > reserved.0 || compiled.retained_bytes_upper > reserved.1)
+    {
         return Err(
             "commercial candidate financial owner exceeds reserved structural bound".into(),
         );
     }
-    let output = Buffer::default();
-    daily::run_with_commercial(&s, None, &compiled, Box::new(output.clone()))?;
+    let full_end = r
+        .as_of_ordinal
+        .checked_add(i32::try_from(s.horizon_days).map_err(|_| "candidate ordinal overflow")?)
+        .ok_or("candidate ordinal overflow")?;
+    let raw_request = original
+        .cloned()
+        .unwrap_or(serde_json::to_value(r).map_err(|e| e.to_string())?);
+    let resolved_specification = serde_json::to_value(&s).map_err(|e| e.to_string())?;
+    if generated {
+        generated_stream::preparation(
+            &mut output,
+            &raw_request,
+            &prepared,
+            &allocation_replay,
+            &resolved_specification,
+            work,
+            bytes,
+            full_end,
+            physical_paths,
+        )?;
+    }
+    daily::run_with_commercial(&s, None, &compiled, output)?;
+    drop(compiled);
+    portfolio_compute_control::checkpoint()?;
+    Ok((
+        Some(Preparation {
+            raw_request,
+            native_preparation: prepared,
+            allocation_replay,
+            resolved_specification,
+            admitted_work_upper: work,
+            retained_bytes_upper: bytes,
+        }),
+        full_end,
+        physical_paths,
+        admission,
+    ))
+}
+
+pub(super) struct Admission {
+    pub work_upper: usize,
+    pub retained_bytes_upper: usize,
+    pub full_end_ordinal: i32,
+    pub output_bytes_upper: usize,
+}
+/// Exact ordinary admission, with no graph, stopped owner or Sim generation.
+pub(super) fn admit_finite(r: &Request) -> Result<Admission, String> {
+    let (_, _, _, admission) =
+        prepare_and_run(r, false, None, Box::new(std::io::sink()), (0, 0), true)?;
+    Ok(admission)
+}
+
+pub fn evaluate(r: &Request) -> Result<ResultData, String> {
+    evaluate_reserved(r, (0, 0))
+}
+/// A native downstream owner reserves its coexisting bridge before any graph
+/// generation. Public callers cannot supply financial owners or bypass bounds.
+pub(super) fn evaluate_reserved(
+    r: &Request,
+    reservation: (usize, usize),
+) -> Result<ResultData, String> {
+    evaluate_reserved_bounded(r, reservation, MAX_BYTES)
+}
+/// A stricter native downstream component may refuse a smaller output tier;
+/// it cannot enlarge the ordinary candidate source, stream or result caps.
+pub(super) fn evaluate_reserved_bounded(
+    r: &Request,
+    reservation: (usize, usize),
+    output_limit: usize,
+) -> Result<ResultData, String> {
+    if output_limit == 0 || output_limit > MAX_BYTES {
+        return Err("candidate bounded result tier exceeds ordinary output capacity".into());
+    }
+    let output = Buffer(Arc::default(), output_limit);
+    let (preparation, full_end, _, _) =
+        prepare_and_run(r, false, None, Box::new(output.clone()), reservation, false)?;
+    let preparation = preparation.ok_or("finite candidate preparation absent")?;
     let data = std::mem::take(&mut *output.0.lock().map_err(|_| "candidate buffer poisoned")?);
     let mut tables: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let mut completion = None;
@@ -407,7 +631,17 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
                     .extend(rows.iter().cloned());
             }
         } else if row.get("complete") == Some(&Value::Bool(true))
-            && row.get("protocol") == Some(&json!(ledger::PROTOCOL))
+            && row.get("protocol")
+                == Some(&json!(if r.commercial.units.iter().any(|u| u
+                    .graph
+                    .positions
+                    .iter()
+                    .any(|p| p.fees.is_some()))
+                {
+                    7
+                } else {
+                    ledger::PROTOCOL
+                }))
             && completion.is_none()
         {
             completion = Some(row);
@@ -416,12 +650,8 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
         }
     }
     let completion = completion.ok_or("candidate native journal did not complete")?;
-    let full_end = r
-        .as_of_ordinal
-        .checked_add(i32::try_from(s.horizon_days).map_err(|_| "candidate ordinal overflow")?)
-        .ok_or("candidate ordinal overflow")?;
-    let result=ResultData{schema:SCHEMA,preparation:Preparation{raw_request:serde_json::to_value(r).map_err(|e|e.to_string())?,native_preparation:prepared,allocation_replay,resolved_specification:serde_json::to_value(s).map_err(|e|e.to_string())?,admitted_work_upper:work,retained_bytes_upper:bytes},tables,producer_completion:completion,reporting_end_ordinal:r.reporting_end_ordinal,full_end_ordinal:full_end,shared_daily_sim_adoption:true,graph_exercise_source_adoption:true,independent_persisted_verification:false,opening_identity_verified:false,mixed_ledger_adoption:false,empirical_validation:false,scope:"actual purchased commercial candidates from sealed native unit/conditional-exercise Physical sources; original Pricing OAS and separate stopped Physical acquisition/EIR anchors retained; complete daily source/default/coupon/recovery tails in one existing Sim; no caller monetary owner or generic mixed book; supplied opening receipt identity is not verified opening evidence"};
-    strict_json::serialized_size(&result, MAX_BYTES)?;
+    let result=ResultData{schema:SCHEMA,preparation,tables,producer_completion:completion,reporting_end_ordinal:r.reporting_end_ordinal,full_end_ordinal:full_end,shared_daily_sim_adoption:true,graph_exercise_source_adoption:true,independent_persisted_verification:false,opening_identity_verified:false,mixed_ledger_adoption:false,empirical_validation:false,scope:"actual purchased commercial candidates from sealed native unit/conditional-exercise Physical sources; original Pricing OAS and separate stopped Physical acquisition/EIR anchors retained; complete daily source/default/coupon/recovery tails in one existing Sim; no caller monetary owner or generic mixed book; supplied opening receipt identity is not verified opening evidence"};
+    strict_json::serialized_size(&result, output_limit)?;
     portfolio_compute_control::checkpoint()?;
     Ok(result)
 }

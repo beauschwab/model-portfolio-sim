@@ -56,7 +56,9 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .intervals
         .iter()
         .any(|p| p.hazards_per_year.iter().flatten().any(|h| *h > 0.));
-    let active_upper = if !credit_random && r.annual_covariance.iter().all(|c| *c == 0.) {
+    let active_upper = if !r.source.performing_draw_tranches.is_empty() {
+        feature_bound(r)?
+    } else if !credit_random && r.annual_covariance.iter().all(|c| *c == 0.) {
         0
     } else if !credit_random
         && matches!(
@@ -71,8 +73,8 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
     } else {
         2 * d + 4 + observations + 2 * periods
     };
-    let columns =
-        (1 + active_upper + active_upper * (active_upper + 1) / 2).min(r.training.paths / 2);
+    let columns = basis::columns(active_upper, basis::degree(&r.regression_policy)?)
+        .min(r.training.paths / 2);
     let n = r
         .training
         .paths
@@ -88,7 +90,14 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .max()
         .unwrap_or(0);
     let cash = periods
-        .checked_add(recovery + 4)
+        .checked_add(
+            r.source
+                .performing_draw_tranches
+                .iter()
+                .map(|d| d.source.current.periods.len() + 1)
+                .sum::<usize>(),
+        )
+        .and_then(|n| n.checked_add(recovery + 4))
         .ok_or("calibration cash bound overflow")?;
     let fitting = n
         .checked_mul(r.policy.exercise_dates.len())

@@ -177,15 +177,15 @@ def _rows(writer,table,check):
         for row in frame.iter_rows(named=True):check();yield row
 
 
-def verify_stream(raw,prepared,writer,check=lambda:False):
+def verify_stream(raw,prepared,writer,check=lambda:False,*,storage=None):
     """Replay ordered saved source groups, journal lines and daily gross books."""
     if not exact_json_identity(writer.completion,dict(complete=True,protocol=6)):raise ArithmeticError('commercial producer completion differs')
     specs=prepared['spec'];positions={p.id:p for p in specs['positions']};alloc={a['position_id']:a['allocated_face'] for a in raw['allocations']};weights={(p['scenario'],p['position_id'],p['path_key']):p['source_weight'] for p in raw['participations']}
-    expected=[];bindings=[]
+    expected=storage.sequence(events=True) if storage is not None else [];bindings=[]
     for si,source in enumerate(prepared['sources']):
         current=source['raw']['source']['current'];scenario=current['scenario_id'];position=current['position_id'];origin_day=source.get('origin_day',0);source_class=source.get('source_class','commercial_loan-1');allocation=alloc[position]/current['opening_principal']
         for p in source['raw']['credit']['paths']:
-            key=(scenario,position,p['path_key']);weight=weights[key];factor_=allocation*weight;tracking=({},{});last=None;daily={}
+            key=(scenario,position,p['path_key']);weight=weights[key];factor_=allocation*weight;tracking=({},{});last=None;daily=storage.snapshots() if storage is not None else {}
             for gi,g in enumerate(source['groups']):
                 if g['path_key']!=p['path_key']:continue
                 days=g['year']*365.;rounded=round(days);elapsed=rounded if g['year']==rounded/365. else math.ceil(days)
@@ -194,16 +194,20 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
                 lines=journal_lines(g,tracking,factor_);expected.append((scenario,day,origin_day/365.+g['year'],len(bindings),gi,dict(scenario=scenario,day=day,native_credit_year=g['year'],source_class=source_class,source_origin_day=origin_day,global_native_credit_year=origin_day/365.+g['year'],date_policy=DATE_POLICY,position_id=position,path_key=p['path_key'],source_weight=float(weight),allocation_factor=float(allocation),native_group_index=gi,native_atomic_group=g),lines));daily[day]=g['next'];last=g['next']
             bindings.append(dict(source_class=source_class,origin_day=origin_day,key=key,allocation=float(allocation),weight=float(weight),daily=daily,closing=last))
     order={name:i for i,name in enumerate(['baseline']+[s.name for s in specs['scenarios']])};expected.sort(key=lambda e:(order[e[0]],e[1],e[2],e[3],e[4]))
-    lineage=list(_rows(writer,'commercial_source_lineage',check))
-    if len(lineage)!=len(expected):raise ArithmeticError('commercial persisted group coverage differs')
-    transactions={};sequences=defaultdict(int)
+    lineage=_rows(writer,'commercial_source_lineage',check)
+    if storage is None:
+        lineage=list(lineage)
+        if len(lineage)!=len(expected):raise ArithmeticError('commercial persisted group coverage differs')
+    else:
+        lineage=storage.coverage(lineage,len(expected),'commercial persisted group coverage differs')
+    transactions=storage.transactions() if storage is not None else {};sequences=defaultdict(int)
     for row,item in zip(lineage,expected):
         scenario,day,_,_,_,want,lines=item;group=json.loads(row.pop('native_atomic_group_json'));tx=row.pop('transaction_number');row['native_atomic_group']=group;compare(want,row,check=check)
         if lines:
             if type(tx) is not int or tx<=sequences[scenario]:raise ArithmeticError('commercial persisted transaction order differs')
             sequences[scenario]=tx;transactions[(scenario,tx)]=(day,positions[want['position_id']].account,want['native_atomic_group']['phase'],want['position_id'],lines)
         elif tx is not None:raise ArithmeticError('empty commercial source created transaction')
-    current=None;observed=[];seen=set();journal_count=0
+    current=None;observed=[];seen=storage.transactions() if storage is not None else set();journal_count=0
     def flush():
         if current in transactions:
             day,account,event,position,lines=transactions[current]
@@ -217,8 +221,8 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
             current=key;observed=[]
         observed.append({k:row[k] for k in ('day','account','event','gl_account','instrument_id','debit','credit')})
     if current is not None:flush()
-    if seen!=set(transactions):raise ArithmeticError('missing commercial persisted journal source')
-    expected_daily=[];expected_closing=[]
+    if (seen!=set(transactions) if storage is None else not seen.same_keys(transactions)):raise ArithmeticError('missing commercial persisted journal source')
+    expected_daily=storage.sequence() if storage is not None else [];expected_closing=storage.sequence() if storage is not None else []
     for scenario in order:
         for day in range(prepared['horizon']+1):
             for b in bindings:
@@ -229,9 +233,11 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
                 expected_daily.append(value)
                 if day==prepared['horizon']:expected_closing.append(value)
     for table,wanted in (('commercial_daily',expected_daily),('commercial_closing',expected_closing)):
-        rows=[]
-        for row in _rows(writer,table,check):row['unweighted_book']=json.loads(row.pop('unweighted_book_json'));rows.append(row)
-        compare(wanted,rows,check=check)
+        def received():
+            for row in _rows(writer,table,check):
+                row['unweighted_book']=json.loads(row.pop('unweighted_book_json'));yield row
+        if storage is None:compare(wanted,list(received()),check=check)
+        else:storage.compare_rows(wanted,received(),check)
     gl,count=replay_partitions(writer.frames('journal'));trial=list(_rows(writer,'trial_balance',check));seen=set()
     for r in trial:
         key=tuple(r[k] for k in ('scenario','account','gl_account','instrument_id'))
@@ -239,7 +245,8 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
         compare(float(gl[key]),r['balance'],check=check);seen.add(key)
     if seen!=set(gl):raise ArithmeticError('commercial persisted closing GL missing')
     from .commercial_reports_reference import verify as verify_reports
-    verify_reports(prepared,expected,writer,check)
+    if storage is None:verify_reports(prepared,expected,writer,check)
+    else:storage.verify_reports(prepared,expected,writer,check)
     return dict(verified=True,journal_replayed=True,journal_rows=count,commercial_source_recomputed=True,commercial_credit_clock_recomputed=True,
         original_yield_anchors_retained=True,gross_coupon_origins_reconciled=True,ordered_same_sim_journal_replayed=True,dated_source_reconciled=True,
         complete_unweighted_tail_verified=True,persisted_partitions_replayed=True,accounting_standard_approval=False,empirical_validation=False,capital_ftp_eligible=False)

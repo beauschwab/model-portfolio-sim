@@ -68,6 +68,8 @@ pub struct Snapshot {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reviewed_credit_state: Option<reviews::ReviewedSnapshot>,
     pub lots: Vec<CouponLot>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pending_coupon_obligation_indices: Vec<usize>,
     /// Coupon-level source authority. Origin lots retain their separate
     /// ordered recognition reductions and are not used to net legal coupons.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -230,6 +232,7 @@ fn snapshot(p: &CarryPoint, lots: Vec<CouponLot>, default: bool) -> Result<Snaps
         in_default: default,
         reviewed_credit_state: None,
         lots,
+        pending_coupon_obligation_indices: p.pending_coupon_obligation_indices.clone(),
         canonical_legal_coupons: p.canonical_legal_coupons.clone(),
     })
 }
@@ -628,6 +631,7 @@ pub fn compile(
     let mut lots = Vec::<CouponLot>::new();
     let mut default = false;
     let mut recovery_index = 0;
+    let mut original_default_lot_count = 0;
     for p in carry.carry_points() {
         check()?;
         let mut source_id = None;
@@ -637,6 +641,7 @@ pub fn compile(
                 lots.clear();
                 default = false;
                 recovery_index = 0;
+                original_default_lot_count = 0;
             }
             "live_sojourn" => {
                 while let Some(c) = contributions
@@ -648,6 +653,51 @@ pub fn compile(
                     add_earned(&mut lots, c, mode == Recognition::FullAccrual)?;
                     ci += 1;
                 }
+            }
+            "pending_coupon_fixing" => {
+                let c = contributions
+                    .get(ci)
+                    .ok_or("pending coupon source contribution missing")?;
+                if c.path_key != p.path_key
+                    || c.end_year != p.year
+                    || c.origin_index != p.origin_index.ok_or("pending coupon origin missing")?
+                {
+                    return Err("pending coupon native source clock/origin mismatch".into());
+                }
+                if p.effective_interest.to_bits()
+                    != (if default { 0. } else { c.contractual_earned }).to_bits()
+                {
+                    return Err("pending coupon reviewed recognition differs".into());
+                }
+                add_earned(&mut lots, c, !default)?;
+                if default {
+                    for lot in &mut lots {
+                        lot.default_claim = true;
+                    }
+                }
+                ci += 1;
+            }
+            "pending_coupon_cash" => {
+                let cash = carry
+                    .native_source_cash()
+                    .get(si)
+                    .ok_or("pending coupon settlement source missing")?;
+                if cash.path_key != p.path_key
+                    || cash.year != p.year
+                    || cash.cash.principal != 0.
+                    || cash.cash.fee != 0.
+                    || cash.cash.interest.to_bits() != p.cash.to_bits()
+                {
+                    return Err("pending coupon actual settlement authority differs".into());
+                }
+                apply_cash(
+                    &mut lots,
+                    cash,
+                    p.origin_index
+                        .ok_or("pending coupon settlement origin missing")?,
+                )?;
+                source_id = Some(cash.cash.source_event_id.clone());
+                si += 1;
             }
             "contractual_cash" => {
                 let cash = carry
@@ -685,6 +735,7 @@ pub fn compile(
             }
             "default_gross_transfer" => {
                 default = true;
+                original_default_lot_count = lots.len();
                 for lot in &mut lots {
                     lot.default_claim = true;
                 }
@@ -740,7 +791,7 @@ pub fn compile(
                     actual_interest += paid.interest;
                     observed += 1;
                 }
-                if observed != lots.len()
+                if observed != original_default_lot_count
                     || actual_interest.to_bits() != recovery.interest.to_bits()
                 {
                     return Err("per-coupon default interest collection requires complete native gross recovery authority".into());

@@ -13,6 +13,8 @@ LANES = ('active_principal','pending_default_principal','pending_prepay_principa
          'economic_interest_memo','undrawn_memo','allowance')
 INCOME = ('original_eir','reviewed_basis','incurred_credit','recovery_income',
           'recovery_cost','initial_allowance','deposit_revision')
+FEE_LANES = LANES + ('fee_receivable','fee_payable','deferred_fee_income','prepaid_fee_expense','acquired_fee_asset','acquired_fee_liability')
+FEE_INCOME = INCOME + ('service_fee','fee_cost_release','fee_writeoff','fee_recovery')
 FLOATS = {'amount','bank_cash','bank_earnings','opening_funding_balance','source_weight',
           'unit_face','allocated_face','reference_years','liquidity_years'}
 
@@ -53,12 +55,15 @@ def _exact(a,b):
 
 def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
     portfolio=raw.get("schema")=="modeled-product-ftp-source-channels-2"
+    fee=raw.get("schema")=="modeled-product-ftp-source-channels-3"
+    lanes=FEE_LANES if fee else LANES
+    income_names=FEE_INCOME if fee else INCOME
     def probe():
         if check(): raise InterruptedError('proof cancelled')
     probe()
     _keys(raw,'schema measure source original_yield_anchor path_id entity currency_unit scenario_id side start_ordinal full_end_ordinal source_weight unit_face allocated_face opening_funding_balance policy states cash changes earned resets')
     _require(len(json.dumps(raw,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode())<=(8388608 if portfolio else 1048576),'raw bound')
-    _require(raw['schema'] in ('modeled-product-ftp-source-channels-1','modeled-product-ftp-source-channels-2') and raw['measure']=='physical','physical proof')
+    _require(raw['schema'] in ('modeled-product-ftp-source-channels-1','modeled-product-ftp-source-channels-2','modeled-product-ftp-source-channels-3') and raw['measure']=='physical','physical proof')
     for name in ('path_id','entity','currency_unit','scenario_id'): _text(raw[name])
     _identity(raw['source']); _identity(raw['original_yield_anchor'])
     start,end=raw['start_ordinal'],raw['full_end_ordinal']
@@ -73,10 +78,10 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
              p['principal_zero_rights'] in ('reject_unsettled','explicit_reviewed_all_channels') and
              p['termination']=='complete_gross_rights_and_commitment' and
              p['tail']=='no_synthetic_cash_or_tail','explicit policies')
-    _require(len(p['channels'])==18,'all channel policies')
+    _require(len(p['channels'])==len(lanes),'all channel policies')
     for i,c in enumerate(p['channels']):
         _keys(c,'channel coefficient review'); _identity(c['review']); _int(c['coefficient'],-1,1)
-        _require(c['channel']==LANES[i] and (i<12 or c['coefficient']==0),'ordered channel/memo policy')
+        _require(c['channel']==lanes[i] and (i<12 or i>=18 or c['coefficient']==0),'ordered channel/memo policy')
     for key in ('source_weight','unit_face','allocated_face','opening_funding_balance'): _money(raw[key])
     _require(raw['unit_face']>0 and raw['allocated_face']>=0 and 0<=raw['source_weight']<=1,'scale')
     scale=float(raw['allocated_face'])/raw['unit_face']*raw['source_weight']
@@ -84,25 +89,25 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
     events=len(raw['cash'])+len(raw['changes'])+len(raw['earned'])
     _require(events<=4096 and 1<=len(raw['resets'])<=(366 if portfolio else 65),'event/reset count')
     _require(all(len(s.get('origins',[]))<=(368 if portfolio else 128) for s in raw['states']),'bounded source origins')
-    work=(n+1)*18*16+events*(n+1)*20+sum(len(s.get('origins',[])) for s in raw['states'])*80+len(raw['resets'])*16
+    work=(n+1)*len(lanes)*16+events*(n+1)*20+sum(len(s.get('origins',[])) for s in raw['states'])*80+len(raw['resets'])*16
     _require(work<=(8000000 if portfolio else 2000000),'work preadmission')
     balances=[]; ids=set()
     for j,s in enumerate(raw['states']):
         probe(); _keys(s,'ordinal source_checkpoint_id channels origins'); _int(s['ordinal'],start,end)
         _text(s['source_checkpoint_id'])
-        _require(s['ordinal']==start+j and s['source_checkpoint_id'] not in ids and len(s['channels'])==18,'state coverage')
+        _require(s['ordinal']==start+j and s['source_checkpoint_id'] not in ids and len(s['channels'])==len(lanes),'state coverage')
         ids.add(s['source_checkpoint_id'])
         for i,c in enumerate(s['channels']):
             _keys(c,'channel amount'); _money(c['amount'])
             # Only a freshly independently reconstructed source may retain its
             # numerical memo residue. Native/supplied gross domains stay strict.
             residual = independent_source_residuals and i in (12,13,14,15) and _near(c['amount'],0)
-            _require(c['channel']==LANES[i] and (8<=i<=11 or c['amount']>=0 or residual),'gross channel domain')
+            _require(c['channel']==lanes[i] and (8<=i<=11 or c['amount']>=0 or residual),'gross channel domain')
         origin_keys=set()
         for origin in s['origins']:
             _keys(origin,'origin_id source_event_id channel amount');_text(origin['origin_id']);_text(origin['source_event_id']);_money(origin['amount'])
-            _require(origin['channel'] in LANES,'origin channel')
-            key=(origin['channel'],origin['origin_id']); index=LANES.index(origin['channel'])
+            _require(origin['channel'] in lanes,'origin channel')
+            key=(origin['channel'],origin['origin_id']); index=lanes.index(origin['channel'])
             residual = independent_source_residuals and index in (12,13,14,15) and _near(origin['amount'],0)
             _require(key not in origin_keys and (8<=index<=11 or origin['amount']>=0 or residual),'origin identity/gross domain');origin_keys.add(key)
         for c in s['channels']:
@@ -148,7 +153,7 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
     for e in raw['earned']:
         probe(); _keys(e,'event_id ordinal channel bank_earnings review'); _identity(e['review'])
         _text(e['event_id']); _int(e['ordinal'],start+1,end); _money(e['bank_earnings'])
-        _require(e['event_id'] not in earned_ids and e['channel'] in INCOME,'earned domain')
+        _require(e['event_id'] not in earned_ids and e['channel'] in income_names,'earned domain')
         earned_ids.add(e['event_id']); income_by_date.setdefault(e['ordinal'],[]).append(e)
     prior=None
     for reset in raw['resets']:
@@ -170,7 +175,7 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
         reset=next(x for x in reversed(r['resets']) if x['ordinal']<date)
         cash=[c for c in r['cash'] if c['ordinal']==date]
         earned=income_by_date.get(date,[])
-        income=[dict(channel=label,amount=sum(float(e['bank_earnings']) for e in earned if e['channel']==label)*scale) for label in INCOME]
+        income=[dict(channel=label,amount=sum(float(e['bank_earnings']) for e in earned if e['channel']==label)*scale) for label in income_names]
         money=sum(c['bank_cash'] for c in cash)*scale
         profit=sum(e['amount'] for e in income)
         for v in [average*scale,money,profit]+[e['amount'] for e in income]: _money(v)
@@ -181,7 +186,7 @@ def prepare(raw, check=lambda:False, *, independent_source_residuals=False):
             cash_event_ids=[c['event_id'] for c in cash],earned_event_ids=[e['event_id'] for e in earned],
             bank_cash=money,original_eir=income[0]['amount'],earnings_by_channel=income,external_earnings=profit))
     _require(_near(current,0),'funding tail')
-    output=dict(schema='modeled-product-ftp-preparation-proof-result-2'if portfolio else 'modeled-product-ftp-preparation-proof-result-1',raw_request=r,scale=scale,days=days,
+    output=dict(schema='modeled-product-ftp-preparation-proof-result-3' if fee else 'modeled-product-ftp-preparation-proof-result-2'if portfolio else 'modeled-product-ftp-preparation-proof-result-1',raw_request=r,scale=scale,days=days,
         closing_unweighted_channels=copy.deepcopy(r['states'][-1]['channels']),closing_funding_balance=current,
         admitted_work=work,complete_unweighted_tail_checked=True,source_reconstructed=False,
         ordered_journal_verified=False,ftp_bridge_adoption=False,capital_ftp_eligible=False,

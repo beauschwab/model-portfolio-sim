@@ -17,6 +17,11 @@ from .commercial_reference_math import _cash, _df
 from .commercial_source_reference import compare
 
 SCHEMA = "commercial-generated-exercise-1"
+BASIS_DEGREES = {
+    "native_observable_linear_svd_train_evaluate-1": 1,
+    "native_observable_quadratic_svd_train_evaluate-1": 2,
+    "native_observable_cubic_svd_train_evaluate-1": 3,
+}
 FLOATS = {
     "initial_level",
     "long_run_mean",
@@ -33,6 +38,8 @@ def _typed(value, key=""):
         out = {k: _typed(v, k) for k, v in value.items()}
         if out.get("rights_only_termination") is None:
             out.pop("rights_only_termination", None)
+        if {"period_id","observation_index","driver_index","loading"}<=out.keys() and out.get("draw_tranche_id") is None:
+            out.pop("draw_tranche_id",None)
         return out
     if type(value) is list:
         return [_typed(v, key) for v in value]
@@ -67,8 +74,7 @@ def _admit(r, measure="pricing"):
     if (
         r.get("schema") != SCHEMA
         or r.get("admission_tier") != "bounded_generated_1024_samples-1"
-        or r.get("regression_policy")
-        != "native_observable_quadratic_svd_train_evaluate-1"
+        or r.get("regression_policy") not in BASIS_DEGREES
     ):
         raise ArithmeticError("explicit generated exercise contract required")
     if r["policy"]["information_policy"] != "native_observable_markov_state-1":
@@ -104,8 +110,7 @@ def _admit(r, measure="pricing"):
     ):
         raise ArithmeticError("bounded chronological generated grid required")
     if (
-        source.get("performing_draw_tranches")
-        or (measure == "pricing" and source.get("reviewed_credit_actions") is not None)
+        (measure == "pricing" and source.get("reviewed_credit_actions") is not None)
         or len(source["credit"]["paths"]) != 1
         or any(
             source["source"][k]["measure"] != measure for k in ("original", "current")
@@ -161,12 +166,13 @@ def _admit(r, measure="pricing"):
         * max(float(np.max(np.abs(covariance))), 1.0)
     ):
         raise ArithmeticError("supplied Gaussian covariance is not symmetric PSD")
-    keys = {(l["period_id"], l["observation_index"]) for l in r["coupon_loadings"]}
+    from .commercial_generated_physical_reference import contracts,loading_contract,feature_bound
+    keys = {(l.get("draw_tranche_id"),l["period_id"], l["observation_index"]) for l in r["coupon_loadings"]}
     if len(keys) != len(r["coupon_loadings"]):
         raise ArithmeticError("duplicate coupon loading")
     for l in r["coupon_loadings"]:
         if (
-            set(l) != {"period_id", "observation_index", "driver_index", "loading"}
+            set(l)-{"draw_tranche_id"} != {"period_id", "observation_index", "driver_index", "loading"}
             or type(l["driver_index"]) is not int
             or not 0 <= l["driver_index"] < len(drivers)
             or type(l["observation_index"]) is not int
@@ -177,7 +183,7 @@ def _admit(r, measure="pricing"):
         period = next(
             (
                 p
-                for p in source["source"]["current"]["periods"]
+                for p in loading_contract(source,l)["periods"]
                 if p["period_id"] == l["period_id"]
             ),
             None,
@@ -191,10 +197,11 @@ def _admit(r, measure="pricing"):
         observation = period["coupon"]["observations"][l["observation_index"]]
         if observation["fixing_ordinal"] <= asof:
             raise ArithmeticError("observed past fixing cannot be generated")
-    for p in source["source"]["current"]["periods"]:
+    for tranche,contract in contracts(source):
+      for p in contract["periods"]:
         for i, o in enumerate(p["coupon"].get("observations", [])):
             if o["fixing_ordinal"] > asof and (
-                (p["period_id"], i) not in keys
+                (tranche,p["period_id"], i) not in keys
                 or o["fixing_ordinal"] not in grid
                 or o["source"]["kind"] != "conditional_projection"
                 or o["selection_cutoff_unix_seconds"]
@@ -237,15 +244,7 @@ def _admit(r, measure="pricing"):
         ][h["destination_index"]]
         if base == 0.0 and any(h["betas"]):
             raise ArithmeticError("zero hazard cannot acquire implicit modeled credit")
-    feature_upper = (
-        2 * len(drivers)
-        + 4
-        + sum(
-            len(p["coupon"].get("observations", []))
-            for p in source["source"]["current"]["periods"]
-        )
-        + 2 * len(source["source"]["current"]["periods"])
-    )
+    feature_upper = feature_bound(r)
     if feature_upper > 64:
         raise ArithmeticError(
             "generated observable contractual state exceeds 64 features"
@@ -305,8 +304,9 @@ def _tape(r, sample, check):
     return levels
 
 
-def _raw_path(r, sample, levels, i):
-    raw = deepcopy(r["source"])
+def _raw_path(r, sample, levels, i,source=None):
+    from .commercial_generated_physical_reference import loading_contract
+    raw = deepcopy(r["source"] if source is None else source)
     raw["credit"]["paths"][0].update(path_key=i + 1, path_id=f"generated-{i}")
     domain = sample["randomness_domain"]
     raw["credit"]["draw_stream"] = {
@@ -318,7 +318,7 @@ def _raw_path(r, sample, levels, i):
     for loading in r["coupon_loadings"]:
         p = next(
             p
-            for p in raw["source"]["current"]["periods"]
+            for p in loading_contract(raw,loading)["periods"]
             if p["period_id"] == loading["period_id"]
         )
         o = p["coupon"]["observations"][loading["observation_index"]]
@@ -330,7 +330,7 @@ def _raw_path(r, sample, levels, i):
         o["source"] = {
             "kind": "conditional_projection",
             "model": deepcopy(r["identity"]),
-            "path": deepcopy(raw["source"]["current"]["path"]),
+            "path": deepcopy(loading_contract(raw,loading)["path"]),
             "information_unix_seconds": (o["fixing_ordinal"] - 719163) * 86400,
             "measure": raw["source"]["current"]["measure"],
         }
@@ -357,13 +357,13 @@ def _raw_path(r, sample, levels, i):
     return raw
 
 
-def _paths(r, sample, levels, check):
+def _paths(r, sample, levels, check,source_factory=None):
     paths = []
     asof = r["source"]["source"]["current"]["asof_ordinal"]
     opening = r["source"]["source"]["current"]["opening_principal"]
     for i in range(sample["paths"]):
         check()
-        raw = _raw_path(r, sample, levels, i)
+        raw = _raw_path(r, sample, levels, i,None if source_factory is None else source_factory(i))
         projection = replay(raw, check)
         points = []
         for date in r["policy"]["exercise_dates"]:
@@ -405,15 +405,6 @@ def _paths(r, sample, levels, check):
                     if stochastic
                     else [0.0] * len(r["drivers"])
                 )
-            for period in raw["source"]["current"]["periods"]:
-                features.extend(
-                    o["rate"]
-                    if o["fixing_ordinal"] <= date["ordinal"]
-                    and o["selection_cutoff_unix_seconds"]
-                    <= (date["ordinal"] - 719163) * 86400
-                    else 0.0
-                    for o in period["coupon"].get("observations", [])
-                )
             points_at_date = projection["carry_points"]
             if date["timing"] == "before_scheduled_cash":
                 points_at_date = points_at_date[
@@ -433,23 +424,8 @@ def _paths(r, sample, levels, check):
                 for p in reversed(points_at_date)
                 if p["year"] <= (date["ordinal"] - asof) / 365.0
             )
-            legal_coupons = {
-                p["coupon_id"]: p for p in point.get("canonical_legal_coupons", [])
-            }
-            for period in raw["source"]["current"]["periods"]:
-                coupon = (
-                    legal_coupons.get(period["period_id"])
-                    if _coupon_observed(period, date["ordinal"], date["timing"])
-                    else None
-                )
-                features.extend(
-                    [
-                        coupon["opening_entitlement_principal"] / opening,
-                        coupon["legal_remaining"] / opening,
-                    ]
-                    if coupon
-                    else [0.0, 0.0]
-                )
+            from .commercial_generated_physical_reference import append_observed
+            append_observed(raw,point,date,opening,features)
             points.append(
                 {
                     "state": state,
@@ -467,12 +443,16 @@ def _paths(r, sample, levels, check):
     return paths
 
 
-def _basis(features, means, scales, active):
+def _basis(features, means, scales, active, degree=2):
     x = [(features[i] - means[i]) / scales[i] for i in active]
-    return [1.0] + x + [x[i] * x[j] for i in range(len(x)) for j in range(i, len(x))]
+    values = [1.0] + x
+    for power in range(2, degree + 1):
+        for indices in itertools.combinations_with_replacement(range(len(x)), power):
+            values.append(math.prod(x[index] for index in indices))
+    return values
 
 
-def _fit(date, rows, targets):
+def _fit(date, rows, targets, degree=2):
     n = len(rows)
     d = len(rows[0]["features"])
     means = [sum(p["features"][i] / n for p in rows) for i in range(d)]
@@ -486,10 +466,10 @@ def _fit(date, rows, targets):
         if scales[i] > 8 * np.finfo(float).eps * max(abs(means[i]), 1.0)
     ]
     scales = [s if i in active else 1.0 for i, s in enumerate(scales)]
-    columns = 1 + len(active) + len(active) * (len(active) + 1) // 2
+    columns = math.comb(len(active) + degree, degree)
     if n < 2 * columns:
         raise ArithmeticError("insufficient live training sample")
-    matrix = np.array([_basis(p["features"], means, scales, active) for p in rows])
+    matrix = np.array([_basis(p["features"], means, scales, active, degree) for p in rows])
     coefficients, _, rank, singular = np.linalg.lstsq(
         matrix, np.array(targets), rcond=np.finfo(float).eps * max(matrix.shape)
     )
@@ -504,6 +484,7 @@ def _fit(date, rows, targets):
         "rank": int(rank),
         "singular_values": list(map(float, singular)),
         "observed_live_states": states,
+        **({"basis_degree": degree} if degree != 2 else {}),
     }
 
 
@@ -525,6 +506,7 @@ def _forecast(regression, point):
                 regression["means"],
                 regression["scales"],
                 regression["active_features"],
+                regression.get("basis_degree", 2),
             ),
             regression["coefficients"],
         )
@@ -627,6 +609,7 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
             dates[index],
             [training[i]["points"][index] for i in ids],
             [target[i] for i in ids],
+            BASIS_DEGREES[r["regression_policy"]],
         )
         fits.append(regression)
         for i, p in enumerate(training):
@@ -721,7 +704,9 @@ def evaluate(raw, check=lambda: False, *, _training_only=False, _retained_sample
         "convergence_established": False,
         "physical_journal_eligible": False,
         "empirical_validation": False,
-        "disclosure": "Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Quadratic LSM fit uses training only, fresh evaluation native cash is replayed. Sampling diagnostics do not establish model/basis convergence, observed accuracy, no-arbitrage calibration, or journal adoption.",
+        "disclosure": ("Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Quadratic LSM fit uses training only, fresh evaluation native cash is replayed. Sampling diagnostics do not establish model/basis convergence, observed accuracy, no-arbitrage calibration, or journal adoption."
+            if BASIS_DEGREES[r["regression_policy"]] == 2 else
+            "Supplied observable Gaussian OU law and piecewise-start loglinear credit hazards; deterministic supplied collateral discount. Explicit selected polynomial basis uses training only; fresh evaluation native cash is replayed. Basis/path refinement diagnostics do not establish general convergence, observed accuracy, no-arbitrage calibration, or journal adoption."),
     }
 
 
@@ -731,7 +716,7 @@ def fit_pricing_law(raw, check=lambda: False):
 
 
 def generated_policy_sources(
-    raw, fitted_policy, check=lambda: False, *, original=False
+    raw, fitted_policy, check=lambda: False, *, original=False, physical_inputs=None
 ):
     """Replay a supplied law using an independently fitted, retained Q policy.
 
@@ -741,6 +726,7 @@ def generated_policy_sources(
     r = _typed(raw)
     if original:
         r["source"]["source"]["current"] = deepcopy(r["source"]["source"]["original"])
+        for draw in r["source"].get("performing_draw_tranches",[]):draw["source"]["current"]=deepcopy(draw["source"]["original"])
     measure = r["source"]["source"]["current"]["measure"]
     if measure not in ("pricing", "physical"):
         raise ArithmeticError("separately supplied generated measure required")
@@ -750,7 +736,9 @@ def generated_policy_sources(
     if len(q["policy"]["exercise_dates"]) != len(fitted_policy["regressions"]):
         raise ArithmeticError("complete fitted Q policy required")
     levels = _tape(r, r["evaluation"], check)
-    paths = _paths(r, r["evaluation"], levels, check)
+    from .commercial_generated_physical_reference import source as physical_source
+    factory=(lambda i:physical_source(r,physical_inputs,i,original)) if measure=="physical" else None
+    paths = _paths(r, r["evaluation"], levels, check,factory)
     sources = []
     for i, path in enumerate(paths):
         check()
@@ -805,6 +793,7 @@ def generated_policy_sources(
         generated = deepcopy(path["raw"])
         if original:
             generated["source"]["original"] = deepcopy(generated["source"]["current"])
+            for draw in generated.get("performing_draw_tranches",[]):draw["source"]["original"]=deepcopy(draw["source"]["current"])
         projection = replay(generated, check, stops=stops)
         sources.append(
             {

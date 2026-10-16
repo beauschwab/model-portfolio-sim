@@ -35,15 +35,15 @@ def run(request,*,threads=1,expected_binary=None,cancelled=None,timeout=1800.):
 
 
 def _run(request,*,schema,command,threads=1,expected_binary=None,cancelled=None,timeout=1800.):
-    if schema not in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','mortgage-closing-capital-1','modeled-product-ftp-preparation-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if schema not in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','mortgage-closing-capital-1','modeled-product-ftp-preparation-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         raise ValueError('explicit bounded strategy process contract required')
     if type(threads) is not int or not 1<=threads<=256:raise ValueError('invalid strategy thread count')
     if not math.isfinite(timeout) or not .001<=timeout<=1800.:raise ValueError('invalid strategy deadline')
     envelope=json.dumps(dict(schema=schema,threads=threads,request=request),allow_nan=False,separators=(',',':')).encode()
     data=json.dumps(command,allow_nan=False,separators=(',',':')).encode()
     if max(len(envelope),len(data))>MAX_INPUT:raise ValueError('product strategy request exceeds 32 MiB')
-    if schema in {'commercial-holding-journal-1','commercial-fee-journal-1'} and max(len(envelope),len(data))>2*1024*1024:raise ValueError('holding journal request exceeds2MiB')
-    output_limit=32*1024*1024 if schema in {'commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'} else MAX_OUTPUT
+    if schema in {'commercial-holding-journal-1','commercial-fee-journal-1','commercial-candidate-fee-treasury-1'} and max(len(envelope),len(data))>2*1024*1024:raise ValueError('selected commercial request exceeds2MiB')
+    output_limit=32*1024*1024 if schema in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'} else MAX_OUTPUT
     identity=binary_identity()
     if expected_binary is not None and identity!=expected_binary:
         raise RuntimeError('MODEL_VERSION_CHANGED: product strategy executable differs from queued identity')

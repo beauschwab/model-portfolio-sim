@@ -31,6 +31,8 @@ pub struct Fee {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
+    Acquire,
+    ReleaseAcquiredCost,
     Earn,
     Cash,
     RefundPrepaid,
@@ -90,6 +92,9 @@ pub enum Account {
     FeeIncome,
     FeeWriteoffExpense,
     FeeRecoveryIncome,
+    AcquiredFeeAsset,
+    AcquiredFeeLiability,
+    FeeAcquisitionExpense,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct Posting {
@@ -98,6 +103,14 @@ pub struct Posting {
 }
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct State {
+    #[serde(skip_serializing_if = "is_zero")]
+    pub acquired_cost: f64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub released_acquired_cost: f64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub acquired_fee_asset: f64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub acquired_fee_liability: f64,
     pub earned: f64,
     /// Historical gross earning is retained; rebates do not grant new service.
     #[serde(skip_serializing_if = "is_zero")]
@@ -179,6 +192,9 @@ fn is_zero(v: &f64) -> bool {
     *v == 0.
 }
 fn refresh(f: &Fee, s: &mut State) -> Result<(), String> {
+    let basis = money(s.acquired_cost - s.released_acquired_cost)?;
+    s.acquired_fee_asset = basis.max(0.);
+    s.acquired_fee_liability = basis.min(0.);
     let sign = f.entitlement.signum();
     let net = money(s.earned - s.refunded_earned - s.waived_earned - s.net_service_cash)? * sign;
     s.fee_receivable = if sign > 0. { net.max(0.) } else { 0. };
@@ -206,11 +222,26 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
 }
 pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
     r: &Request,
+    check: F,
+) -> Result<ResultData, String> {
+    evaluate_measure(r, CashflowMeasure::Physical, check)
+}
+/// The same contractual fee-right arithmetic under an explicitly supplied
+/// Pricing history. This is not a physical accounting or journal entrypoint.
+pub fn evaluate_pricing_with_check<F: FnMut() -> Result<(), String>>(
+    r: &Request,
+    check: F,
+) -> Result<ResultData, String> {
+    evaluate_measure(r, CashflowMeasure::Pricing, check)
+}
+fn evaluate_measure<F: FnMut() -> Result<(), String>>(
+    r: &Request,
+    measure: CashflowMeasure,
     mut check: F,
 ) -> Result<ResultData, String> {
     check()?;
-    if r.schema != SCHEMA || r.measure != CashflowMeasure::Physical {
-        return Err("explicit physical nonintegral fee selection required".into());
+    if r.schema != SCHEMA || r.measure != measure {
+        return Err("explicit matching nonintegral fee measure required".into());
     }
     text(&r.currency)?;
     text(&r.monetary_unit)?;
@@ -283,6 +314,17 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
             return Err("fee event sign/source mismatch".into());
         }
         let capacity = match e.action {
+            Action::Acquire => {
+                if e.ordinal != r.asof_ordinal
+                    || s.acquired_cost != 0.
+                    || s.earned != 0.
+                    || s.net_service_cash != 0.
+                {
+                    return Err("original separate fee acquisition requires one actual opening event before service/cash".into());
+                }
+                MAX_MONETARY_AMOUNT
+            }
+            Action::ReleaseAcquiredCost => (s.acquired_cost - s.released_acquired_cost) * sign,
             Action::Earn | Action::CancelUnearned => s.unearned_entitlement * sign,
             Action::Cash => {
                 (f.entitlement
@@ -312,6 +354,8 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
             || matches!(
                 e.action,
                 Action::WaiveUnpaidEarned
+                    | Action::Acquire
+                    | Action::ReleaseAcquiredCost
                     | Action::CancelUnearned
                     | Action::RecoverWaived
                     | Action::RefundEarned
@@ -331,6 +375,14 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
             }
         };
         match e.action {
+            Action::Acquire => {
+                s.acquired_cost = e.amount;
+                post(Account::Cash, -e.amount);
+            }
+            Action::ReleaseAcquiredCost => {
+                s.released_acquired_cost = money(s.released_acquired_cost + e.amount)?;
+                post(Account::FeeAcquisitionExpense, e.amount);
+            }
             Action::Earn => {
                 s.earned = money(s.earned + e.amount)?;
                 post(Account::FeeIncome, -e.amount);
@@ -370,6 +422,16 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
         }
         refresh(f, s)?;
         for (account, after, before) in [
+            (
+                Account::AcquiredFeeAsset,
+                s.acquired_fee_asset,
+                old.acquired_fee_asset,
+            ),
+            (
+                Account::AcquiredFeeLiability,
+                s.acquired_fee_liability,
+                old.acquired_fee_liability,
+            ),
             (Account::FeeReceivable, s.fee_receivable, old.fee_receivable),
             (Account::FeePayable, s.fee_payable, old.fee_payable),
             (

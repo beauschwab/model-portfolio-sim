@@ -13,12 +13,13 @@ GL={'cash':'cash','fee_receivable':'commercial_fee_receivable','fee_payable':'co
     'deferred_fee_income':'commercial_deferred_fee_income','prepaid_fee_expense':'commercial_prepaid_fee_expense',
     'fee_income':'pnl:commercial_nonintegral_fee_income','fee_writeoff_expense':'pnl:commercial_fee_writeoff_expense',
     'fee_recovery_income':'pnl:commercial_fee_recovery_income'}
+GL.update(acquired_fee_asset='commercial_acquired_fee_asset',acquired_fee_liability='commercial_acquired_fee_liability',fee_acquisition_expense='pnl:commercial_fee_acquisition_expense')
 
 def _day(year):
     v=year*365.;i=round(v);d=i if i/365.==year else math.ceil(v)
     return d+1 if year>d/365. else d
 
-def bind(policy,raw,source,check):
+def bind(policy,raw,source,check,stops=()):
     origin=raw['source']['current']['asof_ordinal'];current=raw['source']['current'];out=[]
     def request(events):
         return dict(schema='nonintegral-fee-accounting-1',measure='physical',currency=current['currency'],monetary_unit=current['monetary_unit'],policy=deepcopy(policy['policy']),
@@ -31,8 +32,13 @@ def bind(policy,raw,source,check):
         if exit is None:
             e=next((e for e in path['events']if e['kind']=='maturity'),None)
             if e is not None:exit=dict(native_event_id=e['event_id'],native_year=e['year'],reason='maturity')
-        # This acquired-loan route contains no conditional-policy caller stops.
-        timeline=[];prefix=[deepcopy(e)for e in policy['events']if exit is None or (e['ordinal']-origin)/365.<exit['native_year']]
+        if exit is not None:
+            stop=next((s for s in stops if s['path_key']==path['path_key']and s['event_id']==exit['native_event_id']and(s['ordinal']-origin)/365.==exit['native_year']),None)
+            if stop is not None:
+                exit['reason']='exercise'
+                if policy['coincident_order']=='native_exit_follows_native_exercise_timing-1':exit['exercise_timing']=stop['timing']
+        after=exit is not None and exit.get('exercise_timing')=='after_scheduled_cash'
+        timeline=[];prefix=[deepcopy(e)for e in policy['events']if exit is None or (e['ordinal']-origin)/365.<exit['native_year']or after and(e['ordinal']-origin)/365.==exit['native_year']]
         before=fee_replay(request(prefix),check)
         if exit is not None:
             rule=policy[dict(default='default',other_reviewed='prepayment',maturity='maturity',exercise='exercise')[exit['reason']]]
@@ -53,10 +59,10 @@ def bind(policy,raw,source,check):
                 for i,v in enumerate(rule['recoveries']):emit(f'recovery:{i}','recover_waived',waived*v['fraction'],year+v['lag_days']/365.,reason)
             for e in policy['events']:
                 year=(e['ordinal']-origin)/365.
-                if year>=exit['native_year'] and(e['action']=='earn'and rule['cancel_future_service']or e['action']=='cash'and rule['cancel_future_cash']):continue
+                if (year>exit['native_year']or year==exit['native_year']and not after) and(e['action']=='earn'and rule['cancel_future_service']or e['action']=='cash'and rule['cancel_future_cash']):continue
                 timeline.append((year,deepcopy(e)))
         else:timeline=[((e['ordinal']-origin)/365.,deepcopy(e))for e in policy['events']]
-        timeline.sort(key=lambda e:e[0]);events=[];years=[]
+        timeline.sort(key=lambda e:(e[0],int(e[1]['event_id'].startswith('native-fee:'))if after and e[0]==exit['native_year']else 0));events=[];years=[]
         for i,(year,e)in enumerate(timeline):e['sequence']=i;events.append(e);years.append(year)
         out.append(dict(path_key=path['path_key'],position_id=current['position_id'],scenario=current['scenario_id'],native_years=years,
             source=fee_replay(request(events),check),exit=exit,native_credit_event_binding=True,loan_carrying_value_changed=False))
@@ -86,28 +92,37 @@ def verify(raw,result,check=lambda:False):
     compare(fee_sources,result['fee_sources'],check=check)
     for paths in result['fee_sources']:
         for f in paths:fee_verify(f['source']['raw_request'],f['source'],check)
+    return verify_tables(prepared,fee_sources,loan,result['tables'],check)
+
+
+def verify_tables(prepared,fee_sources,loan,tables,check):
+    """Same source-derived ordered reports for original and purchased fee owners."""
     positions={p.id:p for p in prepared['spec']['positions']};alloc={a['position_id']:a['allocated_face']for a in loan['allocations']}
     weights={(p['scenario'],p['position_id'],p['path_key']):p['source_weight']for p in loan['participations']}
     events=[];loan_lineage=[];fee_lineage=[];daily=[];fee_daily=[];binding=0;fee_binding=0;binding_order={}
     for si,s in enumerate(prepared['sources']):
         current=s['raw']['source']['current'];scenario=current['scenario_id'];position=current['position_id'];allocation=alloc[position]/current['opening_principal']
+        origin=s.get('origin_day',0);source_class=s.get('source_class','commercial_loan-1')
         for path,fs in zip(s['raw']['credit']['paths'],fee_sources[si],strict=True):
             binding_order[scenario,position,path['path_key']]=binding
             weight=weights[scenario,position,path['path_key']];factor=allocation*weight;tracking=({},{});last_by_day={}
             for i,g in enumerate(s['groups']):
                 if g['path_key']!=path['path_key']:continue
-                day=_day(g['year']);lines=journal_lines(g,tracking,factor)
-                meta=dict(scenario=scenario,day=day,native_credit_year=g['year'],source_origin_day=0,source_class='commercial_loan-1',global_native_credit_year=g['year'],date_policy='actual_credit_clock_order_day_end_journal_no_retiming_source-1',position_id=position,path_key=path['path_key'],source_weight=float(weight),allocation_factor=float(allocation),native_group_index=i,native_atomic_group=g)
-                events.append((scenario,day,g['year'],0,binding,i,meta,lines));last_by_day[day]=g['next']
+                day=origin+_day(g['year']);lines=journal_lines(g,tracking,factor)
+                meta=dict(scenario=scenario,day=day,native_credit_year=g['year'],source_origin_day=origin,source_class=source_class,global_native_credit_year=origin/365.+g['year'],date_policy='actual_credit_clock_order_day_end_journal_no_retiming_source-1',position_id=position,path_key=path['path_key'],source_weight=float(weight),allocation_factor=float(allocation),native_group_index=i,native_atomic_group=g)
+                events.append((scenario,day,origin/365.+g['year'],0,binding,i,meta,lines));last_by_day[day]=g['next']
             latest=None
             for day in range(prepared['horizon']+1):
                 if day in last_by_day:latest=last_by_day[day]
-                if latest is not None:daily.append(dict(scenario=scenario,day=day,position_id=position,path_key=path['path_key'],source_weight=float(weight),allocation_factor=float(allocation),source_origin_day=0,source_class='commercial_loan-1',unweighted_book=latest,capital_ftp_eligible=False))
+                if latest is not None:daily.append(dict(scenario=scenario,day=day,position_id=position,path_key=path['path_key'],source_weight=float(weight),allocation_factor=float(allocation),source_origin_day=origin,source_class=source_class,unweighted_book=latest,capital_ftp_eligible=False))
+            if fs is None:
+                binding+=1
+                continue
             by_day=defaultdict(list)
             for i,(year,g)in enumerate(zip(fs['native_years'],fs['source']['groups'],strict=True)):
-                day=_day(year);lines=[(GL[p['account']],p['amount']*factor)for p in g['postings']if p['amount']*factor!=0.]
+                day=origin+_day(year);lines=[(GL[p['account']],p['amount']*factor)for p in g['postings']if p['amount']*factor!=0.]
                 meta=dict(scenario=scenario,day=day,position_id=position,path_key=path['path_key'],native_year=year,source_weight=float(weight),allocation_factor=float(allocation),native_group_index=i,native_fee_group=g)
-                events.append((scenario,day,year,1,fee_binding,i,meta,lines));by_day[day].append(g)
+                events.append((scenario,day,origin/365.+year,1,fee_binding,i,meta,lines));by_day[day].append(g)
             states={}
             for day in range(prepared['horizon']+1):
                 for g in by_day[day]:states[g['event']['fee_id']]=g['next']
@@ -121,7 +136,6 @@ def verify(raw,result,check=lambda:False):
         group=dict(phase='commercial_nonintegral_fee'if kind else meta['native_atomic_group']['phase'])
         converted.append((scenario,day,year,bi,i,dict(position_id=meta['position_id'],native_atomic_group=group),lines))
     wanted=reports(prepared,converted,check)
-    tables=result['tables']
     allowed=set(wanted)|{'commercial_source_lineage','commercial_fee_lineage','commercial_daily','commercial_closing','commercial_fee_daily','commercial_fee_closing'}
     if set(tables)-allowed:raise ValueError('fee journal table ownership differs')
     for table,rows in wanted.items():

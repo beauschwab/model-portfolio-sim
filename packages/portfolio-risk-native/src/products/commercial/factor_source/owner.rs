@@ -288,6 +288,7 @@ impl NativeFactors {
             return Err("typed factor source exceeds 1 MiB".into());
         }
         let mut s = 0usize;
+        let mut observation_year_scan = 0usize;
         let midnight = |ordinal: i32| (i64::from(ordinal) - 719163) * 86_400;
         let retained_payment = matches!(
             raw.principal_plan,
@@ -301,6 +302,12 @@ impl NativeFactors {
                 return Err(
                     "seasoned coupon prefix requires separate native opening-right owner".into(),
                 );
+            }
+            if retained_payment
+                && policy.observable()
+                && midnight(p.start_ordinal) < entitlement_known
+            {
+                return Err("observable retained-payment next opening principal needs its original coupon information before service starts; contingent principal owner required".into());
             }
             if retained_payment && midnight(p.payment_ordinal) < entitlement_known {
                 return Err("native retained-payment actual cash precedes inherited indexed entitlement availability".into());
@@ -322,6 +329,15 @@ impl NativeFactors {
                                 publication_unix_seconds,
                                 ..
                             } => *publication_unix_seconds,
+                            indexed::RateSource::ConditionalPublishedProjection {
+                                publication_unix_seconds,
+                                ..
+                            } => {
+                                if !policy.observable() {
+                                    return Err("published projection requires explicit observable native factor policy".into());
+                                }
+                                *publication_unix_seconds
+                            }
                             indexed::RateSource::ConditionalProjection {
                                 information_unix_seconds,
                                 ..
@@ -333,10 +349,12 @@ impl NativeFactors {
                         {
                             return Err("native actual cash cannot settle indexed coupon before all fixings, source availability and selection cutoffs".into());
                         }
-                        if availability > midnight(o.interest_start_ordinal)
-                            || o.selection_cutoff_unix_seconds > midnight(o.interest_start_ordinal)
-                            || reset_cutoff_unix_seconds
-                                .is_some_and(|cutoff| cutoff > midnight(p.start_ordinal))
+                        if !policy.observable()
+                            && (availability > midnight(o.interest_start_ordinal)
+                                || o.selection_cutoff_unix_seconds
+                                    > midnight(o.interest_start_ordinal)
+                                || reset_cutoff_unix_seconds
+                                    .is_some_and(|cutoff| cutoff > midnight(p.start_ordinal)))
                         {
                             return Err("native continuous factor requires rate selected and available by interest-segment start midnight; intraday contingent-rate modeling is unsupported".into());
                         }
@@ -357,7 +375,16 @@ impl NativeFactors {
                             .observation_end_ordinal
                             .checked_sub(o.observation_start_ordinal)
                             .ok_or("observation calendar overflow")?;
-                        if *observation_shift && interest_span != observation_span {
+                        if policy.observable() {
+                            let span = usize::try_from(observation_span)
+                                .map_err(|_| "invalid observable source calendar span")?;
+                            observation_year_scan =
+                                add(observation_year_scan, add(span.div_ceil(365), 2)?)?;
+                        }
+                        if !policy.observable()
+                            && *observation_shift
+                            && interest_span != observation_span
+                        {
                             return Err(
                                 "continuous shifted factor requires explicit equal calendar spans"
                                     .into(),
@@ -384,14 +411,33 @@ impl NativeFactors {
         // Across disjoint actual source segments, ACT/ACT can additionally split
         // Gregorian years. Charge both endpoint evaluations conservatively; do
         // not pretend one calendar call is a constant-cost long-span operation.
-        let year_scan = add((days as usize).div_ceil(365), 2)?;
-        let work = add(
-            add(add(250_000, mul(16, r)?)?, mul(128, s)?)?,
-            mul(256, add(qs, mul(queries, year_scan)?)?)?,
+        let year_scan = add(
+            add((days as usize).div_ceil(365), 2)?,
+            observation_year_scan,
         )?;
+        let contingent_work = if policy.terminal_obligations.is_some() {
+            mul(256, mul(s, add(s, observation_year_scan)?)?)?
+        } else {
+            0
+        };
+        let work = add(
+            contingent_work,
+            add(
+                add(add(250_000, mul(16, r)?)?, mul(128, s)?)?,
+                mul(256, add(qs, mul(queries, year_scan)?)?)?,
+            )?,
+        )?;
+        let contingent_bytes = if policy.terminal_obligations.is_some() {
+            mul(1024, mul(s, s)?)?
+        } else {
+            0
+        };
         let bytes = add(
-            mul(16, r)?,
-            mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+            contingent_bytes,
+            add(
+                mul(16, r)?,
+                mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+            )?,
         )?;
         if work > 8_000_000 || bytes > 32 * 1024 * 1024 {
             return Err(
@@ -456,6 +502,42 @@ impl NativeFactors {
             let index = *audit_by_id
                 .get(segment.period_id())
                 .ok_or("native coupon audit origin missing")?;
+            if policy.observable() {
+                let period = &raw.periods[index];
+                if let Coupon::Indexed {
+                    observations,
+                    reset_cutoff_unix_seconds,
+                    ..
+                } = &period.coupon
+                {
+                    let observation = observations
+                        .iter()
+                        .find(|o| {
+                            o.interest_start_ordinal == segment.start_ordinal()
+                                && o.interest_end_ordinal == segment.end_ordinal()
+                        })
+                        .ok_or("native observable observation binding missing")?;
+                    let availability = match observation.source {
+                        indexed::RateSource::Observed {
+                            publication_unix_seconds,
+                            ..
+                        } => publication_unix_seconds,
+                        indexed::RateSource::ConditionalProjection {
+                            information_unix_seconds,
+                            ..
+                        } => information_unix_seconds,
+                        indexed::RateSource::ConditionalPublishedProjection {
+                            publication_unix_seconds,
+                            ..
+                        } => publication_unix_seconds,
+                    };
+                    let information = availability
+                        .max(observation.selection_cutoff_unix_seconds)
+                        .max((i64::from(observation.fixing_ordinal) - 719163) * 86400)
+                        .max(reset_cutoff_unix_seconds.unwrap_or(0));
+                    segment.bind_observable_information(information, raw.asof_ordinal);
+                }
+            }
             segment.bind_audit_index(index);
             cash_indices.push(
                 *cash_by_id
@@ -496,6 +578,9 @@ impl NativeFactors {
         if !year.is_finite() || year < 0. {
             return Err("invalid cumulative coupon source clock".into());
         }
+        if self.policy.observable() {
+            return self.observable_coupon_factors(year);
+        }
         let mut result = Vec::new();
         for (audit_index, _) in self.source.audit.iter().enumerate() {
             let mut factor = 0.;
@@ -529,6 +614,101 @@ impl NativeFactors {
         Ok(result)
     }
 
+    /// Observable cumulative factor, rebuilt only from selected available
+    /// observations and known simple margin, in native contractual order.
+    fn observable_coupon_factors(&self, year: f64) -> Result<Vec<(usize, usize, f64)>, String> {
+        self.observable_frozen_coupon_factors(year, year)
+    }
+    pub(crate) fn observable_frozen_coupon_factors(
+        &self,
+        served_year: f64,
+        information_year: f64,
+    ) -> Result<Vec<(usize, usize, f64)>, String> {
+        let (ordinal, fraction) = self.absolute_clock(served_year)?;
+        let mut result = Vec::with_capacity(self.source.audit.len());
+        let mut state = portfolio_model_core::coupon_factor_state::CouponFactorState::new();
+        let mut active = None;
+        for (index, segment) in self.segments.iter().enumerate() {
+            portfolio_compute_control::checkpoint()?;
+            if active != Some(segment.audit_index()) {
+                state = portfolio_model_core::coupon_factor_state::CouponFactorState::new();
+                active = Some(segment.audit_index());
+            }
+            segment.observe(&mut state, ordinal, fraction, information_year)?;
+            let value = segment.observed_factor(state);
+            if !value.is_finite() {
+                return Err("observable native factor overflow".into());
+            }
+            if self
+                .segments
+                .get(index + 1)
+                .is_none_or(|next| next.audit_index() != segment.audit_index())
+            {
+                result.push((segment.audit_index(), self.cash_indices[index], value));
+            }
+        }
+        Ok(result)
+    }
+
+    pub(crate) fn pending_indices(
+        &self,
+        served_year: f64,
+        information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        if !self.policy.observable() {
+            return Ok(Vec::new());
+        }
+        let (day, fraction) = self.absolute_clock(served_year)?;
+        Ok(self
+            .segments
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.pending_at(day, fraction, information_year))
+            .map(|(i, _)| i)
+            .collect())
+    }
+
+    pub fn pending_obligations(
+        &self,
+        year: f64,
+    ) -> Result<Vec<super::segments::PendingCouponObligation<'_>>, String> {
+        if !self.policy.observable() {
+            return Ok(Vec::new());
+        }
+        let (ordinal, fraction) = self.absolute_clock(year)?;
+        let mut result = Vec::new();
+        for segment in &self.segments {
+            portfolio_compute_control::checkpoint()?;
+            if let Some(obligation) = segment.pending_obligation(ordinal, fraction, year) {
+                result.push(obligation);
+            }
+        }
+        Ok(result)
+    }
+
+    pub(crate) fn validate_terminal(&self, year: f64) -> Result<(), String> {
+        if !self.policy.observable() || self.policy.terminal_obligations.is_some() {
+            return Ok(());
+        }
+        if !self.pending_obligations(year)?.is_empty() {
+            return Err("observable terminal event retains an unquantified pre-exit coupon obligation; reviewed contingent-right settlement owner required, no waiver or future fixing substitution".into());
+        }
+        Ok(())
+    }
+
+    fn absolute_clock(&self, year: f64) -> Result<(i32, f64), String> {
+        if !year.is_finite() || !(0. ..=100.).contains(&year) {
+            return Err("invalid observable source clock".into());
+        }
+        let days = year * 365.;
+        let round = days.round();
+        if year == round / 365. {
+            return Ok((self.raw.asof_ordinal + round as i32, 0.));
+        }
+        let whole = days.floor();
+        Ok((self.raw.asof_ordinal + whole as i32, days - whole))
+    }
+
     /// Factor-only sojourn query; the consuming Core owner supplies actual P.
     pub fn earned(&self, start_year: f64, end_year: f64) -> Result<Vec<FactorAtom<'_>>, String> {
         portfolio_compute_control::checkpoint()?;
@@ -544,6 +724,40 @@ impl NativeFactors {
             || end_year > full
         {
             return Err("factor query outside native complete ACT365 source clock".into());
+        }
+        if self.policy.observable() {
+            let before = self.observable_coupon_factors(start_year)?;
+            let after = self.observable_coupon_factors(end_year)?;
+            let mut atoms = Vec::with_capacity(before.len());
+            let mut segment_index = 0;
+            for ((audit, cash, start_factor), (_, _, end_factor)) in before.into_iter().zip(after) {
+                while self
+                    .segments
+                    .get(segment_index)
+                    .is_some_and(|s| s.audit_index() != audit)
+                {
+                    portfolio_compute_control::checkpoint()?;
+                    segment_index += 1;
+                }
+                if segment_index == self.segments.len() {
+                    return Err("observable native coupon origin missing".into());
+                }
+                if start_factor == end_factor {
+                    continue;
+                }
+                let segment = &self.segments[segment_index];
+                atoms.push(FactorAtom {
+                    segment_index,
+                    native_source_event_id: segment.period_id(),
+                    period_id: segment.period_id(),
+                    delta_factor: end_factor - start_factor,
+                    start_factor,
+                    end_factor,
+                    source_cash_index: cash,
+                    native_audit_index: audit,
+                });
+            }
+            return Ok(atoms);
         }
         let mut atoms = Vec::new();
         atoms

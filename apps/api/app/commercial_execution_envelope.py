@@ -10,6 +10,8 @@ def retained_command(schema,raw,timeout,milliseconds):
     if schema=='commercial-fee-journal-1':from portfolio_risk.core.commercial_fee_native import command
     elif schema=='commercial-holding-journal-1':from portfolio_risk.core.commercial_holding_native import command
     elif schema=='commercial-treasury-1':from portfolio_risk.core.commercial_treasury_native import command
+    elif schema=='commercial-candidate-fee-treasury-1':from portfolio_risk.core.commercial_fee_candidate_treasury_native import command
+    elif schema=='commercial-candidate-holding-journal-1':from portfolio_risk.core.commercial_candidate_holding_native import command
     elif schema=='commercial-candidate-journal-1':from portfolio_risk.core.commercial_candidate_native import command
     else:raise ValueError('commercial integer-clock transport selection required')
     value=command(raw,timeout=timeout)

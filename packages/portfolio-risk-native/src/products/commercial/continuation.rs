@@ -210,15 +210,14 @@ pub struct Admission {
     pub retained_bytes_upper: usize,
 }
 
-pub fn admit(r: &Request) -> Result<Admission, String> {
+/// Apply the same immutable-origin and observed-prefix rules without generating
+/// either source. Joint graph coordinators use this for Pricing as well as
+/// Physical histories before reserving their complete owners.
+pub fn validate_raw_prefix(r: &Request) -> Result<f64, String> {
     checkpoint()?;
-    if portfolio_compute_control::active().is_none() {
-        return Err("commercial continuation requires original execution control".into());
-    }
     if r.schema != SCHEMA {
         return Err("explicit commercial holding continuation schema required".into());
     }
-    let raw = strict_json::serialized_size(r, MAX_RAW)?;
     let origin = r.completed_source.source.current.asof_ordinal;
     let elapsed = r
         .cut_ordinal
@@ -229,6 +228,19 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
     }
     let cut = f64::from(elapsed) / 365.;
     raw_prefix(r, cut)?;
+    Ok(cut)
+}
+
+pub fn admit(r: &Request) -> Result<Admission, String> {
+    checkpoint()?;
+    if portfolio_compute_control::active().is_none() {
+        return Err("commercial continuation requires original execution control".into());
+    }
+    if r.schema != SCHEMA {
+        return Err("explicit commercial holding continuation schema required".into());
+    }
+    let raw = strict_json::serialized_size(r, MAX_RAW)?;
+    let cut = validate_raw_prefix(r)?;
     // Both complete tails plus the prefix comparison, sealed opening copies and
     // retained suffix indices are charged before either owner is materialized.
     let a = owner::admit(&r.completed_source)?;

@@ -22,7 +22,13 @@ def library_from_result(request,result,scenario_id=None):
     funding=result['funding']
     if funding['scenario_ids']!=result['scenario_ids']:raise ValueError('commercial funding scenarios differ')
     demands=np.asarray(funding['demand'],dtype=np.float64).reshape(funding['shape'])[index]
-    return dict(preparation_schema='commercial-units-1',units=units,templates=templates,horizon=horizon,grid_m=sorted({u['h'] for u in units}),nii=values[:,0,:].copy(),balance=values[:,1,:].copy(),dv01=values[:,2,0].copy(),vectors={key:values[i].copy() for i,key in enumerate(keys)},reporting_ordinals=dates,scenario_id=scenario_id,funding_ordinals=funding['ordinals'],funding_policy=funding['policy'],funding_vectors={key:demands[i].copy() for i,key in enumerate(keys)},funding_sources=deepcopy({k:v for k,v in funding.items() if k!='demand'}),model_identity=deepcopy(request['identity']),unit_sources=deepcopy(result['units']),interpolation_diagnostics=dict(method='exact supplied commercial purchase/reporting grid; no interpolation'),source_request=deepcopy(request),model_scope=result['scope'])
+    library=dict(preparation_schema='commercial-units-1',units=units,templates=templates,horizon=horizon,grid_m=sorted({u['h'] for u in units}),nii=values[:,0,:].copy(),balance=values[:,1,:].copy(),dv01=values[:,2,0].copy(),vectors={key:values[i].copy() for i,key in enumerate(keys)},reporting_ordinals=dates,scenario_id=scenario_id,funding_ordinals=funding['ordinals'],funding_policy=funding['policy'],funding_vectors={key:demands[i].copy() for i,key in enumerate(keys)},funding_sources=deepcopy({k:v for k,v in funding.items() if k!='demand'}),model_identity=deepcopy(request['identity']),unit_sources=deepcopy(result['units']),interpolation_diagnostics=dict(method='exact supplied commercial purchase/reporting grid; no interpolation'),source_request=deepcopy(request),model_scope=result['scope'])
+    if 'fee_income_values' in result:
+        fees=np.asarray(result['fee_income_values'],dtype=np.float64).reshape(
+            len(result['scenario_ids']),len(units),horizon)[index]
+        library.update(nonintegral_fee_income=fees.copy(),
+            fee_income_vectors={key:fees[i].copy() for i,key in enumerate(keys)})
+    return library
 
 def build_library(request,scenario_id=None):
     from ..analytics.model_contracts import prepare_commercial_units

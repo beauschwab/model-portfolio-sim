@@ -645,7 +645,7 @@ fn evaluate_internal(
                     event.interest = result.closing_accrued_interest;
                     if let Some(owner) = income.as_deref_mut() {
                         owner.fund(&mut result, t, draw)?;
-                        owner.default_begin(&result)?;
+                        owner.default_begin(&result, t)?;
                     }
                     let mut claim = PathDefault {
                         year: t,
@@ -931,7 +931,7 @@ fn evaluate_internal(
             range(v, -MAX_MONETARY_AMOUNT, MAX_MONETARY_AMOUNT)?;
         }
         if let Some(owner) = income.as_deref_mut() {
-            owner.finish(&result, horizon)?;
+            owner.finish(&mut result, horizon)?;
         }
         paths.push(result);
     }

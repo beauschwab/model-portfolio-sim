@@ -51,15 +51,20 @@ def scope(spec,owned):
             raise ArithmeticError('commercial capital/liquidity limits require independent adoption')
 
 
-def reports(prepared,events,check=lambda:False):
+def reports(prepared,events,check=lambda:False,*,row_sink=None,events_by_day=None):
     """Every scalar/report comes from raw source postings, not producer output."""
     spec=prepared['spec'];horizon=prepared['horizon'];positions={p.id:p for p in spec['positions']};scenarios=['baseline']+[s.name for s in spec['scenarios']]
     wanted={name:[] for name in ('journal','path','summary','ledger','actions','breaches','exposures','funding_claims','event_lineage','dated_rights','reverse_grid','trial_balance','closing_statements','consolidated','attribution')}
+    if row_sink is not None:
+        wanted = {name: row_sink(name) for name in wanted}
     total_events=defaultdict(lambda:[0.,0.,0.]);closing_by_scenario={}
     for scenario in scenarios:
         check();sequence=0;gl=defaultdict(float);money={a.id:[float(a.cash),float(a.equity)] for a in spec['accounts']};minimum={a.id:float(a.cash) for a in spec['accounts']};first={};maximum_error=0.;day_groups=defaultdict(list)
-        for e in events:
-            if e[0]==scenario:day_groups[e[1]].append(e)
+        if events_by_day is None:
+            for e in events:
+                if e[0]==scenario:day_groups[e[1]].append(e)
+        else:
+            day_groups = events_by_day(scenario)
         def post(day,account,event,position,lines):
             nonlocal sequence
             lines=[(name,value) for name,value in lines if value!=0.]
@@ -79,7 +84,7 @@ def reports(prepared,events,check=lambda:False):
                 cash,equity=money[a.id];assets=cash;liabilities=0.
                 for (account,name,_),value in gl.items():
                     if account!=a.id or name in ('cash','opening_equity','oci') or name.startswith('pnl:') or name.startswith('memo:'):continue
-                    if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income'):liabilities-=value
+                    if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'):liabilities-=value
                     else:assets+=value
                 error=assets-liabilities-equity;maximum_error=max(maximum_error,abs(error));minimum[a.id]=min(minimum[a.id],cash);cet1=equity-a.capital_deductions
                 margins=dict(cash=cash-a.cash_floor,cet1=cet1,leverage=cet1,lcr=max(cash,0.),nsfr=max(equity,0.),htm=max(assets,0.))
@@ -114,7 +119,7 @@ def reports(prepared,events,check=lambda:False):
             for (account,name,_),value in sorted(gl.items()):
                 if account!=a.id:continue
                 if name in ('opening_equity','oci') or name.startswith('pnl:'):equity-=value;continue
-                if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income'):liabilities-=value
+                if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'):liabilities-=value
                 else:assets+=value
             statements.append(dict(scenario=scenario,account=a.id,currency=a.currency,assets=assets,liabilities=liabilities,equity=equity,cash=cash,restricted_cash=0.,intercompany_assets=0.,intercompany_liabilities=0.,reconciliation_error=assets-liabilities-equity))
         wanted['closing_statements'].extend(statements);closing_by_scenario[scenario]=statements

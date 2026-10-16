@@ -15,6 +15,13 @@ fn check() -> Result<(), String> {
 fn equal<T: Serialize>(a: &T, b: &T) -> Result<bool, String> {
     Ok(strict_json::encode(a, 4 << 20)? == strict_json::encode(b, 4 << 20)?)
 }
+/// Retained P recipes and their shared original proof after all public graph
+/// metadata is emitted and all Q/original receipt buffers are dropped. This
+/// excludes the separately charged live full accounting owner and compact Sim.
+pub fn physical_journal_retained_upper(g: &generated::Request) -> Result<usize, String> {
+    generated::physical_journal_retained_upper(g)
+}
+
 pub fn admit(
     r: &graph::Request,
     p: &graph::Position,
@@ -110,24 +117,14 @@ pub fn admit(
         upper.retained_bytes_upper = add(
             upper.retained_bytes_upper,
             mul(
-                generated::raw_recipe_upper(&law.source)?,
+                generated::current_physical_source_capacity(g, law)?.raw_recipe_bytes_upper,
                 law.evaluation.paths,
             )?,
         )?;
     }
-    // Public original proof JSON coexists with the private immutable native proof.
-    let proof_raw = strict_json::serialized_size(&*g.original_physical.source, 1 << 20)?;
-    let proof_cash = mul(
-        g.original_physical.source.source.current.periods.len() + 36,
-        1536,
-    )?;
-    upper.retained_bytes_upper = add(
-        upper.retained_bytes_upper,
-        mul(
-            add(mul(proof_raw, 20)?, proof_cash)?,
-            g.original_physical.evaluation.paths,
-        )?,
-    )?;
+    // The public proof is a Serialize view of the SAME native Arc owner. There
+    // is no eager second Value tree; the generated admission already reserves
+    // the original EconomicSource/proof/raw-binding owners and cash partitions.
     if let Some(policy) = &g.oas_calibration {
         let (work, bytes) = stochastic::calibration::admitted(&g.pricing_training, policy)?;
         let (original_work, _) = stochastic::admit(&g.pricing_training)?;
@@ -174,6 +171,7 @@ fn source(
         cash,
         physical_projection: None,
         generated_projection: None,
+        fee_projection: None,
     }
 }
 fn receipt(
@@ -270,12 +268,9 @@ pub fn analyze(
         .collect();
     let original_proof =
         std::sync::Arc::new(std::sync::Mutex::new(prepared.original_acquisition_proof));
-    let original_acquisition_proofs = vec![serde_json::to_value(
-        &*original_proof
-            .lock()
-            .map_err(|_| "generated original proof owner poisoned")?,
-    )
-    .map_err(|e| e.to_string())?];
+    let original_acquisition_proofs = vec![graph::OriginalAcquisitionProof::generated(
+        original_proof.clone(),
+    )];
     for physical in prepared.current_physical {
         let scene = r
             .scenarios
@@ -299,6 +294,7 @@ pub fn analyze(
                 projection,
                 physical_projection: None,
                 generated_projection: Some((Box::new(s), original_proof.clone())),
+                fee_projection: None,
             });
         }
     }

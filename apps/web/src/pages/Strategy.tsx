@@ -15,6 +15,8 @@ type Eval = {
   nii_incremental: number[]; balance: number[]; fwd_dv01: number[];
   nii_total_$: number; dv01_at_t0_$: number;
   reporting_ordinals?:number[]; dv01_method?:string;
+  nonintegral_fee_income_incremental?:number[]; nii_plus_fee_income_incremental?:number[];
+  nonintegral_fee_income_total_$?:number; nii_plus_fee_income_total_$?:number;
   kpis?: { "d_eve_pct_eve_+200": number; duration_gap_y: number; lcr_pct: number; nsfr_pct: number; cet1_q9_pct: number };
 };
 const TEMPLATES = ["agency_mbs", "resi_whole_loan", "cml_fixed_5y", "cml_float_3y", "auto_annuity_5y", "cd_2y", "mmda_growth"];
@@ -26,7 +28,7 @@ async function evalStrategy(alloc: Alloc[], signal?: AbortSignal): Promise<Eval>
 export default function StrategyPage() {
   const engine = useEngineData();
   const libReady = engine.libraryReady;
-  const dated=['aged-units-1','product-units-1'].includes(engine.libraryDetails.schema??'');
+  const dated=['aged-units-1','product-units-1','commercial-units-1'].includes(engine.libraryDetails.schema??'');
   const templates=dated?engine.libraryDetails.templates:TEMPLATES;
   const libraryKey=JSON.stringify(engine.libraryDetails);
   const ordinalDate=(day:number)=>new Date((day-719163)*86400000).toISOString().slice(0,10);
@@ -122,7 +124,11 @@ export default function StrategyPage() {
 
       {res && (
         <div className="grid gap-3 xl:grid-cols-2">
-          {dated&&<div className="xl:col-span-2"><Stat label="Incremental NII across reporting intervals" value={fmt$(res.nii_total_$)}/></div>}
+          {dated&&<div className="xl:col-span-2 grid gap-3 sm:grid-cols-3">
+            <Stat label="Incremental NII across reporting intervals" value={fmt$(res.nii_total_$)}/>
+            {res.nonintegral_fee_income_total_$!==undefined&&<Stat label="Net service fee earnings" value={fmt$(res.nonintegral_fee_income_total_$)}/>}
+            {res.nii_plus_fee_income_total_$!==undefined&&<Stat label="Interest and service fee earnings" value={fmt$(res.nii_plus_fee_income_total_$)}/>}
+          </div>}
           <Card>
             <CardHeader title="Incremental NII" sub={dated?'Actual reporting intervals, $ — retained original effective yield':'monthly, $ — at-market carry of the program set'} />
             <CardBody>

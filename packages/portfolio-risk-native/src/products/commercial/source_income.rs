@@ -516,6 +516,14 @@ pub(crate) fn original_cash_quote(
 }
 
 pub fn evaluate(r: &Request) -> Result<ResultData, String> {
+    // This standalone receipt owns endpoint/day captures rather than observable
+    // credit-state recognition. A later publication cannot use that old clock.
+    if [&r.original, &r.current].iter().flat_map(|s| &s.periods).any(|p| {
+        matches!(&p.coupon, indexed::Coupon::Indexed { observations, .. }
+            if observations.iter().any(|o| matches!(o.source, indexed::RateSource::ConditionalPublishedProjection { .. })))
+    }) {
+        return Err("delayed modeled publication requires the native observable commercial credit/accounting owner".into());
+    }
     let admission = admit(r)?;
     let mut original_factor_points = Vec::with_capacity(admission.original_points);
     let build = |source: &indexed::ContractPathRequest,

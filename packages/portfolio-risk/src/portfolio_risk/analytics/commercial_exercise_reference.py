@@ -129,7 +129,14 @@ def compile_policy(policy,histories,curve,oas,bump=0.,check=lambda:False):
                 for action in (('put','call') if policy['simultaneous_priority']=='issuer' else ('call','put')):
                     factor=date[action+'_clean_price_factor']
                     if factor is None:continue
-                    exercise=principal*factor+legal+date[action+'_fee']
+                    exercise=0.
+                    for i in members:
+                        stop=dict(path_key=raws[i]['credit']['paths'][0]['path_key'],event_id=f"native-exercise:{policy['identity']['id']}:{date['ordinal']}",ordinal=date['ordinal'],action=action,principal_clean_price_factor=factor,fee=date[action+'_fee'],review=deepcopy(policy['identity']),timing=date['timing'])
+                        if rights_only:stop['rights_only_review']=deepcopy(policy['rights_only_termination']['review'])
+                        actual=replay(raws[i],check,stops=[stop])
+                        stopped_cash=_cash(actual['credit'])
+                        payoff=math.fsum((c['principal']+c['interest']+c['fees'])*df(c['year'])/discount for c in stopped_cash if c['year']>year or c['year']==year and(date['timing']=='before_scheduled_cash' or c['event_id']==stop['event_id']))
+                        exercise+=weights[i]/probability*payoff
                     if action=='call' and exercise<value or action=='put' and exercise>value:value=exercise;decision=action
             for i in members:values[i]=value
             node=dict(ordinal=date['ordinal'],timing=date['timing'],information=info,probability=float(probability),continuation_value=float(continuation),value=float(value),decision=decision,live_principal=principal,legal_interest=legal)

@@ -60,22 +60,27 @@ def replay(raw, check=lambda: False):
         sign = 1. if f['entitlement'] > 0. else -1.; amount = float(e['amount']); magnitude = sign * amount
         if magnitude <= 0. or not exact_json_identity(f['source'], e['source']): raise ValueError('fee sign/source differs')
         action = e['action']; capacity = {
+            'acquire': 1e15,
+            'release_acquired_cost': (s.get('acquired_cost',0.)-s.get('released_acquired_cost',0.))*sign,
             'earn': s['unearned_entitlement'], 'cancel_unearned': s['unearned_entitlement'],
             'cash': f['entitlement']-s['cancelled_unearned']-refunded-s['waived_earned']-s['net_service_cash'],
             'refund_prepaid': s['net_service_cash']-s['earned']+refunded+s['waived_earned'],
             'refund_earned': min((s['earned']-refunded-s['waived_earned'])*sign,s['net_service_cash']*sign)*sign,
             'waive_unpaid_earned': s['earned']-refunded-s['waived_earned']-s['net_service_cash'],
             'recover_waived': s['waived_earned']-s['recovered_waived'],
-        }[action] * sign
+        }[action] * (1. if action in ('acquire','release_acquired_cost')else sign)
+        if action=='acquire' and(e['ordinal']!=raw['asof_ordinal']or s.get('acquired_cost',0.)!=0. or s['earned']!=0. or s['net_service_cash']!=0.):raise ValueError('original fee acquisition must precede service/cash')
         if magnitude > capacity: raise ValueError('fee event exceeds reviewed rights')
         if action == 'earn' and e['reason'] != 'service' or action in ('cash', 'refund_prepaid') and e['reason'] != 'settlement':
             raise ValueError('fee service/settlement reason differs')
-        if action in ('waive_unpaid_earned', 'cancel_unearned', 'recover_waived', 'refund_earned') and e['reason'] not in ('default', 'exercise', 'maturity', 'other_reviewed'):
+        if action in ('waive_unpaid_earned', 'cancel_unearned', 'recover_waived', 'refund_earned','acquire','release_acquired_cost') and e['reason'] not in ('default', 'exercise', 'maturity', 'other_reviewed'):
             raise ValueError('fee disposition review differs')
         postings = []
         def post(account, value):
             if value != 0.: postings.append(dict(account=account, amount=float(value)))
-        if action == 'earn': s['earned'] += amount; post('fee_income', -amount)
+        if action=='acquire':s['acquired_cost']=amount;post('cash',-amount)
+        elif action=='release_acquired_cost':s['released_acquired_cost']=s.get('released_acquired_cost',0.)+amount;post('fee_acquisition_expense',amount)
+        elif action == 'earn': s['earned'] += amount; post('fee_income', -amount)
         elif action == 'cash': s['net_service_cash'] += amount; post('cash', amount)
         elif action == 'refund_prepaid':
             if f['prepaid_refunds_allowed'] is not True: raise ValueError('fee refund terms differ')
@@ -93,6 +98,11 @@ def replay(raw, check=lambda: False):
         s['deferred_fee_income'] = min(net, 0.) if sign > 0. else 0.
         s['prepaid_fee_expense'] = -min(net, 0.) if sign < 0. else 0.
         s['unearned_entitlement'] = f['entitlement']-s['earned']-s['cancelled_unearned']
+        basis=s.get('acquired_cost',0.)-s.get('released_acquired_cost',0.)
+        for key,value in (('acquired_fee_asset',max(basis,0.)),('acquired_fee_liability',min(basis,0.))):
+            if value!=0.:s[key]=value
+            else:s.pop(key,None)
+            post(key,value-old.get(key,0.))
         for account in FIELDS[5:9]: post(account, s[account]-old[account])
         if abs(sum(p['amount'] for p in postings)) > max(1e-9, 64*math.ulp(1.)*magnitude): raise ValueError('fee intent imbalance')
         groups.append(dict(event=deepcopy(e), policy=deepcopy(raw['policy']), postings=postings, next=deepcopy(s)))

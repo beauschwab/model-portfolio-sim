@@ -5,6 +5,26 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Commercial source and adoption follow-through (local 0.29.19 development)
+
+The working tree adds separate fee graph valuation/acquisition, joint finite
+exercise and retained fee-income unit coefficients; finite candidate fee journals,
+complete-origin candidate holding windows, exact-cut modeled prior-publication
+binding and explicit fee-aware capital/FTP;
+observable published-fixing earning and reviewed late claims; selected generated
+Physical draw/review catalogs, compact candidate streaming and bounded durable
+publication; and nested training-only regression bases with mathematical controls.
+The workbench exposes compatible durable analyses and coefficient-only fee income.
+The [current completion ledger](commercial-completion-plan.md) identifies each
+bounded implementation and its remaining engineering/evidence gates.
+
+These are development additions with targeted checks. The last accepted installed
+stage remains 0.29.18 until matching official artifacts, full engine/API/native
+regressions, contracts, historical output and durable browser checks pass together.
+No original issue requirement is removed. Broader generated/secondary/seasoned/
+mixed/saved/cohort adoption, observed holdouts and reviewed policies, and complete
+60,000-position joint graph/credit/solver/journal acceptance remain required.
+
 ## Separate fee owner (local0.29.16; supported component validated)
 
 The additive native supplied-history fee contract separates earning, cash,

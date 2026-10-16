@@ -22,7 +22,7 @@ def partition(raw,projection,stops,check=lambda:False):
             new=next((t for t in point.get('draw_tranches',[])if not result['acquired'][by_id[t['tranche_id']]]),None)
             if new is None:push(result['base'],year,point['cash'])
             else:i=by_id[new['tranche_id']];result['acquired'][i]=True;principal[i]=new['nominal_draw']
-        elif kind=='contractual_cash':
+        elif kind in ('contractual_cash','pending_coupon_cash'):
             paid=projection['native_source_cash'][source_index]['cash'];source_index+=1
             if paid.get('tranche_id')is None:push(result['base'],year,point['cash'])
             else:i=by_id[paid['tranche_id']];principal[i]-=paid['principal'];push(result['tranches'][i],year,point['cash'])

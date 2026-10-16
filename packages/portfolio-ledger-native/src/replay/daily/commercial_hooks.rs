@@ -67,8 +67,8 @@ impl Sim<'_> {
             let b = &c.bindings[binding];
             let pi = c.positions[binding];
             let a = self.aid[self.positions[pi].account.as_str()];
-            let group = &b.accounting.groups()[index];
-            let stage = state.stage(c, binding, group)?;
+            let group = b.accounting.group(index);
+            let stage = state.stage(c, binding, &group)?;
             let entries = stage
                 .lines
                 .iter()
@@ -144,6 +144,7 @@ impl Sim<'_> {
                     | "credit_default_deferred_income"
                     | "commercial_fee_payable"
                     | "commercial_deferred_fee_income"
+                    | "commercial_acquired_fee_liability"
             ) {
                 liabilities -= value;
             } else {

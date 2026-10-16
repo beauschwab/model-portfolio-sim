@@ -7,6 +7,9 @@ use portfolio_model_core::{
 };
 use serde::{Deserialize, Serialize};
 
+#[path = "fee_adoption.rs"]
+pub mod adoption;
+
 pub const SCHEMA: &str = "commercial-native-fees-1";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -47,6 +50,8 @@ pub struct ExitEvidence {
     pub native_event_id: String,
     pub native_year: f64,
     pub reason: fee::Reason,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exercise_timing: Option<loan::NativeStopTiming>,
 }
 #[derive(Debug, Serialize)]
 pub struct BoundPath {
@@ -115,7 +120,11 @@ fn checked_policy(p: &ExitPolicy) -> Result<(), String> {
 pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
     portfolio_compute_control::checkpoint()?;
     if p.schema != SCHEMA
-        || p.coincident_order != "native_exit_before_coincident_service_cash-1"
+        || !matches!(
+            p.coincident_order.as_str(),
+            "native_exit_before_coincident_service_cash-1"
+                | "native_exit_follows_native_exercise_timing-1"
+        )
         || p.fees.is_empty()
         || p.fees.len() > 64
         || p.events.len() > 512
@@ -171,10 +180,7 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
     // Validate the complete supplied service/cash contract before any loan path
     // generation. Exit policies may remove events; they cannot legalize a bad
     // original source, duplicate identity, unavailable right or invalid clock.
-    fee::evaluate_with_check(
-        &request(p, r, p.events.clone()),
-        portfolio_compute_control::checkpoint,
-    )?;
+    evaluate(&request(p, r, p.events.clone()))?;
     let events = event_bound(p);
     let cells = events
         .checked_mul(r.credit.paths.len())
@@ -219,7 +225,7 @@ fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
 fn request(p: &Policy, r: &loan::Request, events: Vec<fee::Event>) -> fee::Request {
     fee::Request {
         schema: fee::SCHEMA.into(),
-        measure: CashflowMeasure::Physical,
+        measure: r.source.current.measure,
         currency: r.source.current.currency.clone(),
         monetary_unit: r.source.current.monetary_unit.clone(),
         policy: p.policy.clone(),
@@ -231,11 +237,45 @@ fn request(p: &Policy, r: &loan::Request, events: Vec<fee::Event>) -> fee::Reque
     }
 }
 pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, String> {
-    let r = source.raw_request();
+    bind_carry(
+        p,
+        source.raw_request(),
+        source.carry(),
+        source.native_stops(),
+    )
+}
+/// Pricing paths retain their native economic credit owner and never acquire
+/// physical accounting rates or a caller-supplied default timestamp.
+pub fn bind_economic(
+    p: &Policy,
+    r: &loan::Request,
+    source: &loan::EconomicResult,
+) -> Result<Vec<BoundPath>, String> {
+    bind_carry(p, r, source.carry(), &[])
+}
+fn evaluate(r: &fee::Request) -> Result<fee::ResultData, String> {
+    match r.measure {
+        CashflowMeasure::Physical => {
+            fee::evaluate_with_check(r, portfolio_compute_control::checkpoint)
+        }
+        CashflowMeasure::Pricing => {
+            fee::evaluate_pricing_with_check(r, portfolio_compute_control::checkpoint)
+        }
+        CashflowMeasure::Contractual => {
+            Err("native fee binding requires an explicit Physical or Pricing loan owner".into())
+        }
+    }
+}
+pub(crate) fn bind_carry(
+    p: &Policy,
+    r: &loan::Request,
+    carry: &portfolio_model_core::credit_path_income::ResultData,
+    stops: &[loan::NativeStop],
+) -> Result<Vec<BoundPath>, String> {
     admit(p, r)?;
     let origin = r.source.current.asof_ordinal;
     let mut out = Vec::new();
-    for path in &source.carry().credit().result.paths {
+    for path in &carry.credit().result.paths {
         portfolio_compute_control::checkpoint()?;
         let mut exit = path
             .events
@@ -245,11 +285,13 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
                     native_event_id: e.event_id.clone(),
                     native_year: e.year,
                     reason: fee::Reason::Default,
+                    exercise_timing: None,
                 }),
                 Some(CreditState::Prepaid) => Some(ExitEvidence {
                     native_event_id: e.event_id.clone(),
                     native_year: e.year,
                     reason: fee::Reason::OtherReviewed,
+                    exercise_timing: None,
                 }),
                 _ => None,
             })
@@ -261,32 +303,38 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
                         native_event_id: e.event_id.clone(),
                         native_year: e.year,
                         reason: fee::Reason::Maturity,
+                        exercise_timing: None,
                     })
             });
         if let Some(x) = exit.as_mut() {
-            if source.native_stops().iter().any(|stop| {
+            if let Some(stop) = stops.iter().find(|stop| {
                 stop.path_key() == path.path_key
                     && stop.event_id() == x.native_event_id
                     && (f64::from(stop.ordinal() - origin) / 365.).to_bits()
                         == x.native_year.to_bits()
             }) {
                 x.reason = fee::Reason::Exercise;
+                if p.coincident_order == "native_exit_follows_native_exercise_timing-1" {
+                    x.exercise_timing = Some(stop.timing());
+                }
             }
         }
         let mut timeline: Vec<(f64, fee::Event)> = Vec::new();
+        let exit_after = exit
+            .as_ref()
+            .is_some_and(|x| x.exercise_timing == Some(loan::NativeStopTiming::AfterScheduledCash));
         let prefix = p
             .events
             .iter()
             .filter(|e| {
-                exit.as_ref()
-                    .is_none_or(|x| f64::from(e.ordinal - origin) / 365. < x.native_year)
+                exit.as_ref().is_none_or(|x| {
+                    let year = f64::from(e.ordinal - origin) / 365.;
+                    year < x.native_year || exit_after && year == x.native_year
+                })
             })
             .cloned()
             .collect::<Vec<_>>();
-        let before = fee::evaluate_with_check(
-            &request(p, r, prefix),
-            portfolio_compute_control::checkpoint,
-        )?;
+        let before = evaluate(&request(p, r, prefix))?;
         if let Some(x) = &exit {
             let policy = match x.reason {
                 fee::Reason::Default => &p.default,
@@ -380,7 +428,7 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
             }
             for e in &p.events {
                 let year = f64::from(e.ordinal - origin) / 365.;
-                if year >= x.native_year
+                if (year > x.native_year || year == x.native_year && !exit_after)
                     && ((e.action == fee::Action::Earn && policy.cancel_future_service)
                         || (e.action == fee::Action::Cash && policy.cancel_future_cash))
                 {
@@ -396,7 +444,17 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
             );
         }
         // Stable source order; generated exit actions were inserted first, by explicit policy.
-        timeline.sort_by(|a, b| a.0.total_cmp(&b.0));
+        timeline.sort_by(|a, b| {
+            a.0.total_cmp(&b.0).then_with(|| {
+                if exit_after && exit.as_ref().is_some_and(|x| x.native_year == a.0) {
+                    a.1.event_id
+                        .starts_with("native-fee:")
+                        .cmp(&b.1.event_id.starts_with("native-fee:"))
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
+        });
         let mut events = Vec::new();
         let mut years = Vec::new();
         for (i, (year, mut event)) in timeline.into_iter().enumerate() {
@@ -405,8 +463,7 @@ pub fn bind(p: &Policy, source: &loan::ResultData) -> Result<Vec<BoundPath>, Str
             events.push(event);
         }
         let prepared = request(p, r, events);
-        let fee_source =
-            fee::evaluate_with_check(&prepared, portfolio_compute_control::checkpoint)?;
+        let fee_source = evaluate(&prepared)?;
         out.push(BoundPath {
             path_key: path.path_key,
             position_id: r.source.current.position_id.clone(),

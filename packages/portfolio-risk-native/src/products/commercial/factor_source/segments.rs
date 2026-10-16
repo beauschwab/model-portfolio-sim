@@ -37,6 +37,8 @@ pub struct FactorSegment {
     full_factor: f64,
     source: Option<RateSource>,
     kind: Kind,
+    observable_information: Option<i64>,
+    observable_information_year: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,6 +61,23 @@ pub struct SegmentEvidence<'a> {
     pub margin_treatment: Option<MarginTreatment>,
     pub before_accumulator: Option<(f64, f64, f64)>,
     pub fixed_annual_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observable_information_unix_seconds: Option<i64>,
+}
+
+/// Sealed information-contingent service obligation. It deliberately contains
+/// no guessed monetary amount and cannot deserialize caller state. A terminal
+/// transfer needs a source-owning continuation, not a waiver of this memo.
+#[derive(Debug, Serialize)]
+pub struct PendingCouponObligation<'a> {
+    pub period_id: &'a str,
+    pub native_audit_index: usize,
+    pub interest_start_ordinal: i32,
+    pub interest_end_ordinal: i32,
+    pub served_through_ordinal: i32,
+    pub served_fraction_of_day: f64,
+    pub information_unix_seconds: i64,
+    pub source: &'a RateSource,
 }
 
 impl FactorSegment {
@@ -82,6 +101,8 @@ impl FactorSegment {
             full_factor,
             source: None,
             kind: Kind::Fixed { annual_rate },
+            observable_information: None,
+            observable_information_year: None,
         }
     }
 
@@ -113,6 +134,8 @@ impl FactorSegment {
             shifted,
             full_factor,
             source: Some(source.clone()),
+            observable_information: None,
+            observable_information_year: None,
             kind: Kind::Indexed {
                 before,
                 calculation,
@@ -163,7 +186,150 @@ impl FactorSegment {
             margin_treatment: treatment,
             before_accumulator: before,
             fixed_annual_rate: fixed,
+            observable_information_unix_seconds: self.observable_information,
         }
+    }
+
+    pub(crate) fn bind_observable_information(&mut self, information: i64, asof: i32) {
+        self.observable_information = Some(information);
+        self.observable_information_year =
+            Some((information - (i64::from(asof) - 719163) * 86400) as f64 / 31_536_000.);
+    }
+
+    /// Re-evaluate one native observation from only information available now.
+    /// Unknown index contributions are absent; a separately simple margin is
+    /// already known and accrues on actual interest days. No final coupon is
+    /// prorated. Partial weights concern this single, selected observation.
+    pub(crate) fn observe(
+        &self,
+        state: &mut CouponFactorState,
+        ordinal: i32,
+        fraction: f64,
+        information_year: f64,
+    ) -> Result<bool, String> {
+        portfolio_compute_control::checkpoint()?;
+        let (day, part) = if ordinal >= self.end {
+            (self.end, 0.)
+        } else if ordinal < self.start {
+            (self.start, 0.)
+        } else {
+            (ordinal, fraction)
+        };
+        let tau = partial_tau(self.start, day, part, self.day_count)?;
+        let known = self
+            .observable_information_year
+            .is_none_or(|t| information_year >= t);
+        match self.kind {
+            Kind::Fixed { annual_rate } => {
+                state.simple_observation(annual_rate, 0., tau, tau);
+            }
+            Kind::Indexed {
+                calculation,
+                margin_treatment,
+                all_in,
+                margin,
+                ..
+            } => {
+                let weight = if self.shifted {
+                    let full_interest = actual_year_fraction(self.start, self.end, self.day_count)?;
+                    let full_observation = actual_year_fraction(
+                        self.observation_start,
+                        self.observation_end,
+                        self.day_count,
+                    )?;
+                    if day == self.end {
+                        full_observation
+                    } else if self.end - self.start == self.observation_end - self.observation_start
+                    {
+                        partial_tau(
+                            self.observation_start,
+                            self.observation_start + day - self.start,
+                            part,
+                            self.day_count,
+                        )?
+                    } else {
+                        full_observation * (tau / full_interest)
+                    }
+                } else {
+                    tau
+                };
+                if calculation == Calculation::DailyCompounded {
+                    let rate = if !known {
+                        0.
+                    } else if margin_treatment == MarginTreatment::Compounded {
+                        all_in
+                    } else {
+                        all_in - margin
+                    };
+                    let increment = rate * weight;
+                    if !increment.is_finite() || increment <= -1. {
+                        return Err("nonpositive observable native observation factor".into());
+                    }
+                    state.compounded_observation(increment, tau);
+                } else {
+                    // Keep unknown simple margin separate from the index.
+                    state.simple_observation(
+                        if known { all_in } else { margin },
+                        margin,
+                        weight,
+                        tau,
+                    );
+                }
+            }
+        }
+        Ok(known)
+    }
+
+    pub(crate) fn observed_factor(&self, state: CouponFactorState) -> f64 {
+        match self.kind {
+            Kind::Fixed { .. } => state.simple_factor(),
+            Kind::Indexed {
+                calculation: Calculation::DailyCompounded,
+                margin_treatment,
+                margin,
+                ..
+            } => state.compounded_factor(if margin_treatment == MarginTreatment::Simple {
+                Some(margin)
+            } else {
+                None
+            }),
+            Kind::Indexed { .. } => state.simple_factor(),
+        }
+    }
+
+    /// Pending legal service is a sealed native obligation, never a zero-valued
+    /// waiver: the caller must not terminate ownership before its fixing arrives.
+    pub(crate) fn pending_at(&self, ordinal: i32, fraction: f64, information: f64) -> bool {
+        matches!(self.kind, Kind::Indexed { .. })
+            && (ordinal > self.start || ordinal == self.start && fraction > 0.)
+            && self
+                .observable_information_year
+                .is_some_and(|t| information < t)
+    }
+
+    pub(crate) fn pending_obligation(
+        &self,
+        ordinal: i32,
+        fraction: f64,
+        year: f64,
+    ) -> Option<PendingCouponObligation<'_>> {
+        if !self.pending_at(ordinal, fraction, year) {
+            return None;
+        }
+        Some(PendingCouponObligation {
+            period_id: &self.period_id,
+            native_audit_index: self.audit_index,
+            interest_start_ordinal: self.start,
+            interest_end_ordinal: self.end,
+            served_through_ordinal: ordinal.min(self.end),
+            served_fraction_of_day: if ordinal < self.end { fraction } else { 0. },
+            information_unix_seconds: self.observable_information?,
+            source: self.source.as_ref()?,
+        })
+    }
+
+    pub(crate) fn information_unix_seconds(&self) -> Option<i64> {
+        self.observable_information
     }
 
     pub fn start_ordinal(&self) -> i32 {
@@ -266,6 +432,31 @@ fn partial_tau(
 
 #[derive(Debug, Clone, serde::Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct TerminalObligationPolicy {
+    pub review: Identity,
+    pub live_exit_recognition: String,
+    pub live_exit_settlement: String,
+    pub default_recognition: String,
+    pub default_recovery: String,
+}
+impl TerminalObligationPolicy {
+    fn validate(&self) -> Result<(), String> {
+        let mut bytes = 0;
+        crate::products::term::contracts::identity(&self.review, &mut bytes)?;
+        if self.live_exit_recognition != "recognize_known_served_right_at_information-1"
+            || self.live_exit_settlement != "retain_original_coupon_settlement_after_information-1"
+            || self.default_recognition != "new_known_default_right_is_legal_only-1"
+            || self.default_recovery
+                != "original_signed_interest_fraction_and_tails_after_information-1"
+        {
+            return Err("explicit reviewed contingent coupon recognition/settlement/default recovery policy required".into());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FactorPolicy {
     pub review: Identity,
     pub clock: String,
@@ -273,16 +464,32 @@ pub struct FactorPolicy {
     pub overnight: String,
     pub observation_mapping: String,
     pub full_checkpoints: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal_obligations: Option<TerminalObligationPolicy>,
 }
 
 impl FactorPolicy {
+    pub fn observable(&self) -> bool {
+        self.overnight == "observable_index_prefix_simple_margin-1"
+    }
     pub fn validate(&self) -> Result<(), String> {
         let mut bytes = 0;
         crate::products::term::contracts::identity(&self.review, &mut bytes)?;
+        if let Some(policy) = &self.terminal_obligations {
+            if !self.observable() {
+                return Err(
+                    "contingent terminal obligations require observable source selection".into(),
+                );
+            }
+            policy.validate()?;
+        }
         if self.clock != "credit_act365_elapsed_from_source_asof-1"
             || self.partial_calendar_day != "simple_partial_native_daycount-1"
-            || self.overnight != "pre_observation_accumulator_partial_weight-1"
-            || self.observation_mapping != "explicit_equal_calendar_span-1"
+            || !(self.overnight == "pre_observation_accumulator_partial_weight-1"
+                && self.observation_mapping == "explicit_equal_calendar_span-1"
+                || self.observable()
+                    && self.observation_mapping
+                        == "selected_observation_weight_over_interest_daycount-1")
             || self.full_checkpoints != "retain_actual_native_endpoints-1"
         {
             return Err("explicit reviewed native continuous factor policy required".into());

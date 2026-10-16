@@ -153,9 +153,14 @@ def verify(request,actual,check=lambda:False):
     return dict(verified=True,raw_source_recomputed=True,ordered_journal_replayed=True,complete_tail_verified=True,closing_capital_verified=request.get('capital') is not None,daily_ftp_verified=ftp is not None,economic_loss_deducted_again=False,empirical_validation=False,regulatory_credit_rwa_approval=False)
 
 
-def _capital(request,actual,frames,check):
+def _capital(request,actual,frames,check,*,fees=False):
     from . import _mortgage_mixed_financial_reference as financial
     from .mortgage_closing_capital_reference import _financial_policy,exposure_policy,ASSETS,LIABILITIES,PENDING_GLS
+    fee_assets=frozenset(('commercial_fee_receivable','commercial_prepaid_fee_expense','commercial_acquired_fee_asset')) if fees else frozenset()
+    if fees:
+        ASSETS=ASSETS|fee_assets
+        LIABILITIES=LIABILITIES|frozenset(('commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'))
+        if actual.get('separate_fee_exposure_groups') is not True or any(not fee_assets<=set(p['gl_risk_weights']) for p in request['policies']):raise ArithmeticError('separate fee GL weights/groups required')
     if not exact_json_identity(actual['commercial_closing_review'],request['review']):raise ArithmeticError('commercial closing review identity differs')
     policies={(p['scenario'],p['account']):_financial_policy(p) for p in request['policies']}; amounts={}; contributions=[];groups={}
     treatment=exposure_policy(request['exposure_policy'])
@@ -173,13 +178,13 @@ def _capital(request,actual,frames,check):
         elif gl=='oci': a[4]-=v
         elif gl in LIABILITIES or gl in ('book_adjustment','accrued_interest') and (*key,ident) in funding or gl=='derivative_value' and v<0: a[1]-=v
         elif gl in ASSETS:
-            weight=p['instrument_risk_weights'].get(ident,p['gl_risk_weights'].get(gl))
+            weight=p['gl_risk_weights'].get(gl) if gl in fee_assets else p['instrument_risk_weights'].get(ident,p['gl_risk_weights'].get(gl))
             if weight is None:
                 if v==0: weight=0.
                 else: raise ArithmeticError('explicit asset risk weight required')
             if type(weight) not in (float,int) or not math.isfinite(weight) or weight<0: raise ArithmeticError('risk weight domain')
             a[0]+=v; a[5]+=v*weight
-            group=groups.setdefault((*key,ident),[0.,weight])
+            group=groups.setdefault((*key,f'{ident}:{gl}' if gl in fee_assets else ident),[0.,weight])
             if group[1]!=weight:raise ArithmeticError('one reviewed risk weight required per exposure group')
             group[0]+=v
             contributions.append(dict(scenario=key[0],account=key[1],gl_account=gl,instrument_id=ident,balance=v,risk_weight=weight,rwa_contribution=v*weight))

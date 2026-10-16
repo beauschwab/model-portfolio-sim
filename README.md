@@ -1,12 +1,15 @@
 # Rates Workbench
 
-Commercial fee follow-through (0.29.18): explicitly reviewed earned-and-collected
-fee refunds now retain separate gross refund history and reverse fee cash/income
-through the standalone owner and native loan/fee daily journal. Loan cost/EIR is
-unchanged. See [fee ownership](docs/models/nonintegral-fees.md) and the
-[remaining commercial acceptance work](docs/models/commercial-completion-plan.md).
+Commercial follow-through (local 0.29.19): explicit fee pricing/acquisition,
+shared loan/fee exercise, dated unit income, source-linked fee capital/FTP and
+complete-origin candidate holding windows extend the supported native lanes.
+Observable fixing prefixes retain signed late coupon claims; generated candidate
+journals use bounded partitioned output and selected path catalogs retain explicit
+draw/review ownership. See [the current work breakdown](docs/models/commercial-completion-plan.md)
+and [numerical refinement controls](docs/models/commercial-policy-refinement.md).
 Matching native artifacts and explicit saved-library/session rebuilding are
-required; full issue #15 acceptance and observed/policy validation remain open.
+required. Full issue #15/#25 adoption, observed/policy validation and combined
+scale acceptance remain open; this local version does not itself certify release.
 
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
@@ -17,7 +20,9 @@ adapter, independent verifier and reference implementation. As of 0.29.4,
 Python calculation is deprecated; historical Python configurations require an
 explicit switch and library/session rebuild. See [the execution contract](docs/rust-production-contract.md).
 Build the product, decision/workflow and ledger binaries and restart workers.
-Product ABI 8 and ledger protocol 2 are unchanged.
+Numeric product ABI 10 is current. Historical ledger protocols remain readable;
+the explicit commercial loan/fee journal selects protocol 7. Additive schemas and
+named capabilities require matching rebuilt artifacts.
 See the [migration and optimization report](docs/reviews/2026-10-01-native-owned-workflow.md)
 for the complete execution boundary, 60,000-instrument measurements, validation
 evidence and inherited model limitations. The

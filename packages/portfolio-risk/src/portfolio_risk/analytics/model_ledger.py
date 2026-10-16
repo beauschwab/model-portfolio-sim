@@ -23,6 +23,8 @@ from .deposit_portfolio_transport import SCHEMA as PORTFOLIO_DEPOSIT_SCHEMA,WORK
 from .commercial_ledger_transport import SCHEMA as COMMERCIAL_SCHEMA,WORKFLOW as COMMERCIAL_WORKFLOW,SCHEMAS as COMMERCIAL_SCHEMAS,CommercialWriter
 SCHEMAS={PORTFOLIO_DEPOSIT_SCHEMA:PORTFOLIO_DEPOSIT_SCHEMAS,CONTINUATION_DEPOSIT_SCHEMA:CONTINUATION_DEPOSIT_SCHEMAS,REVISED_DEPOSIT_SCHEMA:REVISED_DEPOSIT_SCHEMAS,'graph-dated-ledger-1':DATED_SCHEMAS,'deposit-graph-dated-ledger-1':DATED_SCHEMAS,'deposit-graph-income-ledger-1':DATED_SCHEMAS,'driven-credit-ledger-1':CREDIT_SCHEMAS,MORTGAGE_SCHEMA:MORTGAGE_SCHEMAS}
 SCHEMAS[COMMERCIAL_SCHEMA]=COMMERCIAL_SCHEMAS
+from .commercial_generated_transport import SCHEMA as GENERATED_CANDIDATE_SCHEMA, SCHEMAS as GENERATED_CANDIDATE_SCHEMAS
+SCHEMAS[GENERATED_CANDIDATE_SCHEMA]=GENERATED_CANDIDATE_SCHEMAS
 
 def binary_path():
     name='portfolio-model-ledger.exe' if sys.platform=='win32' else 'portfolio-model-ledger'
@@ -65,6 +67,11 @@ def _publish_directory(staging,final,check,*,owned_output_root=None):
         return
 
 def run_model_ledger(raw,directory,*,large_book=False,partition_rows=65536,progress=None,cancelled=None,timeout=1800.):
+    if raw.get('schema') == GENERATED_CANDIDATE_SCHEMA:
+        from .commercial_generated_ledger import run_generated_candidate_ledger
+        return run_generated_candidate_ledger(raw,directory,large_book=large_book,
+            partition_rows=partition_rows,progress=progress,cancelled=cancelled,timeout=timeout,
+            executable=binary_path(),publish_directory=_publish_directory)
     if raw.get('schema') not in SCHEMAS:raise ValueError('unsupported modeled source ledger schema')
     if type(partition_rows) is not int or not 1<=partition_rows<=65536:raise ValueError('invalid partition bound')
     if not math.isfinite(timeout) or not .001<=timeout<=1800.:raise ValueError('invalid model ledger deadline')

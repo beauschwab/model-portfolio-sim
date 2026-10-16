@@ -13,6 +13,12 @@ def groups(replay,check=lambda:False):
         elif kind=='live_sojourn':
             while ci<len(atoms) and atoms[ci]['path_key']==p['path_key'] and atoms[ci]['end_year']==p['year']:
                 c=atoms[ci];mode=policy['recognition'][c['interval_index']]['by_origin'][c['origin_index']];add_earned(lots,c,mode=='full_accrual');ci+=1
+        elif kind=='pending_coupon_fixing':
+            c=atoms[ci];add_earned(lots,c,not default);ci+=1
+            if default:
+                for lot in lots:lot['default_claim']=True
+        elif kind=='pending_coupon_cash':
+            row=cash[si];apply_cash(lots,row,p['origin_index']);source_id=row['cash']['source_event_id'];si+=1
         elif kind=='contractual_cash':
             row=cash[si];path=next(v for v in paths if v['path_key']==p['path_key']);event=next(e for e in path['events'] if e['event_id']==row['cash']['source_event_id']);apply_cash(lots,row,STATES.index(event['origin']));source_id=row['cash']['source_event_id'];si+=1
         elif kind=='default_gross_transfer':
@@ -32,6 +38,7 @@ def groups(replay,check=lambda:False):
         next_=dict(path_key=p['path_key'],year=p['year'],principal=p['principal'],recognized_interest=recognized,legal_interest=legal,
             native_legal_reduction_difference=p['contractual_accrued_interest']-origin_legal,book_adjustment=p['gross_carry']-p['principal']-recognized,gross_carry=p['gross_carry'],in_default=default,lots=deepcopy(lots))
         if canonical:next_['canonical_legal_coupons']=deepcopy(canonical)
+        if p.get('pending_coupon_obligation_indices'):next_['pending_coupon_obligation_indices']=deepcopy(p['pending_coupon_obligation_indices'])
         lines=[]
         def add(account,value,lot=None):
             if value!=0.:lines.append(dict(coupon_id=lot['coupon_id'] if lot else None,earning_origin_index=lot['earning_origin_index'] if lot else None,posting=dict(account=account,amount=value)))

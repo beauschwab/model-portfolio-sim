@@ -480,6 +480,7 @@ struct HandNativeFactors {
 impl income::NativeEarnedFactors for HandNativeFactors {
     fn bound(&self) -> income::NativeFactorBound {
         income::NativeFactorBound {
+            maximum_terminal_steps_per_path: 0,
             maximum_atoms_per_query: self.declared_atoms,
             retained_source_bytes: self.source_bytes,
             source_work: 100,

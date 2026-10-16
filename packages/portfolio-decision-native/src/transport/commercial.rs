@@ -31,6 +31,8 @@ impl<'de> Deserialize<'de> for Selection {
                                     "create_commercial"
                                         | "optimize_commercial"
                                         | "analyze_commercial_treasury"
+                                        | "analyze_commercial_candidate_fee_treasury"
+                                        | "analyze_commercial_candidate_holding_journal"
                                         | "analyze_commercial_candidate_journal"
                                         | "analyze_commercial_holding_journal"
                                         | "analyze_commercial_fee_journal"
@@ -44,6 +46,8 @@ impl<'de> Deserialize<'de> for Selection {
                                         s.as_str(),
                                         "strategy-commercial-1"
                                             | "commercial-treasury-1"
+                                            | "commercial-candidate-fee-treasury-1"
+                                            | "commercial-candidate-holding-journal-1"
                                             | "commercial-candidate-journal-1"
                                             | "commercial-holding-journal-1"
                                     )
@@ -96,6 +100,10 @@ mod tests {
             r#"{"op":"create_commercial","commercial":{"co\u0073t":1,"cost":2}}"#,
             r#"{"op":"analyze_commercial_candidate_journal","op":"linear_program"}"#,
             r#"{"op":"analyze_commercial_treasury","op":"linear_program"}"#,
+            r#"{"op":"analyze_commercial_candidate_fee_treasury","op":"linear_program"}"#,
+            r#"{"schema":"commercial-candidate-fee-treasury-1","schema":"legacy"}"#,
+            r#"{"op":"analyze_commercial_candidate_holding_journal","op":"linear_program"}"#,
+            r#"{"schema":"commercial-candidate-holding-journal-1","schema":"legacy"}"#,
         ] {
             assert!(parse(raw.as_bytes())
                 .unwrap_err()

@@ -694,3 +694,28 @@ The input range stays live during the synchronous call. All token, graph, invoca
 Only explicit indexed graph/book creation, matching indexed pricing, info and clear are controlled. Each call receives a fresh deadline and one-shot flag; a graph retains neither. Runtime fields are not financial input or cache/source identity.
 
 Bounded thread-safe IO callback, whole-job deadline, durable lease/cancellation and atomic publication fences remain caller-owned. A cold book operation may make two calls. This capability provides cooperative checkpoints, not a hard interrupt or aggregate RSS/scale acceptance.
+
+## Additive separate-income-coefficients-1 capability
+
+Generated separately from `native-income-coefficients-1.json`; numeric product layouts remain unchanged.
+
+| Export signature | Result |
+|---|---|
+| `uint32_t portfolio_income_coefficients_version(void)` | 1 for the separate retained noninterest-income capability |
+| `int32_t portfolio_income_coefficients_call(const double *fee_coefficients, const double *amounts, const double *interest_income, size_t units, size_t periods, double *output)` | 0 on success; 1 for pointer/shape admission failure; 2 for invalid financial values, bounded monetary overflow or a contained panic; failures write no output |
+
+| Input | Shape and meaning |
+|---|---|
+| `fee_coefficients` | row-major units * periods finite f64 retained nonintegral fee-income coefficients |
+| `amounts` | units nonnegative finite allocations bounded by MAX_MONETARY_AMOUNT |
+| `interest_income` | periods finite authoritative incremental external NII values bounded by MAX_MONETARY_AMOUNT |
+
+2 * periods + 2 f64 values: period fee income, period external NII plus fee income, total fee income, total external NII plus fee income
+
+1 <= periods <= 4096; 0 <= units <= 1024; units * periods <= 1000000. All computed monetary results must be finite and within MAX_MONETARY_AMOUNT.
+
+Inputs are aligned readable synchronous f64 buffers; output is aligned writable and must not overlap any input. Fee/amount pointers may be null only when units is zero. Interest and output pointers must be nonnull. The caller retains ownership through return. The function validates all values before writing output.
+
+Native reduction in retained unit order. Signed service fee income remains separate from external NII; the combined output is a disclosure and does not change optimizer objectives, regulatory coefficients or KPI methods. No pricing, source regeneration, fee classification or policy inference occurs.
+
+Additive named exports retain numeric product ABI 10 operations and historical buffers unchanged. Missing exports or a version other than 1 require a matching library rebuild and restart; no financial fallback is permitted. Selected fee libraries require retained matching fee coefficients and explicit rebuilding.

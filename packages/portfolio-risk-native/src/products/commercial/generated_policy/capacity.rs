@@ -32,11 +32,6 @@ fn contract(s: &ContractPathRequest) -> Result<usize, String> {
     Ok(bytes)
 }
 pub(super) fn raw_recipe_upper(raw: &owner::Request) -> Result<usize, String> {
-    if !raw.performing_draw_tranches.is_empty() || raw.reviewed_credit_actions.is_some() {
-        return Err(
-            "generated compact recipe capacity requires its scoped draw/action policy".into(),
-        );
-    }
     // Encoding contains every owned string (including escaped content) and
     // keys. Twice this length reserves cloned String capacities/allocations;
     // all inline structs, Vec elements and Box allocations are counted below.
@@ -64,6 +59,18 @@ pub(super) fn raw_recipe_upper(raw: &owner::Request) -> Result<usize, String> {
     }
     bytes = add(bytes, vector(&raw.accounting.recognition)?)?;
     bytes = add(bytes, vector(&raw.accounting_rates)?)?;
+    bytes = add(bytes, vector(&raw.performing_draw_tranches)?)?;
+    for draw in &raw.performing_draw_tranches {
+        bytes = add(bytes, contract(&draw.source.original)?)?;
+        bytes = add(bytes, contract(&draw.source.current)?)?;
+        bytes = add(bytes, vector(&draw.source.current_accounting_rate_reviews)?)?;
+    }
+    if let Some(actions) = &raw.reviewed_credit_actions {
+        bytes = add(bytes, vector(&actions.allowance_reviews)?)?;
+        bytes = add(bytes, vector(&actions.chargeoffs)?)?;
+        bytes = add(bytes, vector(&actions.legal_waivers)?)?;
+    }
+
     // Generated path labels, randomness-domain identities and the one sealed
     // native stop have separate bounded capacity beyond the raw template.
     add(bytes, 8192)

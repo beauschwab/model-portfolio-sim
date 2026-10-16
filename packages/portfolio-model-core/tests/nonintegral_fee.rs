@@ -19,6 +19,83 @@ fn result(v: Value) -> Result<Value, String> {
     serde_json::to_value(evaluate(&r)?).map_err(|e| e.to_string())
 }
 #[test]
+fn acquired_fee_asset_and_liability_release_separately_from_service_cash() {
+    for sign in [1., -1.] {
+        let mut r = raw();
+        r["fees"][0]["entitlement"] = json!(sign * 5.);
+        r["events"] = json!([
+            event(0, 0, "acquire", sign * 4., "other_reviewed"),
+            event(10, 1, "earn", sign * 5., "service"),
+            event(10, 2, "release_acquired_cost", sign * 1., "other_reviewed"),
+            event(20, 3, "cash", sign * 5., "settlement"),
+            event(20, 4, "release_acquired_cost", sign * 3., "other_reviewed")
+        ]);
+        let actual = result(r).unwrap();
+        let report = &actual["reporting"][0]["state"];
+        assert_eq!(
+            report[if sign > 0. {
+                "acquired_fee_asset"
+            } else {
+                "acquired_fee_liability"
+            }],
+            sign * 3.
+        );
+        assert_eq!(report["earned"], sign * 5.);
+        assert_eq!(
+            actual["closing"][0]["state"]["released_acquired_cost"],
+            sign * 4.
+        );
+        assert!(actual["closing"][0]["state"]
+            .get("acquired_fee_asset")
+            .is_none());
+        assert!(actual["closing"][0]["state"]
+            .get("acquired_fee_liability")
+            .is_none());
+        assert_eq!(actual["groups"][0]["postings"][0]["account"], "cash");
+        assert_eq!(
+            actual["groups"][2]["postings"][0]["account"],
+            "fee_acquisition_expense"
+        );
+    }
+}
+#[test]
+fn acquired_fee_basis_cannot_be_reacquired_or_over_released() {
+    for events in [
+        vec![
+            event(0, 0, "acquire", 4., "other_reviewed"),
+            event(0, 1, "acquire", 4., "other_reviewed"),
+        ],
+        vec![
+            event(0, 0, "acquire", 4., "other_reviewed"),
+            event(1, 1, "release_acquired_cost", 5., "other_reviewed"),
+        ],
+        vec![event(1, 0, "acquire", 4., "other_reviewed")],
+    ] {
+        let mut r = raw();
+        r["events"] = json!(events);
+        assert!(result(r).is_err());
+    }
+}
+#[test]
+fn explicit_pricing_fee_projection_cannot_enter_the_physical_accounting_entrypoint() {
+    let mut r = raw();
+    r["measure"] = json!("pricing");
+    r["events"] = json!([
+        event(10, 0, "earn", 5., "service"),
+        event(20, 1, "cash", 5., "settlement")
+    ]);
+    let typed: Request = serde_json::from_value(r).unwrap();
+    assert!(evaluate(&typed).is_err());
+    let actual =
+        portfolio_model_core::nonintegral_fee::evaluate_pricing_with_check(&typed, || Ok(()))
+            .unwrap();
+    assert_eq!(
+        actual.raw_request().measure,
+        portfolio_model_core::cashflow::CashflowMeasure::Pricing
+    );
+    assert_eq!(actual.closing()[0].state.earned, 5.);
+}
+#[test]
 fn earned_receivable_survives_report_and_later_cash_has_no_second_income() {
     let mut r = raw();
     r["events"] = json!([
