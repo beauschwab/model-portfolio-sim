@@ -1,6 +1,33 @@
 # Remaining commercial acceptance work
 
-## Current development reconciliation (2026-10-16)
+## Current installed reconciliation (2026-10-16)
+
+The complete installed 0.29.20 attempt passes **1,464 native tests** (834 fresh
+pricing/decision and 630 explicitly retained unchanged-foundation tests), **3,643
+full engine tests** with two intentional reference skips, the web build and 26
+browser journeys, 40 MCP checks, two real MCP/API/worker publication journeys,
+compatibility/operator checks and applicable native/build/contract gates.
+
+The full API run finishes with **1,386 passes, one failure, one skip and one
+warning**. Its only failure is the positive commercial cut-date worker example:
+the omitted native route refuses **36,844,632 work / 223,261,940 bytes** before
+dual graph generation. Successful publication remains required; no case is
+reclassified to an expected refusal and no limit is widened. Therefore the last
+accepted installed checkpoint remains **0.29.19**. Complete source/eight-artifact
+archives and final fences are retained in the
+[installed attempt review](../reviews/2026-10-16-checked-numerical-integration.md).
+
+The cut source/private-memory/Sim/codec proof and positive independently verified
+persisted publication are the immediate release blocker. Separate isolated
+capacity-context and streaming-counter components are groundwork, not accepted
+cut execution. Every original broader adoption, observed-history/reviewed-policy
+and complete 60,000-position joint acceptance gate remains. No deployment or
+worker restart is claimed.
+
+## Retained development reconciliation before complete attempt 6
+
+The following records earlier contained and failed stages. Current installed
+results above supersede its pending-test status without removing any requirement.
 
 This section supersedes the older implementation exclusions below without
 removing their wider acceptance requirements. The last accepted installed stage

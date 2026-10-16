@@ -5,7 +5,33 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
-## Current commercial release gate (local 0.29.20 development; 2026-10-16)
+## Current commercial release gate (local 0.29.20; 2026-10-16)
+
+The complete installed attempt passes **1,464 native tests**, **3,643 full engine
+tests** with two intentional reference skips, 26 browser journeys, 40 MCP checks,
+two real MCP/API/worker journeys and the applicable build/tooling/contract gates.
+The native total includes 834 freshly executed pricing/decision tests and 630
+unchanged-foundation tests retained with explicit dependency/source proof.
+
+The full API run has **1,386 passes, one failure, one skip and one warning**.
+Its sole failure requires successful worker publication of the commercial cut-date
+example, whose omitted route still refuses at **36,844,632 work / 223,261,940
+bytes**. The positive publication requirement and all capacity limits remain.
+Consequently **0.29.20 is not accepted as a complete installed release**;
+the last fully sealed installed checkpoint remains **0.29.19**. The complete
+frozen source and eight matching unaccepted artifacts are archived. See the
+[installed result and retained numerical evidence](../reviews/2026-10-16-checked-numerical-integration.md).
+
+Next engineering gates are raw-derived cut source/private-memory/Sim/codec
+admission and positive independent persisted publication. Isolated capacity-context
+and shared streaming-counter work remains separate from this frozen release.
+All broader product adoption, observed holdout/policy and complete joint-scale
+requirements below remain required. No deployment or worker restart is claimed.
+
+## Retained pre-correction numerical and admission history
+
+This section records earlier development states, superseded by the complete
+installed attempt above; it does not redefine current acceptance.
 
 The last sealed, fully accepted installed checkpoint is **0.29.19**, as recorded
 in [its acceptance review](../reviews/2026-10-16-commercial-source-adoption.md).

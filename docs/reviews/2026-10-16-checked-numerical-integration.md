@@ -1,8 +1,56 @@
 # Checked numerical development integration
 
-This is contained development evidence, not combined installed release acceptance.
-The last fully accepted installed checkpoint remains 0.29.19. The initial 0.29.20
-acceptance attempt and every original failed benchmark remain immutable.
+The complete installed attempt now passes the numerical and full engine checks,
+but **0.29.20 is not accepted as a complete release**. Its sole full API failure
+is the commercial cut-date example: the positive worker/publication contract
+encounters the retained native admission refusal. The last fully accepted
+installed checkpoint remains **0.29.19**. Every original failed attempt and
+benchmark remains immutable.
+
+## Complete installed attempt 6 (2026-10-16)
+
+The frozen source is `f2284bcabf3a7a3c92c85b1648d577fe97ffbdf5`, containing
+main `93ef58a99689ee0dd28ffc10e9bd0ac3dada1e20`. Its 1,930 exact inputs hash to
+`f692484aa6072154f5cf2a3df5fa75a704b041a6a51cab5ff12fc2677531a296`;
+the 787 native inputs hash to
+`0527419e2c6df4a06318e8368c2305ee36481633822ff296f06f1e8c6237cc76`.
+All eight official product, ledger and decision/workflow artifacts were pinned
+through testing and archival. No deployment or worker restart is claimed.
+
+| Gate | Completed result |
+|---|---|
+| Native | 1,464 tests: 643 pricing and 191 decision tests freshly executed against the exact primary native inputs; 409 core and 221 ledger tests retained after unchanged dependency-closure and explicit source-delta verification |
+| Native tooling/build | Applicable formatting, strict all-target/all-feature, decision doc and three official release-construction gates pass; native/build evidence reused across the generated MCP-reference-only successor is explicitly identified |
+| Full engine | **3,643 passed, two intentional native-ownership reference skips**, zero failures, 1,724 seconds; the fresh 46-record counted-work export was supplied and its independent bridge ran |
+| Full API | **1,386 passed, one failed, one skipped, one warning**, 3,424 seconds; the optional MCP integration module is exercised separately by its dedicated target |
+| Browser/application | Web build, 26 browser journeys, 40 MCP checks and two real MCP/API/worker publication journeys pass |
+| Compatibility/contracts | Nine complete historical controls, three restored full draw-graph comparisons, operator/package-document byte checks, architecture and native/HTTP/MCP contracts pass |
+
+The API failure is
+`test_explicit_models_run_on_worker_with_source_identity_and_restart[sqlite-commercial-cut-mixed-journal-1]`.
+It requires a successfully published worker result. The unchanged omitted cut
+route instead refuses **36,844,632 work / 223,261,940 bytes** before dual graph
+generation. That positive requirement and the 32M/128MiB limits remain unchanged.
+No failure is converted to a skip or an expected-refusal acceptance.
+
+The complete failed-stage receipt is
+`d168757d8703749f6d7a5d4b82b0b7c0bfd49c8d520ac78f49cb5922a662495f`.
+All eight matching unaccepted artifacts are archived together at SHA256
+`e8463e07b13a8fc71a5d010ddca76062f28bca8aecc466396958f37b7a61249d`;
+the complete current-source/text-evidence archive is
+`b0302162ba65e63c506f10a559b7888bf4d87ca0cd51fefc54e616ef9aab590d`.
+Source and artifact fences passed after archival. Local ignored evidence is in
+`artifacts/issue15-secondary-and-cut-validation-attempt6/`; it may not exist on
+the default branch. No accepted 0.29.20 receipt was created.
+
+Complete raw-derived source/private-memory/Sim/codec admission and positive
+independent persisted cut publication remain required. Separate isolated context
+and streaming-counter components are not part of this frozen release. Broader
+saved/cohort/secondary/strategy/accounting/capital/FTP adoption, observed histories
+and reviewed policies, and complete 60,000-position joint acceptance remain open.
+Synthetic, numerical and parity checks do not establish those evidence gates.
+
+The remaining sections retain the earlier contained and failed-stage history.
 
 ## What changed
 
