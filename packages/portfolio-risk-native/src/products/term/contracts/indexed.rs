@@ -807,6 +807,28 @@ pub(crate) fn build_transfer_path_with_basis(
     )
 }
 
+/// Selected finite source owner combines its independent information clock,
+/// acquired coupon nominal and operation ledger in the actual shared builder.
+pub(crate) fn build_transfer_path_counted(
+    request: &ContractPathRequest,
+    information_asof: i32,
+    meter: &work::WorkMeter,
+    sink: Option<&mut SegmentSink<'_>>,
+    acquired_basis: Option<&principal::AcquiredBasis>,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        sink,
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: Some(meter),
+            acquired_basis,
+        },
+    )
+}
+
 pub(crate) fn build_path_with_counted_segments(
     request: &ContractPathRequest,
     sink: &mut SegmentSink<'_>,

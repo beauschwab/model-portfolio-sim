@@ -305,6 +305,47 @@ fn acquired_compounded_prefix_uses_only_available_fixing_and_full_product_once()
 }
 
 #[test]
+fn counted_finite_origin_preserves_actual_observable_pending_and_default_owners() {
+    for destination in [None, Some(3), Some(4)] {
+        let (mut raw, _, _) = indexed_transfer();
+        raw["factor_policy"]["terminal_obligations"] = json!({"review":{"id":"explicit-contingent-rights","revision":"1"},
+            "live_exit_recognition":"recognize_known_served_right_at_information-1","live_exit_settlement":"retain_original_coupon_settlement_after_information-1",
+            "default_recognition":"new_known_default_right_is_legal_only-1","default_recovery":"original_signed_interest_fraction_and_tails_after_information-1"});
+        if let Some(destination) = destination {
+            raw["credit"]["intervals"][0]["hazards_per_year"][0][destination] = json!(100.);
+            raw["credit"]["draw_stream"] = json!({"kind":"supplied","stream_id":"finite-pending-terminal","stream_revision":"1","paths":[{"path_key":raw["credit"]["paths"][0]["path_key"],"pairs":[{"waiting_uniform":(-100_f64*0.5/365.).exp(),"destination_uniform":0.5}]}]});
+        }
+        let before: owner::Request = serde_json::from_value(raw.clone()).unwrap();
+        let before = serde_json::to_value(owner::evaluate(&before).unwrap()).unwrap();
+        raw["source"]["transfer"]["source_work_policy"] =
+            json!("counted_finite_transfer_contract_factor_work-1");
+        let request: owner::Request = serde_json::from_value(raw).unwrap();
+        let actual = serde_json::to_value(owner::evaluate(&request).unwrap()).unwrap();
+        assert_eq!(before["accounting"], actual["accounting"]);
+        assert_eq!(
+            before["secondary_acquisition"],
+            actual["secondary_acquisition"]
+        );
+        for key in [
+            "native_source_cash",
+            "native_coupon_recoveries",
+            "carry_points",
+            "earned_origin_contributions",
+        ] {
+            assert_eq!(before["carry"][key], actual["carry"][key]);
+        }
+        for role in ["original_source", "current_source"] {
+            assert_eq!(before[role]["source"], actual[role]["source"]);
+            assert_eq!(before[role]["segments"], actual[role]["segments"]);
+            assert_eq!(
+                actual[role]["admission"]["counted_work"]["policy"],
+                "counted_finite_transfer_contract_factor_work-1"
+            );
+        }
+    }
+}
+
+#[test]
 fn negative_purchased_coupon_is_gross_obligation_without_reearning_it() {
     let mut r = raw();
     for role in ["original", "current"] {

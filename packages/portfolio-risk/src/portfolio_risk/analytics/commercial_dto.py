@@ -29,6 +29,7 @@ def typed(value,key=''):
                 if type(out[name])is not list or any(type(x)not in(int,float)or not math.isfinite(x)for x in out[name]):
                     raise ArithmeticError('finite native supplied curve vector required')
                 out[name]=[float(x)for x in out[name]]
+        if out.get('schema')=='commercial-performing-secondary-acquisition-1'and out.get('source_work_policy')is None:out.pop('source_work_policy',None)
         if out.get('schema')=='commercial-source-income-proof-1':
             out.setdefault('current_accounting_rate_reviews',[])
             if out.get('transfer') is None:out.pop('transfer',None)

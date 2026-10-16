@@ -8,6 +8,9 @@ use crate::products::term::contracts::{self as term, indexed};
 use portfolio_model_core::{credit_path_income as carry, strict_json};
 use serde::{Deserialize, Serialize};
 
+pub(crate) mod counted;
+pub use counted::SourceWorkPolicy;
+
 pub const SCHEMA: &str = "commercial-performing-secondary-acquisition-1";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -42,6 +45,8 @@ pub struct Transfer {
     pub transaction_cost_policy: String,
     pub coupon_allocations: Vec<CouponAllocation>,
     pub regime: Regime,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_work_policy: Option<SourceWorkPolicy>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct TransferredCoupon {
@@ -272,7 +277,12 @@ pub(crate) fn admit(r: &source_income::Request) -> Result<(usize, usize), String
         return Err("secondary full-origin history exceeds1080-day transfer tier".into());
     }
     // Reserve full origin arithmetic, retained metadata/audit and transfer lots.
-    let a = NativeFactors::admit_for_measure(o, &default_policy(), 0, o.measure)?;
+    let finite = counted::Authority::selected(r, counted::Role::Origin);
+    let a = if let Some(finite) = finite.as_ref() {
+        NativeFactors::admit_finite_transfer(o, &default_policy(), 0, o.measure, finite, false)?
+    } else {
+        NativeFactors::admit_for_measure(o, &default_policy(), 0, o.measure)?
+    };
     // prepare_origin() invokes build_transfer_path once per evaluated owner.
     // Original/current buyer factor compiles remain separately reserved by the
     // credit compiler; both retained origin/raw bodies are still charged below.
@@ -338,7 +348,11 @@ pub(crate) struct OriginOwner {
 pub(crate) fn prepare_origin(r: &source_income::Request) -> Result<OriginOwner, String> {
     admit(r)?;
     let t = r.transfer.as_ref().ok_or("secondary policy absent")?;
-    let full = indexed::build_transfer_path(&t.contract_origin, t.economic_ordinal)?;
+    let full = if t.source_work_policy.is_some() {
+        counted::build_origin(r)?
+    } else {
+        indexed::build_transfer_path(&t.contract_origin, t.economic_ordinal)?
+    };
     let principal = full
         .schedule
         .events

@@ -1750,6 +1750,7 @@ fn evaluate_economic_internal(
         r.factor_policy.clone(),
         0,
         source_measure(measure),
+        super::acquisition::counted::Role::Original,
         origin
             .as_ref()
             .and_then(super::acquisition::OriginOwner::basis),
@@ -1760,6 +1761,7 @@ fn evaluate_economic_internal(
         r.factor_policy.clone(),
         admission.maximum_queries,
         source_measure(measure),
+        super::acquisition::counted::Role::Current,
         origin
             .as_ref()
             .and_then(super::acquisition::OriginOwner::basis),
@@ -1804,7 +1806,12 @@ fn evaluate_economic_internal(
     #[cfg(test)]
     {
         OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
-        if r.counted_work.is_some() {
+        if r.counted_work.is_some()
+            || r.source
+                .transfer
+                .as_ref()
+                .is_some_and(|t| t.source_work_policy.is_some())
+        {
             COUNTED_OWNER_WORK
                 .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
         }
@@ -1920,6 +1927,7 @@ fn prepare(
         &r.factor_policy,
         0,
         source_measure(measure),
+        super::acquisition::counted::Role::Original,
     )?;
     let current_admission = admit_selected_source(
         r,
@@ -1927,6 +1935,7 @@ fn prepare(
         &r.factor_policy,
         queries,
         source_measure(measure),
+        super::acquisition::counted::Role::Current,
     )?;
     let mut source_work = add(original_admission.work_upper, current_admission.work_upper)?;
     let mut source_bytes = add(
@@ -2163,6 +2172,7 @@ fn evaluate_accounting_internal(
         r.factor_policy.clone(),
         0,
         source_measure(CreditMeasure::Physical),
+        super::acquisition::counted::Role::Original,
         origin
             .as_ref()
             .and_then(super::acquisition::OriginOwner::basis),
@@ -2173,6 +2183,7 @@ fn evaluate_accounting_internal(
         r.factor_policy.clone(),
         queries,
         source_measure(CreditMeasure::Physical),
+        super::acquisition::counted::Role::Current,
         origin
             .as_ref()
             .and_then(super::acquisition::OriginOwner::basis),
@@ -2233,7 +2244,12 @@ fn evaluate_accounting_internal(
     #[cfg(test)]
     {
         OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
-        if r.counted_work.is_some() {
+        if r.counted_work.is_some()
+            || r.source
+                .transfer
+                .as_ref()
+                .is_some_and(|t| t.source_work_policy.is_some())
+        {
             COUNTED_OWNER_WORK
                 .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
         }
@@ -2269,13 +2285,18 @@ fn admit_selected_source(
     policy: &FactorPolicy,
     queries: usize,
     measure: portfolio_model_core::cashflow::CashflowMeasure,
+    role: super::acquisition::counted::Role,
 ) -> Result<crate::products::commercial::factor_source::owner::Admission, String> {
     let authority = r.counted_work.as_deref();
     if r.source.transfer.is_some() {
         if authority.is_some() {
             return Err("generated counted secondary transfer sources are not adopted".into());
         }
-        NativeFactors::admit_transfer(raw, policy, queries, measure)
+        if let Some(finite) = super::acquisition::counted::Authority::selected(&r.source, role) {
+            NativeFactors::admit_finite_transfer(raw, policy, queries, measure, &finite, true)
+        } else {
+            NativeFactors::admit_transfer(raw, policy, queries, measure)
+        }
     } else {
         NativeFactors::admit_for_measure_with_work(raw, policy, queries, measure, authority)
     }
@@ -2286,6 +2307,7 @@ fn compile_selected_source(
     policy: FactorPolicy,
     queries: usize,
     measure: portfolio_model_core::cashflow::CashflowMeasure,
+    role: super::acquisition::counted::Role,
     basis: Option<&term::indexed::principal::AcquiredBasis>,
 ) -> Result<NativeFactors, String> {
     let authority = r.counted_work.as_deref();
@@ -2293,7 +2315,9 @@ fn compile_selected_source(
         if authority.is_some() {
             return Err("generated counted secondary transfer sources are not adopted".into());
         }
-        if let Some(basis) = basis {
+        if let Some(finite) = super::acquisition::counted::Authority::selected(&r.source, role) {
+            NativeFactors::compile_finite_transfer(raw, policy, queries, measure, &finite, basis)
+        } else if let Some(basis) = basis {
             NativeFactors::compile_transfer_with_basis(raw, policy, queries, measure, basis)
         } else {
             NativeFactors::compile_transfer(raw, policy, queries, measure)

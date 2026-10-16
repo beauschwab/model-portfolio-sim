@@ -7,6 +7,7 @@ The selector never accepts numeric allowances.
 from copy import deepcopy
 import json
 POLICY='counted_native_contract_factor_work-1'
+FINITE_POLICY='counted_finite_transfer_contract_factor_work-1'
 
 def structural(value):
     if type(value)in(int,float):return 32
@@ -31,7 +32,7 @@ def _scan(start,end,basis):
     if not 0<=span<=36600:raise ArithmeticError('counted calendar source domain exceeded')
     return (span+364)//365+2 if basis=='act_act_isda' else 1
 
-def summary(raw,queries,observable=False,terminal=False):
+def summary(raw,queries,observable=False,terminal=False,*,finite=False):
     if type(queries)is not int or not 0<=queries<=4096:raise ArithmeticError('bounded native query count required')
     p=len(raw['periods']);h=len(raw['principal_plan'].get('principal_events',[]));cash=p+h;s=o=binding=years=query_years=0
     if not 1<=p<=4096 or h and cash>4096:raise ArithmeticError('bounded source period/cash inventory required')
@@ -57,7 +58,8 @@ def summary(raw,queries,observable=False,terminal=False):
         calendar=years+((0 if observable else 2*uses['earned'])+uses['canonical'])*query_years,ordering=cash*cash,binding=cash*cash+p*p+(cash+p)*s+binding,validation=4*p*p+32+2*h*h+4*p*h+4*h,
         earned_calls=uses['earned'],earned_steps=uses['earned']*(3*s+p),canonical_calls=uses['canonical'],canonical_steps=uses['canonical']*(p*s+s+p),
         pending_calls=uses['pending'],pending_steps=uses['pending']*s,terminal_calls=uses['terminal'],terminal_steps=uses['terminal']*(s*s+p*s))
-    return dict(policy=POLICY,use_bound=uses,upper=upper)
+    if finite:upper['input_bytes']*=3
+    return dict(policy=FINITE_POLICY if finite else POLICY,use_bound=uses,upper=upper)
 
 def work(upper):
     return 16*upper['input_bytes']+upper['output_bytes']+256*upper['calendar']+128*sum(upper[k]for k in ('periods','observations','segments','ordering','binding','validation','earned_steps','canonical_steps','pending_steps','terminal_steps'))
@@ -78,3 +80,20 @@ def cash_event_bound(raw):
     segments=sum(len(p['coupon'].get('observations',[None]))for c in contracts for p in c['periods'])
     tails=max((len(t)for i in raw['credit']['intervals']for t in i['complete_recovery_tails']),default=0)
     return periods+sum(len(c['principal_plan'].get('principal_events',[]))for c in contracts)+len(raw.get('performing_draw_tranches',[]))+tails+4+(segments*(tails+1)if raw['factor_policy'].get('terminal_obligations')else 0)
+
+
+def verify_finite(raw,actual,prepared,check=lambda:False):
+    """Independent selected factor census, using raw prepared boundaries/Q sizes."""
+    from .commercial_source_reference import compare,observable_policy
+    source=raw['source'];transfer=source.get('transfer')
+    if transfer is None:return
+    selected=transfer.get('source_work_policy')
+    if selected is not None and selected!=FINITE_POLICY:raise ArithmeticError('unknown finite transfer source-work policy')
+    if selected is None:
+        if any(actual[role+'_source']['admission'].get('counted_work')is not None for role in ('original','current')):raise ArithmeticError('unselected finite transfer work receipt')
+        return
+    path=prepared['raw_credit_path'];queries=len(path['paths'])*2*(len(path['intervals'])+len(path['boundaries'])+path['max_jumps_per_path']+1)
+    for role,q in [('original',0),('current',queries)]:
+        admitted=actual[role+'_source']['admission'];expected=summary(source[role],q,observable_policy(raw['factor_policy']),bool(raw['factor_policy'].get('terminal_obligations')),finite=True)
+        compare(expected,admitted.get('counted_work'),check=check)
+        if admitted['query_bound']!=q or admitted['work_upper']!=work(expected['upper']):raise ArithmeticError('finite source query/work reservation differs')

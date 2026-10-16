@@ -90,6 +90,8 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
         quote=original_acquisition['original_stopped_cash_quote']
     compare(float(quote),actual['original_cash_quote'],check=check)
     expected=replay(raw,check,stops=stops);identity(expected['prepared'],actual['prepared_credit_request']);carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])
+    from .commercial_factor_work_reference import verify_finite
+    verify_finite(raw,actual,expected['prepared'],check)
     if carry.get('schema')!='credit-path-income-proof-1':raise ArithmeticError('commercial carry schema differs')
     for name in ('original_anchor_refitted','corporate_source_binding','mixed_ledger_adoption','accounting_approval','complete_coupon_settlement_ownership'):
         if carry.get(name) is not False:raise ArithmeticError('commercial carry eligibility differs')
@@ -110,6 +112,9 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
     for admission in (actual['admission'],carry['admission'],actual['original_source']['admission'],actual['current_source']['admission']):
         for key,value in admission.items():
             if key=='carry':continue
+            # The selected structural operation ledger was independently
+            # recomputed above; it is deliberately a nested typed receipt.
+            if key=='counted_work' and raw['source'].get('transfer',{}).get('source_work_policy')=='counted_finite_transfer_contract_factor_work-1':continue
             if key=='full_credit_end_year':compare(float(full_end(raw)),value,check=check);continue
             if type(value) is not int or value<0:raise ArithmeticError('commercial admission integer identity differs')
     if len(gs)>actual['admission']['carry_points_upper'] or actual['admission']['joined_work_upper']>8_000_000 or actual['admission']['joined_bytes_upper']>128<<20:

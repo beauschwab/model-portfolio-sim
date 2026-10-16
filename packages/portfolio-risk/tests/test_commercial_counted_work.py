@@ -36,8 +36,9 @@ def test_measured_native_source_ledgers_match_independent_census():
         actual=item['summary'];raw=item['raw'];uses=actual['use_bound'];observable=uses['pending']>0;terminal=uses['terminal']>0
         # Unused original observable sources have no pending calls; both policies
         # have identical zero-query construction and conservative binding may vary.
-        candidates=[summary(raw,uses['earned'],observable,terminal)]
-        if not uses['earned']:candidates.append(summary(raw,0,True,False))
+        finite=actual['policy']=='counted_finite_transfer_contract_factor_work-1'
+        candidates=[summary(raw,uses['earned'],observable,terminal,finite=finite)]
+        if not uses['earned']:candidates.append(summary(raw,0,True,False,finite=finite))
         assert actual in candidates
         measured=item['measured'];assert all(measured[k]<=actual['upper'][k]for k in measured)
         assert work(measured)<=work(actual['upper'])

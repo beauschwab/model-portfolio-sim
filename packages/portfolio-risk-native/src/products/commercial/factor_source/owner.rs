@@ -1,4 +1,5 @@
 //! Checked source compiler owns all factor descriptors; external input owns none.
+use crate::products::commercial::acquisition::counted::Authority as FiniteAuthority;
 use crate::products::term::contracts::indexed::work::{
     self, ContractWorkSummary, GeneratedCatalogAuthority, Op, WorkMeter,
 };
@@ -263,6 +264,13 @@ fn structural(value: &serde_json::Value) -> Result<usize, String> {
     }
 }
 
+#[derive(Default, Clone, Copy)]
+struct SourceContext<'a> {
+    transferred: bool,
+    generated: Option<&'a GeneratedCatalogAuthority>,
+    finite: Option<&'a FiniteAuthority<'a>>,
+    basis: Option<&'a indexed::principal::AcquiredBasis>,
+}
 impl NativeFactors {
     pub fn admit(
         raw: &ContractPathRequest,
@@ -288,7 +296,17 @@ impl NativeFactors {
         measure: CashflowMeasure,
         authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Admission, String> {
-        Self::admit_owned(raw, policy, queries, measure, false, authority)
+        Self::admit_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                generated: authority,
+                ..SourceContext::default()
+            },
+            None,
+        )
     }
     pub(crate) fn admit_transfer(
         raw: &ContractPathRequest,
@@ -296,16 +314,62 @@ impl NativeFactors {
         queries: usize,
         measure: CashflowMeasure,
     ) -> Result<Admission, String> {
-        Self::admit_owned(raw, policy, queries, measure, true, None)
+        Self::admit_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                transferred: true,
+                ..SourceContext::default()
+            },
+            None,
+        )
+    }
+    pub(crate) fn admit_finite_transfer(
+        raw: &ContractPathRequest,
+        policy: &FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        finite: &FiniteAuthority<'_>,
+        transferred: bool,
+    ) -> Result<Admission, String> {
+        Self::admit_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                transferred,
+                finite: Some(finite),
+                ..SourceContext::default()
+            },
+            None,
+        )
     }
     fn admit_owned(
         raw: &ContractPathRequest,
         policy: &FactorPolicy,
         queries: usize,
         measure: CashflowMeasure,
-        transferred: bool,
-        authority: Option<&GeneratedCatalogAuthority>,
+        context: SourceContext<'_>,
+        measured_verification: Option<&Cell<usize>>,
     ) -> Result<Admission, String> {
+        let SourceContext {
+            transferred,
+            generated: authority,
+            finite,
+            ..
+        } = context;
+        if finite.is_some() && authority.is_some() {
+            return Err("mixed generated/finite source authority".into());
+        }
+        if let Some(finite) = finite {
+            let scanned = finite.verify(raw, transferred)?;
+            if let Some(measured) = measured_verification {
+                measured.set(scanned);
+            }
+        }
         if transferred && authority.is_some() {
             return Err("generated counted transfer source ownership is unsupported".into());
         }
@@ -469,33 +533,49 @@ impl NativeFactors {
         } else {
             0
         };
-        let counted_work = authority
-            .map(|_| {
-                ContractWorkSummary::census(
-                    raw,
-                    queries,
-                    policy.observable(),
-                    policy.terminal_obligations.is_some(),
-                )
-            })
-            .transpose()?;
+        let counted_work = if let Some(finite) = finite {
+            Some(finite.summary(
+                raw,
+                queries,
+                policy.observable(),
+                policy.terminal_obligations.is_some(),
+            )?)
+        } else {
+            authority
+                .map(|_| {
+                    ContractWorkSummary::census(
+                        raw,
+                        queries,
+                        policy.observable(),
+                        policy.terminal_obligations.is_some(),
+                    )
+                })
+                .transpose()?
+        };
         let work = if let Some(summary) = &counted_work {
             summary.upper.work()?
         } else {
             legacy_work
         };
+        let verification_bytes = finite
+            .map(FiniteAuthority::verification_bytes)
+            .transpose()?
+            .unwrap_or(0);
         let bytes = add(
-            counted_work
-                .as_ref()
-                .map_or(0, ContractWorkSummary::retained_bytes),
+            verification_bytes,
             add(
+                counted_work
+                    .as_ref()
+                    .map_or(0, ContractWorkSummary::retained_bytes),
                 add(
-                    contingent_bytes,
-                    mul(indexed::principal::events(&raw.principal_plan).len(), 8192)?,
-                )?,
-                add(
-                    mul(16, r)?,
-                    mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+                    add(
+                        contingent_bytes,
+                        mul(indexed::principal::events(&raw.principal_plan).len(), 8192)?,
+                    )?,
+                    add(
+                        mul(16, r)?,
+                        mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
+                    )?,
                 )?,
             )?,
         )?;
@@ -537,7 +617,16 @@ impl NativeFactors {
         measure: CashflowMeasure,
         authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Self, String> {
-        Self::compile_owned(raw, policy, queries, measure, false, authority, None)
+        Self::compile_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                generated: authority,
+                ..SourceContext::default()
+            },
+        )
     }
     pub(crate) fn compile_transfer(
         raw: ContractPathRequest,
@@ -545,7 +634,16 @@ impl NativeFactors {
         queries: usize,
         measure: CashflowMeasure,
     ) -> Result<Self, String> {
-        Self::compile_owned(raw, policy, queries, measure, true, None, None)
+        Self::compile_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                transferred: true,
+                ..SourceContext::default()
+            },
+        )
     }
     pub(crate) fn compile_transfer_with_basis(
         raw: ContractPathRequest,
@@ -554,19 +652,63 @@ impl NativeFactors {
         measure: CashflowMeasure,
         basis: &indexed::principal::AcquiredBasis,
     ) -> Result<Self, String> {
-        Self::compile_owned(raw, policy, queries, measure, true, None, Some(basis))
+        Self::compile_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                transferred: true,
+                basis: Some(basis),
+                ..SourceContext::default()
+            },
+        )
+    }
+    pub(crate) fn compile_finite_transfer(
+        raw: ContractPathRequest,
+        policy: FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        finite: &FiniteAuthority<'_>,
+        basis: Option<&indexed::principal::AcquiredBasis>,
+    ) -> Result<Self, String> {
+        Self::compile_owned(
+            raw,
+            policy,
+            queries,
+            measure,
+            SourceContext {
+                transferred: true,
+                finite: Some(finite),
+                basis,
+                ..SourceContext::default()
+            },
+        )
     }
     fn compile_owned(
         raw: ContractPathRequest,
         policy: FactorPolicy,
         queries: usize,
         measure: CashflowMeasure,
-        transferred: bool,
-        authority: Option<&GeneratedCatalogAuthority>,
-        basis: Option<&indexed::principal::AcquiredBasis>,
+        context: SourceContext<'_>,
     ) -> Result<Self, String> {
-        let admission = Self::admit_owned(&raw, &policy, queries, measure, transferred, authority)?;
+        let SourceContext {
+            transferred,
+            finite,
+            basis,
+            ..
+        } = context;
+        let verified_bytes = Cell::new(0);
+        let admission = Self::admit_owned(
+            &raw,
+            &policy,
+            queries,
+            measure,
+            context,
+            Some(&verified_bytes),
+        )?;
         let meter = admission.counted_work.as_ref().map(WorkMeter::new);
+        work::bump(meter.as_ref(), Op::InputBytes, verified_bytes.get())?;
         let s = admission.segment_bound;
         let mut segments = Vec::new();
         segments.try_reserve_exact(s).map_err(|e| e.to_string())?;
@@ -581,7 +723,15 @@ impl NativeFactors {
             segments.push(segment);
             Ok(())
         };
-        let source = if let Some(basis) = basis {
+        let source = if let Some(finite) = finite {
+            indexed::build_transfer_path_counted(
+                &raw,
+                finite.information_asof(),
+                meter.as_ref().ok_or("finite source work ledger absent")?,
+                Some(&mut capture),
+                basis,
+            )?
+        } else if let Some(basis) = basis {
             indexed::build_transfer_path_with_basis(&raw, &mut capture, basis)?
         } else if transferred {
             indexed::build_transfer_path_with_segments(&raw, &mut capture, raw.asof_ordinal)?

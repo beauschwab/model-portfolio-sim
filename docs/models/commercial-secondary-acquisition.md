@@ -6,6 +6,11 @@ This explicit tier supplies complete contractual and service origins and creates
 
 The optional `commercial-source-income-proof-1.transfer` has schema `commercial-performing-secondary-acquisition-1`. It contains `review`, full `contract_origin`, economic/recognition/settlement ordinals, `coincident_order`, `conveyance`, `loan_clean_cost`, `transaction_cost`, `transaction_cost_policy`, ordered `coupon_allocations` and `regime`.
 
+An explicit `source_work_policy="counted_finite_transfer_contract_factor_work-1"`
+selects the [counted complete-origin source tier](commercial-finite-source-work.md).
+It retains every actual origin/buyer/proof pass, complete cash and identity check;
+omission preserves the historical work floor and byte receipts exactly.
+
 All three dates equal the original buyer acquisition date. `contract_origin` is the full contractual indexed-path request, with actual origin principal, supplied principal payments, coupon periods, provenance and complete settlement tail, and no acquisition cost/yield. Its unsettled coupon suffix exactly matches the buyer original inventory. Replayed pre-purchase contractual principal cash establishes the remaining principal. Settled historical coupons never become buyer income.
 
 Required policies:

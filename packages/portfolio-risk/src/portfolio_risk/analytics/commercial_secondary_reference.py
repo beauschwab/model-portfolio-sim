@@ -13,6 +13,7 @@ def loan_transfer(raw,check=lambda:False):
     source=raw['source'];t=source.get('transfer')
     if t is None:return None
     check();origin=t['contract_origin'];at=source['current']['asof_ordinal']
+    if t.get('source_work_policy')not in (None,'counted_finite_transfer_contract_factor_work-1'):raise ArithmeticError('unknown selected finite source work policy')
     if t['schema']!='commercial-performing-secondary-acquisition-1' or t['economic_ordinal']!=at or t['recognition_ordinal']!=at or t['settlement_ordinal']!=at or origin['asof_ordinal']>=at:
         raise ArithmeticError('secondary exact contract/acquisition clocks differ')
     if t['conveyance']!='all_remaining_principal_and_unsettled_coupon_rights-1' or t['coincident_order']!='transfer_before_acquisition_day_service_and_cash-1' or t['transaction_cost']!=0. or t['transaction_cost_policy']!='explicit_zero_transaction_cost-1':raise ArithmeticError('unsupported secondary cash/conveyance allocation')

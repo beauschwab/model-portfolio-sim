@@ -29,6 +29,8 @@ def _economic(raw,actual,check,stops=(),measure='pricing',original_acquisition=N
     for role in ('original','current'):
         source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check,acquired_coupon_basis(raw['source'],check,raw['factor_policy']))
     expected=replay(raw,check,stops=stops)
+    from .commercial_factor_work_reference import verify_finite
+    verify_finite(raw,actual,expected['prepared'],check)
     expected['prepared']['raw_credit_path']['measure']=measure;expected['credit']['result']['measure']=measure
     carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])
     if carry.get('schema')!='credit-path-income-proof-1':raise ArithmeticError('Pricing carry schema differs')
