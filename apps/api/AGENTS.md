@@ -248,3 +248,15 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+## Formal hedge relationships (local 0.29.19)
+
+`POST /models/runs` with `hedge-accounting-1` queues the explicit ASC 815 lane on
+the durable worker with the original queue deadline, strict raw-body duplicate
+rejection and a 32 MiB bound. The worker runs the standalone native process,
+independently replays the derivative source, relationships, assessments and the
+single ordered journal (`hedge_accounting_reference.verify`), formats lossless
+tables and re-verifies the persisted result before publication. The receipt keeps
+`accounting_standard_approval`, `persisted_journal_verified`, `saved_book_adoption`
+and `portfolio_layer_supported` false; nothing feeds capital or FTP. See
+`docs/models/hedge-accounting.md`.

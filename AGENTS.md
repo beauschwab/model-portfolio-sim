@@ -1074,3 +1074,32 @@ generated streaming/convergence, full saved/cohort/mixed adoption and observed/
 reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
 ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
 libraries before new execution; local validation does not deploy or close15.
+
+## Formal ASC 815 hedge relationships (local 0.29.19)
+
+`hedge-accounting-1` is an explicitly selected additive lane for issue #35. It
+consumes one complete reviewed `derivative-accounting-1` Physical source whose
+hedging instruments carry the raw `undesignated_economic_hedge` review, plus
+explicit hedged-item and forecast-exposure sources. Rust owns relationship
+admission, the append-only lifecycle, hedged-item benchmark-component valuation,
+hypothetical valuation, cumulative dollar-offset assessment under reviewed
+bounds, mark re-ownership into OCI, hedged-period reclassification, frozen
+OCI release, basis amortization/derecognition and the single ordered journal.
+Each derivative mark, coupon, collateral and closeout entry is recognized once.
+
+The implemented rule matrix is `asc815-asu2017-12` (post ASU 2017-12 recognition
+without separate ineffectiveness). ASU 2022-01 portfolio layers, every ASU
+2025-09 election, net-investment, nonfinancial, option instruments, counterparty
+default paths and seasoned opening balances reject explicitly. Assessment uses
+clean cumulative changes at accrual-free after-payment dates before the final
+instrument settlement; matched critical terms require a zero-value instrument at
+inception. Bounds: 64 relationships, 1,024 events, 32 MiB input/output and one
+million hypothetical work units beyond the derivative owner's own admission.
+
+Independent Python replay (`hedge_accounting_reference`) reconstructs the
+derivative source, item/hypothetical values, lifecycle, assessments, journal and
+roll-forwards before and after persistence. A legacy saved-book `fvh`/`cfh`
+label is not an input. Saved-book, shared daily journal, treasury/capital/AOCI
+policy, portfolio-layer, empirical effectiveness and complete-scale acceptance
+remain open under #35; see `docs/models/hedge-accounting.md`. Rebuild the
+product artifact and restart API/workers before executing the new schema.

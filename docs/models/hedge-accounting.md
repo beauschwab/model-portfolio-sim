@@ -1,0 +1,258 @@
+# Explicit ASC 815 interest-rate hedge accounting (initial lane)
+
+`portfolio_risk_native::hedge_accounting::evaluate` consumes an immutable
+`HedgeAccountingRequest` (schema and model version `hedge-accounting-1`) and
+returns a `HedgeAccountingResult`. It is an additive, explicitly selected
+component of issue #35. It does not reinterpret saved economics, upgrade a
+saved derivative, or close the issue's saved-book, portfolio-layer,
+net-investment, treasury or 60,000-position gates.
+
+The owner binds formal fair-value and cash-flow hedge relationships to one
+complete reviewed Physical derivative source (`derivative-accounting-1`) and
+to explicit hedged-item or forecast-exposure sources. It produces dated
+assessment evidence, an append-only relationship lifecycle, and one ordered
+journal in which every derivative mark, coupon, collateral and hedge entry is
+recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
+
+## Rule matrix and activation
+
+| Rule area | Treatment in `hedge-accounting-1` |
+|---|---|
+| Designation and documentation (815-20-25) | Relationship identity, risk-management objective, documentation, instrument, hedged item/exposure, designated proportion, hedged risk and inception date are mandatory retained inputs. Missing or unsupported values reject. |
+| Hedged risk | `benchmark_interest_rate` only. The benchmark coupon component of a fixed-rate instrument (FVH) or the variability of forecast index-linked interest (CFH). Credit, FX, price-component, total-cash-flow and prepayment risks reject. |
+| Effectiveness assessment (815-20-35) | `cumulative_dollar_offset` with explicit reviewed `lower_bound`/`upper_bound`. The band is policy input; no universal band is coded. Regression, qualitative and shortcut methods reject. CFH without a supplied hypothetical requires reviewed `matched_critical_terms_evidence` and exact native term matching. |
+| Fair-value hedge recognition (815-25-35) | Instrument marks stay in earnings. The hedged item's benchmark-component clean value change is posted daily as a basis adjustment with the offset in earnings. Discontinuation freezes the basis; it is amortized straight-line by actual days to the item's principal date, or derecognized on sale. |
+| Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
+| Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
+| ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
+| ASU 2025-09 | Adoption identity and date are retained. Every election (`similar_risk_grouping`, `selectable_rate_debt`, `swap_written_option_exception`, `dual_hedge_basis`) must be `false`; `true` rejects as unimplemented. |
+| Net investment, nonfinancial components, options as instruments, counterparty default | Rejected explicitly. |
+
+`policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
+matrix is this document; accounting policy approval, auditor judgment and
+entity-specific qualification are outside the engine.
+
+## Request
+
+```json
+{
+  "schema": "hedge-accounting-1",
+  "model_version": "hedge-accounting-1",
+  "run": {"id": "...", "revision": "..."},
+  "entity": "bank", "currency": "USD", "monetary_unit": "currency_units",
+  "policy": {
+    "identity": {"id": "...", "revision": "..."},
+    "rule_version": "asc815-asu2017-12",
+    "adoption": {
+      "asu_2025_09": {"adopted": false, "adoption_ordinal": null,
+        "elections": {"similar_risk_grouping": false, "selectable_rate_debt": false,
+                      "swap_written_option_exception": false, "dual_hedge_basis": false}},
+      "asu_2022_01_portfolio_layer": false
+    },
+    "assessment": {"identity": {...}, "method": "cumulative_dollar_offset",
+                   "lower_bound": 0.8, "upper_bound": 1.25},
+    "fvh_basis_amortization": "straight_line_actual_days_to_principal",
+    "cfh_reclassification": "hedged_period_hypothetical_settlement"
+  },
+  "derivative": { ...complete derivative-accounting-1 request... },
+  "hedged_items": [{
+    "item_id": "loan-1", "source": {...}, "carrying_source": {...},
+    "kind": "fixed_rate_instrument", "direction": "asset",
+    "notional": 100.0, "contractual_rate": 0.06,
+    "periods": [{"period_id": "p1", "start_ordinal": 738886, "end_ordinal": 738896,
+                 "payment_ordinal": 738896, "day_count": "act360"}],
+    "principal_ordinal": 738896
+  }],
+  "forecast_exposures": [{
+    "exposure_id": "float-1", "source": {...}, "probability_evidence": {...},
+    "direction": "payment", "notional": 100.0, "index_id": "term-1m",
+    "periods": [{"period_id": "e1", "start_ordinal": 738886, "end_ordinal": 738896,
+                 "payment_ordinal": 738896, "day_count": "act360"}]
+  }],
+  "relationships": [{
+    "relationship_id": "fvh-1", "predecessor_relationship_id": null,
+    "designation": "fair_value_hedge",
+    "hedging_instrument_position_id": "swap", "designated_proportion": 1.0,
+    "hedged_item_id": "loan-1", "hedged_notional": 100.0,
+    "hedged_risk": "benchmark_interest_rate", "benchmark_rate": 0.05,
+    "inception_ordinal": 738886,
+    "risk_management_objective": {...}, "documentation": {...},
+    "hypothetical": null, "matched_critical_terms_evidence": null
+  }],
+  "events": [{
+    "event_id": "assess-1", "relationship_id": "fvh-1", "ordinal": 738896,
+    "sequence": 0, "kind": "assess", "review": {...}
+  }]
+}
+```
+
+A `cash_flow_hedge` relationship names `forecast_exposure_id` instead of
+`hedged_item_id`/`hedged_notional`/`benchmark_rate`, and either a `hypothetical`
+(`evidence` plus one `nodes[]` entry `{ordinal, request}` holding a complete
+`SwapRequest` for every path node from inception) or
+`matched_critical_terms_evidence`.
+
+Events are `assess`, `discontinue` (`reason` in `dedesignation`,
+`hedged_item_sold`, `instrument_terminated`; optional `proportion` in (0,1]
+of the remaining designated proportion, default 1) and `forecast_status`
+(`status` in `no_longer_probable`, `probable_not_to_occur`; CFH only). Events
+are globally ordered by `(ordinal, sequence)` with unique ids and reviews.
+
+## Admission
+
+- The derivative request is a complete `derivative-accounting-1` Physical
+  netting lifecycle with one path, no default policy, matching entity,
+  currency and unit. Every hedging instrument is a mapped `swap` trade whose
+  raw review designation is `undesignated_economic_hedge`; CFH instruments use
+  `settle_derivative_carrying` coupon recognition. Options, expired options and
+  defaulted paths reject.
+- Hedged item periods are contiguous and chronological; `principal_ordinal`
+  is at or after the last payment. `hedged_notional` is positive and at most
+  the item notional; the sum over relationships cannot exceed it. The sum of
+  designated proportions per instrument over relationships cannot exceed 1.
+- `inception_ordinal` is a path node at or after the opening date and an
+  accrual-free boundary: a `start_ordinal` of some fixed and some floating
+  period of the instrument and (FVH) of the item, or (CFH) of the exposure.
+- `assess` requires an accrual-free node: `end_ordinal` of some fixed and
+  floating period of the instrument and of the item/exposure, with
+  `after_scheduled_payments` timing, after inception and before the
+  instrument's final payment date. Other events can occur on any node at or
+  after inception. Events on discontinued relationships reject except
+  `forecast_status` for CFH frozen OCI.
+- Every item payment date and principal date after a node must have an exact
+  discount point in the instrument's node discount curve; no interpolation.
+- A supplied hypothetical covers every node from inception to the tail with
+  `asof_ordinal` equal to the node, the node's timing, the exposure's currency
+  and exactly the exposure's periods on its floating leg; its clean value at
+  inception must be zero within the shared tolerance. Matured hypothetical
+  floating periods must carry observed or Physical observations.
+- A `predecessor_relationship_id` must name an earlier relationship on the
+  same instrument that is fully discontinued at or before the new inception.
+- Bounds: 64 relationships, 1,024 events, 64 items/exposures, 4,096 periods
+  per item/exposure, 32 MiB raw input, 32 MiB output, saturating 1,000,000
+  combined hypothetical work units in addition to the derivative owner's own
+  admission. Component bounds are not aggregate RSS guarantees.
+
+## Valuation and recognition
+
+Let nodes be the derivative path nodes `t_0 < ... < t_n`. For a relationship
+with designated proportion `p`:
+
+**Instrument change.** `dV_t` is the instrument's clean mark change at node
+`t` as posted by the derivative owner (`clean_mark` intents, excluding coupon
+settlements); it drives recognition. For assessment the instrument change is
+measured clean of accrued periodic interest: `D_t = sum(p_s * (V_s - V_{s-1}))`
+over nodes after inception through `t`, where `V_s` is the after-payment
+carrying value at node `s`. At an accrual-free date this is the clean fair
+value change since inception; settled net coupons are excluded on both sides.
+
+**FVH hedged item.** With `N_h` the hedged notional, `r_b` the benchmark
+rate, `tau_i` the period year fraction and `D_t(d)` the exact discount factor
+from the instrument's node-`t` curve:
+
+```
+B_t = sum_{active i} N_h r_b tau_i D_t(pay_i) + [principal active] N_h D_t(principal)
+A_t = N_h r_b * yearfrac(start_j, t)   for the period j containing t (zero after
+      its end with after-payment timing, the full coupon with before-payment timing)
+C_t = B_t - A_t
+```
+
+A period is active with before-payment timing when `pay_i >= t`, otherwise
+when `pay_i > t`. `C_t` is continuous across coupon payments. The daily basis
+adjustment is `dC_t = C_t(before payments) - C_{t-1}(after payments)`, starting
+from the inception node's after-payment `C`, so settled coupons and the
+principal repayment are excluded exactly as the derivative owner excludes
+settled coupons from marks. Posting (direction `dir` = +1 asset, −1 liability):
+`hedged_item_basis_adjustment` debit `dir * dC_t`, `hedged_item_basis_gain_loss`
+debit `-dir * dC_t`. The hedged item's contractual interest is not posted here.
+
+**CFH hypothetical.** `H_t` is the hypothetical swap's after-payment clean
+value at node `t` (native `swaps::value_swap`), or the instrument's own
+after-payment carrying value when matched critical terms are elected.
+Cumulative `E_t = sum(s * (H_t - H_{t-1}))` after inception, the same clean
+measure as `D_t`. Matched critical terms additionally require the instrument's
+fair value at inception to be zero; a supplied hypothetical must itself be at
+market at inception.
+
+**OCI.** While qualified, each node's `p * dV_t` moves from
+`mark_gain_loss` to `cash_flow_hedge_oci`: the derivative owner's `clean_mark`
+intent is re-owned with the `mark_gain_loss` posting split into
+`cash_flow_hedge_oci` (`p` share) and `mark_gain_loss` (`1-p` share). The
+derivative asset/liability postings are unchanged.
+
+**Reclassification.** At each exposure period payment date on or after the
+inception node, `R = p * S_t` where `S_t` is the hypothetical's net
+settlement due at `t` (the instrument's Physical cash right when matched).
+Posting: `cash_flow_hedge_oci` debit `R`, `hedged_forecast_reclassification`
+debit `-R`. After discontinuation the frozen OCI balance `F` is released at
+each remaining period `k` by `F * w_k` with `w_k = N tau_k / sum N tau` over
+periods remaining at discontinuation; the last release clears the balance
+exactly. `probable_not_to_occur` posts the entire remaining balance at the
+event node.
+
+**Assessment.** At an `assess` event, `ratio = D_t / E_t` where for FVH
+`E_t = -dir * sum(dC)` since inception (the clean benchmark-component change,
+with the principal settlement excluded). `qualified` iff
+`lower <= ratio <= upper`. Assessment dates must precede the instrument's
+final settlement; at or after it nothing remains to measure.
+`E_t = 0` with `D_t = 0` rejects the event (nothing to assess); `E_t = 0` with
+`D_t != 0` fails. Failure discontinues the whole relationship at that node
+with reason `failed_assessment`.
+
+**Discontinuation.** For fraction `q` of the remaining proportion: FVH freezes
+`q * basis_balance`; `hedged_item_sold` derecognizes it at once
+(`hedged_item_basis_derecognition`), otherwise it amortizes per node by
+`frozen * (t - t_disc) / (principal - t_disc)` cumulatively
+(`hedged_item_basis_amortization`), fully at or after the principal date.
+CFH freezes `q * oci_balance` for pro rata release. Proportion becomes
+`p * (1 - q)`; zero means fully discontinued and later marks stay in earnings.
+
+**Node order.** For each node: the derivative owner's intents for that node in
+their original order (with CFH mark re-ownership using the status at the end
+of the previous node); then hedge postings (FVH `dC`, amortization, CFH
+reclassification/frozen release); then that node's events in sequence order;
+then the daily closing. Relationships become active at the end of their
+inception node, so inception-node marks stay in earnings.
+
+## Output
+
+`HedgeAccountingResult` retains `schema`, `model_version`, `run`, entity,
+currency, unit, the policy, the complete `derivative` result (evidence, not a
+second journal), `relationships` (closing status, proportion, balances,
+frozen schedules), `lifecycle` (ordered inception/assessment/discontinuation/
+forecast events with proportions before and after), `assessments` (cumulative
+amounts, ratio, bounds, outcome), `daily` (per node, per relationship:
+instrument designated value, hedged clean value or hypothetical value,
+cumulative changes, basis and OCI balances, status; plus the financial trial
+balance), `intents` (the single ordered journal), `closing` roll-forwards and
+explicit flags: `accounting_standard_approval=false`,
+`empirical_validation=false`, `persisted_journal_verified=false`,
+`saved_book_adoption=false`, `portfolio_layer_supported=false`,
+`net_investment_supported=false`.
+
+Journal accounts are the derivative owner's accounts plus
+`cash_flow_hedge_oci`, `hedged_item_basis_adjustment`,
+`hedged_item_basis_gain_loss`, `hedged_item_basis_amortization`,
+`hedged_item_basis_derecognition` and `hedged_forecast_reclassification`.
+Every intent balances; hedge intents carry `relationship_id`. Each node's
+trial balance equals the derivative owner's balances for every derivative
+account except `mark_gain_loss`, which is reduced exactly by the OCI share.
+
+## Independent verification
+
+`portfolio_risk.analytics.hedge_accounting_reference.verify(raw, result)`
+independently reconstructs the derivative result with the existing raw
+derivative reference, the item benchmark values, hypothetical values, the
+relationship state machine, assessments, intents, daily balances and closing
+roll-forwards, then compares with the existing 1e-12 relative / 1e-9 absolute
+financial tolerance and exact identity for every nonfinancial field. It uses
+no native callbacks. A receipt is returned only when the whole result passes.
+
+## Scope statement
+
+This lane admits single-currency fixed/floating swaps against fixed-rate
+assets/liabilities and forecast index-linked interest. It does not establish
+accounting-standard compliance, observed effectiveness, portfolio-layer,
+net-investment, option or nonfinancial coverage, saved-book or shared daily
+journal adoption, treasury/capital feeds or complete-scale acceptance. Those
+remain open under issue #35 and are listed in `implementation-plan.md`.

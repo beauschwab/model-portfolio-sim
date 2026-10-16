@@ -14,7 +14,7 @@ def native_result(owner,request,stopping):
     if db.REPO is None or active is None:raise RuntimeError('model analyses require a durable worker')
     if source_identity()!=request['source_sha256']:raise RuntimeError('MODEL_VERSION_CHANGED: model source differs from queued identity')
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1'}
     publication_deadline=request['publication_deadline_unix'] if commercial else time.time()+request['timeout']
     if type(publication_deadline) not in (float,int) or not math.isfinite(publication_deadline):raise ValueError('original model publication deadline required')
     remaining=publication_deadline-time.time()
@@ -114,6 +114,9 @@ def verify_source(request,result,check=lambda:False):
         return verify(request["request"],result,check)
     if request["schema"]=="nonintegral-fee-accounting-1":
         from portfolio_risk.analytics.nonintegral_fee_reference import verify
+        return verify(request["request"],result,check)
+    if request["schema"]=="hedge-accounting-1":
+        from portfolio_risk.analytics.hedge_accounting_reference import verify
         return verify(request["request"],result,check)
     if request['schema']=='commercial-holding-journal-1':
         from portfolio_risk.analytics.commercial_holding_reference import verify
@@ -563,7 +566,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         return indexed_verify(request,result,expected_deadline=expected_deadline,request_manifest=request_manifest,job=job,stopping=stopping)
     from .model_tables import restore_sources
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1'}
     execution=result['execution'];deadline=execution.get('publication_deadline_unix')
     if 'prior_opening_verification'in execution and 'prior_publication'not in request:
         raise ValueError('unbound prior-publication evidence')
@@ -594,7 +597,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         milliseconds=execution.get('native_timeout_ms')
         executed=retained_command(request['schema'],request['request'],request['timeout'],milliseconds)
         expected['executed_input_sha256']=hashlib.sha256(json.dumps(executed,allow_nan=False,separators=(',',':')).encode()).hexdigest()
-    if request['schema'] in {'commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1'}:
+    if request['schema'] in {'commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1'}:
         milliseconds=execution.get('native_timeout_ms')
         if type(milliseconds)is not int or not 1<=milliseconds<=int(request['timeout']*1000):raise ValueError('generated original native budget identity differs')
         executed=dict(envelope,execution_timeout_ms=milliseconds)
@@ -605,7 +608,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         raise ValueError('persisted model queued request manifest differs')
     check=publication_check(deadline,job,stopping);check()
     commercial_cohort=is_commercial_cohort(request['schema'],request['request'])
-    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
+    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
         if not result['execution'].get('source_verification'):raise ValueError('missing independent source verification receipt')
         restored=restore_sources(result['model_result'],result['execution']['table_layouts'])
         if commercial:

@@ -5,6 +5,7 @@ import { Button, Card, CardBody, CardHeader, DataTable } from '../components/ui'
 const labels:Record<string,string>={
   'credit-path-accounting-1':'Physical credit paths and reviewed accounting',
   'derivative-accounting-1':'Physical derivative accounting',
+  'hedge-accounting-1':'ASC 815 fair-value and cash-flow hedge relationships',
   'credit-covariate-1':'Borrower and macro hazard fitting',
   'advanced-product-graph-1':'Consumer pricing and physical cashflow graph',
   'card-product-graph-1':'Card pricing, statements and physical cashflow graph',
@@ -104,6 +105,7 @@ export default function ModelLab(){
     {verification.independent_raw_cash_price_risk_verified&&<p className="mt-2 text-xs text-paper-faint">Every loan was explicitly bound to supplied named curves. Contractual cash, prices, paired risk and original OAS were independently checked before and after storage. This Pricing source does not supply Physical income, accounting journals or capital/FTP.</p>}
     {verification.analytical_market_indexed_only&&<p className="mt-2 text-xs text-paper-faint">Supplied collateral and named index curves were checked against conditional projected coupons and clean swap cashflows. Original reviewed OAS stays separate. Rates are pricing assumptions; observed fixings, calendar validation, joint dynamics, saved-book and accounting adoption require separate checks.</p>}
     {verification.analytical_mortgage_source_only&&<p className="mt-2 text-xs text-paper-faint">Original purchase cost and yield were checked against the complete original mortgage cashflows. Changed credit and payment histories retain that anchor. Default and prepayment settlement occurs at the supplied source boundaries; daily journal and capital adoption require separate checks.</p>}
+    {verification.formal_hedge_relationships_replayed&&<p className="mt-2 text-xs text-paper-faint">Formal relationships, assessments, hedged-item basis and OCI mechanics were independently replayed from the stored derivative source under the explicit rule matrix and reviewed assessment band. Accounting-standard approval, observed effectiveness, portfolio-layer and saved-book adoption remain open.</p>}
     {verification.mixed_product_credit_only&&<p className="mt-2 text-xs text-paper-faint">Acquired installment and card owners share the dated book's ordered daily cash and general ledger. Purchase, allowance, interest and recovery rights were checked through complete closing. Joint stochastic, saved-book and empirical gates remain open.</p>}
   </CardBody></Card>}
   {paths.length>0&&<Card><CardHeader title="Dated results and state" sub={`${table?.total??0} rows in selected table`}/><CardBody>

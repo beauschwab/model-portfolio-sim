@@ -375,3 +375,19 @@ generated streaming/convergence, full saved/cohort/mixed adoption and observed/
 reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
 ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
 libraries before new execution; local validation does not deploy or close15.
+
+
+## Formal interest-rate hedge relationships (local 0.29.19)
+
+`hedge-accounting-1` binds explicitly reviewed ASC 815 fair-value and cash-flow
+relationships to one complete `derivative-accounting-1` Physical source and to
+explicit hedged-item/forecast-exposure sources. Rust re-owns the undesignated
+owner's marks under the selected designation, values the hedged item's benchmark
+component and any supplied hypothetical natively, assesses cumulative dollar
+offset at accrual-free dates under reviewed bounds, and emits one ordered journal
+with basis, OCI, reclassification, amortization and derecognition entries. The
+rule matrix is `asc815-asu2017-12`; ASU 2022-01 layers, ASU 2025-09 elections,
+net investment, options and defaulted paths reject. Independent raw-source and
+persisted replay gate the durable `/models/runs` route; accounting-standard
+approval, saved-book/shared-journal adoption and capital feeds remain false.
+See [the detailed contract](hedge-accounting.md).

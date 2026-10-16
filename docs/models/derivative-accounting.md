@@ -182,7 +182,13 @@ approval for a partially supported result.
 
 Financial comparisons preserve the existing 1e-12 relative / 1e-9 absolute
 tolerance. Identity, revision, date, cutoff, measure, enum, event order and field
-coverage comparisons are exact. The canonical raw-request SHA-256 in the receipt
+coverage comparisons are exact. Because both implementations post any nonzero
+change, a last-ulp difference in a near-zero carrying value (an at-market swap
+after a settlement, or exactly offsetting legs) decides whether a mark intent
+exists at all; the verifier therefore treats an intent whose postings all lie
+within the 1e-9 absolute tolerance of zero as a zero event on both sides and
+renumbers the remaining intents in order before comparing
+(`normalize_intents`). Daily balances are still compared in full. The canonical raw-request SHA-256 in the receipt
 binds the reviewed source; checked day/journal/right/path counts and the optional
 Pricing diagnostic check are reported. Unknown output fields and duplicate,
 omitted or balanced-but-economically-wrong entries fail.

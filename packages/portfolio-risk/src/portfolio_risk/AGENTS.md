@@ -1736,3 +1736,12 @@ generated streaming/convergence, full saved/cohort/mixed adoption and observed/
 reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
 ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
 libraries before new execution; local validation does not deploy or close15.
+
+## Formal hedge relationships (local 0.29.19)
+
+`analytics.model_contracts.account_hedge_relationships` transports the explicit
+`hedge-accounting-1` request to the native process; `analytics.hedge_accounting_reference`
+is the independent oracle that reconstructs the derivative source, hedged-item
+benchmark values, hypothetical values, lifecycle, assessments and the ordered
+journal from raw inputs only. Neither module prices or posts in Python for
+production. See `docs/models/hedge-accounting.md`.

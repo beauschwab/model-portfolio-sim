@@ -1286,3 +1286,12 @@ Core native `tests/nonintegral_fee.rs` supplies hand controls and strict capacit
 refusals. API `test_commercial_fee_jobs.py` gates durable raw/persisted source,
 gross refund snapshots and rehashed refund/approval/posting publication failures.
 These numerical/source gates do not establish observed model or policy approval.
+
+## Formal hedge relationships (local 0.29.19)
+
+`test_hedge_accounting.py` runs the native `hedge-accounting-1` owner on the
+synthetic two-period example and hand cases (partial dedesignation, sale,
+forecast not occurring, failed assessment, supplied hypothetical), verifies each
+with the independent reference, rejects tampered results and native refusals,
+and proves fresh-process execution with Python financial callbacks forbidden.
+Rust hand/lifecycle/refusal tests live in `portfolio-risk-native/tests/hedge_accounting.rs`.

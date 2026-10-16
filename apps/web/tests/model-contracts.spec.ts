@@ -156,7 +156,7 @@ test(`verified ${mixedSchema} journal supplies closing capital with its actual d
 });
 
 
-for(const schema of ['derivative-accounting-1','credit-covariate-1','advanced-product-graph-1','card-product-graph-1','deposit-product-graph-1','mortgage-product-graph-1','funding-product-graph-1','graph-cohort-audit-1','term-product-graph-1','product-units-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'])
+for(const schema of ['derivative-accounting-1','hedge-accounting-1','credit-covariate-1','advanced-product-graph-1','card-product-graph-1','deposit-product-graph-1','mortgage-product-graph-1','funding-product-graph-1','graph-cohort-audit-1','term-product-graph-1','product-units-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'])
 test(`model analysis stores and restores ${schema}`,async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/');await page.getByRole('button',{name:'Open Product Models',exact:true}).click();
@@ -168,6 +168,10 @@ test(`model analysis stores and restores ${schema}`,async({page})=>{
   if(schema==='product-candidate-journal-1'){
     await expect(panel.getByText('Independent source verification',{exact:true})).toBeVisible();
     await expect(panel.getByText('Opening provenance is supplied; mixed-book and empirical acceptance remain open.',{exact:false})).toBeVisible();
+  }
+  if(schema==='hedge-accounting-1'){
+    await expect(panel.getByText('Independent source verification',{exact:true})).toBeVisible();
+    await expect(panel.getByText('Formal relationships, assessments, hedged-item basis and OCI mechanics were independently replayed',{exact:false})).toBeVisible();
   }
   if(schema==='product-mixed-dated-1'){
     await expect(panel.getByText('Independent source verification',{exact:true})).toBeVisible();

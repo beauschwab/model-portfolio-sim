@@ -182,6 +182,12 @@ def account_derivative_contract(request: dict) -> dict:
     return term_call("derivative-accounting-1",request)
 
 
+def account_hedge_relationships(request: dict, **execution_options) -> dict:
+    """Transport reviewed formal ASC 815 relationships over one Physical derivative source."""
+    from portfolio_risk.core.model_native import run
+    return run("hedge-accounting-1", request, **execution_options)[0]
+
+
 def fit_credit_snapshots(request: dict) -> dict:
     """Fit declared interval-censored snapshot models with isolated holdouts."""
     return term_call("credit-snapshot-calibration-1", request)
