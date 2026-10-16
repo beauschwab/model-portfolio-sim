@@ -23,6 +23,14 @@ mod generated_stream;
 pub use generated_stream::run_generated_stream_started;
 const MAX_BYTES: usize = 32 << 20;
 const MAX_WORK: usize = 32_000_000;
+/// Retain the exact submitted fields; serialize the typed source only when the
+/// caller has no original receipt. Both candidate preparation routes use this.
+fn raw_request_receipt<T: Serialize>(original: Option<&Value>, typed: &T) -> Result<Value, String> {
+    match original {
+        Some(original) => Ok(original.clone()),
+        None => serde_json::to_value(typed).map_err(|error| error.to_string()),
+    }
+}
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
@@ -575,9 +583,7 @@ fn prepare_and_run(
         .as_of_ordinal
         .checked_add(i32::try_from(s.horizon_days).map_err(|_| "candidate ordinal overflow")?)
         .ok_or("candidate ordinal overflow")?;
-    let raw_request = original
-        .cloned()
-        .unwrap_or(serde_json::to_value(r).map_err(|e| e.to_string())?);
+    let raw_request = raw_request_receipt(original, r)?;
     let resolved_specification = serde_json::to_value(&s).map_err(|e| e.to_string())?;
     if generated {
         generated_stream::preparation(
@@ -935,6 +941,85 @@ pub fn run_envelope_started(bytes: &[u8], started: Instant) -> Result<Value, Str
         portfolio_compute_control::checkpoint()?;
         serde_json::to_value(result).map_err(|e| e.to_string())
     })
+}
+
+#[cfg(test)]
+mod raw_receipt_tests {
+    use super::*;
+    use std::cell::Cell;
+
+    struct Observed<'a, T> {
+        value: &'a T,
+        calls: &'a Cell<usize>,
+    }
+    impl<T: Serialize> Serialize for Observed<'_, T> {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            self.calls.set(self.calls.get() + 1);
+            self.value.serialize(serializer)
+        }
+    }
+
+    #[test]
+    fn real_finite_and_generated_receipts_serialize_only_the_missing_original() {
+        for bytes in [
+            include_bytes!("../../../../../examples/models/commercial-candidate-journal-1.json")
+                .as_slice(),
+            include_bytes!(
+                "../../../../../examples/models/commercial-generated-candidate-journal-1.json"
+            )
+            .as_slice(),
+            include_bytes!(
+                "../../../../../examples/models/commercial-generated-candidate-fee-journal-1.json"
+            )
+            .as_slice(),
+        ] {
+            let typed: Request = serde_json::from_slice(bytes).unwrap();
+            let original: Value = serde_json::from_slice(bytes).unwrap();
+            let calls = Cell::new(0);
+            let observed = Observed {
+                value: &typed,
+                calls: &calls,
+            };
+            let retained = raw_request_receipt(Some(&original), &observed).unwrap();
+            assert_eq!(calls.get(), 0);
+            assert_eq!(
+                serde_json::to_vec(&retained).unwrap(),
+                serde_json::to_vec(&original).unwrap()
+            );
+
+            let fallback = raw_request_receipt(None, &observed).unwrap();
+            assert_eq!(calls.get(), 1);
+            assert_eq!(
+                serde_json::to_vec(&fallback).unwrap(),
+                serde_json::to_vec(&serde_json::to_value(&typed).unwrap()).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn supplied_receipt_preserves_all_scalar_categories_and_skips_fallible_fallback() {
+        struct Rejected;
+        impl Serialize for Rejected {
+            fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+                Err(serde::ser::Error::custom("fallback serialization invoked"))
+            }
+        }
+        let original = json!({"signed":-0.0,"integer":u64::MAX,"missing":null,
+            "paths":["baseline","stress"],"zero":0,"enabled":false});
+        let actual = raw_request_receipt(Some(&original), &Rejected).unwrap();
+        assert_eq!(
+            serde_json::to_vec(&actual).unwrap(),
+            serde_json::to_vec(&original).unwrap()
+        );
+        assert_eq!(
+            actual["signed"].as_f64().unwrap().to_bits(),
+            (-0.0_f64).to_bits()
+        );
+        assert_eq!(actual["integer"].as_u64(), Some(u64::MAX));
+        assert!(raw_request_receipt(None, &Rejected)
+            .unwrap_err()
+            .contains("fallback serialization invoked"));
+    }
 }
 
 #[cfg(test)]

@@ -71,9 +71,7 @@ pub(super) fn execute(
                 .count()
         })
         .sum();
-    let raw = original
-        .cloned()
-        .unwrap_or(serde_json::to_value(r).map_err(|e| e.to_string())?);
+    let raw = super::raw_request_receipt(original, r)?;
     let resolved = serde_json::to_value(&s).map_err(|e| e.to_string())?;
     preparation(
         &mut output,
