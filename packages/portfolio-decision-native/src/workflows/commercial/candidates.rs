@@ -45,6 +45,17 @@ pub struct Preparation {
     pub admitted_work_upper: usize,
     pub retained_bytes_upper: usize,
 }
+/// Complete native receipt borrowed during the callback, before Sim starts.
+/// This mirrors Preparation's serialized fields without cloning its graphs.
+#[derive(Clone, Copy, Serialize)]
+pub(super) struct PreparationView<'a> {
+    pub raw_request: &'a Value,
+    pub native_preparation: &'a units::Prepared,
+    pub allocation_replay: &'a Value,
+    pub resolved_specification: &'a Value,
+    pub admitted_work_upper: usize,
+    pub retained_bytes_upper: usize,
+}
 #[derive(Serialize)]
 pub struct ResultData {
     pub schema: &'static str,
@@ -126,6 +137,7 @@ type FiniteConsumer<'consumer> = dyn for<'source> FnMut(
         &'source portfolio_ledger_native::types::Spec,
         &'source units::Prepared,
         &ledger::Compiled<'source>,
+        &PreparationView<'source>,
     ) -> Result<(), String>
     + 'consumer;
 
@@ -581,7 +593,19 @@ fn prepare_and_run(
         )?;
     }
     if let Some(consume) = consumer {
-        consume(&s, &prepared, &compiled)?;
+        consume(
+            &s,
+            &prepared,
+            &compiled,
+            &PreparationView {
+                raw_request: &raw_request,
+                native_preparation: &prepared,
+                allocation_replay: &allocation_replay,
+                resolved_specification: &resolved_specification,
+                admitted_work_upper: work,
+                retained_bytes_upper: bytes,
+            },
+        )?;
     } else {
         daily::run_with_commercial(&s, None, &compiled, output)?;
     }
@@ -641,6 +665,20 @@ pub(super) fn admit_finite_preparation(r: &Request) -> Result<Admission, String>
 /// Native-only borrow scope. Prepared source and Compiled remain genuine and
 /// live for the callback; no financial checkpoint can be supplied or escaped.
 pub(super) fn with_finite_compiled(
+    r: &Request,
+    reservation: (usize, usize),
+    consumer: &mut dyn for<'source> FnMut(
+        &'source portfolio_ledger_native::types::Spec,
+        &'source units::Prepared,
+        &ledger::Compiled<'source>,
+    ) -> Result<(), String>,
+) -> Result<(Preparation, Admission), String> {
+    with_finite_compiled_receipt(r, reservation, &mut |spec, prepared, compiled, _| {
+        consumer(spec, prepared, compiled)
+    })
+}
+
+pub(super) fn with_finite_compiled_receipt(
     r: &Request,
     reservation: (usize, usize),
     consumer: &mut FiniteConsumer<'_>,

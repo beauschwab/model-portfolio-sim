@@ -10,10 +10,21 @@ use std::sync::{
 struct WindowWriter {
     enabled: Arc<AtomicBool>,
     output: Box<dyn Write + Send>,
+    structural_bytes: Option<(usize, usize)>,
 }
 impl Write for WindowWriter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         portfolio_compute_control::checkpoint().map_err(io::Error::other)?;
+        if let Some((seen, limit)) = &mut self.structural_bytes {
+            *seen = seen
+                .checked_add(bytes.len())
+                .ok_or_else(|| io::Error::other("selected cut all-frame byte overflow"))?;
+            if *seen > *limit {
+                return Err(io::Error::other(
+                    "selected cut prefix/visible complete frames exceed pre-Sim inventory",
+                ));
+            }
+        }
         if self.enabled.load(Ordering::Relaxed) {
             self.output.write(bytes)
         } else {
@@ -241,14 +252,26 @@ impl<'a> CutCheckpoint<'a> {
 /// Explicit component route. The coordinator must additionally admit both raw
 /// source graphs, retain original anchors and verify persisted publication.
 /// Protocol8 is distinct from historical full-origin commercial protocols6/7.
-pub fn run_commercial_cut(
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub struct CommercialCutAdmission {
+    pub work_upper: usize,
+    pub retained_bytes_upper: usize,
+    pub specification_bytes: usize,
+    pub original_compiled_work_upper: usize,
+    pub future_compiled_work_upper: usize,
+    pub original_compiled_bytes_upper: usize,
+    pub future_compiled_bytes_upper: usize,
+    pub comparison_work_upper: usize,
+}
+
+/// The same unchanged guard is used by both pre-Sim coordinator admission and
+/// actual execution. The native owners are genuine borrowed capabilities.
+pub fn commercial_cut_census(
     completed: &Spec,
     revised: &Spec,
     original: &Compiled<'_>,
     future: &Compiled<'_>,
-    cut_day: usize,
-    output: Box<dyn Write + Send>,
-) -> R<()> {
+) -> R<CommercialCutAdmission> {
     crate::validation::specification::validate(completed, 60000, 90_000_000)?;
     crate::validation::specification::validate(revised, 60000, 90_000_000)?;
     if !completed.reverse_severities.is_empty() || !revised.reverse_severities.is_empty() {
@@ -284,14 +307,82 @@ pub fn run_commercial_cut(
         .and_then(|n| n.checked_add(revised.positions.len().checked_mul(4096)?))
         .and_then(|n| n.checked_add(raw_bytes.checked_mul(20)?))
         .ok_or("native cut capacity overflow")?;
-    if work > 8_000_000 || bytes > 32 << 20 {
+    Ok(CommercialCutAdmission {
+        work_upper: work,
+        retained_bytes_upper: bytes,
+        specification_bytes: raw_bytes,
+        original_compiled_work_upper: original.work_upper,
+        future_compiled_work_upper: future.work_upper,
+        original_compiled_bytes_upper: original.retained_bytes_upper,
+        future_compiled_bytes_upper: future.retained_bytes_upper,
+        comparison_work_upper: comparison_work,
+    })
+}
+
+/// The structural census alone grants no execution authority. This unchanged
+/// component guard is also called independently by every actual cut runner.
+pub fn admit_commercial_cut(
+    completed: &Spec,
+    revised: &Spec,
+    original: &Compiled<'_>,
+    future: &Compiled<'_>,
+) -> R<CommercialCutAdmission> {
+    let census = commercial_cut_census(completed, revised, original, future)?;
+    if census.work_upper > 8_000_000 || census.retained_bytes_upper > 32 << 20 {
         return Err("native cut ledger component exceeds8M/32MiB".into());
     }
+    Ok(census)
+}
+
+pub fn run_commercial_cut(
+    completed: &Spec,
+    revised: &Spec,
+    original: &Compiled<'_>,
+    future: &Compiled<'_>,
+    cut_day: usize,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_commercial_cut_inner(completed, revised, original, future, cut_day, output, None)
+}
+
+/// An additional complete-frame bound counts muted prefix serialization too.
+/// It cannot grant authority or bypass the unchanged independent cut guard.
+pub fn run_commercial_cut_with_inventory(
+    completed: &Spec,
+    revised: &Spec,
+    original: &Compiled<'_>,
+    future: &Compiled<'_>,
+    cut_day: usize,
+    output: Box<dyn Write + Send>,
+    all_frame_bytes_upper: usize,
+) -> R<()> {
+    run_commercial_cut_inner(
+        completed,
+        revised,
+        original,
+        future,
+        cut_day,
+        output,
+        Some(all_frame_bytes_upper),
+    )
+}
+
+fn run_commercial_cut_inner(
+    completed: &Spec,
+    revised: &Spec,
+    original: &Compiled<'_>,
+    future: &Compiled<'_>,
+    cut_day: usize,
+    output: Box<dyn Write + Send>,
+    all_frame_bytes_upper: Option<usize>,
+) -> R<()> {
+    admit_commercial_cut(completed, revised, original, future)?;
     validate_revision(completed, revised, original, future, cut_day)?;
     let enabled = Arc::new(AtomicBool::new(false));
     let mut sink = Sink::new(Box::new(WindowWriter {
         enabled: enabled.clone(),
         output,
+        structural_bytes: all_frame_bytes_upper.map(|limit| (0, limit)),
     }));
     let baseline = Scenario {
         name: "baseline".into(),
@@ -578,6 +669,34 @@ mod tests {
         let window = buffer();
         run_commercial_cut(&old, &new, &a, &b, 5, Box::new(window.clone())).unwrap();
         let got = tables(&window);
+        let inventory = super::super::commercial_cut_inventory(&old, &new, &a, &b, 5).unwrap();
+        inventory.verify_tables(&got).unwrap();
+        let bounded = buffer();
+        run_commercial_cut_with_inventory(
+            &old,
+            &new,
+            &a,
+            &b,
+            5,
+            Box::new(bounded.clone()),
+            inventory.all_stream.encoded_bytes_upper,
+        )
+        .unwrap();
+        assert_eq!(tables(&bounded), got);
+        assert!(bounded.0.lock().unwrap().len() <= inventory.visible_stream.encoded_bytes_upper);
+        let failed = buffer();
+        assert!(run_commercial_cut_with_inventory(
+            &old,
+            &new,
+            &a,
+            &b,
+            5,
+            Box::new(failed.clone()),
+            1
+        )
+        .unwrap_err()
+        .contains("prefix/visible complete frames"));
+        assert!(failed.0.lock().unwrap().is_empty());
         assert_eq!(got["closing_statements"], full["closing_statements"]);
         assert_eq!(got["trial_balance"], full["trial_balance"]);
         assert_eq!(got["closing_statements"][0]["cash"], 1002.);
@@ -696,6 +815,18 @@ mod tests {
                     let window = buffer();
                     run_commercial_cut(&s, &s, &c, &c, cut, Box::new(window.clone())).unwrap();
                     let got = tables(&window);
+                    if cut > 0 {
+                        let inventory =
+                            super::super::commercial_cut_inventory(&s, &s, &c, &c, cut).unwrap();
+                        inventory.verify_tables(&got).unwrap();
+                        let mut altered = got.clone();
+                        altered.get_mut("commercial_daily").unwrap()[0]["foreign_snapshot"] =
+                            json!(true);
+                        assert!(inventory
+                            .verify_tables(&altered)
+                            .unwrap_err()
+                            .contains("field identity"));
+                    }
                     assert_future_equal(&full, &got, cut as u64);
                     assert_eq!(
                         got["closing_statements"][0]["cash"],
@@ -825,5 +956,37 @@ mod tests {
         let bytes = out.0.lock().unwrap();
         assert!(!bytes.is_empty());
         assert!(!String::from_utf8_lossy(&bytes).contains("\"complete\":true"));
+    }
+}
+
+#[cfg(test)]
+mod inventory_tests {
+    use super::*;
+    #[test]
+    fn all_frame_capacity_counts_muted_prefix_and_resumed_bytes() {
+        let enabled = Arc::new(AtomicBool::new(false));
+        let mut writer = WindowWriter {
+            enabled: enabled.clone(),
+            output: Box::new(io::sink()),
+            structural_bytes: Some((0, 6)),
+        };
+        assert_eq!(writer.write(b"abc").unwrap(), 3);
+        enabled.store(true, Ordering::Relaxed);
+        assert_eq!(writer.write(b"de").unwrap(), 2);
+        assert!(writer
+            .write(b"fg")
+            .unwrap_err()
+            .to_string()
+            .contains("prefix/visible complete frames"));
+    }
+    #[test]
+    fn omitted_writer_preserves_unbounded_component_behavior() {
+        let mut writer = WindowWriter {
+            enabled: Arc::new(AtomicBool::new(false)),
+            output: Box::new(io::sink()),
+            structural_bytes: None,
+        };
+        assert_eq!(writer.write(b"ordinary prefix").unwrap(), 15);
+        assert!(writer.structural_bytes.is_none());
     }
 }

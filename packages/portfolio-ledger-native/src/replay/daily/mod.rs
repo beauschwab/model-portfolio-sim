@@ -2,7 +2,18 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 mod commercial_hooks;
 mod cut;
-pub use cut::run_commercial_cut;
+mod cut_inventory;
+mod cut_shape;
+pub use cut::{
+    admit_commercial_cut, commercial_cut_census, run_commercial_cut,
+    run_commercial_cut_with_inventory, CommercialCutAdmission,
+};
+pub use cut_inventory::{commercial_cut_inventory, CommercialCutInventory, TableInventory};
+pub use cut_shape::{
+    charge as charge_cut_census_work, measured_shape as measure_cut_json_shape,
+    object as cut_json_object, shape as cut_json_shape, spent as cut_census_work_spent,
+    with_budget as with_cut_census_budget, Shape as CutJsonShape,
+};
 #[cfg(test)]
 mod compatibility_tests;
 mod consumer_hooks;

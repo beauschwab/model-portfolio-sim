@@ -18,6 +18,14 @@ from .modeled_json_identity import exact_json_identity
 SCHEMA = 'commercial-cut-mixed-journal-1'
 
 
+def verify_completion(actual, cut):
+    expected = dict(complete=True, protocol=8, cut_day=cut,
+        native_cut_state_moved=True, original_calendar_retained=True,
+        new_sim_started_at_cut=True, prior_publication_verified=False)
+    if not exact_json_identity(actual, expected):
+        raise ArithmeticError('cut exact producer protocol/metadata differs')
+
+
 def same(a, b):
     if not exact_json_identity(graph_typed(a), graph_typed(b)):
         raise ArithmeticError('cut immutable owner or observed raw prefix differs')
@@ -134,7 +142,11 @@ def verify(raw, actual, check=lambda: False):
         original_credit_clock_restarted original_loan_anchor_refitted original_fee_anchor_refitted
         surviving_second_acquisition_posted prior_publication_verified opening_identity_verified
         general_mixed_book_adoption empirical_validation scope'''
-    if (set(actual) != set(names.split()) or raw['schema'] != SCHEMA or actual['schema'] != SCHEMA
+    wanted = set(names.split())
+    selected = raw.get('preparation_receipt_policy') is not None
+    if selected:
+        wanted.add('selected_admission')
+    if (set(actual) != wanted or raw['schema'] != SCHEMA or actual['schema'] != SCHEMA
             or not exact_json_identity(raw, actual['raw_source'])):
         raise ArithmeticError('cut exact raw/result identity differs')
     check(); appended = raw_prefix(raw, check)
@@ -146,7 +158,7 @@ def verify(raw, actual, check=lambda: False):
         raise ArithmeticError('cut first tier requires same complete native horizon')
     for key, value in (('origin_asof_ordinal', origin), ('cut_ordinal', raw['cut_ordinal']),
             ('cut_day', cut), ('full_end_ordinal', origin + b['horizon']), ('appended_candidates', appended),
-            ('cut_component_work_reservation', 8_000_000), ('cut_component_bytes_reservation', 32 << 20),
+            ('cut_component_work_reservation', actual['selected_admission']['cut_ledger_census']['work_upper'] if selected else 8_000_000), ('cut_component_bytes_reservation', 32 << 20),
             ('component_output_limit_bytes', 4 << 20)):
         if type(actual[key]) is not int or actual[key] != value:
             raise ArithmeticError('cut exact calendar/capacity differs/' + key)
@@ -159,8 +171,7 @@ def verify(raw, actual, check=lambda: False):
                 'general_mixed_book_adoption', 'empirical_validation'):
         if actual[key] is not False:
             raise ArithmeticError('cut adoption/evidence boundary differs')
-    if not exact_json_identity(actual['producer_completion'], dict(complete=True, protocol=8)):
-        raise ArithmeticError('cut producer protocol differs')
+    verify_completion(actual['producer_completion'], cut)
     for key, limit in (('admitted_work_upper', 32_000_000), ('retained_bytes_upper', 128 << 20)):
         if type(actual[key]) is not int or not 0 < actual[key] <= limit:
             raise ArithmeticError('cut joined native bound differs')
@@ -171,8 +182,11 @@ def verify(raw, actual, check=lambda: False):
             raise ArithmeticError('cut component exceeds4MiB')
     for prep in (actual['completed_preparation'], actual['revised_preparation']):
         for key in ('admitted_work_upper', 'retained_bytes_upper'):
-            if type(prep[key]) is not int or prep[key] != actual[key]:
+            if type(prep[key]) is not int or (not selected and prep[key] != actual[key]):
                 raise ArithmeticError('cut dual preparation coexistence census differs')
+    if selected:
+        from .commercial_cut_receipts_reference import verify as verify_receipts
+        verify_receipts(raw, actual)
     # Rebuild both entire monetary histories independently. This verifier does
     # not invoke a native pricer or consume any producer monetary checkpoint.
     full_a = verify_tables(a, af, ad, None, check)
@@ -193,6 +207,9 @@ def verify(raw, actual, check=lambda: False):
         raise ArithmeticError('cut opening/future closing GL lineage differs')
     for key, value in closing.items():
         compare(value, trial[key], check=check)
+    if selected:
+        from .commercial_cut_receipts_reference import require_raw_derived_admission
+        require_raw_derived_admission()
     return dict(verified=True, raw_graph_units_recomputed=True, raw_observed_prefix_recomputed=True,
         unweighted_surviving_prefix_recomputed=True, cut_opening_recomputed=True,
         complete_original_anchors_retained=True, future_journal_replayed=True,

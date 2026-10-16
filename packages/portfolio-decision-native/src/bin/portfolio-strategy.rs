@@ -16,6 +16,17 @@ fn main() {
         }
         let request = portfolio_decision_native::commercial_intake::parse(&input)?;
         if request["op"] == "analyze_commercial_cut_mixed_journal" {
+            if request["request"]["preparation_receipt_policy"].is_string() {
+                drop(request);
+                let mut output = io::stdout().lock();
+                portfolio_decision_native::commercial_cut_mixed::run_owned_cli_started(
+                    input,
+                    started,
+                    &mut output,
+                )?;
+                ftp_handled = true;
+                return Ok(serde_json::Value::Null);
+            }
             return portfolio_decision_native::commercial_cut_mixed::run_envelope_started(
                 &input, started,
             );

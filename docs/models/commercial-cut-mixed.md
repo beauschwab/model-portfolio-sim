@@ -121,3 +121,15 @@ generated compact fee/source integration; wider saved-book/mixed owners; and the
 complete 60,000-position joint graph/credit/solver/journal acceptance under #15/#25.
 Matching native artifacts and explicit selected saved-library/session rebuilds
 remain required before additive execution. No deployed worker was restarted.
+
+## Explicit receipt lifetime follow-through
+
+The optional selected native receipt policy has a separately documented
+[complete lifetime and structural census](commercial-cut-receipt-admission.md).
+It actually releases owned wire and encoded native graph owners at the documented
+boundaries. The genuine short baseline/stress transfer case now passes initial
+source admission but still refuses its full pre-Sim work census; this is not
+accepted cut publication or verified prior-publication adoption. Both omitted
+historical refusal dimensions remain exact. Protocol8 independent verification
+now requires the complete original completion metadata, including cut day and
+native state/calendar authority flags.
