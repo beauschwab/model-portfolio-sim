@@ -3,12 +3,18 @@
 mod commercial_hooks;
 mod cut;
 mod cut_inventory;
+mod cut_prefix;
 mod cut_shape;
 pub use cut::{
     admit_commercial_cut, commercial_cut_census, run_commercial_cut,
     run_commercial_cut_with_inventory, CommercialCutAdmission,
 };
 pub use cut_inventory::{commercial_cut_inventory, CommercialCutInventory, TableInventory};
+pub use cut_prefix::{
+    commercial_cut_typed_prefix_inventory, commercial_fee_prefix_equal,
+    commercial_fee_prefix_shape, commercial_loan_prefix_equal, commercial_loan_prefix_shape,
+    BorrowedCutSourceInventory, TypedCutPrefixInventory, TypedPrefixShape,
+};
 pub use cut_shape::{
     charge as charge_cut_census_work, measured_shape as measure_cut_json_shape,
     object as cut_json_object, shape as cut_json_shape, spent as cut_census_work_spent,
