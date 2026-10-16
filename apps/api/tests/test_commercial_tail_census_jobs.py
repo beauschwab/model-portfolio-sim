@@ -8,9 +8,10 @@ from test_persistence import durable
 ROOT=Path(__file__).resolve().parents[3]
 @pytest.fixture(autouse=True)
 def artifact(monkeypatch):
-    from portfolio_risk.core import product_strategy_native
-    directory=Path(os.environ.get('TAIL_NATIVE_DEBUG_DIR',ROOT/'artifacts/nd-decision/debug'))
-    monkeypatch.setattr(product_strategy_native,'binary_path',lambda:directory/'portfolio-strategy.exe')
+    selected=os.environ.get('TAIL_NATIVE_DEBUG_DIR')
+    if selected:
+        from portfolio_risk.core import product_strategy_native
+        monkeypatch.setattr(product_strategy_native,'binary_path',lambda:Path(selected)/'portfolio-strategy.exe')
 
 def queued(*,cut=False):
     path=ROOT/'packages/portfolio-risk/tests/fixtures/commercial-short-secondary-cut-refusal.json'

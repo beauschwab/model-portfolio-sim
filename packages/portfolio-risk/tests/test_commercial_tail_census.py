@@ -8,9 +8,10 @@ from portfolio_risk.analytics.commercial_candidate_reference import verify
 ROOT=Path(__file__).resolve().parents[3]
 @pytest.fixture(autouse=True)
 def artifacts(monkeypatch):
-    from portfolio_risk.core import product_strategy_native
-    directory=Path(os.environ.get('TAIL_NATIVE_DEBUG_DIR',ROOT/'artifacts/nd-decision/debug'))
-    monkeypatch.setattr(product_strategy_native,'binary_path',lambda:directory/'portfolio-strategy.exe')
+    selected=os.environ.get('TAIL_NATIVE_DEBUG_DIR')
+    if selected:
+        from portfolio_risk.core import product_strategy_native
+        monkeypatch.setattr(product_strategy_native,'binary_path',lambda:Path(selected)/'portfolio-strategy.exe')
 
 def cut_request():return json.loads((ROOT/'packages/portfolio-risk/tests/fixtures/commercial-short-secondary-cut-refusal.json').read_text())
 def request():return cut_request()['completed_candidate']

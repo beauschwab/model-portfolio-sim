@@ -32,10 +32,10 @@ def owner():
 
 @pytest.fixture(autouse=True)
 def actual_debug(monkeypatch):
-    directory=Path(os.environ.get('ENTITLEMENT_NATIVE_DEBUG_DIR',ROOT/'artifacts/nd/debug'))
-    monkeypatch.setattr(model_native,'binary_path',lambda:ROOT/'packages/portfolio-risk-native/target/debug/portfolio-lifecycle.exe')
-    from portfolio_risk.core import product_strategy_native
-    monkeypatch.setattr(product_strategy_native,'binary_path',lambda:directory/'portfolio-strategy.exe')
+    selected=os.environ.get('ENTITLEMENT_NATIVE_DEBUG_DIR')
+    if selected:
+        from portfolio_risk.core import product_strategy_native
+        monkeypatch.setattr(product_strategy_native,'binary_path',lambda:Path(selected)/'portfolio-strategy.exe')
 
 
 def execute(raw):

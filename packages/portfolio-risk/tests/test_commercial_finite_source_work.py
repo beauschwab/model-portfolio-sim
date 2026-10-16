@@ -10,10 +10,10 @@ ROOT=Path(__file__).resolve().parents[3]
 POLICY='counted_finite_transfer_contract_factor_work-1'
 @pytest.fixture(autouse=True)
 def artifacts(monkeypatch):
-    from portfolio_risk.core import product_strategy_native,model_native
-    directory=Path(os.environ.get('FINITE_NATIVE_DEBUG_DIR',ROOT/'artifacts/nd/debug'))
-    monkeypatch.setattr(product_strategy_native,'binary_path',lambda:directory/'portfolio-strategy.exe')
-    monkeypatch.setattr(model_native,'binary_path',lambda:ROOT/'packages/portfolio-risk-native/target/debug/portfolio-lifecycle.exe')
+    selected=os.environ.get('FINITE_NATIVE_DEBUG_DIR')
+    if selected:
+        from portfolio_risk.core import product_strategy_native
+        monkeypatch.setattr(product_strategy_native,'binary_path',lambda:Path(selected)/'portfolio-strategy.exe')
 def owners(raw):
     for unit in raw['commercial']['units']:
         for p in unit['graph']['positions']:
