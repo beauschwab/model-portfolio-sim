@@ -43,6 +43,10 @@ Its matching executable is
 `bfe00cb8e19d04044b669ea489cd8c17d11adb3a600bfe203a7a6dd167e27730`.
 The isolated shared-history receipt is
 `a5748556dee87fbe4753a2d22897eb1ed821e3da8ab789b41408b6cf9c3d03ba`.
+The test-only cubic audit receipt is
+`61725189a6bf1886d05c3c1c7e9e5d4618af3df75fb64a53be88cf6e649dd75d`.
+It separately proves production-input identity with the sealed structural build;
+the audit adds no production numerical change.
 
 Primary ignored evidence is retained under
 `artifacts/combined-fee-checked-solver/`. The complete fee graph receipt is
