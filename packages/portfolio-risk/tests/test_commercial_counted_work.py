@@ -74,3 +74,13 @@ def test_counted_transport_normalizes_declared_native_curve_vectors_only(name):
     curve['times_years']=[False,1]
     with pytest.raises(ArithmeticError,match='finite native supplied curve'):
         typed({name:curve})
+
+
+def test_independent_dated_principal_census_retains_extra_cash_and_all_prefix_scans():
+    from test_commercial_principal_entitlement import owner
+    raw=owner()['source']['transfer']['contract_origin'];value=summary(raw,4);u=value['upper']
+    assert u['periods']==u['segments']==1 and u['ordering']==9
+    assert u['binding']==3**2+1+4 and u['validation']==4+32+2*2**2+4*2+4*2
+    old=json.loads(json.dumps(raw));old['principal_plan']=dict(kind='supplied',principal_payments=[100.])
+    before=summary(old,4)['upper'];assert before['ordering']==1 and before['binding']==4 and before['validation']==36
+    assert work(u)>work(before)

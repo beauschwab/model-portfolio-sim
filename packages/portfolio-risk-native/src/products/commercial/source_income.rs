@@ -288,6 +288,7 @@ pub fn admit_for_measure(r: &Request, measure: CashflowMeasure) -> Result<Admiss
     }
     if current_points
         .checked_add(c.periods.len())
+        .and_then(|n| n.checked_add(indexed::principal::events(&c.principal_plan).len()))
         .and_then(|n| n.checked_add(r.current_accounting_rate_reviews.len() + 2))
         .is_none_or(|n| n > income::MAX_EVENTS)
     {

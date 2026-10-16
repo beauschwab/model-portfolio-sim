@@ -537,6 +537,18 @@ fn prepared(
             },
         })
         .collect();
+    for event in term::indexed::principal::events(&source.principal_plan) {
+        boundaries.push(path::PathBoundary {
+            event_id: event.event_id.clone(),
+            policy_id: r.accounting.identity.id.clone(),
+            year: f64::from(event.payment_ordinal - source.asof_ordinal) / 365.,
+            action: path::BoundaryAction::Repayment {
+                principal_fraction: [0.; 3],
+                interest_fraction: [0.; 3],
+                cancel_undrawn_fraction: [0.; 3],
+            },
+        });
+    }
     let mut seen = std::collections::BTreeSet::new();
     for draw in &r.performing_draw_tranches {
         boundaries.push(path::PathBoundary {
@@ -566,6 +578,9 @@ fn prepared(
             || stop.ordinal > source.tail_end_ordinal
             || !r.credit.paths.iter().any(|p| p.path_key == stop.path_key)
             || source.periods.iter().any(|p| p.period_id == stop.event_id)
+            || term::indexed::principal::events(&source.principal_plan)
+                .iter()
+                .any(|e| e.event_id == stop.event_id)
             || !seen.insert(stop.path_key)
         {
             return Err("native stop must bind one in-tail decision per actual path and distinct source event identity".into());
@@ -1308,12 +1323,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
             .ok_or("unbound native entitlement audit")?;
         let cash_index = v
             .source
-            .source()
-            .schedule
-            .events
-            .iter()
-            .position(|c| c.event_id == segment.period_id())
-            .ok_or("unbound indexed native cash origin")?;
+            .cash_index_for_segment(atom.captured_segment_index - v.segment_offset)?;
         let cash = &v.source.source().schedule.events[cash_index];
         if audit.period_id != atom.coupon_id
             || cash.event_id != atom.source_event_id
@@ -1729,12 +1739,20 @@ fn evaluate_economic_internal(
         admission,
         ..
     } = prepare(r, 0, 0, measure, stops)?;
+    let origin = if r.source.transfer.is_some() {
+        Some(super::acquisition::prepare_origin(&r.source)?)
+    } else {
+        None
+    };
     let original_source = compile_selected_source(
         r,
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
         source_measure(measure),
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
     let current_source = compile_selected_source(
         r,
@@ -1742,6 +1760,9 @@ fn evaluate_economic_internal(
         r.factor_policy.clone(),
         admission.maximum_queries,
         source_measure(measure),
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
     let draw_sources = if check_original_quote {
         project_draws(r, measure, admission.maximum_queries)?
@@ -1751,8 +1772,12 @@ fn evaluate_economic_internal(
     if measure == CreditMeasure::Physical && check_original_quote {
         source_income::original_cash_quote(&r.source, original_source.source())?;
     }
-    let transfer = if r.source.transfer.is_some() {
-        Some(super::acquisition::compile(&r.source, &current_source)?)
+    let transfer = if let Some(origin) = origin {
+        Some(super::acquisition::compile(
+            &r.source,
+            &current_source,
+            origin,
+        )?)
     } else {
         None
     };
@@ -1847,6 +1872,21 @@ fn prepare(
     let native_stop_bytes = portfolio_model_core::strict_json::serialized_size(&stops, 1 << 20)?;
     let retained_raw_bytes = add(raw_bytes, native_stop_bytes)?;
     source_income::admit_for_measure(&r.source, source_measure(measure))?;
+    if term::indexed::principal::selected(&r.source.current.principal_plan)
+        && r.source.transfer.is_none()
+    {
+        return Err(
+            "dated principal commercial ownership requires explicit complete-origin transfer"
+                .into(),
+        );
+    }
+    if r.performing_draw_tranches
+        .iter()
+        .any(|d| term::indexed::principal::selected(&d.source.current.principal_plan))
+    {
+        return Err("dated drawn principal requires separate native acquisition ownership".into());
+    }
+
     if r.source.transfer.is_some()
         && (!r.performing_draw_tranches.is_empty()
             || r.credit.opening_undrawn_commitment != 0.
@@ -1937,7 +1977,10 @@ fn prepare(
     let carry_admission = carry::admit_economic_with_native_bound(
         &p,
         &bound,
-        periods,
+        add(
+            periods,
+            term::indexed::principal::events(&r.source.current.principal_plan).len(),
+        )?,
         add(
             mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
             terminal_steps,
@@ -2109,12 +2152,20 @@ fn evaluate_accounting_internal(
         stops,
     )?;
     let queries = admission.maximum_queries;
+    let origin = if r.source.transfer.is_some() {
+        Some(super::acquisition::prepare_origin(&r.source)?)
+    } else {
+        None
+    };
     let original = compile_selected_source(
         r,
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
         source_measure(CreditMeasure::Physical),
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
     let current = compile_selected_source(
         r,
@@ -2122,6 +2173,9 @@ fn evaluate_accounting_internal(
         r.factor_policy.clone(),
         queries,
         source_measure(CreditMeasure::Physical),
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
     let draw_sources = if proof.is_some() {
         project_draws_for_acquisition(r, CreditMeasure::Physical, queries)?
@@ -2133,8 +2187,8 @@ fn evaluate_accounting_internal(
     } else {
         source_income::original_cash_quote(&r.source, original.source())?
     };
-    let transfer = if r.source.transfer.is_some() {
-        Some(super::acquisition::compile(&r.source, &current)?)
+    let transfer = if let Some(origin) = origin {
+        Some(super::acquisition::compile(&r.source, &current, origin)?)
     } else {
         None
     };
@@ -2232,13 +2286,18 @@ fn compile_selected_source(
     policy: FactorPolicy,
     queries: usize,
     measure: portfolio_model_core::cashflow::CashflowMeasure,
+    basis: Option<&term::indexed::principal::AcquiredBasis>,
 ) -> Result<NativeFactors, String> {
     let authority = r.counted_work.as_deref();
     if r.source.transfer.is_some() {
         if authority.is_some() {
             return Err("generated counted secondary transfer sources are not adopted".into());
         }
-        NativeFactors::compile_transfer(raw, policy, queries, measure)
+        if let Some(basis) = basis {
+            NativeFactors::compile_transfer_with_basis(raw, policy, queries, measure, basis)
+        } else {
+            NativeFactors::compile_transfer(raw, policy, queries, measure)
+        }
     } else if measure == portfolio_model_core::cashflow::CashflowMeasure::Physical {
         project_source(raw, policy, queries, authority)
     } else {

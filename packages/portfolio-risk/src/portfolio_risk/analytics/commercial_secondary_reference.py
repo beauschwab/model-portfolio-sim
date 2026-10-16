@@ -4,7 +4,7 @@ Validation only. Seller monetary checkpoints, carrying values and EIR are never
 inputs. Native transfer inventories are compared after this raw replay.
 """
 from copy import deepcopy
-from .commercial_source_reference import project, factor, observable_factor, observable_policy, compare
+from .commercial_source_reference import project, factor, observable_factor, observable_policy, compare, DATED_PRINCIPAL, acquired_coupon_basis, project_owned
 from .commercial_dto import typed
 from .modeled_json_identity import exact_json_identity
 
@@ -19,11 +19,12 @@ def loan_transfer(raw,check=lambda:False):
     regime=t['regime']
     if regime['framework']!='reviewed_model_policy-1' or regime['initial_credit_policy']!='performing_no_initial_credit_grossup-1' or regime['income_policy']!='dirty_buyer_loan_carry_original_effective_yield-1' or regime['effective_from_ordinal']>at:raise ArithmeticError('unsupported secondary buyer regime')
     if raw.get('performing_draw_tranches') or raw['credit'].get('opening_undrawn_commitment',0.)!=0. or any(p['initial_live_state']!='performing' for p in raw['credit']['paths']):raise ArithmeticError('secondary draws/default/partial histories unsupported')
-    if origin['principal_plan']['kind']!='supplied' or not origin['periods'] or origin['periods'][0]['start_ordinal']!=origin['asof_ordinal'] or at-origin['asof_ordinal']>1080:raise ArithmeticError('secondary bounded complete contractual origin required')
+    if origin['principal_plan']['kind'] not in ('supplied',DATED_PRINCIPAL) or not origin['periods'] or origin['periods'][0]['start_ordinal']!=origin['asof_ordinal'] or at-origin['asof_ordinal']>1080:raise ArithmeticError('secondary bounded complete contractual origin required')
     for name in ('path','assumption','schema','model_version','scenario_id','contract','currency','monetary_unit','direction','measure','position_id','tail_end_ordinal'):
         if not exact_json_identity(origin[name],source['original'][name]):raise ArithmeticError('secondary origin provenance differs')
     cut=(at-719163)*86400
     for old,new in zip(source['original']['periods'],source['current']['periods'],strict=True):
+        if any(old[k]!=new[k] for k in ('period_id','start_ordinal','end_ordinal','payment_ordinal','day_count')):raise ArithmeticError('secondary exact buyer coupon identity/dates differ')
         if old['start_ordinal']>=at:continue
         a,b=old['coupon'],deepcopy(new['coupon'])
         if a['kind']=='indexed'and b['kind']=='indexed':
@@ -34,7 +35,11 @@ def loan_transfer(raw,check=lambda:False):
                     if max(available,original['selection_cutoff_unix_seconds'],a.get('reset_cutoff_unix_seconds')or 0)>cut:raise ArithmeticError('unquantified acquired coupon prefix')
             b['observations']=deepcopy(a['observations'])
         if not exact_json_identity(typed(a),typed(b)):raise ArithmeticError('secondary served coupon convention changed')
-    full,_=project(origin,check,raw['factor_policy']);current,segments=project(source['current'],check,raw['factor_policy'])
+    full,_=project(origin,check,raw['factor_policy']);current,segments=project_owned(source,'current',check,raw['factor_policy'])
+    if origin['principal_plan']['kind']==DATED_PRINCIPAL:
+        future=[e for e in origin['principal_plan']['principal_events'] if e['payment_ordinal']>=at]
+        for role in ('original','current'):
+            if source[role]['principal_plan']['kind']!=DATED_PRINCIPAL or not exact_json_identity(typed(future),typed(source[role]['principal_plan']['principal_events'])):raise ArithmeticError('dated principal conveyance differs')
     original_suffix=[p for p in origin['periods'] if p['payment_ordinal']>=at]
     if not exact_json_identity(typed(original_suffix),typed(source['original']['periods'])):raise ArithmeticError('secondary original coupon conveyance differs')
     principal=origin['opening_principal']-sum(e['components']['principal'] for e in full['schedule']['events'] if e['payment_ordinal']<at)

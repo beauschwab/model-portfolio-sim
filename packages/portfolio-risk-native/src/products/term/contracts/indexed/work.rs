@@ -324,6 +324,8 @@ impl ContractWorkSummary {
         terminal: bool,
     ) -> Result<Self, String> {
         let p = raw.periods.len();
+        let h = super::principal::events(&raw.principal_plan).len();
+        let cash = add(p, h)?;
         let mut s = 0;
         let mut o = 0;
         let mut binding = 0;
@@ -398,7 +400,7 @@ impl ContractWorkSummary {
         let bytes = metadata(raw, true)?;
         let upper = OperationLedger {
             input_bytes: bytes,
-            output_bytes: add(mul(bytes, 8)?, mul(8192, add(add(p, s)?, 1)?)?)?,
+            output_bytes: add(mul(bytes, 8)?, mul(8192, add(add(cash, s)?, 1)?)?)?,
             periods: p,
             observations: o,
             segments: s,
@@ -412,9 +414,12 @@ impl ContractWorkSummary {
                     query_years,
                 )?,
             )?,
-            ordering: mul(p, p)?,
-            binding: add(add(mul(2, mul(p, p)?)?, mul(2, mul(p, s)?)?)?, binding)?,
-            validation: add(mul(4, mul(p, p)?)?, 32)?,
+            ordering: mul(cash, cash)?,
+            binding: add(
+                add(add(mul(cash, cash)?, mul(p, p)?)?, mul(add(cash, p)?, s)?)?,
+                binding,
+            )?,
+            validation: validation_steps(p, h)?,
             earned_calls: uses.earned,
             earned_steps: mul(uses.earned, add(mul(3, s)?, p)?)?,
             canonical_calls: uses.canonical,
@@ -500,6 +505,15 @@ pub(crate) fn calendar(
     }
     Ok(())
 }
+fn validation_steps(p: usize, h: usize) -> Result<usize, String> {
+    // Existing period validation plus both admission/builder principal ID
+    // ordering/conservation scans and
+    // every period-start/end, reporting and full-tail principal prefix scan.
+    add(
+        add(mul(4, mul(p, p)?)?, 32)?,
+        add(mul(2, mul(h, h)?)?, add(mul(4, mul(p, h)?)?, mul(4, h)?)?)?,
+    )
+}
 pub(crate) fn builder_start(
     meter: Option<&WorkMeter>,
     raw: &ContractPathRequest,
@@ -507,7 +521,11 @@ pub(crate) fn builder_start(
     if let Some(m) = meter {
         bump(Some(m), Op::InputBytes, metadata(raw, false)?)?;
         let p = raw.periods.len();
-        bump(Some(m), Op::Validation, add(mul(4, mul(p, p)?)?, 32)?)?
+        bump(
+            Some(m),
+            Op::Validation,
+            validation_steps(p, super::principal::events(&raw.principal_plan).len())?,
+        )?
     }
     Ok(())
 }
@@ -518,6 +536,10 @@ pub(crate) fn export_receipt(
     measured: OperationLedger,
 ) {
     if let Ok(path) = std::env::var("PORTFOLIO_COUNTED_WORK_RECEIPT") {
+        // Parallel native controls share this optional diagnostic stream. Hold
+        // one guard through the whole JSON record and its newline.
+        static RECEIPT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = RECEIPT_LOCK.lock().unwrap();
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
             .create(true)

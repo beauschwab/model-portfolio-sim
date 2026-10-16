@@ -33,8 +33,8 @@ def _scan(start,end,basis):
 
 def summary(raw,queries,observable=False,terminal=False):
     if type(queries)is not int or not 0<=queries<=4096:raise ArithmeticError('bounded native query count required')
-    p=len(raw['periods']);s=o=binding=years=query_years=0
-    if not 1<=p<=4096:raise ArithmeticError('bounded source period inventory required')
+    p=len(raw['periods']);h=len(raw['principal_plan'].get('principal_events',[]));cash=p+h;s=o=binding=years=query_years=0
+    if not 1<=p<=4096 or h and cash>4096:raise ArithmeticError('bounded source period/cash inventory required')
     for period in raw['periods']:
         basis=period['day_count'];years+=_scan(period['start_ordinal'],period['end_ordinal'],basis)
         observations=period['coupon'].get('observations')
@@ -53,8 +53,8 @@ def summary(raw,queries,observable=False,terminal=False):
     released=terminal and queries>0
     uses=dict(earned=queries,canonical=queries*(3 if observable else 1)+(s+1 if released else 0),pending=2*queries+68+66*s if observable and queries else 0,terminal=int(released))
     metadata=_metadata(raw)
-    upper=dict(input_bytes=metadata,output_bytes=8*metadata+8192*(p+s+1),periods=p,observations=o,segments=s,
-        calendar=years+((0 if observable else 2*uses['earned'])+uses['canonical'])*query_years,ordering=p*p,binding=2*p*p+2*p*s+binding,validation=4*p*p+32,
+    upper=dict(input_bytes=metadata,output_bytes=8*metadata+8192*(cash+s+1),periods=p,observations=o,segments=s,
+        calendar=years+((0 if observable else 2*uses['earned'])+uses['canonical'])*query_years,ordering=cash*cash,binding=cash*cash+p*p+(cash+p)*s+binding,validation=4*p*p+32+2*h*h+4*p*h+4*h,
         earned_calls=uses['earned'],earned_steps=uses['earned']*(3*s+p),canonical_calls=uses['canonical'],canonical_steps=uses['canonical']*(p*s+s+p),
         pending_calls=uses['pending'],pending_steps=uses['pending']*s,terminal_calls=uses['terminal'],terminal_steps=uses['terminal']*(s*s+p*s))
     return dict(policy=POLICY,use_bound=uses,upper=upper)
@@ -77,4 +77,4 @@ def cash_event_bound(raw):
     periods=sum(len(c['periods'])for c in contracts)
     segments=sum(len(p['coupon'].get('observations',[None]))for c in contracts for p in c['periods'])
     tails=max((len(t)for i in raw['credit']['intervals']for t in i['complete_recovery_tails']),default=0)
-    return periods+len(raw.get('performing_draw_tranches',[]))+tails+4+(segments*(tails+1)if raw['factor_policy'].get('terminal_obligations')else 0)
+    return periods+sum(len(c['principal_plan'].get('principal_events',[]))for c in contracts)+len(raw.get('performing_draw_tranches',[]))+tails+4+(segments*(tails+1)if raw['factor_policy'].get('terminal_obligations')else 0)

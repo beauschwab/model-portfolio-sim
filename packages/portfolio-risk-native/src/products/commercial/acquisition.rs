@@ -108,7 +108,11 @@ pub(crate) fn admit(r: &source_income::Request) -> Result<(usize, usize), String
         || t.transaction_cost != 0.
         || t.coupon_allocations.len() != r.original.periods.len()
         || t.coupon_allocations.len() > 4096
-        || !matches!(o.principal_plan, indexed::PrincipalPlan::Supplied { .. })
+        || !matches!(
+            o.principal_plan,
+            indexed::PrincipalPlan::Supplied { .. }
+                | indexed::PrincipalPlan::DatedSuppliedPeriodOpening { .. }
+        )
         || o.periods.is_empty()
         || o.periods[0].start_ordinal != o.asof_ordinal
         || o.periods
@@ -153,6 +157,30 @@ pub(crate) fn admit(r: &source_income::Request) -> Result<(usize, usize), String
                 "secondary transfer original contract, units or complete tail changed".into(),
             );
         }
+    }
+    if indexed::principal::selected(&o.principal_plan) {
+        indexed::principal::validate(o)?;
+        let wanted: Vec<_> = indexed::principal::events(&o.principal_plan)
+            .iter()
+            .filter(|e| e.payment_ordinal >= at)
+            .cloned()
+            .collect();
+        for buyer in [&r.original, &r.current] {
+            if !indexed::principal::selected(&buyer.principal_plan) {
+                return Err(
+                    "dated principal transfer requires exact independently dated buyer plan".into(),
+                );
+            }
+            same(
+                &wanted,
+                &indexed::principal::events(&buyer.principal_plan).to_vec(),
+            )?;
+            indexed::principal::validate(buyer)?;
+        }
+    } else if indexed::principal::selected(&r.original.principal_plan)
+        || indexed::principal::selected(&r.current.principal_plan)
+    {
+        return Err("dated buyer principal requires the same full-origin principal policy".into());
     }
     let suffix: Vec<_> = o
         .periods
@@ -245,13 +273,40 @@ pub(crate) fn admit(r: &source_income::Request) -> Result<(usize, usize), String
     }
     // Reserve full origin arithmetic, retained metadata/audit and transfer lots.
     let a = NativeFactors::admit_for_measure(o, &default_policy(), 0, o.measure)?;
-    // compile() invokes build_transfer_path exactly once per evaluated owner.
+    // prepare_origin() invokes build_transfer_path once per evaluated owner.
     // Original/current buyer factor compiles remain separately reserved by the
     // credit compiler; both retained origin/raw bodies are still charged below.
     let work = a
         .work_upper
-        .checked_add(bytes * 8 + r.original.periods.len() * 512)
+        .checked_add(
+            bytes * 8
+                + r.original.periods.len() * 512
+                + if indexed::principal::selected(&o.principal_plan) {
+                    r.original
+                        .periods
+                        .len()
+                        .checked_mul(o.periods.len())
+                        .and_then(|n| n.checked_mul(512))
+                        .ok_or("secondary principal basis work overflow")?
+                } else {
+                    0
+                },
+        )
         .ok_or("secondary work overflow")?;
+    if indexed::principal::selected(&o.principal_plan) {
+        let count = r.original.periods.len();
+        let live = indexed::principal::AcquiredBasis::retained_upper(count)?
+            .checked_add(
+                count
+                    .checked_mul(2 * std::mem::size_of::<TransferredCoupon>())
+                    .ok_or("secondary coupon inventory bytes overflow")?
+                    + 64,
+            )
+            .ok_or("secondary sealed basis bytes overflow")?;
+        if live > count * 4096 {
+            return Err("secondary sealed basis exceeds reserved coupon inventory".into());
+        }
+    }
     let retained = a
         .retained_bytes_upper
         .checked_mul(2)
@@ -275,10 +330,12 @@ fn default_policy() -> FactorPolicy {
         terminal_obligations: None,
     }
 }
-pub(crate) fn compile(
-    r: &source_income::Request,
-    current: &NativeFactors,
-) -> Result<NativeTransfer, String> {
+pub(crate) struct OriginOwner {
+    full: indexed::ContractPathResult,
+    basis: Option<indexed::principal::AcquiredBasis>,
+    principal: f64,
+}
+pub(crate) fn prepare_origin(r: &source_income::Request) -> Result<OriginOwner, String> {
     admit(r)?;
     let t = r.transfer.as_ref().ok_or("secondary policy absent")?;
     let full = indexed::build_transfer_path(&t.contract_origin, t.economic_ordinal)?;
@@ -295,6 +352,34 @@ pub(crate) fn compile(
             "secondary remaining principal differs from complete original cash replay".into(),
         );
     }
+    let basis = if indexed::principal::selected(&t.contract_origin.principal_plan) {
+        Some(indexed::principal::AcquiredBasis::from_origin(
+            &r.original,
+            &full,
+        )?)
+    } else {
+        None
+    };
+    Ok(OriginOwner {
+        full,
+        basis,
+        principal,
+    })
+}
+impl OriginOwner {
+    pub(crate) fn basis(&self) -> Option<&indexed::principal::AcquiredBasis> {
+        self.basis.as_ref()
+    }
+}
+pub(crate) fn compile(
+    r: &source_income::Request,
+    current: &NativeFactors,
+    origin: OriginOwner,
+) -> Result<NativeTransfer, String> {
+    let t = r.transfer.as_ref().ok_or("secondary policy absent")?;
+    let OriginOwner {
+        full, principal, ..
+    } = origin;
     let factors = current.cumulative_coupon_factors(0.)?;
     let mut coupons = Vec::with_capacity(factors.len());
     let mut accrued = 0.;

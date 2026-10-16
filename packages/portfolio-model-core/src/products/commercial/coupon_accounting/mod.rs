@@ -420,6 +420,17 @@ fn apply_cash(
     // coupon. A remainder is deferred on its selected current origin. This is
     // application of exact actual cash, never an added cash or terminal plug.
     let mut remaining = cash.cash.interest;
+    // Principal-only native cash has no coupon entitlement. Its principal,
+    // carrying basis and actual cash are posted by the shared monetary owner.
+    // A zero coupon amount cannot collect or create any gross interest lot.
+    if remaining == 0.
+        && cash.cash.principal.is_finite()
+        && cash.cash.principal > 0.
+        && cash.cash.fee == 0.
+        && !lots.iter().any(|l| l.coupon_id == cash.cash.coupon_id)
+    {
+        return Ok(());
+    }
     let indices: Vec<_> = lots
         .iter()
         .enumerate()
@@ -864,4 +875,33 @@ pub fn compile(
         mixed_ledger_adoption: false,
         accounting_approval: false,
     })
+}
+
+#[cfg(test)]
+mod principal_cash_tests {
+    use super::*;
+    use crate::credit_path_income::NativeContractualCash;
+    fn cash(principal: f64, interest: f64) -> SourceCashReceipt {
+        SourceCashReceipt {
+            path_key: 1,
+            year: 0.,
+            cash: NativeContractualCash {
+                coupon_id: "principal-only".into(),
+                source_event_id: "principal-only".into(),
+                native_cash_index: 0,
+                principal,
+                interest,
+                fee: 0.,
+                tranche_id: None,
+            },
+        }
+    }
+    #[test]
+    fn principal_only_cash_never_creates_coupon_lots_but_interest_requires_native_owner() {
+        assert!(apply_cash(&mut [], &cash(20., 0.), 0).is_ok());
+        assert!(apply_cash(&mut [], &cash(20., 1.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(20., -1.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(0., 0.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(f64::INFINITY, 0.), 0).is_err());
+    }
 }

@@ -1,4 +1,5 @@
 //! Complete supplied conditional-index paths; no front-quarter proxy.
+pub mod principal;
 pub(crate) mod work;
 use super::*;
 use crate::products::commercial::factor_source::segments::{FactorSegment, SegmentSink};
@@ -95,6 +96,13 @@ pub struct ContractPeriod {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PrincipalPlan {
+    /// Explicit policy: principal cash is dated independently, coupon nominal
+    /// freezes after all principal cash at the coupon start date. Same-day
+    /// coupon cash precedes principal cash; service follows those settlements.
+    #[serde(rename = "dated_supplied_period_opening_nominal-1")]
+    DatedSuppliedPeriodOpening {
+        principal_events: Vec<principal::PrincipalCash>,
+    },
     Supplied {
         principal_payments: Vec<f64>,
     },
@@ -739,6 +747,7 @@ fn build_path_capture_owned(
 pub(crate) struct BuildContext<'a> {
     information_asof: Option<i32>,
     meter: Option<&'a work::WorkMeter>,
+    acquired_basis: Option<&'a principal::AcquiredBasis>,
 }
 
 /// Full contractual history replay selected by the sealed acquisition compiler.
@@ -755,6 +764,7 @@ pub(crate) fn build_transfer_path(
         BuildContext {
             information_asof: Some(information_asof),
             meter: None,
+            acquired_basis: None,
         },
     )
 }
@@ -774,6 +784,25 @@ pub(crate) fn build_transfer_path_with_segments(
         BuildContext {
             information_asof: Some(information_asof),
             meter: None,
+            acquired_basis: None,
+        },
+    )
+}
+
+pub(crate) fn build_transfer_path_with_basis(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    basis: &principal::AcquiredBasis,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: Some(request.asof_ordinal),
+            meter: None,
+            acquired_basis: Some(basis),
         },
     )
 }
@@ -791,6 +820,7 @@ pub(crate) fn build_path_with_counted_segments(
         BuildContext {
             information_asof: None,
             meter: Some(meter),
+            acquired_basis: None,
         },
     )
 }
@@ -804,6 +834,7 @@ fn build_path_owned(
     let BuildContext {
         information_asof,
         meter,
+        acquired_basis,
     } = context;
     work::builder_start(meter, request)?;
     header(
@@ -834,6 +865,7 @@ fn build_path_owned(
     text(&request.scenario_id, &mut bytes)?;
     nonnegative(request.opening_principal)?;
     match &request.principal_plan {
+        PrincipalPlan::DatedSuppliedPeriodOpening { .. } => principal::validate(request)?,
         PrincipalPlan::Supplied { principal_payments } => {
             if principal_payments.len() != request.periods.len() {
                 return Err("supplied principal must match all periods".into());
@@ -898,10 +930,23 @@ fn build_path_owned(
                 meter,
             },
         )?;
-        let interest = amount(balance * factor)?;
+        let dated = principal::selected(&request.principal_plan);
+        let entitlement = if dated {
+            if p.start_ordinal < request.asof_ordinal {
+                acquired_basis
+                    .ok_or("seasoned dated coupon requires native complete-origin basis")?
+                    .entitlement(request, i)?
+            } else {
+                principal::at(request, p.start_ordinal)?
+            }
+        } else {
+            balance
+        };
+        let interest = amount(entitlement * factor)?;
         let last = i + 1 == request.periods.len();
         let mut balloon = 0.;
         let principal = match &request.principal_plan {
+            PrincipalPlan::DatedSuppliedPeriodOpening { .. } => 0.,
             PrincipalPlan::Supplied { principal_payments } => principal_payments[i],
             PrincipalPlan::RetainedPayment {
                 original_payment,
@@ -930,7 +975,11 @@ fn build_path_owned(
             return Err("principal payment exceeds remaining contractual balance".into());
         }
         let principal = principal.min(balance);
-        let closing = balance - principal;
+        let closing = if dated {
+            principal::at(request, p.end_ordinal)?
+        } else {
+            balance - principal
+        };
         if p.payment_ordinal <= request.reporting_end_ordinal {
             after_report -= principal;
         }
@@ -964,7 +1013,7 @@ fn build_path_owned(
         });
         audit.push(PeriodAudit {
             period_id: p.period_id.clone(),
-            opening_principal: balance,
+            opening_principal: entitlement,
             interest,
             principal_paid: principal,
             closing_principal: closing,
@@ -973,6 +1022,11 @@ fn build_path_owned(
             selected_rate_sources: sources,
         });
         balance = closing;
+    }
+    if principal::selected(&request.principal_plan) {
+        balance = principal::at(request, request.tail_end_ordinal)?;
+        after_report = principal::at(request, request.reporting_end_ordinal)?;
+        principal::append_cash(request, &mut events, sign)?;
     }
     if !near(balance, 0.) {
         return Err("complete contractual tail leaves unpaid principal".into());

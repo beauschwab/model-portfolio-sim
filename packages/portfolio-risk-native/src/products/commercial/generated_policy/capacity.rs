@@ -17,6 +17,9 @@ fn contract(s: &ContractPathRequest) -> Result<usize, String> {
     if let PrincipalPlan::Supplied { principal_payments } = &s.principal_plan {
         bytes = add(bytes, vector(principal_payments)?)?;
     }
+    if let PrincipalPlan::DatedSuppliedPeriodOpening { principal_events } = &s.principal_plan {
+        bytes = add(bytes, vector(principal_events)?)?;
+    }
     for period in &s.periods {
         if let Coupon::Indexed {
             calendar,

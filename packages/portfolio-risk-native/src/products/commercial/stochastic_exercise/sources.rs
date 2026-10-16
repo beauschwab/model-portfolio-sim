@@ -148,6 +148,11 @@ pub(crate) fn cash_event_bound(
             .iter()
             .map(|d| &d.source.current),
     ) {
+        n = add(
+            n,
+            crate::products::term::contracts::indexed::principal::events(&contract.principal_plan)
+                .len(),
+        )?;
         for period in &contract.periods {
             segments = add(
                 segments,

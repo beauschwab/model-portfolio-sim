@@ -2,7 +2,7 @@
 from copy import deepcopy
 import math
 from .commercial_credit_reference import STATES
-from .commercial_source_reference import project,compare
+from .commercial_source_reference import project_owned, project,compare
 from .commercial_dto import typed
 
 
@@ -10,7 +10,7 @@ def partition(raw,projection,stops,check=lambda:False):
     paths=projection['credit']['result']['paths']
     if len(paths)!=1:raise ArithmeticError('one complete acquired Physical path required')
     path=paths[0];terms=raw.get('performing_draw_tranches',[]);n=len(terms);result=dict(base=[],tranches=[[]for _ in terms],acquired=[False]*n);principal=[0.]*n;default_principal=[0.]*n
-    offsets=[];audit=len(project(raw['source']['current'],check)[0]['audit'])
+    offsets=[];audit=len(project_owned(raw['source'],'current',check,raw['factor_policy'])[0]['audit'])
     for d in terms:
         count=len(project(d['source']['current'],check)[0]['audit']);offsets.append((audit,audit+count));audit+=count
     by_id={d['review']['id']:i for i,d in enumerate(terms)};prior=None;source_index=recovery_index=0

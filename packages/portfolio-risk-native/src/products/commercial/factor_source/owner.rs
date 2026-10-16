@@ -323,6 +323,7 @@ impl NativeFactors {
         if encoded > 1024 * 1024 {
             return Err("typed factor source exceeds 1 MiB".into());
         }
+        indexed::principal::validate(raw)?;
         let mut s = 0usize;
         let mut observation_year_scan = 0usize;
         let midnight = |ordinal: i32| (i64::from(ordinal) - 719163) * 86_400;
@@ -457,7 +458,7 @@ impl NativeFactors {
             0
         };
         let legacy_work = add(
-            contingent_work,
+            add(contingent_work, indexed::principal::work_upper(raw)?)?,
             add(
                 add(add(250_000, mul(16, r)?)?, mul(128, s)?)?,
                 mul(256, add(qs, mul(queries, year_scan)?)?)?,
@@ -488,7 +489,10 @@ impl NativeFactors {
                 .as_ref()
                 .map_or(0, ContractWorkSummary::retained_bytes),
             add(
-                contingent_bytes,
+                add(
+                    contingent_bytes,
+                    mul(indexed::principal::events(&raw.principal_plan).len(), 8192)?,
+                )?,
                 add(
                     mul(16, r)?,
                     mul(4096, add(add(s, raw.periods.len())?, qs)?)?,
@@ -533,7 +537,7 @@ impl NativeFactors {
         measure: CashflowMeasure,
         authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Self, String> {
-        Self::compile_owned(raw, policy, queries, measure, false, authority)
+        Self::compile_owned(raw, policy, queries, measure, false, authority, None)
     }
     pub(crate) fn compile_transfer(
         raw: ContractPathRequest,
@@ -541,7 +545,16 @@ impl NativeFactors {
         queries: usize,
         measure: CashflowMeasure,
     ) -> Result<Self, String> {
-        Self::compile_owned(raw, policy, queries, measure, true, None)
+        Self::compile_owned(raw, policy, queries, measure, true, None, None)
+    }
+    pub(crate) fn compile_transfer_with_basis(
+        raw: ContractPathRequest,
+        policy: FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        basis: &indexed::principal::AcquiredBasis,
+    ) -> Result<Self, String> {
+        Self::compile_owned(raw, policy, queries, measure, true, None, Some(basis))
     }
     fn compile_owned(
         raw: ContractPathRequest,
@@ -550,6 +563,7 @@ impl NativeFactors {
         measure: CashflowMeasure,
         transferred: bool,
         authority: Option<&GeneratedCatalogAuthority>,
+        basis: Option<&indexed::principal::AcquiredBasis>,
     ) -> Result<Self, String> {
         let admission = Self::admit_owned(&raw, &policy, queries, measure, transferred, authority)?;
         let meter = admission.counted_work.as_ref().map(WorkMeter::new);
@@ -567,7 +581,9 @@ impl NativeFactors {
             segments.push(segment);
             Ok(())
         };
-        let source = if transferred {
+        let source = if let Some(basis) = basis {
+            indexed::build_transfer_path_with_basis(&raw, &mut capture, basis)?
+        } else if transferred {
             indexed::build_transfer_path_with_segments(&raw, &mut capture, raw.asof_ordinal)?
         } else if let Some(meter) = meter.as_ref() {
             indexed::build_path_with_counted_segments(&raw, &mut capture, meter)?
@@ -595,7 +611,7 @@ impl NativeFactors {
         let mut cash_by_id = BTreeMap::new();
         for (index, event) in source.schedule.events.iter().enumerate() {
             portfolio_compute_control::checkpoint()?;
-            work::bump(meter.as_ref(), Op::Binding, raw.periods.len())?;
+            work::bump(meter.as_ref(), Op::Binding, source.schedule.events.len())?;
             if cash_by_id.insert(event.event_id.as_str(), index).is_some() {
                 return Err("duplicate native coupon cash origin".into());
             }
@@ -613,7 +629,11 @@ impl NativeFactors {
             .map(|(i, a)| (a.period_id.as_str(), i))
             .collect();
         for segment in &mut segments {
-            work::bump(meter.as_ref(), Op::Binding, mul(2, raw.periods.len())?)?;
+            work::bump(
+                meter.as_ref(),
+                Op::Binding,
+                add(raw.periods.len(), source.schedule.events.len())?,
+            )?;
             let index = *audit_by_id
                 .get(segment.period_id())
                 .ok_or("native coupon audit origin missing")?;
@@ -711,6 +731,14 @@ impl NativeFactors {
     }
     pub fn segments(&self) -> &[FactorSegment] {
         &self.segments
+    }
+    /// Reuse the exact immutable binding established while compiling this
+    /// source; independent principal rows cannot change coupon cash ownership.
+    pub(crate) fn cash_index_for_segment(&self, index: usize) -> Result<usize, String> {
+        self.cash_indices
+            .get(index)
+            .copied()
+            .ok_or_else(|| "unbound native coupon cash index".into())
     }
     /// Cumulative source authority in contractual coupon order, independent of
     /// credit-origin partitioning and previously rounded monetary increments.

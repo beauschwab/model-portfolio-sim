@@ -6,7 +6,7 @@ entitlements, cash applications and recognized-interest books are never inputs.
 from copy import deepcopy
 import math
 from .credit_path_reference import _pair, STATES
-from .commercial_source_reference import project, factor, compare, validate_native_availability, observable_policy, observable_factor, validate_observable_terminal
+from .commercial_source_reference import project_owned, principal_events, project, factor, compare, validate_native_availability, observable_policy, observable_factor, validate_observable_terminal
 
 from .commercial_dto import typed
 
@@ -57,6 +57,7 @@ def prepared(raw,stops=(),check=lambda:False):
         reviews.append(review);recognition.append(mode)
     boundaries=[dict(event_id=p['period_id'],policy_id=raw['accounting']['identity']['id'],year=(p['payment_ordinal']-source['asof_ordinal'])/365.,
         action=dict(kind='repayment',principal_fraction=[0.]*3,interest_fraction=[0.]*3,cancel_undrawn_fraction=[0.]*3)) for p in source['periods']]
+    boundaries.extend(dict(event_id=e['event_id'],policy_id=raw['accounting']['identity']['id'],year=(e['payment_ordinal']-source['asof_ordinal'])/365.,action=dict(kind='repayment',principal_fraction=[0.]*3,interest_fraction=[0.]*3,cancel_undrawn_fraction=[0.]*3)) for e in principal_events(source))
     for draw in raw.get('performing_draw_tranches',[]):
         boundaries.append(dict(event_id='native-draw:'+draw['review']['id'],policy_id=draw['review']['id'],year=(draw['draw_ordinal']-source['asof_ordinal'])/365.,action=dict(kind='draw',undrawn_fraction=[0.]*3)))
         boundaries.extend(dict(event_id=p['period_id'],policy_id=draw['review']['id'],year=(p['payment_ordinal']-source['asof_ordinal'])/365.,action=dict(kind='repayment',principal_fraction=[0.]*3,interest_fraction=[0.]*3,cancel_undrawn_fraction=[0.]*3)) for p in draw['source']['current']['periods'])
@@ -90,7 +91,7 @@ def replay(raw, check=lambda:False, *, stops=()):
     # Replay consumes the native typed owner DTO; raw publication identity is
     # checked separately by the caller before this independent calculation.
     raw=typed(raw)
-    p,policy=prepared(raw,stops,check);source=raw['source']['current'];contract,ss=project(source,check,raw['factor_policy']);path=p['raw_credit_path'];observable=observable_policy(raw['factor_policy'])
+    p,policy=prepared(raw,stops,check);source=raw['source']['current'];contract,ss=project_owned(raw['source'],'current',check,raw['factor_policy']);path=p['raw_credit_path'];observable=observable_policy(raw['factor_policy'])
     cash=list(contract['schedule']['events']);audits=list(contract['audit']);ss=deepcopy(ss);views=[(source,None,0,len(audits),0,len(ss))]
     for draw in raw.get('performing_draw_tranches',[]):
         dsource=draw['source']['current'];projection,segments=project(dsource,check,raw['factor_policy']);ai=len(audits);si=len(ss)
@@ -278,6 +279,7 @@ def add_earned(lots,c,recognized):
 
 def apply_cash(lots,c,origin):
     remaining=c['cash']['interest'];selected=[l for l in lots if l['coupon_id']==c['cash']['coupon_id']]
+    if not selected and not (remaining==0. and c['cash']['principal']>0. and c['cash'].get('fee',0.)==0.):raise ArithmeticError('cash coupon lacks independent earned/entitlement ownership')
     for lot in selected:
         right=lot['legal_remaining'];used=math.copysign(min(abs(right),abs(remaining)),remaining) if math.copysign(1.,right)==math.copysign(1.,remaining) else 0.
         lot['legal_cash_collected']+=used;lot['recognized_cash_applied']+=used;remaining-=used;sync(lot)

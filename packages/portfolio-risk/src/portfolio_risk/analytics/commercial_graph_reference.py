@@ -10,7 +10,7 @@ import struct
 from scipy.optimize import brentq
 from .commercial_credit_reference import replay, typed
 from .commercial_accounting_reference import groups
-from .commercial_source_reference import compare, verify_source
+from .commercial_source_reference import acquired_coupon_basis, project_owned, compare, verify_source
 from .commercial_ledger_reference import identity, verify_compiler,verify_draw_sources
 from .commercial_reference_math import _cash, _df, _price
 
@@ -27,7 +27,7 @@ def _economic(raw,actual,check,stops=(),measure='pricing',original_acquisition=N
     if actual.get('physical_journal_eligible') is not False:raise ArithmeticError('Pricing economics cannot be a physical journal source')
     _raw(list(stops),actual.get('native_stops',[]))
     for role in ('original','current'):
-        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check)
+        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check,acquired_coupon_basis(raw['source'],check,raw['factor_policy']))
     expected=replay(raw,check,stops=stops)
     expected['prepared']['raw_credit_path']['measure']=measure;expected['credit']['result']['measure']=measure
     carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])

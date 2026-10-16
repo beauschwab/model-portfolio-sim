@@ -5,7 +5,7 @@ import json
 import math
 from dataclasses import fields
 from types import SimpleNamespace
-from .commercial_source_reference import compare, verify_source, project
+from .commercial_source_reference import acquired_coupon_basis, project_owned, compare, verify_source, project
 from .commercial_credit_reference import replay, typed, full_end
 from .commercial_accounting_reference import groups
 from .modeled_json_identity import exact_json_identity
@@ -74,9 +74,9 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
     if actual.get('prospective_accounting_rate_policy') is not (raw['source']['policy']['reset_income']=='reviewed_prospective_at_period_start-1'):
         raise ArithmeticError('commercial accounting policy identity differs')
     for role in ('original','current'):
-        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check)
+        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check,acquired_coupon_basis(raw['source'],check,raw['factor_policy']))
     verify_draw_sources(raw,actual,check,original_acquisition=original_acquisition)
-    original,_=project(raw['source']['original'],check);a=raw['source']['acquisition'];quote=sum((e['components']['principal']+e['components']['cash_interest']+e['components']['fees'])*math.pow(1.+a['original_annual_effective_rate'],-e['day_offset']/365.) for e in original['schedule']['events'])
+    original,_=project_owned(raw['source'],'original',check,raw['factor_policy']);a=raw['source']['acquisition'];quote=sum((e['components']['principal']+e['components']['cash_interest']+e['components']['fees'])*math.pow(1.+a['original_annual_effective_rate'],-e['day_offset']/365.) for e in original['schedule']['events'])
     if original_acquisition is not None:
         if not exact_json_identity(typed(raw['source']['acquisition']),original_acquisition['acquisition']) or not any(b['path_key']==raw['credit']['paths'][0]['path_key'] and exact_json_identity(b['original'],typed(raw['source']['original'])) for b in original_acquisition['original_bindings']):raise ArithmeticError('current Physical acquisition does not bind original stopped source/anchors')
         binding=next(b for b in original_acquisition['original_bindings']if b['path_key']==raw['credit']['paths'][0]['path_key'])

@@ -133,20 +133,52 @@ def factor(segment, ordinal, fraction=0.):
     return simple+(all_in-margin)*weight+margin*it
 
 
-def project(raw, check=lambda:False, policy=None):
+DATED_PRINCIPAL='dated_supplied_period_opening_nominal-1'
+
+
+def principal_events(raw):
+    return raw['principal_plan'].get('principal_events',[]) if raw['principal_plan']['kind']==DATED_PRINCIPAL else []
+
+
+def _principal_at(raw,day):
+    return float(raw['opening_principal'])-sum(float(e['amount']) for e in principal_events(raw) if e['payment_ordinal']<=day)
+
+
+def acquired_coupon_basis(source,check=lambda:False,policy=None):
+    """Independent nominal inventory from raw full origin, never native receipts."""
+    transfer=source.get('transfer')
+    if not transfer or transfer['contract_origin']['principal_plan']['kind']!=DATED_PRINCIPAL:return None
+    full,_=project(transfer['contract_origin'],check,policy)
+    return {a['period_id']:a['opening_principal'] for a in full['audit']}
+
+
+def project_owned(source,role,check=lambda:False,policy=None):
+    return project(source[role],check,policy,acquired_coupon_basis(source,check,policy))
+
+
+def project(raw, check=lambda:False, policy=None, acquired_basis=None):
     """Full schedule, period entitlement and continuous factor descriptors."""
     balance=float(raw['opening_principal']);after=balance;events=[];audits=[];all_segments=[]
     sign=1. if raw['direction']=='receipt' else -1.
     for i,p in enumerate(raw['periods']):
-        check();ss=segments(p,i,policy);all_segments.extend(ss);interest=balance*ss[-1]['full_factor']
+        check();ss=segments(p,i,policy);all_segments.extend(ss)
+        dated=raw['principal_plan']['kind']==DATED_PRINCIPAL
+        nominal=balance
+        if dated:
+            if p['start_ordinal']<raw['asof_ordinal']:
+                if acquired_basis is None:raise ArithmeticError('seasoned coupon requires complete raw-origin basis')
+                nominal=float(acquired_basis[p['period_id']])
+            else:nominal=_principal_at(raw,p['start_ordinal'])
+        interest=nominal*ss[-1]['full_factor']
         balloon=0.;plan=raw['principal_plan']
-        if plan['kind']=='supplied':principal=float(plan['principal_payments'][i])
+        if dated:principal=0.
+        elif plan['kind']=='supplied':principal=float(plan['principal_payments'][i])
         else:
             regular=plan['original_payment']-interest
             if i+1==len(raw['periods']):principal=balance;balloon=max(balance-regular,0.)
             else:principal=regular
-        principal=min(principal,balance);closing=balance-principal
-        audits.append(dict(period_id=p['period_id'],opening_principal=balance,interest=interest,principal_paid=principal,
+        principal=min(principal,balance);closing=_principal_at(raw,p['end_ordinal']) if dated else balance-principal
+        audits.append(dict(period_id=p['period_id'],opening_principal=nominal,interest=interest,principal_paid=principal,
             closing_principal=closing,terminal_balloon=balloon,calendar_mapping_verified=p['coupon']['kind']=='fixed',
             selected_rate_sources=[] if p['coupon']['kind']=='fixed' else [deepcopy(o['source']) for o in p['coupon']['observations']]))
         events.append(dict(position_id=raw['position_id'],event_id=p['period_id'],scenario=dict(kind='named',scenario_id=raw['scenario_id']),
@@ -157,6 +189,18 @@ def project(raw, check=lambda:False, policy=None):
             adjustment=dict(kind='none')))
         if p['payment_ordinal']<=raw['reporting_end_ordinal']:after-=principal
         balance=closing
+    if raw['principal_plan']['kind']==DATED_PRINCIPAL:
+        rows=principal_events(raw);running=float(raw['opening_principal']);prior=raw['asof_ordinal'];ids={p['period_id'] for p in raw['periods']}
+        if not rows or len(rows)+len(raw['periods'])>4096:raise ArithmeticError('dated principal bounded complete rows required')
+        for row in rows:
+            check();day=row['payment_ordinal'];value=float(row['amount'])
+            if row['event_id'] in ids or not prior<=day<=raw['tail_end_ordinal'] or not math.isfinite(value) or not 0<value<=running+1e-10:raise ArithmeticError('invalid dated principal cash')
+            running-=value;prior=day;ids.add(row['event_id'])
+            event=deepcopy(events[0]);event.update(event_id=row['event_id'],payment_ordinal=day,day_offset=day-raw['asof_ordinal'],accrual_period=None)
+            event['components']=dict(principal=sign*value,cash_interest=0.,accrued_interest=0.,book_amortization=0.,fees=0.)
+            events.append(event)
+        if abs(running)>1e-10:raise ArithmeticError('incomplete dated principal cash')
+        after=_principal_at(raw,raw['reporting_end_ordinal'])
     events.sort(key=lambda e:e['payment_ordinal'])
     result=dict(schema='term-enhancements-1',model_version='term-contracts-1',contract=deepcopy(raw['contract']),assumption=deepcopy(raw['assumption']),path=deepcopy(raw['path']),
         schedule=dict(schema='dated-cashflow-1',as_of_ordinal=raw['asof_ordinal'],horizon_days=raw['tail_end_ordinal']-raw['asof_ordinal'],scenarios=[raw['scenario_id']],events=events),
@@ -164,9 +208,9 @@ def project(raw, check=lambda:False, policy=None):
     return result,all_segments
 
 
-def verify_source(raw, receipt, check=lambda:False):
+def verify_source(raw, receipt, check=lambda:False, acquired_basis=None):
     validate_native_availability(raw,check,receipt['policy'])
-    expected,ss=project(raw,check,receipt['policy'])
+    expected,ss=project(raw,check,receipt['policy'],acquired_basis)
     got=deepcopy(receipt['source']);disclosure=got.pop('disclosure',None)
     if type(disclosure) is not str or not disclosure:raise ArithmeticError('source disclosure missing')
     compare(expected,got,check=check);compare(ss,receipt['segments'],check=check)
