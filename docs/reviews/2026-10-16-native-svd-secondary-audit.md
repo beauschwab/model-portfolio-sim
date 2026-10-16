@@ -55,9 +55,9 @@ produced no numerical result.
 
 The checks establish bounded evidence for these matrices, not full nonlinear
 convergence, observed predictive accuracy, exact mathematical rank near a
-floating cutoff, or general SVD correctness. Existing callers do not themselves
-check reconstruction and Moore-Penrose identities. No additional affected caller
-is demonstrated here. The independent commercial failure, its native repair,
+floating cutoff, or general SVD correctness. Existing callers did not themselves
+check reconstruction and Moore-Penrose identities. The subsequent family below
+demonstrates an additional affected caller. The independent commercial failure, its native repair,
 unchanged benchmark replay and combined release acceptance remain separate gates;
 see [the completion ledger](../models/commercial-completion-plan.md).
 
@@ -95,8 +95,20 @@ and status are retained separately, without replacing the earlier evidence:
 - `coupon-collinearity.exe`: SHA-256
   `00292ef0e52c62502dc15a9655b322eae1b7a482c81b0cdcf05d35e37089a239`.
 
-Reproduction through the actual `fit_current_coupon` function, independent NumPy
-comparison, a shared numerical correction preserving each caller's conventions,
-and matching release validation remain required. Tall commercial training and
-wide historical regressions have different admitted shapes; adopting the
-commercial-only wrapper blindly would change the history caller's contract.
+The same 28 controls subsequently ran through the actual public
+`fit_current_coupon` function against independent NumPy 2.4.6. All native calls
+returned success, but four returned incorrect financial fits: the first four
+rows above. The largest fitted current-coupon error was 0.001338685850604
+(13.3869 basis points); its fitted adjustment speed was 0.02 instead of 1 and
+R-squared was 0.383676257 instead of 1. The other two reconstruction failures
+retained financial outputs within the existing comparison tolerances; they are
+not counted as additional financial failures.
+
+`coupon-actual-fit-receipt.json` pins all 28 original public-call results and the
+independent comparison, SHA-256
+`2a0d6d4d2a0c052ab049cb31498577e709f29f9b5733beb7bcd7636a71aa48bc`.
+The shared correction must preserve each caller's conventions and pass matching
+release validation. Tall commercial training and wide historical regressions
+have different admitted shapes; adopting the commercial-only wrapper blindly
+would change the history caller's contract. The original failure evidence is
+retained separately from subsequent repair controls.

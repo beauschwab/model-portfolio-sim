@@ -847,6 +847,8 @@ mod checked_least_squares;
 #[cfg(test)]
 mod regression_constant_tests;
 #[cfg(test)]
+mod numerical_fee_bound_tests;
+#[cfg(test)]
 mod regression_svd_audit;
 
 fn forecast(regression: &Regression, point: &Point) -> Result<f64, String> {

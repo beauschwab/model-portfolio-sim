@@ -37,6 +37,26 @@ pub(crate) fn feature_count(r: &Request) -> Result<usize, String> {
             .ok_or("generated fee feature overflow".into())
     })
 }
+/// A raw-law proof for the *observed*, unstopped service state only. The caller
+/// supplies the result of its paid census of every declared credit hazard.
+/// Fixed service events and deterministic principal/maturity cannot vary with
+/// the Gaussian coupon drivers. Stopped fee payoffs and all source bindings
+/// still execute normally, and every observed coordinate remains in the fit.
+pub(crate) fn observed_features_are_path_constant(
+    r: &Request,
+    all_credit_hazards_zero: bool,
+) -> bool {
+    all_credit_hazards_zero
+        && r.nonintegral_fees
+            .as_ref()
+            .is_some_and(|law| law.policy.transfer.is_none())
+        && r.source.performing_draw_tranches.is_empty()
+        && r.source.reviewed_credit_actions.is_none()
+        && matches!(
+            r.source.source.current.principal_plan,
+            term::indexed::PrincipalPlan::Supplied { .. }
+        )
+}
 pub(crate) fn admit(
     r: &Request,
     n: usize,
