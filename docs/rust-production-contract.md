@@ -105,3 +105,61 @@ product/ledger/decision artifacts, service restarts and explicit selected librar
 session rebuilding are required for adoption. Local implementation/tests do not
 deploy services or close15/25. Secondary/conveyed rights, broader mixed/saved/
 cohort adoption, reviewed/observed evidence and full60000 joint acceptance remain.
+
+## Commercial transferred rights and generated fees (local 0.29.20)
+
+Finite secondary acquisition replays the complete contractual origin and retains
+buyer original OAS/EIR, separate clean/dirty cost and gross conveyed fee stocks.
+Explicit dated principal can leave coupon entitlement of 100 with live principal of 80;
+the buyer does not recognize the seller's prior income. Reviewed signed prepaid
+refund acquisitions and acquired fee valuation offsets retain their own owners.
+Closing capital and source-channels-4 FTP replay that same candidate journal;
+regulatory eligibility and reviewed capital/FTP policies remain supplied inputs.
+
+The explicit finite transfer source-work selection counts the actual origin and
+both actual buyer builds, canonical scans and all stopped/proof owners. Historical
+omission retains its original work floors and receipts. Admission does not prune
+paths or complete recovery tails, infer monetary checkpoints, enlarge budgets or
+provide an aggregate RSS guarantee. Broader joint exercise/holding and cut-route
+admission remain separate engineering and evidence gates.
+
+`commercial-generated-candidate-fee-journal-1` retains joint loan/fee exercise,
+separate fee spread/quote/acquired cost, full signed fee cash and recovery tails,
+and bounded compact native owners in protocol 7. Loan OAS/EIR/NII are separate;
+Physical outcomes never fit Pricing continuation. Raw-source, ordered journal,
+persisted partitions and final SQL/source/executable/deadline ownership checks
+gate publication. Historical fee omission and generated protocol 6 remain readable.
+Generated draw/review fee catalogs and generated secondary transfers reject.
+
+The native protocol 8 cut component moves the actual reconciled Sim into a distinct
+resumed Sim on its original calendar. It retains prior P&L in its original GL,
+gross rights, cash, basis, source cursors and policy counters. Component controls
+do not establish positive raw coordinator publication: the omitted raw specimen
+still refuses joined admission before generation. Verified predecessor binding,
+complete union tails and wider mixed adoption remain required.
+
+Exactly constant exercise features are centered from their retained observation,
+preventing roundoff from creating false varying regressors after defaults reduce
+the training sample. Varying-column reductions and all tolerances are unchanged.
+The unchanged 60-cell credit/call/put family now passes independent replay; paired
+financial values, decisions, standard errors and admissions are identical before
+and after the correction. This corrects regression metadata. The 24-cell credit
+and 107-cell general benchmark retain their separate finite-family scope.
+See docs/models/commercial-credit-exercise-convergence.md for the retained failed
+predecessor, corrected evidence and analytical limitations.
+
+Numerical evidence separates source replay, continuation approximation, sampling
+error and observed accuracy. Finite supplied-law default-loss controls do not
+prove empirical calibration. All original issue #15/#25 criteria remain required,
+including saved/cohort/strategy/product-accounting adoption, reviewed policies,
+observed holdouts and complete 60,000-position graph/credit/solver/journal acceptance.
+The last sealed installed checkpoint is 0.29.19; matching combined 0.29.20 release
+builds and full regression acceptance are pending. Local source/tests do not
+deploy services. Rebuild matching product/ledger/decision/workflow artifacts,
+restart deployed workers and explicitly rebuild selected saved libraries/sessions
+before additive execution. Numeric product ABI 10 and historical protocols remain.
+
+See docs/models/commercial-completion-plan.md, commercial-secondary-prepaid.md,
+commercial-principal-entitlement.md, commercial-finite-source-work.md,
+commercial-generated-fee-adoption.md, commercial-cut-mixed.md and
+commercial-credit-convergence.md for exact supported policies and remaining gates.

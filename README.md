@@ -1,15 +1,16 @@
 # Rates Workbench
 
-Commercial follow-through (local 0.29.19): explicit fee pricing/acquisition,
-shared loan/fee exercise, dated unit income, source-linked fee capital/FTP and
-complete-origin candidate holding windows extend the supported native lanes.
-Observable fixing prefixes retain signed late coupon claims; generated candidate
-journals use bounded partitioned output and selected path catalogs retain explicit
-draw/review ownership. See [the current work breakdown](docs/models/commercial-completion-plan.md)
-and [numerical refinement controls](docs/models/commercial-policy-refinement.md).
-Matching native artifacts and explicit saved-library/session rebuilding are
-required. Full issue #15/#25 adoption, observed/policy validation and combined
-scale acceptance remain open; this local version does not itself certify release.
+Commercial follow-through (local 0.29.20): complete-origin secondary purchases
+retain separate principal, coupon entitlement, signed fee rights and buyer cost.
+Reviewed candidate journals feed closing capital and fee FTP. Generated loan/fee
+exercise and compact protocol 7 journals retain complete cash/recovery tails with
+independent persisted replay. See [the current work breakdown](docs/models/commercial-completion-plan.md),
+[generated fee scope](docs/models/commercial-generated-fee-adoption.md) and
+[numerical controls](docs/models/commercial-credit-convergence.md).
+The last sealed installed checkpoint is 0.29.19; combined 0.29.20 release validation
+is pending. Matching native artifacts and explicit saved-library/session rebuilding
+are required. Cut coordinator publication, broader issue #15/#25 adoption,
+observed/policy validation and combined scale acceptance remain open.
 
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
