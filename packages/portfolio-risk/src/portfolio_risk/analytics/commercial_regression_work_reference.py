@@ -39,28 +39,47 @@ def scan_work_upper(raw):
     draws=source.get('performing_draw_tranches',[])
     periods=len(source['source']['current']['periods'])+sum(len(d['source']['current']['periods'])for d in draws)
     return (32+15*len(source['credit']['intervals'])+len(raw['annual_covariance'])
-            +2*periods+8*len(draws)+len(raw['coupon_loadings']))
+            +2*periods+12*len(draws)+len(raw['coupon_loadings']))
+
+
+def _supplied_draw_headers(source):
+    """Literal draw ownership rules, independent of sampled activations."""
+    start=source['source']['current']['asof_ordinal']
+    return all(
+        draw['source'].get('transfer') is None
+        and draw['source'].get('current_accounting_rate_reviews',[])==[]
+        and all(draw['source'][role]['principal_plan']['kind']=='supplied'
+                and draw['source'][role]['asof_ordinal']==draw['draw_ordinal']
+                for role in ('original','current'))
+        and draw['draw_ordinal']>start
+        for draw in source.get('performing_draw_tranches',[]))
 
 
 def active_feature_upper(raw):
     """Structural constants only; no sample realizations or economic netting."""
     source=raw['source']
     full=full_feature_upper(raw)
-    if source.get('performing_draw_tranches'):return full
+    draws=source.get('performing_draw_tranches',[])
+    contract=source['source']['current']
+    supplied=(_supplied_draw_headers(source)
+              and source.get('reviewed_credit_actions') is None
+              and source['source'].get('transfer') is None
+              and contract['principal_plan']['kind']=='supplied')
+    if draws and not supplied:return full
     credit=any(h!=0 for interval in source['credit']['intervals']
                for row in interval['hazards_per_year']for h in row)
     if raw.get('nonintegral_fees') is not None and not constant_fee_observations(raw):
         return full
     if not credit and all(c==0 for c in raw['annual_covariance']):return 0
-    contract=source['source']['current']
-    if (not credit and source.get('reviewed_credit_actions') is None
-            and source['source'].get('transfer') is None
-            and contract['principal_plan']['kind']=='supplied'):
+    if not credit and supplied:
         d=len(raw['drivers'])
         if all(row['loading']==0 for row in raw['coupon_loadings']):
             return d+(d if raw['hazard_loadings'] else 0)
-        return (d+(d if raw['hazard_loadings']else 0)+1+len(contract['periods'])
-                +sum(len(p['coupon'].get('observations',[]))for p in contract['periods']))
+        contracts=[contract]+[draw['source']['current']for draw in draws]
+        return (d+(d if raw['hazard_loadings']else 0)+1
+                +sum(len(c['periods'])for c in contracts)
+                +sum(len(p['coupon'].get('observations',[]))
+                     for c in contracts for p in c['periods']))
     return full
 
 

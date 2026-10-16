@@ -1,5 +1,6 @@
 """Independent exact integer checks for the new numerical reserve."""
 from copy import deepcopy
+from math import comb
 from pathlib import Path
 import json
 import pytest
@@ -131,3 +132,59 @@ def test_unsupported_fee_constancy_headers_retain_the_full_numerical_bound(mutat
     # These are header-predicate controls, not accepted native financial requests.
     assert not constant_fee_observations(raw)
     assert active_feature_upper(raw)==full_feature_upper(raw)
+
+
+def draw_law(floating=False):
+    from test_commercial_generated_physical import graph_request
+    return graph_request(floating)['positions'][0]['generated_policy']['pricing_training']
+
+
+@pytest.mark.parametrize('floating,active,scan',[(False,1,64),(True,5,65)])
+def test_supplied_draw_bound_counts_every_contract_and_pays_header_scan(floating,active,scan):
+    raw=draw_law(floating)
+    assert active_feature_upper(raw)==active
+    assert scan_work_upper(raw)==scan
+    assert full_feature_upper(raw)==12+int(floating)
+    degree=2
+    columns=min(comb(active+degree,degree),raw['training']['paths']//2)
+    expected=shape_bound(raw['training']['paths'],columns)
+    assert numerical_reserve(raw)==(len(raw['policy']['exercise_dates'])*expected[0]+8*scan,expected[1]+128)
+    assert numerical_reserve(raw,fits_continuation=False)==(8*scan,expected[1]+128)
+
+
+@pytest.mark.parametrize('loading',[0.,-0.,float.fromhex('0x0.0000000000001p-1022'),1.,-1.,float('nan')])
+def test_draw_loading_constancy_uses_literal_raw_scalars(loading):
+    raw=draw_law(True);raw['coupon_loadings'][0]['loading']=loading
+    assert active_feature_upper(raw)==(1 if loading==0. else 5)
+
+
+@pytest.mark.parametrize('mutation',[
+    'original_date','current_date','draw_before_source','draw_transfer','rate_review',
+    'original_principal','current_principal','root_review','root_transfer','positive_hazard'])
+def test_unsupported_draw_headers_keep_full_bound_without_sample_inference(mutation):
+    raw=draw_law();source=raw['source'];draw=source['performing_draw_tranches'][0]
+    if mutation=='original_date':draw['source']['original']['asof_ordinal']-=1
+    elif mutation=='current_date':draw['source']['current']['asof_ordinal']-=1
+    elif mutation=='draw_before_source':draw['draw_ordinal']=source['source']['current']['asof_ordinal']
+    elif mutation=='draw_transfer':draw['source']['transfer']={}
+    elif mutation=='rate_review':draw['source']['current_accounting_rate_reviews']=[{}]
+    elif mutation in ('original_principal','current_principal'):
+        role=mutation.split('_')[0]
+        draw['source'][role]['principal_plan']={'kind':'dated_supplied_period_opening_nominal-1','principal_events':[]}
+    elif mutation=='root_review':source['reviewed_credit_actions']={}
+    elif mutation=='root_transfer':source['source']['transfer']={}
+    else:source['credit']['intervals'][0]['hazards_per_year'][0][3]=float.fromhex('0x0.0000000000001p-1022')
+    assert active_feature_upper(raw)==full_feature_upper(raw)
+    if mutation!='positive_hazard':
+        raw['annual_covariance']=[0.]*len(raw['annual_covariance'])
+        assert active_feature_upper(raw)==full_feature_upper(raw)
+
+
+def test_draw_ccf_anchor_and_zero_covariance_have_separate_raw_guards():
+    raw=draw_law()
+    raw['source']['credit']['intervals'][0]['credit_conversion_factor']=[1.]*3
+    assert active_feature_upper(raw)==1
+    raw['hazard_loadings']=[dict(interval_index=0,origin_index=0,destination_index=3,betas=[0.])]
+    assert active_feature_upper(raw)==2
+    raw['annual_covariance']=[0.]*len(raw['annual_covariance'])
+    assert active_feature_upper(raw)==0

@@ -57,11 +57,17 @@ def test_generated_serialized_phase_refuses_limit(tmp_path, monkeypatch):
             [{'unit_index': 0, 'source_index': 0, 'native_json': {}}])
 
 
-def test_native_trailer_cannot_claim_verification_or_different_paths():
-    header = {'source_receipt': {'physical_paths': 256,
+@pytest.mark.parametrize('model,protocol,record', [
+    (transport.SCHEMA, 6, 'commercial_generated_complete'),
+    (transport.FEE_SCHEMA, 7, 'commercial_generated_fee_complete'),
+])
+def test_native_trailer_cannot_claim_verification_or_different_paths(model, protocol, record):
+    header = {'model_schema': model, 'source_receipt': {'physical_paths': 256,
         'maximum_live_full_physical_owners': 1, 'full_end_ordinal': 740000}}
-    trailer = dict(record='commercial_generated_complete', complete=True,
-        schema=transport.SCHEMA, protocol=6, **header['source_receipt'],
+    if model == transport.FEE_SCHEMA:
+        header['source_receipt']['maximum_live_full_fee_owners'] = 1
+    trailer = dict(record=record, complete=True,
+        schema=model, protocol=protocol, **header['source_receipt'],
         independent_persisted_verification=False, opening_identity_verified=False,
         mixed_ledger_adoption=False, empirical_validation=False)
     transport.validate_trailer(header, trailer)
@@ -69,3 +75,10 @@ def test_native_trailer_cannot_claim_verification_or_different_paths():
                     dict(trailer, independent_persisted_verification=True),
                     dict(trailer, extra=False)):
         with pytest.raises(ValueError): transport.validate_trailer(header, changed)
+
+    for invalid_header in ({'source_receipt': header['source_receipt']},
+                           dict(header, model_schema='unsupported-generated-model')):
+        with pytest.raises(ValueError): transport.validate_trailer(invalid_header, trailer)
+    if model == transport.FEE_SCHEMA:
+        with pytest.raises(ValueError):
+            transport.validate_trailer(header, dict(trailer, maximum_live_full_fee_owners=2))
