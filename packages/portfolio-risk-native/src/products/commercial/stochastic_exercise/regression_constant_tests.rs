@@ -7,6 +7,7 @@ fn point(features: Vec<f64>) -> Point {
         principal: 100.,
         legal: 0.,
         surviving_rights: true,
+        fee_payoffs: None,
     }
 }
 
