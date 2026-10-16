@@ -32,6 +32,7 @@ pub struct Fee {
 #[serde(rename_all = "snake_case")]
 pub enum Action {
     Acquire,
+    AcquireTransferredStock,
     ReleaseAcquiredCost,
     Earn,
     Cash,
@@ -94,6 +95,8 @@ pub enum Account {
     FeeRecoveryIncome,
     AcquiredFeeAsset,
     AcquiredFeeLiability,
+    AcquiredFeeAssetValuationAdjustment,
+    AcquiredFeeLiabilityValuationAdjustment,
     FeeAcquisitionExpense,
 }
 #[derive(Debug, Clone, Serialize)]
@@ -103,6 +106,14 @@ pub struct Posting {
 }
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct State {
+    #[serde(skip_serializing_if = "is_zero")]
+    pub acquired_fee_asset_valuation_adjustment: f64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub acquired_fee_liability_valuation_adjustment: f64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub transferred_net_stock: f64,
+    #[serde(skip_serializing_if = "is_false")]
+    pub acquired_stock_selected: bool,
     #[serde(skip_serializing_if = "is_zero")]
     pub acquired_cost: f64,
     #[serde(skip_serializing_if = "is_zero")]
@@ -145,6 +156,8 @@ pub struct Group {
 pub struct ResultData {
     schema: &'static str,
     raw_request: Request,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    native_transfer: Option<NativeTransferredFees>,
     groups: Vec<Group>,
     reporting: Vec<Closing>,
     closing: Vec<Closing>,
@@ -156,7 +169,89 @@ pub struct ResultData {
     empirical_validation: bool,
     accounting_approval: bool,
 }
+/// Sealed replayed service prefix. It contains legal history, no seller yield,
+/// carrying basis or historical service-income postings in the buyer journal.
+#[derive(Debug, Clone, Serialize)]
+pub struct NativeTransferredFees {
+    origin: Request,
+    acquisition_ordinal: i32,
+    review: Identity,
+    states: Vec<State>,
+}
+impl NativeTransferredFees {
+    pub fn net_stock(&self, fee_id: &str) -> Result<f64, String> {
+        let i = self
+            .origin
+            .fees
+            .iter()
+            .position(|f| f.fee_id == fee_id)
+            .ok_or("unknown acquired fee stock")?;
+        let s = &self.states[i];
+        money(s.fee_receivable + s.fee_payable + s.deferred_fee_income + s.prepaid_fee_expense)
+    }
+}
+pub fn transfer_before<F: FnMut() -> Result<(), String>>(
+    origin: &Request,
+    acquisition_ordinal: i32,
+    review: Identity,
+    mut check: F,
+) -> Result<NativeTransferredFees, String> {
+    check()?;
+    identity(&review)?;
+    if origin.asof_ordinal >= acquisition_ordinal
+        || acquisition_ordinal > origin.complete_end_ordinal
+        || origin.events.iter().any(|e| {
+            !matches!(
+                e.action,
+                Action::Earn | Action::Cash | Action::RefundPrepaid | Action::RefundEarned
+            )
+        })
+    {
+        return Err(
+            "complete performing service history before secondary transfer required".into(),
+        );
+    }
+    // Validate the complete conveyed contract, including future origin actions,
+    // before deriving the strictly pre-transfer stock.
+    evaluate_measure(origin, origin.measure, None, &mut check)?;
+    let mut prefix = origin.clone();
+    prefix.events.retain(|e| e.ordinal < acquisition_ordinal);
+    prefix.reporting_end_ordinal = acquisition_ordinal;
+    let result = evaluate_measure(&prefix, origin.measure, None, &mut check)?;
+    let mut states = result
+        .closing
+        .into_iter()
+        .map(|r| r.state)
+        .collect::<Vec<_>>();
+    for s in &mut states {
+        s.transferred_net_stock = money(
+            s.fee_receivable + s.fee_payable + s.deferred_fee_income + s.prepaid_fee_expense,
+        )?;
+        s.acquired_stock_selected = true;
+    }
+    Ok(NativeTransferredFees {
+        origin: origin.clone(),
+        acquisition_ordinal,
+        review,
+        states,
+    })
+}
+pub fn evaluate_transferred_with_check<F: FnMut() -> Result<(), String>>(
+    r: &Request,
+    opening: &NativeTransferredFees,
+    check: F,
+) -> Result<ResultData, String> {
+    let mut raw = r.clone();
+    for (i, e) in raw.events.iter_mut().enumerate() {
+        e.sequence =
+            u32::try_from(raw.fees.len() + i).map_err(|_| "secondary fee event clock overflow")?;
+    }
+    evaluate_measure(&raw, raw.measure, Some(opening), check)
+}
 impl ResultData {
+    pub fn native_transfer(&self) -> Option<&NativeTransferredFees> {
+        self.native_transfer.as_ref()
+    }
     pub fn raw_request(&self) -> &Request {
         &self.raw_request
     }
@@ -193,8 +288,28 @@ fn is_zero(v: &f64) -> bool {
 }
 fn refresh(f: &Fee, s: &mut State) -> Result<(), String> {
     let basis = money(s.acquired_cost - s.released_acquired_cost)?;
-    s.acquired_fee_asset = basis.max(0.);
-    s.acquired_fee_liability = basis.min(0.);
+    s.acquired_fee_asset_valuation_adjustment =
+        if s.acquired_stock_selected && s.transferred_net_stock > 0. {
+            basis.min(0.)
+        } else {
+            0.
+        };
+    s.acquired_fee_liability_valuation_adjustment =
+        if s.acquired_stock_selected && s.transferred_net_stock < 0. {
+            basis.max(0.)
+        } else {
+            0.
+        };
+    s.acquired_fee_asset = if s.acquired_fee_liability_valuation_adjustment != 0. {
+        0.
+    } else {
+        basis.max(0.)
+    };
+    s.acquired_fee_liability = if s.acquired_fee_asset_valuation_adjustment != 0. {
+        0.
+    } else {
+        basis.min(0.)
+    };
     let sign = f.entitlement.signum();
     let net = money(s.earned - s.refunded_earned - s.waived_earned - s.net_service_cash)? * sign;
     s.fee_receivable = if sign > 0. { net.max(0.) } else { 0. };
@@ -224,7 +339,7 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
     r: &Request,
     check: F,
 ) -> Result<ResultData, String> {
-    evaluate_measure(r, CashflowMeasure::Physical, check)
+    evaluate_measure(r, CashflowMeasure::Physical, None, check)
 }
 /// The same contractual fee-right arithmetic under an explicitly supplied
 /// Pricing history. This is not a physical accounting or journal entrypoint.
@@ -232,11 +347,12 @@ pub fn evaluate_pricing_with_check<F: FnMut() -> Result<(), String>>(
     r: &Request,
     check: F,
 ) -> Result<ResultData, String> {
-    evaluate_measure(r, CashflowMeasure::Pricing, check)
+    evaluate_measure(r, CashflowMeasure::Pricing, None, check)
 }
 fn evaluate_measure<F: FnMut() -> Result<(), String>>(
     r: &Request,
     measure: CashflowMeasure,
+    opening: Option<&NativeTransferredFees>,
     mut check: F,
 ) -> Result<ResultData, String> {
     check()?;
@@ -284,9 +400,58 @@ fn evaluate_measure<F: FnMut() -> Result<(), String>>(
         }
         refresh(f, &mut states[i])?;
     }
+    let mut groups = Vec::with_capacity(r.events.len() + opening.map_or(0, |x| x.states.len()));
+    if let Some(t) = opening {
+        if r.events
+            .iter()
+            .any(|e| e.event_id.starts_with("native-fee-transfer:"))
+        {
+            return Err("reserved native transferred fee event identity".into());
+        }
+        if r.asof_ordinal != t.acquisition_ordinal
+            || r.currency != t.origin.currency
+            || r.monetary_unit != t.origin.monetary_unit
+            || r.measure != t.origin.measure
+            || serde_json::to_vec(&r.fees).map_err(|e| e.to_string())?
+                != serde_json::to_vec(&t.origin.fees).map_err(|e| e.to_string())?
+        {
+            return Err("secondary fee opening exact source/clock identity required".into());
+        }
+        states = t.states.clone();
+        for (i, (f, state)) in r.fees.iter().zip(&states).enumerate() {
+            let net = t.net_stock(&f.fee_id)?;
+            let mut postings = Vec::new();
+            for (account, amount) in [
+                (Account::Cash, -net),
+                (Account::FeeReceivable, state.fee_receivable),
+                (Account::FeePayable, state.fee_payable),
+                (Account::DeferredFeeIncome, state.deferred_fee_income),
+                (Account::PrepaidFeeExpense, state.prepaid_fee_expense),
+            ] {
+                if amount != 0. {
+                    postings.push(Posting { account, amount });
+                }
+            }
+            groups.push(Group {
+                event: Event {
+                    event_id: format!("native-fee-transfer:{}:{i}", t.review.id),
+                    fee_id: f.fee_id.clone(),
+                    source: f.source.clone(),
+                    review: t.review.clone(),
+                    ordinal: r.asof_ordinal,
+                    sequence: i as u32,
+                    action: Action::AcquireTransferredStock,
+                    reason: Reason::OtherReviewed,
+                    amount: net,
+                },
+                policy: r.policy.clone(),
+                postings,
+                next: state.clone(),
+            });
+        }
+    }
     let mut ids = HashSet::new();
     let mut previous = None;
-    let mut groups = Vec::with_capacity(r.events.len());
     let mut reporting = states.clone();
     for e in &r.events {
         check()?;
@@ -309,22 +474,42 @@ fn evaluate_measure<F: FnMut() -> Result<(), String>>(
         let old = states[i].clone();
         let s = &mut states[i];
         let sign = f.entitlement.signum();
-        let a = money(e.amount)? * sign;
+        let acquired_basis = s.acquired_stock_selected
+            && matches!(e.action, Action::Acquire | Action::ReleaseAcquiredCost);
+        let a = if acquired_basis {
+            money(e.amount)?.abs()
+        } else {
+            money(e.amount)? * sign
+        };
         if a <= 0. || e.source != f.source {
             return Err("fee event sign/source mismatch".into());
         }
         let capacity = match e.action {
+            Action::AcquireTransferredStock => {
+                return Err("transferred fee stocks require sealed native prefix authority".into())
+            }
             Action::Acquire => {
                 if e.ordinal != r.asof_ordinal
                     || s.acquired_cost != 0.
-                    || s.earned != 0.
-                    || s.net_service_cash != 0.
+                    || !s.acquired_stock_selected && (s.earned != 0. || s.net_service_cash != 0.)
                 {
                     return Err("original separate fee acquisition requires one actual opening event before service/cash".into());
                 }
                 MAX_MONETARY_AMOUNT
             }
-            Action::ReleaseAcquiredCost => (s.acquired_cost - s.released_acquired_cost) * sign,
+            Action::ReleaseAcquiredCost => {
+                let remaining = s.acquired_cost - s.released_acquired_cost;
+                if acquired_basis && e.amount.signum() != remaining.signum() {
+                    return Err(
+                        "secondary valuation release sign exceeds acquired residual basis".into(),
+                    );
+                }
+                if acquired_basis {
+                    remaining.abs()
+                } else {
+                    remaining * sign
+                }
+            }
             Action::Earn | Action::CancelUnearned => s.unearned_entitlement * sign,
             Action::Cash => {
                 (f.entitlement
@@ -375,6 +560,9 @@ fn evaluate_measure<F: FnMut() -> Result<(), String>>(
             }
         };
         match e.action {
+            Action::AcquireTransferredStock => {
+                return Err("sealed transfer action cannot be caller input".into())
+            }
             Action::Acquire => {
                 s.acquired_cost = e.amount;
                 post(Account::Cash, -e.amount);
@@ -423,6 +611,16 @@ fn evaluate_measure<F: FnMut() -> Result<(), String>>(
         refresh(f, s)?;
         for (account, after, before) in [
             (
+                Account::AcquiredFeeAssetValuationAdjustment,
+                s.acquired_fee_asset_valuation_adjustment,
+                old.acquired_fee_asset_valuation_adjustment,
+            ),
+            (
+                Account::AcquiredFeeLiabilityValuationAdjustment,
+                s.acquired_fee_liability_valuation_adjustment,
+                old.acquired_fee_liability_valuation_adjustment,
+            ),
+            (
                 Account::AcquiredFeeAsset,
                 s.acquired_fee_asset,
                 old.acquired_fee_asset,
@@ -465,6 +663,7 @@ fn evaluate_measure<F: FnMut() -> Result<(), String>>(
     let result = ResultData {
         schema: SCHEMA,
         raw_request: r.clone(),
+        native_transfer: opening.cloned(),
         groups,
         reporting: snapshots(r, &reporting),
         closing: snapshots(r, &states),

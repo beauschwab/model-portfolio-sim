@@ -13,6 +13,7 @@ GL={'cash':'cash','fee_receivable':'commercial_fee_receivable','fee_payable':'co
     'deferred_fee_income':'commercial_deferred_fee_income','prepaid_fee_expense':'commercial_prepaid_fee_expense',
     'fee_income':'pnl:commercial_nonintegral_fee_income','fee_writeoff_expense':'pnl:commercial_fee_writeoff_expense',
     'fee_recovery_income':'pnl:commercial_fee_recovery_income'}
+GL.update(acquired_fee_asset_valuation_adjustment='commercial_acquired_fee_asset_valuation_adjustment',acquired_fee_liability_valuation_adjustment='commercial_acquired_fee_liability_valuation_adjustment')
 GL.update(acquired_fee_asset='commercial_acquired_fee_asset',acquired_fee_liability='commercial_acquired_fee_liability',fee_acquisition_expense='pnl:commercial_fee_acquisition_expense')
 
 def _day(year):
@@ -39,7 +40,7 @@ def bind(policy,raw,source,check,stops=()):
                 if policy['coincident_order']=='native_exit_follows_native_exercise_timing-1':exit['exercise_timing']=stop['timing']
         after=exit is not None and exit.get('exercise_timing')=='after_scheduled_cash'
         timeline=[];prefix=[deepcopy(e)for e in policy['events']if exit is None or (e['ordinal']-origin)/365.<exit['native_year']or after and(e['ordinal']-origin)/365.==exit['native_year']]
-        before=fee_replay(request(prefix),check)
+        before=fee_replay(request(prefix),check,transfer=policy.get('transfer'))
         if exit is not None:
             rule=policy[dict(default='default',other_reviewed='prepayment',maturity='maturity',exercise='exercise')[exit['reason']]]
             for fi,(fee,snap)in enumerate(zip(policy['fees'],before['closing'],strict=True)):
@@ -64,8 +65,9 @@ def bind(policy,raw,source,check,stops=()):
         else:timeline=[((e['ordinal']-origin)/365.,deepcopy(e))for e in policy['events']]
         timeline.sort(key=lambda e:(e[0],int(e[1]['event_id'].startswith('native-fee:'))if after and e[0]==exit['native_year']else 0));events=[];years=[]
         for i,(year,e)in enumerate(timeline):e['sequence']=i;events.append(e);years.append(year)
+        if policy.get('transfer'):years=[0.]*len(policy['fees'])+years
         out.append(dict(path_key=path['path_key'],position_id=current['position_id'],scenario=current['scenario_id'],native_years=years,
-            source=fee_replay(request(events),check),exit=exit,native_credit_event_binding=True,loan_carrying_value_changed=False))
+            source=fee_replay(request(events),check,transfer=policy.get('transfer')),exit=exit,native_credit_event_binding=True,loan_carrying_value_changed=False))
     return out
 
 def verify(raw,result,check=lambda:False):
@@ -83,15 +85,15 @@ def verify(raw,result,check=lambda:False):
     from .commercial_dto import typed
     nested=result['loan_receipt'];expected=typed(loan)
     prepared=verify_preparation(expected,expected,nested,check,expected_protocol=7)
-    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))+int(any(p[k].get('refund_earned_fraction',0.)>0. for k in('default','prepayment','exercise','maturity')))))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
+    cells=sum((len(p['events'])+len(p['fees'])*(3+max(len(p[k]['recoveries'])for k in('default','prepayment','exercise','maturity'))+int(any(p[k].get('refund_earned_fraction',0.)>0. for k in('default','prepayment','exercise','maturity'))))+(len(p['transfer']['origin_service']['events'])*8+len(p['events'])*4+len(p['fees'])*8 if p.get('transfer')else 0))*len(s['credit']['paths'])for p,s in zip(raw['fees'],loan['commercial'],strict=True))
     bounds=dict(admitted_work_upper=nested['admitted_work_upper']+cells*128+cells*8*(prepared['horizon']+1)*16,
         retained_bytes_upper=nested['retained_bytes_upper']+cells*4096+cells*8*4096+(32<<20))
     for name,wanted in bounds.items():
         if type(result.get(name))is not int or result[name]!=wanted:raise ValueError('joined fee admission differs')
     fee_sources=[bind(p,r,s,check)for p,r,s in zip(raw['fees'],raw['loan']['commercial'],prepared['sources'],strict=True)]
     compare(fee_sources,result['fee_sources'],check=check)
-    for paths in result['fee_sources']:
-        for f in paths:fee_verify(f['source']['raw_request'],f['source'],check)
+    for policy,paths in zip(raw['fees'],result['fee_sources'],strict=True):
+        for f in paths:fee_verify(f['source']['raw_request'],f['source'],check,transfer=policy.get('transfer'))
     return verify_tables(prepared,fee_sources,loan,result['tables'],check)
 
 

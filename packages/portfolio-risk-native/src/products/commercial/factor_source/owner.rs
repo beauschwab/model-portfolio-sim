@@ -288,6 +288,27 @@ impl NativeFactors {
         measure: CashflowMeasure,
         authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Admission, String> {
+        Self::admit_owned(raw, policy, queries, measure, false, authority)
+    }
+    pub(crate) fn admit_transfer(
+        raw: &ContractPathRequest,
+        policy: &FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+    ) -> Result<Admission, String> {
+        Self::admit_owned(raw, policy, queries, measure, true, None)
+    }
+    fn admit_owned(
+        raw: &ContractPathRequest,
+        policy: &FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        transferred: bool,
+        authority: Option<&GeneratedCatalogAuthority>,
+    ) -> Result<Admission, String> {
+        if transferred && authority.is_some() {
+            return Err("generated counted transfer source ownership is unsupported".into());
+        }
         portfolio_compute_control::checkpoint()?;
         policy.validate()?;
         if raw.measure != measure
@@ -313,7 +334,7 @@ impl NativeFactors {
         for p in &raw.periods {
             portfolio_compute_control::checkpoint()?;
             // Seasoned opening-right ownership is not invented by this compiler.
-            if p.start_ordinal < raw.asof_ordinal {
+            if p.start_ordinal < raw.asof_ordinal && !transferred {
                 return Err(
                     "seasoned coupon prefix requires separate native opening-right owner".into(),
                 );
@@ -512,8 +533,25 @@ impl NativeFactors {
         measure: CashflowMeasure,
         authority: Option<&GeneratedCatalogAuthority>,
     ) -> Result<Self, String> {
-        let admission =
-            Self::admit_for_measure_with_work(&raw, &policy, queries, measure, authority)?;
+        Self::compile_owned(raw, policy, queries, measure, false, authority)
+    }
+    pub(crate) fn compile_transfer(
+        raw: ContractPathRequest,
+        policy: FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+    ) -> Result<Self, String> {
+        Self::compile_owned(raw, policy, queries, measure, true, None)
+    }
+    fn compile_owned(
+        raw: ContractPathRequest,
+        policy: FactorPolicy,
+        queries: usize,
+        measure: CashflowMeasure,
+        transferred: bool,
+        authority: Option<&GeneratedCatalogAuthority>,
+    ) -> Result<Self, String> {
+        let admission = Self::admit_owned(&raw, &policy, queries, measure, transferred, authority)?;
         let meter = admission.counted_work.as_ref().map(WorkMeter::new);
         let s = admission.segment_bound;
         let mut segments = Vec::new();
@@ -529,7 +567,9 @@ impl NativeFactors {
             segments.push(segment);
             Ok(())
         };
-        let source = if let Some(meter) = meter.as_ref() {
+        let source = if transferred {
+            indexed::build_transfer_path_with_segments(&raw, &mut capture, raw.asof_ordinal)?
+        } else if let Some(meter) = meter.as_ref() {
             indexed::build_path_with_counted_segments(&raw, &mut capture, meter)?
         } else {
             indexed::build_path_with_segments(&raw, &mut capture)?

@@ -32,7 +32,17 @@ pub struct ExitPolicy {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct TransferPolicy {
+    pub review: Identity,
+    pub origin_service: fee::Request,
+    pub conveyance: String,
+    pub valuation_release_policy: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Policy {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfer: Option<Box<TransferPolicy>>,
     pub schema: String,
     pub policy: Identity,
     pub complete_end_ordinal: i32,
@@ -180,7 +190,9 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
     // Validate the complete supplied service/cash contract before any loan path
     // generation. Exit policies may remove events; they cannot legalize a bad
     // original source, duplicate identity, unavailable right or invalid clock.
-    evaluate(&request(p, r, p.events.clone()))?;
+    if p.transfer.is_none() {
+        evaluate_policy(p, r, p.events.clone())?;
+    }
     let events = event_bound(p);
     let cells = events
         .checked_mul(r.credit.paths.len())
@@ -189,6 +201,11 @@ pub fn admit(p: &Policy, r: &loan::Request) -> Result<(usize, usize), String> {
     let work = cells.checked_mul(128).ok_or("fee admission overflow")?;
     if work > 8_000_000 || bytes > 32 << 20 {
         return Err("native fee joined capacity exceeds8M/32MiB before loan generation".into());
+    }
+    if p.transfer.is_some() {
+        // A selected full-origin replay cannot run before its additional
+        // complete/frozen/future event and retained-stock capacity is reserved.
+        evaluate_policy(p, r, p.events.clone())?;
     }
     Ok((work, bytes))
 }
@@ -202,7 +219,11 @@ pub fn event_bound(p: &Policy) -> usize {
         .max()
         .unwrap_or(0);
     let earned_refund = usize::from(policies.iter().any(|p| p.refund_earned_fraction > 0.));
-    p.events.len() + p.fees.len() * (3 + recoveries + earned_refund)
+    p.events.len()
+        + p.fees.len() * (3 + recoveries + earned_refund)
+        + p.transfer.as_ref().map_or(0, |t| {
+            t.origin_service.events.len() * 8 + p.events.len() * 4 + p.fees.len() * 8
+        })
 }
 fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
     if !year.is_finite() || year < 0. {
@@ -221,6 +242,48 @@ fn ordinal(origin: i32, year: f64) -> Result<i32, String> {
     origin
         .checked_add(days as i32)
         .ok_or("fee ordinal overflow".into())
+}
+pub(crate) fn transferred_opening(
+    p: &Policy,
+    r: &loan::Request,
+) -> Result<Option<fee::NativeTransferredFees>, String> {
+    let Some(t) = &p.transfer else {
+        return Ok(None);
+    };
+    let loan = r
+        .source
+        .transfer
+        .as_ref()
+        .ok_or("secondary fee transfer requires same native secondary loan acquisition")?;
+    if t.origin_service.asof_ordinal != loan.contract_origin.asof_ordinal
+        || t.origin_service.measure != r.source.current.measure
+        || t.origin_service.currency != r.source.current.currency
+        || t.origin_service.monetary_unit != r.source.current.monetary_unit
+        || t.conveyance != "all_unsettled_fee_rights_and_remaining_service_obligations-1"
+        || t.valuation_release_policy != "explicit_acquired_residual_valuation_release-1"
+        || strict_json::encode(&t.origin_service.fees, 1 << 20)?
+            != strict_json::encode(&p.fees, 1 << 20)?
+    {
+        return Err("secondary fee transfer requires exact complete origin, conveyed service/right catalog and reviewed residual valuation policy".into());
+    }
+    Ok(Some(fee::transfer_before(
+        &t.origin_service,
+        r.source.current.asof_ordinal,
+        t.review.clone(),
+        portfolio_compute_control::checkpoint,
+    )?))
+}
+fn evaluate_policy(
+    p: &Policy,
+    r: &loan::Request,
+    events: Vec<fee::Event>,
+) -> Result<fee::ResultData, String> {
+    let raw = request(p, r, events);
+    if let Some(t) = transferred_opening(p, r)? {
+        fee::evaluate_transferred_with_check(&raw, &t, portfolio_compute_control::checkpoint)
+    } else {
+        evaluate(&raw)
+    }
 }
 fn request(p: &Policy, r: &loan::Request, events: Vec<fee::Event>) -> fee::Request {
     fee::Request {
@@ -334,7 +397,7 @@ pub(crate) fn bind_carry(
             })
             .cloned()
             .collect::<Vec<_>>();
-        let before = evaluate(&request(p, r, prefix))?;
+        let before = evaluate_policy(p, r, prefix)?;
         if let Some(x) = &exit {
             let policy = match x.reason {
                 fee::Reason::Default => &p.default,
@@ -462,8 +525,9 @@ pub(crate) fn bind_carry(
             years.push(year);
             events.push(event);
         }
-        let prepared = request(p, r, events);
-        let fee_source = evaluate(&prepared)?;
+        let fee_source = evaluate_policy(p, r, events)?;
+        let acquired_opening_count = fee_source.native_transfer().map_or(0, |_| p.fees.len());
+        years.splice(0..0, std::iter::repeat_n(0., acquired_opening_count));
         out.push(BoundPath {
             path_key: path.path_key,
             position_id: r.source.current.position_id.clone(),

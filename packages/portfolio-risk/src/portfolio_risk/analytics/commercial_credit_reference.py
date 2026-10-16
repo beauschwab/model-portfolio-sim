@@ -29,6 +29,9 @@ def prepared(raw,stops=(),check=lambda:False):
     for owner in [raw['source']]+[draw['source']for draw in raw.get('performing_draw_tranches',[])]:
         for role in ('original','current'):validate_native_availability(owner[role],check,raw['factor_policy'])
     source=raw['source']['current'];acq=raw['source']['acquisition'];credit=raw['credit']
+    from .commercial_secondary_reference import loan_transfer
+    transferred=loan_transfer(raw,check)
+    acquired=transferred['purchased_legal_interest']if transferred else 0.
     contract_end=(max([source['tail_end_ordinal']]+[d['source']['current']['tail_end_ordinal'] for d in raw.get('performing_draw_tranches',[])])-source['asof_ordinal'])/365.;end=full_end(raw)
     cuts=sorted(set([i['end_year'] for i in credit['intervals']]+[d/365. for d in range(1,math.ceil(end*365.)+1) if d/365.<end]+[end]))
     if observable_policy(raw['factor_policy']):
@@ -68,7 +71,7 @@ def prepared(raw,stops=(),check=lambda:False):
     path=dict(schema='credit-path-1',measure='physical',monetary_unit=source['monetary_unit'],source_id=source['contract']['id'],source_revision=source['contract']['revision'],
         model_policy_id=credit['identity']['id'],origin_time=dict(ordinal=source['asof_ordinal'],seconds_of_day=0),max_jumps_per_path=credit['max_jumps_per_path'],
         intervals=terms,boundaries=boundaries,draw_stream=deepcopy(credit['draw_stream']),paths=[dict(**p,principal=float(source['opening_principal']),
-        undrawn_commitment=float(credit.get('opening_undrawn_commitment',0.)),accrued_interest=0.,book_adjustment=acq['cost']-source['opening_principal']) for p in credit['paths']])
+        undrawn_commitment=float(credit.get('opening_undrawn_commitment',0.)),accrued_interest=float(acquired),book_adjustment=acq['cost']-source['opening_principal']-acquired) for p in credit['paths']])
     result=dict(schema='credit-path-income-proof-1',raw_credit_path=path,original_anchors=[dict(path_key=p['path_key'],original_yield_anchor=acq['original_yield_anchor']['id'],
         acquisition_cost=float(acq['cost']),original_annual_effective_rate=float(acq['original_annual_effective_rate'])) for p in credit['paths']],recognition_rates=reviews,
         policy_review=raw['accounting']['identity']['id'],partial_payment_policy='cash_reduces_gross_no_proportional_basis_disposal-1',default_policy='stop_income_transfer_actual_gross_retain_nominal_claims-1')
@@ -97,7 +100,7 @@ def replay(raw, check=lambda:False, *, stops=()):
     points=[];contributions=[];source_cash=[];recoveries=[];coupon_recoveries=[];paths=[];sojourns=[];work=0
     horizon=path['intervals'][-1]['end_year']
     for opening in path['paths']:
-        check();state=STATES.index(opening['initial_live_state']);principal=opening['principal'];undrawn=opening['undrawn_commitment'];accrued=0.;gross=raw['source']['acquisition']['cost']
+        check();state=STATES.index(opening['initial_live_state']);principal=opening['principal'];undrawn=opening['undrawn_commitment'];accrued=opening['accrued_interest'];gross=raw['source']['acquisition']['cost']
         out=dict(path_id=opening['path_id'],path_key=opening['path_key'],outcome=STATES[state],earned_interest=0.,earned_interest_by_origin=[0.]*3,cash_received=0.,cash_funded=0.,book_adjustment_recognized=0.,random_pairs_used=0,events=[],default=None)
         canonical=[];active=set();tranches=[];contingent_cut=None
         def owned_view(audit_index):return next(v for v in views if v[2]<=audit_index<v[3])
@@ -130,6 +133,13 @@ def replay(raw, check=lambda:False, *, stops=()):
                 memo=pending_indices(ss,source,year if contingent_cut is None else contingent_cut,year,views,active)
                 if memo:value['pending_coupon_obligation_indices']=memo
             points.append(value)
+        if raw['source'].get('transfer'):
+            from .commercial_secondary_reference import loan_transfer
+            acquired=loan_transfer(raw,check)
+            for coupon in acquired['coupons']:
+                ai=coupon['native_audit_index'];si=next(i for i,s in enumerate(ss)if s['native_audit_index']==ai)
+                contributions.append(dict(path_key=opening['path_key'],interval_index=0,origin_index=3,start_year=0.,end_year=0.,coupon_id=coupon['period_id'],source_event_id=coupon['period_id'],source_id=source['contract']['id'],source_revision=source['contract']['revision'],captured_segment_index=si,delta_factor=coupon['purchased_factor'],actual_principal=coupon['opening_entitlement_principal'],contractual_earned=coupon['purchased_legal_interest'],native_entitlement=dict(native_audit_index=ai,native_cash_index=coupon['native_cash_index'],opening_entitlement_principal=coupon['opening_entitlement_principal'])))
+            canonicalize(0.)
         point(0.,'reviewed_opening_snapshot');time=0.;interval=boundary=jumps=0;waiting=None
         while time<horizon or boundary<len(path['boundaries']) and path['boundaries'][boundary]['year']==time:
             check();work+=1

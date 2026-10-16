@@ -50,6 +50,8 @@ pub struct Request {
     pub original: indexed::ContractPathRequest,
     pub current: indexed::ContractPathRequest,
     pub acquisition: Acquisition,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfer: Option<Box<super::acquisition::Transfer>>,
     pub policy: Policy,
     #[serde(default)]
     pub current_accounting_rate_reviews: Vec<ProspectiveRateReview>,
@@ -270,6 +272,9 @@ pub fn admit_for_measure(r: &Request, measure: CashflowMeasure) -> Result<Admiss
     {
         return Err("commercial original effective yield requires -0.99..10".into());
     }
+    if r.transfer.is_some() {
+        super::acquisition::admit(r)?;
+    }
     let daily = r.policy.recognition == "actual_daily_matched_native_fragments-1";
     let original_points = point_count(o, daily)?;
     let current_points = point_count(c, daily)?;
@@ -321,7 +326,7 @@ pub fn admit_for_measure(r: &Request, measure: CashflowMeasure) -> Result<Admiss
     }
     for (a, b) in o.periods.iter().zip(&c.periods) {
         checkpoint()?;
-        if a.start_ordinal < o.asof_ordinal {
+        if a.start_ordinal < o.asof_ordinal && r.transfer.is_none() {
             return Err(
                 "seasoned/pre-acquisition accrued rights require a separate explicit prefix owner"
                     .into(),
@@ -516,6 +521,11 @@ pub(crate) fn original_cash_quote(
 }
 
 pub fn evaluate(r: &Request) -> Result<ResultData, String> {
+    if r.transfer.is_some() {
+        return Err(
+            "secondary rights require the integrated native commercial credit/graph owner".into(),
+        );
+    }
     // This standalone receipt owns endpoint/day captures rather than observable
     // credit-state recognition. A later publication cannot use that old clock.
     if [&r.original, &r.current].iter().flat_map(|s| &s.periods).any(|p| {
@@ -615,6 +625,7 @@ mod tests {
             revision: "1".into(),
         };
         Request {
+            transfer: None,
             schema: SCHEMA.into(),
             original,
             current,

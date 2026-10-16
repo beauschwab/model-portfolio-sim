@@ -126,6 +126,7 @@ fn raw_prefix(r: &Request, cut: f64) -> Result<(), String> {
     let b = &r.revised_source;
     require_same(&a.source.original, &b.source.original)?;
     require_same(&a.source.acquisition, &b.source.acquisition)?;
+    require_same(&a.source.transfer, &b.source.transfer)?;
     require_same(&a.source.policy, &b.source.policy)?;
     require_same(&a.factor_policy, &b.factor_policy)?;
     require_same(&a.performing_draw_tranches, &b.performing_draw_tranches)?;
@@ -387,7 +388,7 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
         second_acquisition_posted: false,
         mixed_ledger_adoption: false,
         verified_prior_publication: false,
-        secondary_acquisition_adoption: false,
+        secondary_acquisition_adoption: r.completed_source.source.transfer.is_some(),
         empirical_validation: false,
     })
 }

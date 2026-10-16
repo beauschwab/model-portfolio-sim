@@ -288,6 +288,15 @@ pub fn evaluate(r: Request) -> Result<Value, String> {
     if raw.schema != candidates::SCHEMA {
         return Err("finite candidate raw schema required".into());
     }
+    if raw.commercial.units.iter().any(|u| {
+        u.graph.positions.iter().any(|p| {
+            p.original_pricing
+                .iter()
+                .any(|h| h.source.source.transfer.is_some())
+        })
+    }) {
+        return Err("secondary acquired rights require separately reviewed capital/FTP gross and valuation-adjustment channels".into());
+    }
     let reservation = preflight(&r, &raw)?;
     // Original envelope, retained raw candidate and exact result raw identity
     // coexist with the typed native request. Charge before cloning.

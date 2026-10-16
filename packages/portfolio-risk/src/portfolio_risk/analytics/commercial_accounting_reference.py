@@ -9,7 +9,10 @@ def groups(replay,check=lambda:False):
     def code(kind,is_default):return ('default_' if is_default else 'live_')+kind
     for p in replay['carry_points']:
         check();source_id=None;kind=p['kind']
-        if kind=='reviewed_opening_snapshot':lots=[];previous=None;default=False;ri=0
+        if kind=='reviewed_opening_snapshot':
+            lots=[];previous=None;default=False;ri=0
+            while ci<len(atoms)and atoms[ci]['path_key']==p['path_key']and atoms[ci]['start_year']==0. and atoms[ci]['end_year']==0. and atoms[ci]['origin_index']==3:
+                add_earned(lots,atoms[ci],True);ci+=1
         elif kind=='live_sojourn':
             while ci<len(atoms) and atoms[ci]['path_key']==p['path_key'] and atoms[ci]['end_year']==p['year']:
                 c=atoms[ci];mode=policy['recognition'][c['interval_index']]['by_origin'][c['origin_index']];add_earned(lots,c,mode=='full_accrual');ci+=1

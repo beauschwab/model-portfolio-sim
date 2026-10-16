@@ -406,3 +406,73 @@ fn preflight_rejects_excessive_cardinality_and_calendar_before_generation() {
     r["complete_end_ordinal"] = json!(730000 + 36601);
     assert!(result(r).unwrap_err().contains("calendar"));
 }
+
+#[test]
+fn acquired_fee_face_six_cost_five_has_contra_valuation_without_new_service_income() {
+    use portfolio_model_core::nonintegral_fee as f;
+    use serde_json::json;
+    for sign in [1., -1.] {
+        let id = json!({"id":"reviewed-transfer","revision":"1"});
+        let source = json!({"schema":f::SCHEMA,"measure":"physical","currency":"USD","monetary_unit":"currency_units","policy":id,"asof_ordinal":738856,"reporting_end_ordinal":738896,"complete_end_ordinal":738896,"fees":[{"fee_id":"bought","source":id,"classification_review":id,"service":id,"position_id":"commercial","tranche_id":"original","entitlement":sign*6.,"prepaid_refunds_allowed":false}],"events":[{"event_id":"seller-service","fee_id":"bought","source":id,"review":id,"ordinal":738866,"sequence":0,"action":"earn","reason":"service","amount":sign*6.},{"event_id":"buyer-cash","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":1,"action":"cash","reason":"settlement","amount":sign*6.}]});
+        let full: f::Request = serde_json::from_value(source.clone()).unwrap();
+        let transfer = f::transfer_before(
+            &full,
+            738886,
+            serde_json::from_value(id.clone()).unwrap(),
+            || Ok(()),
+        )
+        .unwrap();
+        let mut raw = source.clone();
+        raw["asof_ordinal"] = json!(738886);
+        raw["events"] = json!([
+            {"event_id":"buyer-basis","fee_id":"bought","source":id,"review":id,"ordinal":738886,"sequence":0,"action":"acquire","reason":"other_reviewed","amount":-sign},
+            {"event_id":"buyer-cash","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":1,"action":"cash","reason":"settlement","amount":sign*6.},
+            {"event_id":"buyer-release","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":2,"action":"release_acquired_cost","reason":"other_reviewed","amount":-sign}
+        ]);
+        let raw: f::Request = serde_json::from_value(raw).unwrap();
+        let out = f::evaluate_transferred_with_check(&raw, &transfer, || Ok(())).unwrap();
+        let mut collision = raw.clone();
+        collision.events[0].event_id = "native-fee-transfer:reviewed-transfer:0".into();
+        assert!(
+            f::evaluate_transferred_with_check(&collision, &transfer, || Ok(()))
+                .unwrap_err()
+                .contains("reserved")
+        );
+        let basis = &out.groups()[1].next;
+        if sign > 0. {
+            assert_eq!(basis.fee_receivable, 6.);
+            assert_eq!(basis.acquired_fee_asset_valuation_adjustment, -1.);
+            assert_eq!(basis.acquired_fee_liability, 0.);
+        } else {
+            assert_eq!(basis.fee_payable, -6.);
+            assert_eq!(basis.acquired_fee_liability_valuation_adjustment, 1.);
+            assert_eq!(basis.acquired_fee_asset, 0.);
+        }
+        let postings = out
+            .groups()
+            .iter()
+            .flat_map(|g| &g.postings)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            postings
+                .iter()
+                .filter(|p| p.account == f::Account::FeeIncome)
+                .map(|p| p.amount)
+                .sum::<f64>(),
+            0.
+        );
+        assert_eq!(
+            postings
+                .iter()
+                .filter(|p| p.account == f::Account::Cash)
+                .map(|p| p.amount)
+                .sum::<f64>(),
+            sign
+        );
+        let close = &out.closing()[0].state;
+        assert_eq!(close.fee_receivable, 0.);
+        assert_eq!(close.fee_payable, 0.);
+        assert_eq!(close.acquired_fee_asset_valuation_adjustment, 0.);
+        assert_eq!(close.acquired_fee_liability_valuation_adjustment, 0.);
+    }
+}

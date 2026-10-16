@@ -175,6 +175,9 @@ pub fn admit(r: &Request) -> Result<(usize, usize), String> {
 }
 pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize, usize), String> {
     check()?;
+    if r.source.source.transfer.is_some() {
+        return Err("generated conditional secondary acquisition is unsupported".into());
+    }
     let degree = basis::degree(&r.regression_policy)?;
     let cash_measure = match measure {
         CreditMeasure::Physical => CashflowMeasure::Physical,

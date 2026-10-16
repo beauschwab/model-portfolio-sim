@@ -15,6 +15,12 @@ pub(crate) fn gl(account: Account) -> &'static str {
         Account::FeeRecoveryIncome => "pnl:commercial_fee_recovery_income",
         Account::AcquiredFeeAsset => "commercial_acquired_fee_asset",
         Account::AcquiredFeeLiability => "commercial_acquired_fee_liability",
+        Account::AcquiredFeeAssetValuationAdjustment => {
+            "commercial_acquired_fee_asset_valuation_adjustment"
+        }
+        Account::AcquiredFeeLiabilityValuationAdjustment => {
+            "commercial_acquired_fee_liability_valuation_adjustment"
+        }
         Account::FeeAcquisitionExpense => "pnl:commercial_fee_acquisition_expense",
     }
 }
@@ -86,14 +92,25 @@ impl FeeTracking {
         let mut out = Vec::new();
         for state in self.states.values() {
             for (name, amount) in stocks(state) {
+                if name.ends_with("valuation_adjustment") && amount == 0. {
+                    continue;
+                }
                 out.push((c.positions[b.loan_binding], name, money(amount * factor)?));
             }
         }
         Ok(out)
     }
 }
-fn stocks(s: &State) -> [(&'static str, f64); 6] {
+fn stocks(s: &State) -> [(&'static str, f64); 8] {
     [
+        (
+            "commercial_acquired_fee_asset_valuation_adjustment",
+            s.acquired_fee_asset_valuation_adjustment,
+        ),
+        (
+            "commercial_acquired_fee_liability_valuation_adjustment",
+            s.acquired_fee_liability_valuation_adjustment,
+        ),
         ("commercial_fee_receivable", s.fee_receivable),
         ("commercial_fee_payable", s.fee_payable),
         ("commercial_deferred_fee_income", s.deferred_fee_income),

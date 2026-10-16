@@ -127,11 +127,20 @@ fn validate_releases(
     if h.acquisition_releases.len() > 512 {
         return Err("fee acquisition release capacity exceeded".into());
     }
+    let opening = super::transferred_opening(&h.policy, raw)?;
     let mut remaining: BTreeMap<_, _> = s
         .allocations
         .iter()
-        .map(|a| (a.fee_id.as_str(), a.allocated_cost))
-        .collect();
+        .map(|a| {
+            Ok((
+                a.fee_id.as_str(),
+                a.allocated_cost
+                    - opening
+                        .as_ref()
+                        .map_or(Ok(0.), |t| t.net_stock(&a.fee_id))?,
+            ))
+        })
+        .collect::<Result<_, String>>()?;
     let mut previous = None;
     for r in &h.acquisition_releases {
         check()?;
@@ -389,16 +398,22 @@ fn acquired(s: &Selection, h: &History, bound: &mut BoundPath) -> Result<(), Str
         return Ok(());
     }
     let mut raw = bound.source.raw_request().clone();
+    let opening = bound.source.native_transfer().cloned();
     let origin = raw.asof_ordinal;
     let mut events = bound
         .native_years
         .iter()
+        .skip(opening.as_ref().map_or(0, |_| raw.fees.len()))
         .copied()
         .zip(raw.events.iter().cloned())
         .map(|(year, e)| (year, 1u8, e))
         .collect::<Vec<_>>();
     for (fi, a) in s.allocations.iter().enumerate() {
-        if a.allocated_cost == 0. {
+        let basis = a.allocated_cost
+            - opening
+                .as_ref()
+                .map_or(Ok(0.), |t| t.net_stock(&a.fee_id))?;
+        if basis == 0. {
             continue;
         }
         let fee = raw
@@ -418,7 +433,7 @@ fn acquired(s: &Selection, h: &History, bound: &mut BoundPath) -> Result<(), Str
                 sequence: 0,
                 action: fee::Action::Acquire,
                 reason: fee::Reason::OtherReviewed,
-                amount: a.allocated_cost,
+                amount: basis,
             },
         ));
     }
@@ -452,7 +467,16 @@ fn acquired(s: &Selection, h: &History, bound: &mut BoundPath) -> Result<(), Str
         raw.events.push(event);
         bound.native_years.push(year);
     }
-    bound.source = fee::evaluate_with_check(&raw, portfolio_compute_control::checkpoint)?;
+    bound.source = if let Some(t) = &opening {
+        fee::evaluate_transferred_with_check(&raw, t, portfolio_compute_control::checkpoint)?
+    } else {
+        fee::evaluate_with_check(&raw, portfolio_compute_control::checkpoint)?
+    };
+    if opening.is_some() {
+        bound
+            .native_years
+            .splice(0..0, std::iter::repeat_n(0., raw.fees.len()));
+    }
     Ok(())
 }
 /// The analytical fee journal may preserve unsettled gross rights. A complete
@@ -488,7 +512,10 @@ fn projection(s: &Selection, h: &History, mut bound_path: BoundPath) -> Result<P
         check()?;
         // The unit purchase event already pays loan + acquired fee cost once.
         // This retained cash tape contains only subsequent service obligations.
-        let amount = if g.event.action == fee::Action::Acquire {
+        let amount = if matches!(
+            g.event.action,
+            fee::Action::Acquire | fee::Action::AcquireTransferredStock
+        ) {
             0.
         } else {
             g.postings

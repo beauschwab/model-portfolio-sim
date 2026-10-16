@@ -590,14 +590,6 @@ pub fn validate_policy(
             }
         }
     }
-    if raw
-        .raw_credit_path
-        .paths
-        .iter()
-        .any(|p| p.accrued_interest != 0.)
-    {
-        return Err("seasoned accrued prefix requires an explicit source compiler".into());
-    }
     check()?;
     Ok(())
 }
@@ -639,6 +631,21 @@ pub fn compile(
             "reviewed_opening_snapshot" => {
                 previous = None;
                 lots.clear();
+                // Reserved origin3 is a purchased coupon stock, not newly earned
+                // service and never a credit-state index for recognition rates.
+                while let Some(c) = contributions.get(ci).filter(|c| {
+                    c.path_key == p.path_key
+                        && c.start_year == 0.
+                        && c.end_year == 0.
+                        && c.origin_index == 3
+                }) {
+                    add_earned(&mut lots, c, true)?;
+                    ci += 1;
+                }
+                let acquired: f64 = lots.iter().map(|l| l.recognized_remaining).sum();
+                if !near(acquired, p.contractual_accrued_interest) {
+                    return Err("commercial opening lacks native acquired gross coupon lots".into());
+                }
                 default = false;
                 recovery_index = 0;
                 original_default_lot_count = 0;

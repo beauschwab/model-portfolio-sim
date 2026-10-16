@@ -22,6 +22,8 @@ from .commercial_dto import graph_typed as _typed, graph_identity as _raw
 def _economic(raw,actual,check,stops=(),measure='pricing',original_acquisition=None):
     check()
     verify_draw_sources(raw,actual,check,measure=measure,original_acquisition=original_acquisition)
+    from .commercial_secondary_reference import verify_loan_transfer
+    verify_loan_transfer(raw,actual,check)
     if actual.get('physical_journal_eligible') is not False:raise ArithmeticError('Pricing economics cannot be a physical journal source')
     _raw(list(stops),actual.get('native_stops',[]))
     for role in ('original','current'):

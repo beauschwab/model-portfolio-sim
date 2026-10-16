@@ -515,9 +515,12 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
                     return Err("commercial paired scenarios and bumps require the exact shared draw stream/path key".into());
                 }
                 by_path.entry(h.path_id.clone()).or_insert(binding);
-                let anchor = exact(
-                    &serde_json::json!({"source":h.source.source.original,"acquisition":h.source.source.acquisition}),
-                )?;
+                let mut anchor_raw = serde_json::json!({"source":h.source.source.original,"acquisition":h.source.source.acquisition});
+                if let Some(transfer) = &h.source.source.transfer {
+                    anchor_raw["secondary_transfer"] =
+                        serde_json::to_value(transfer).map_err(|e| e.to_string())?;
+                }
+                let anchor = exact(&anchor_raw)?;
                 let original = if role == Role::Physical {
                     &mut physical_origins
                 } else {

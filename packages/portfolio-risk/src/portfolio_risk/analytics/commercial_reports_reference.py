@@ -84,7 +84,7 @@ def reports(prepared,events,check=lambda:False,*,row_sink=None,events_by_day=Non
                 cash,equity=money[a.id];assets=cash;liabilities=0.
                 for (account,name,_),value in gl.items():
                     if account!=a.id or name in ('cash','opening_equity','oci') or name.startswith('pnl:') or name.startswith('memo:'):continue
-                    if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'):liabilities-=value
+                    if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability','commercial_acquired_fee_liability_valuation_adjustment'):liabilities-=value
                     else:assets+=value
                 error=assets-liabilities-equity;maximum_error=max(maximum_error,abs(error));minimum[a.id]=min(minimum[a.id],cash);cet1=equity-a.capital_deductions
                 margins=dict(cash=cash-a.cash_floor,cet1=cet1,leverage=cet1,lcr=max(cash,0.),nsfr=max(equity,0.),htm=max(assets,0.))
@@ -119,7 +119,7 @@ def reports(prepared,events,check=lambda:False,*,row_sink=None,events_by_day=Non
             for (account,name,_),value in sorted(gl.items()):
                 if account!=a.id:continue
                 if name in ('opening_equity','oci') or name.startswith('pnl:'):equity-=value;continue
-                if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'):liabilities-=value
+                if name in ('dated_deferred_income','credit_default_deferred_income','commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability','commercial_acquired_fee_liability_valuation_adjustment'):liabilities-=value
                 else:assets+=value
             statements.append(dict(scenario=scenario,account=a.id,currency=a.currency,assets=assets,liabilities=liabilities,equity=equity,cash=cash,restricted_cash=0.,intercompany_assets=0.,intercompany_liabilities=0.,reconciliation_error=assets-liabilities-equity))
         wanted['closing_statements'].extend(statements);closing_by_scenario[scenario]=statements

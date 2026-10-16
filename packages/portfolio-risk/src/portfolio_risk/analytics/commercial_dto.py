@@ -4,6 +4,7 @@ from copy import deepcopy
 from .modeled_json_identity import exact_json_identity
 
 FLOAT_KEYS=set('opening_principal original_payment amount fee annual_rate margin floor cap rate cost original_annual_effective_rate annual_effective_rate end_year lag_years weight source_weight allocated_face opening_undrawn_commitment waiting_uniform destination_uniform principal_premium_fraction principal_clean_price_factor call_clean_price_factor put_clean_price_factor call_fee put_fee target_amount principal_amount book_adjustment_amount accrued_interest_reversal accrued_interest_amount'.split())
+FLOAT_KEYS.update('loan_clean_cost transaction_cost purchased_accrued_cost'.split())
 FLOAT_ARRAYS=set('principal_payments hazards_per_year loss_given_default interest_recovery_fraction credit_conversion_factor annual_effective_rates principal_fraction interest_fraction cancel_undrawn_fraction undrawn_fraction'.split())
 
 
@@ -28,7 +29,9 @@ def typed(value,key=''):
                 if type(out[name])is not list or any(type(x)not in(int,float)or not math.isfinite(x)for x in out[name]):
                     raise ArithmeticError('finite native supplied curve vector required')
                 out[name]=[float(x)for x in out[name]]
-        if out.get('schema')=='commercial-source-income-proof-1':out.setdefault('current_accounting_rate_reviews',[])
+        if out.get('schema')=='commercial-source-income-proof-1':
+            out.setdefault('current_accounting_rate_reviews',[])
+            if out.get('transfer') is None:out.pop('transfer',None)
         if out.get('schema')=='commercial-source-credit-accounting-proof-1':
             for optional in ('prepayment_terms','maturity_basis_policy','reviewed_credit_actions'):
                 if out.get(optional) is None:out.pop(optional,None)
@@ -67,6 +70,7 @@ def graph_typed(value,key=''):
             for position in result['positions']:
                 if position.get('fees') is None:position.pop('fees',None)
         if result.get('schema')=='commercial-native-fees-1':
+            if result.get('transfer') is None:result.pop('transfer',None)
             for name in ('default','prepayment','exercise','maturity'):
                 if isinstance(result.get(name),dict)and result[name].get('refund_earned_fraction',0.)==0.:result[name].pop('refund_earned_fraction',None)
             for fee in result['fees']:

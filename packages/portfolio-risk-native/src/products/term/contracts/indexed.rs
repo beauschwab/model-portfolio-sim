@@ -588,7 +588,7 @@ fn coupon_factor(
 }
 
 pub fn build_path(request: &ContractPathRequest) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, None, None)
+    build_path_owned(request, None, false, None, BuildContext::default())
 }
 
 /// Opt-in factor-only actual-loop descriptors, provisional until complete Ok.
@@ -597,7 +597,7 @@ pub(crate) fn build_path_with_segments(
     request: &ContractPathRequest,
     sink: &mut SegmentSink<'_>,
 ) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, Some(sink), None)
+    build_path_owned(request, None, false, Some(sink), BuildContext::default())
 }
 
 /// Observation-boundary receipts; no interpolation, fixing substitution or cash generation.
@@ -724,7 +724,58 @@ fn build_path_capture_owned(
             );
         }
     }
-    build_path_owned(request, Some(sink), daily_fragments, None, None)
+    build_path_owned(
+        request,
+        Some(sink),
+        daily_fragments,
+        None,
+        BuildContext::default(),
+    )
+}
+
+/// Independent information clock and metering selection for the shared builder.
+/// The contractual asof/cash chronology always remains on the raw request.
+#[derive(Default)]
+pub(crate) struct BuildContext<'a> {
+    information_asof: Option<i32>,
+    meter: Option<&'a work::WorkMeter>,
+}
+
+/// Full contractual history replay selected by the sealed acquisition compiler.
+/// Information cutoff is the buyer date; cash chronology remains contract origin.
+pub(crate) fn build_transfer_path(
+    request: &ContractPathRequest,
+    information_asof: i32,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        None,
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: None,
+        },
+    )
+}
+
+/// Buyer factor descriptors retain the transfer information clock explicitly.
+/// This tier has no generated-catalog authority or counted admission selection.
+pub(crate) fn build_transfer_path_with_segments(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    information_asof: i32,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: None,
+        },
+    )
 }
 
 pub(crate) fn build_path_with_counted_segments(
@@ -732,15 +783,28 @@ pub(crate) fn build_path_with_counted_segments(
     sink: &mut SegmentSink<'_>,
     meter: &work::WorkMeter,
 ) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, Some(sink), Some(meter))
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: None,
+            meter: Some(meter),
+        },
+    )
 }
 fn build_path_owned(
     request: &ContractPathRequest,
     mut capture: Option<&mut EarnedFactorSink<'_>>,
     daily_fragments: bool,
     mut segments: Option<&mut SegmentSink<'_>>,
-    meter: Option<&work::WorkMeter>,
+    context: BuildContext<'_>,
 ) -> Result<ContractPathResult, String> {
+    let BuildContext {
+        information_asof,
+        meter,
+    } = context;
     work::builder_start(meter, request)?;
     header(
         &request.schema,
@@ -751,7 +815,9 @@ fn build_path_owned(
     domain(request.asof_ordinal, request.tail_end_ordinal)?;
     domain(request.asof_ordinal, request.reporting_end_ordinal)?;
     timestamp(request.observed_publication_cutoff_unix_seconds)?;
-    if utc_day(request.observed_publication_cutoff_unix_seconds) > request.asof_ordinal {
+    if utc_day(request.observed_publication_cutoff_unix_seconds)
+        > information_asof.unwrap_or(request.asof_ordinal)
+    {
         return Err("observed snapshot cutoff follows contractual valuation date".into());
     }
     if request.reporting_end_ordinal > request.tail_end_ordinal

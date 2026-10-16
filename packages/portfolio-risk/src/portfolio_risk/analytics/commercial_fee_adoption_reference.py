@@ -53,7 +53,9 @@ def validate(selection, graph, position, check):
             if role!='physical':
                 if releases:raise ArithmeticError('Pricing cannot supply physical fee cost release')
                 continue
-            remaining={a['fee_id']:float(a['allocated_cost'])for a in allocations};previous=None
+            opening=replay_fee(dict(schema='nonintegral-fee-accounting-1',measure='physical',currency=graph['currency'],monetary_unit=loan['source']['source']['current']['monetary_unit'],policy=policy['policy'],asof_ordinal=loan['source']['source']['current']['asof_ordinal'],reporting_end_ordinal=loan['source']['source']['current']['reporting_end_ordinal'],complete_end_ordinal=policy['complete_end_ordinal'],fees=policy['fees'],events=[]),check,transfer=policy.get('transfer'))
+            stock={r['fee_id']:r['state'].get('transferred_net_stock',0.)for r in opening['closing']}
+            remaining={a['fee_id']:float(a['allocated_cost'])-stock[a['fee_id']]for a in allocations};previous=None
             for release in releases:
                 clock=(release['ordinal'],release['sequence']);amount=release['amount'];fid=release['fee_id']
                 if previous is not None and previous>=clock or not loan['source']['source']['current']['asof_ordinal']<=release['ordinal']<=policy['complete_end_ordinal']:raise ArithmeticError('fee basis chronology differs')
@@ -78,22 +80,25 @@ def project(selection, scenario, role, history, loan_reference, actual, check, o
     bound=paths[0]
     require_complete(bound,check)
     if role=='physical':
-        source=bound['source']['raw_request'];origin=source['asof_ordinal'];events=[(year,1,deepcopy(event))for year,event in zip(bound['native_years'],source['events'],strict=True)]
+        source=bound['source']['raw_request'];origin=source['asof_ordinal'];events=[(year,1,deepcopy(event))for year,event in zip(bound['native_years'][len(h['policy']['fees'])if h['policy'].get('transfer')else 0:],source['events'],strict=True)]
         fees={f['fee_id']:f for f in source['fees']}
+        stock={r['fee_id']:r['state'].get('transferred_net_stock',0.)for r in bound['source']['closing']}
         for i,a in enumerate(selection['allocations']):
-            if a['allocated_cost']!=0.:
-                events.append((0.,0,dict(event_id=f"native-fee:{bound['path_key']}:{i}:acquire",fee_id=a['fee_id'],source=deepcopy(fees[a['fee_id']]['source']),review=deepcopy(a['review']),ordinal=origin,sequence=0,action='acquire',reason='other_reviewed',amount=float(a['allocated_cost']))))
+            basis=a['allocated_cost']-stock[a['fee_id']]
+            if basis!=0.:
+                events.append((0.,0,dict(event_id=f"native-fee:{bound['path_key']}:{i}:acquire",fee_id=a['fee_id'],source=deepcopy(fees[a['fee_id']]['source']),review=deepcopy(a['review']),ordinal=origin,sequence=0,action='acquire',reason='other_reviewed',amount=float(basis))))
         for i,r in enumerate(h.get('acquisition_releases',[])):
             events.append(((r['ordinal']-origin)/365.,2,dict(event_id=f"native-fee:{bound['path_key']}:{i}:release-acquired-cost",fee_id=r['fee_id'],source=deepcopy(fees[r['fee_id']]['source']),review=deepcopy(r['review']),ordinal=r['ordinal'],sequence=0,action='release_acquired_cost',reason='other_reviewed',amount=float(r['amount']))))
         events.sort(key=lambda x:(x[0],x[1]));source['events']=[];bound['native_years']=[]
         for i,(year,_,event)in enumerate(events):event['sequence']=i;source['events'].append(event);bound['native_years'].append(year)
-        bound['source']=replay_fee(source,check)
+        bound['source']=replay_fee(source,check,transfer=h['policy'].get('transfer'))
+        if h['policy'].get('transfer'):bound['native_years']=[0.]*len(h['policy']['fees'])+bound['native_years']
     # The independent contractual rights arithmetic is measure-neutral. Physical
     # verification remains independently selected; Pricing cannot publish a GL.
     bound['source']['raw_request']['measure']='physical'if role=='physical'else'pricing'
     cash=[]
     for year,group in zip(bound['native_years'],bound['source']['groups'],strict=True):
-        amount=0. if group['event']['action']=='acquire'else math.fsum(p['amount']for p in group['postings']if p['account']=='cash')
+        amount=0. if group['event']['action']in('acquire','acquire_transferred_stock')else math.fsum(p['amount']for p in group['postings']if p['account']=='cash')
         if amount!=0.:cash.append(dict(event_id='separate-fee:'+group['event']['event_id'],kind='separate_nonintegral_fee',year=year,principal=0.,interest=0.,fees=amount))
     expected=dict(raw_fee_history=graph_typed(h),bound_path=bound,cash=cash,discount_spread=float(selection['discount_spread']),allocations=graph_typed(selection['allocations']),loan_original_cost_yield_unchanged=True)
     if actual is not None:

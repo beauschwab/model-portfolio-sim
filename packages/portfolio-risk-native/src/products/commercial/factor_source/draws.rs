@@ -37,6 +37,11 @@ pub(crate) fn draw_event_id(draw: &PerformingDrawTranche) -> String {
 pub(crate) fn source_end_year(r: &Request) -> Result<f64, String> {
     let mut end = r.source.current.tail_end_ordinal;
     for d in &r.performing_draw_tranches {
+        if d.source.transfer.is_some() {
+            return Err(
+                "secondary drawn rights require separate native tranche transfer ownership".into(),
+            );
+        }
         end = end.max(d.source.current.tail_end_ordinal);
     }
     let days = end

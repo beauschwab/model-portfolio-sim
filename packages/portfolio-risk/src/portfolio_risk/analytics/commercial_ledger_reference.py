@@ -65,6 +65,8 @@ def compile_original_acquisition(histories,stops_by_history,check=lambda:False,*
 def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisition=None):
     """Recompute both coupons, original quote, actual CTMC and accounting books."""
     check();identity(raw,actual['raw_request'])
+    from .commercial_secondary_reference import verify_loan_transfer
+    verify_loan_transfer(raw,actual,check)
     identity(list(stops),actual.get('native_stops',[]))
     if actual['schema']!='commercial-source-credit-accounting-proof-1':raise ArithmeticError('commercial compiler schema differs')
     for name in ('original_anchor_refitted','mixed_ledger_adoption','empirical_adoption','accounting_approval'):

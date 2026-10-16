@@ -268,6 +268,17 @@ pub(crate) fn ledger_with_exposure(
     if ![0, 4, 5, 6, 7, 8, 9].contains(&credit_protocol) {
         return Err("unsupported credit ledger protocol".into());
     }
+    if credit_protocol != 9
+        && rows.iter().any(|r| {
+            matches!(
+                r.gl_account.as_str(),
+                "commercial_acquired_fee_asset_valuation_adjustment"
+                    | "commercial_acquired_fee_liability_valuation_adjustment"
+            )
+        })
+    {
+        return Err("secondary fee valuation adjustments require explicit reviewed gross-side capital channels".into());
+    }
     let credit_source = [4, 5].contains(&credit_protocol);
     let mortgage_closing = credit_protocol == 6;
     let commercial_closing = [7, 8, 9].contains(&credit_protocol);

@@ -146,7 +146,19 @@ pub(crate) struct NativeRecoveryQuery {
     pub fallback: f64,
     pub horizon: f64,
 }
+/// Acquired source factors, not caller-supplied monetary opening state.
+pub struct NativeOpeningCoupon {
+    pub coupon_id: String,
+    pub source_id: String,
+    pub source_revision: String,
+    pub captured_segment_index: usize,
+    pub factor: f64,
+    pub entitlement: NativeCouponEntitlement,
+}
 pub trait NativeEarnedFactors {
+    fn acquired_opening_coupons(&self, _path_key: u64) -> Result<Vec<NativeOpeningCoupon>, String> {
+        Ok(Vec::new())
+    }
     /// A source may retain unquantified legal service until its fixing arrives.
     /// Legacy sources have no such clock; observable sources must preserve or
     /// explicitly refuse terminal transfer, never silently erase that right.
@@ -1030,6 +1042,69 @@ impl Owner<'_> {
         if let Some(source) = self.factor_source.as_deref_mut() {
             source.begin_path(opening.path_key)?;
         }
+        let acquired = self
+            .factor_source
+            .as_deref()
+            .map_or(Ok(Vec::new()), |source| {
+                source.acquired_opening_coupons(opening.path_key)
+            })?;
+        if acquired.len() > self.coupon_claims_per_path {
+            return Err("native acquired coupon opening exceeds admitted lots".into());
+        }
+        let mut acquired_total = 0.;
+        let mut opening_canonical = Vec::new();
+        let mut ids = std::collections::BTreeSet::new();
+        for coupon in acquired {
+            label(&coupon.coupon_id)?;
+            label(&coupon.source_id)?;
+            label(&coupon.source_revision)?;
+            if !ids.insert(coupon.coupon_id.clone())
+                || !coupon.factor.is_finite()
+                || coupon.entitlement.opening_entitlement_principal < 0.
+                || coupon.captured_segment_index >= self.maximum_atoms_per_query
+            {
+                return Err("invalid native acquired coupon source authority".into());
+            }
+            let legal = coupon.entitlement.opening_entitlement_principal * coupon.factor;
+            bounded(legal)?;
+            acquired_total += legal;
+            bounded(acquired_total)?;
+            opening_canonical.push(CanonicalCouponLegalBalance {
+                coupon_id: coupon.coupon_id.clone(),
+                native_audit_index: coupon.entitlement.native_audit_index,
+                native_cash_index: coupon.entitlement.native_cash_index,
+                opening_entitlement_principal: coupon.entitlement.opening_entitlement_principal,
+                cumulative_factor: coupon.factor,
+                contractual_earned: legal,
+                actual_interest_collected: 0.,
+                legal_remaining: legal,
+            });
+            self.contributions.push(EarnedOriginContribution {
+                path_key: opening.path_key,
+                interval_index: 0,
+                origin_index: 3,
+                start_year: 0.,
+                end_year: 0.,
+                coupon_id: coupon.coupon_id.clone(),
+                source_event_id: coupon.coupon_id,
+                source_id: coupon.source_id,
+                source_revision: coupon.source_revision,
+                captured_segment_index: coupon.captured_segment_index,
+                delta_factor: coupon.factor,
+                actual_principal: coupon.entitlement.opening_entitlement_principal,
+                contractual_earned: legal,
+                native_entitlement: Some(coupon.entitlement),
+            });
+        }
+        if self.factor_source.is_some()
+            && (acquired_total - opening.accrued_interest).abs()
+                > 1e-9 + 1e-12 * opening.accrued_interest.abs()
+        {
+            return Err(
+                "opening accrued rights require exact native transferred coupon inventory".into(),
+            );
+        }
+        self.canonical_legal_coupons = opening_canonical.clone();
         self.gross = self.request.original_anchors[self.path_index].acquisition_cost;
         self.path_index += 1;
         if opening.path_key != self.request.original_anchors[self.path_index - 1].path_key {
@@ -1057,7 +1132,7 @@ impl Owner<'_> {
             effective_interest: 0.0,
             cash: 0.0,
             basis_realization: 0.0,
-            canonical_legal_coupons: Vec::new(),
+            canonical_legal_coupons: opening_canonical,
             draw_tranches: Vec::new(),
             pending_coupon_obligation_indices: Vec::new(),
             undrawn_commitment: self

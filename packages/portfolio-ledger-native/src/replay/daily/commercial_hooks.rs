@@ -145,6 +145,7 @@ impl Sim<'_> {
                     | "commercial_fee_payable"
                     | "commercial_deferred_fee_income"
                     | "commercial_acquired_fee_liability"
+                    | "commercial_acquired_fee_liability_valuation_adjustment"
             ) {
                 liabilities -= value;
             } else {

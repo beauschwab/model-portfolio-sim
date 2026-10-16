@@ -232,6 +232,8 @@ pub struct ResultData {
     #[serde(serialize_with = "serialize_factors")]
     current_source: NativeFactors,
     original_cash_quote: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secondary_acquisition: Option<super::acquisition::NativeTransfer>,
     prepared_credit_request: carry::Request,
     carry: carry::ResultData,
     accounting: book::ResultData,
@@ -755,6 +757,7 @@ struct SourceAdapter<'a> {
     accounting: Option<&'a book::Policy>,
     complete_end_year: f64,
     interval_starts: Vec<f64>,
+    transfer: Option<&'a super::acquisition::NativeTransfer>,
 }
 struct SourceView<'a> {
     source: &'a NativeFactors,
@@ -830,6 +833,7 @@ impl<'a> SourceAdapter<'a> {
         stops: &'a [NativeStop],
         prepayment_terms: Option<&'a PrepaymentTerms>,
         maturity_basis_policy: Option<&'a MaturityBasisPolicy>,
+        transfer: Option<&'a super::acquisition::NativeTransfer>,
     ) -> Result<Self, String> {
         Ok(Self {
             source,
@@ -842,10 +846,46 @@ impl<'a> SourceAdapter<'a> {
             accounting: None,
             complete_end_year: contract_end_year(source.raw())?,
             interval_starts: Vec::new(),
+            transfer,
         })
     }
 }
 impl carry::NativeEarnedFactors for SourceAdapter<'_> {
+    fn acquired_opening_coupons(
+        &self,
+        path_key: u64,
+    ) -> Result<Vec<carry::NativeOpeningCoupon>, String> {
+        if !self.path_keys.contains(&path_key) {
+            return Err("unbound acquired coupon path".into());
+        }
+        let Some(t) = self.transfer else {
+            return Ok(Vec::new());
+        };
+        t.coupons()
+            .iter()
+            .map(|c| {
+                let segment = self
+                    .source
+                    .segments()
+                    .iter()
+                    .position(|s| s.audit_index() == c.native_audit_index)
+                    .ok_or("acquired coupon captured segment missing")?;
+                Ok(carry::NativeOpeningCoupon {
+                    coupon_id: c.period_id.clone(),
+                    source_id: self.source.raw().contract.id.clone(),
+                    source_revision: self.source.raw().contract.revision.clone(),
+                    captured_segment_index: segment,
+                    factor: c.purchased_factor,
+                    entitlement: carry::NativeCouponEntitlement {
+                        native_audit_index: c.native_audit_index,
+                        native_cash_index: c.native_cash_index,
+                        opening_entitlement_principal: c.opening_entitlement_principal,
+                    },
+                })
+            })
+            .collect()
+    }
+
     fn pending_coupon_indices(
         &self,
         query: &carry::NativeTerminalQuery,
@@ -1201,7 +1241,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
         } else {
             0
         };
-        periods * 3 + fragments
+        periods * if self.transfer.is_some() { 4 } else { 3 } + fragments
     }
     fn earned(
         &mut self,
@@ -1330,6 +1370,8 @@ struct Prepared {
 }
 #[derive(Debug, Serialize)]
 pub struct EconomicResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secondary_acquisition: Option<super::acquisition::NativeTransfer>,
     #[serde(serialize_with = "serialize_factors")]
     pub original_source: NativeFactors,
     #[serde(serialize_with = "serialize_factors")]
@@ -1371,6 +1413,14 @@ pub(crate) struct NativeOriginalAcquisitionProof {
     original_bindings: Vec<(u64, Vec<u8>)>,
     #[serde(skip)]
     draw_bindings: Vec<(u64, Vec<u8>)>,
+}
+fn original_loan_binding(raw: &Request) -> Result<Vec<u8>, String> {
+    // Historical absent-transfer proof identity remains byte-for-byte unchanged.
+    if let Some(transfer) = &raw.source.transfer {
+        portfolio_model_core::strict_json::encode(&(&raw.source.original, transfer), MAX_BYTES)
+    } else {
+        portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)
+    }
 }
 pub(crate) fn original_draw_bindings(raw: &Request) -> Result<Vec<u8>, String> {
     #[derive(Serialize)]
@@ -1565,10 +1615,7 @@ impl NativeOriginalAcquisitionProof {
             acquired_cash_partitions.push(partition);
             term::amount(cash_quote)?;
             quote += weight * cash_quote;
-            original_bindings.push((
-                raw.credit.paths[0].path_key,
-                portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)?,
-            ));
+            original_bindings.push((raw.credit.paths[0].path_key, original_loan_binding(raw)?));
             draw_bindings.push((raw.credit.paths[0].path_key, original_draw_bindings(raw)?));
             if generated {
                 generated_original_physical.push(GeneratedOriginalPhysical {
@@ -1626,7 +1673,7 @@ impl NativeOriginalAcquisitionProof {
     }
     fn quote_for(&self, raw: &Request) -> Result<f64, String> {
         check()?;
-        let original = portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)?;
+        let original = original_loan_binding(raw)?;
         if raw.credit.paths.len() != 1
             || !self
                 .original_bindings
@@ -1678,21 +1725,23 @@ fn evaluate_economic_internal(
         return Err("reviewed credit book actions require Physical accounting adoption; Pricing policy is separately configured".into());
     }
     let Prepared {
-        credit, admission, ..
+        mut credit,
+        admission,
+        ..
     } = prepare(r, 0, 0, measure, stops)?;
-    let original_source = NativeFactors::compile_for_measure_with_work(
+    let original_source = compile_selected_source(
+        r,
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
         source_measure(measure),
-        r.counted_work.as_deref(),
     )?;
-    let current_source = NativeFactors::compile_for_measure_with_work(
+    let current_source = compile_selected_source(
+        r,
         r.source.current.clone(),
         r.factor_policy.clone(),
         admission.maximum_queries,
         source_measure(measure),
-        r.counted_work.as_deref(),
     )?;
     let draw_sources = if check_original_quote {
         project_draws(r, measure, admission.maximum_queries)?
@@ -1702,6 +1751,14 @@ fn evaluate_economic_internal(
     if measure == CreditMeasure::Physical && check_original_quote {
         source_income::original_cash_quote(&r.source, original_source.source())?;
     }
+    let transfer = if r.source.transfer.is_some() {
+        Some(super::acquisition::compile(&r.source, &current_source)?)
+    } else {
+        None
+    };
+    if let Some(t) = &transfer {
+        t.apply(&mut credit)?;
+    }
     let policy = prepared_accounting(r, &credit)?;
     let mut adapter = SourceAdapter::new(
         &current_source,
@@ -1709,6 +1766,7 @@ fn evaluate_economic_internal(
         stops,
         r.prepayment_terms.as_ref(),
         r.maturity_basis_policy.as_ref(),
+        transfer.as_ref(),
     )?
     .with_draws(&draw_sources, &policy, &credit);
     let carry = carry::evaluate_economic_with_native_factors(&credit, &mut adapter, &mut check)?;
@@ -1735,6 +1793,7 @@ fn evaluate_economic_internal(
         // This economic helper never compiles the reviewed accounting book.
         // Even a Physical prefix is not a prepared journal owner.
         physical_journal_eligible: false,
+        secondary_acquisition: transfer,
         native_stops: stops.to_vec(),
         draw_sources,
     };
@@ -1775,6 +1834,9 @@ fn prepare(
     stops: &[NativeStop],
 ) -> Result<Prepared, String> {
     check()?;
+    if r.source.transfer.is_some() && r.counted_work.is_some() {
+        return Err("generated counted secondary transfer sources are not adopted".into());
+    }
     if let Some(authority) = &r.counted_work {
         authority.verify(r)?;
     }
@@ -1785,6 +1847,16 @@ fn prepare(
     let native_stop_bytes = portfolio_model_core::strict_json::serialized_size(&stops, 1 << 20)?;
     let retained_raw_bytes = add(raw_bytes, native_stop_bytes)?;
     source_income::admit_for_measure(&r.source, source_measure(measure))?;
+    if r.source.transfer.is_some()
+        && (!r.performing_draw_tranches.is_empty()
+            || r.credit.opening_undrawn_commitment != 0.
+            || r.credit
+                .paths
+                .iter()
+                .any(|p| p.initial_live_state != CreditState::Performing))
+    {
+        return Err("secondary acquisition requires performing whole rights without draws or existing default claims".into());
+    }
     let mut meta = 0;
     term::identity(&r.credit.identity, &mut meta)?;
     let p = prepared(r, measure, stops)?;
@@ -1802,25 +1874,30 @@ fn prepare(
         add(r.credit.max_jumps_per_path, 1)?,
     )?;
     let queries = mul(r.credit.paths.len(), mul(sojourns, 2)?)?;
-    let original_admission = NativeFactors::admit_for_measure_with_work(
+    let original_admission = admit_selected_source(
+        r,
         &r.source.original,
         &r.factor_policy,
         0,
         source_measure(measure),
-        r.counted_work.as_deref(),
     )?;
-    let current_admission = NativeFactors::admit_for_measure_with_work(
+    let current_admission = admit_selected_source(
+        r,
         &r.source.current,
         &r.factor_policy,
         queries,
         source_measure(measure),
-        r.counted_work.as_deref(),
     )?;
     let mut source_work = add(original_admission.work_upper, current_admission.work_upper)?;
     let mut source_bytes = add(
         original_admission.retained_bytes_upper,
         current_admission.retained_bytes_upper,
     )?;
+    if r.source.transfer.is_some() {
+        let (work, bytes) = super::acquisition::admit(&r.source)?;
+        source_work = add(source_work, work)?;
+        source_bytes = add(source_bytes, bytes)?;
+    }
     let mut segments = current_admission.segment_bound;
     let mut periods = r.source.current.periods.len();
     for draw in &r.performing_draw_tranches {
@@ -1861,7 +1938,10 @@ fn prepare(
         &p,
         &bound,
         periods,
-        add(mul(periods, 3)?, terminal_steps)?,
+        add(
+            mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
+            terminal_steps,
+        )?,
         &mut check,
     )?;
     let per_path_points = add(
@@ -1877,7 +1957,10 @@ fn prepare(
             )?,
         )?,
     )?;
-    let lots = add(mul(periods, 3)?, terminal_steps)?;
+    let lots = add(
+        mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
+        terminal_steps,
+    )?;
     let reviewed_count = if let Some(actions) = &r.reviewed_credit_actions {
         book::reviews::admit(
             actions,
@@ -2015,7 +2098,7 @@ fn evaluate_accounting_internal(
     proof: Option<&NativeOriginalAcquisitionProof>,
 ) -> Result<ResultData, String> {
     let Prepared {
-        credit: p,
+        credit: mut p,
         policy: prepared_policy,
         admission,
     } = prepare(
@@ -2026,17 +2109,19 @@ fn evaluate_accounting_internal(
         stops,
     )?;
     let queries = admission.maximum_queries;
-    let original = project_source(
+    let original = compile_selected_source(
+        r,
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
-        r.counted_work.as_deref(),
+        source_measure(CreditMeasure::Physical),
     )?;
-    let current = project_source(
+    let current = compile_selected_source(
+        r,
         r.source.current.clone(),
         r.factor_policy.clone(),
         queries,
-        r.counted_work.as_deref(),
+        source_measure(CreditMeasure::Physical),
     )?;
     let draw_sources = if proof.is_some() {
         project_draws_for_acquisition(r, CreditMeasure::Physical, queries)?
@@ -2048,6 +2133,14 @@ fn evaluate_accounting_internal(
     } else {
         source_income::original_cash_quote(&r.source, original.source())?
     };
+    let transfer = if r.source.transfer.is_some() {
+        Some(super::acquisition::compile(&r.source, &current)?)
+    } else {
+        None
+    };
+    if let Some(t) = &transfer {
+        t.apply(&mut p)?;
+    }
     // Both native full sources exist once. Same Core CTMC loop owns all earning,
     // state changes, G/EIR, exact settlements and default gross recoveries.
     let mut adapter = SourceAdapter::new(
@@ -2056,6 +2149,7 @@ fn evaluate_accounting_internal(
         stops,
         r.prepayment_terms.as_ref(),
         r.maturity_basis_policy.as_ref(),
+        transfer.as_ref(),
     )?
     .with_draws(&draw_sources, &prepared_policy, &p);
     let carry = carry::evaluate_with_native_factors(&p, &mut adapter, &mut check)?;
@@ -2098,6 +2192,7 @@ fn evaluate_accounting_internal(
         original_source: original,
         current_source: current,
         original_cash_quote: quote,
+        secondary_acquisition: transfer,
         prepared_credit_request: p,
         carry,
         accounting,
@@ -2114,6 +2209,42 @@ fn evaluate_accounting_internal(
     Ok(result)
 }
 
+fn admit_selected_source(
+    r: &Request,
+    raw: &term::indexed::ContractPathRequest,
+    policy: &FactorPolicy,
+    queries: usize,
+    measure: portfolio_model_core::cashflow::CashflowMeasure,
+) -> Result<crate::products::commercial::factor_source::owner::Admission, String> {
+    let authority = r.counted_work.as_deref();
+    if r.source.transfer.is_some() {
+        if authority.is_some() {
+            return Err("generated counted secondary transfer sources are not adopted".into());
+        }
+        NativeFactors::admit_transfer(raw, policy, queries, measure)
+    } else {
+        NativeFactors::admit_for_measure_with_work(raw, policy, queries, measure, authority)
+    }
+}
+fn compile_selected_source(
+    r: &Request,
+    raw: term::indexed::ContractPathRequest,
+    policy: FactorPolicy,
+    queries: usize,
+    measure: portfolio_model_core::cashflow::CashflowMeasure,
+) -> Result<NativeFactors, String> {
+    let authority = r.counted_work.as_deref();
+    if r.source.transfer.is_some() {
+        if authority.is_some() {
+            return Err("generated counted secondary transfer sources are not adopted".into());
+        }
+        NativeFactors::compile_transfer(raw, policy, queries, measure)
+    } else if measure == portfolio_model_core::cashflow::CashflowMeasure::Physical {
+        project_source(raw, policy, queries, authority)
+    } else {
+        NativeFactors::compile_for_measure_with_work(raw, policy, queries, measure, authority)
+    }
+}
 #[cfg(test)]
 thread_local! {static SOURCE_CALLS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)};}
 fn project_source(
@@ -2273,6 +2404,7 @@ mod tests {
             &[],
             None,
             raw.maturity_basis_policy.as_ref(),
+            None,
         )
         .unwrap();
         let event_id = maturity_event_id(raw.maturity_basis_policy.as_ref().unwrap());
