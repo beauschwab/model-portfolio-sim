@@ -87,11 +87,11 @@ pub(super) fn capture(input: Inputs<'_>) {
     RECEIPTS.with_borrow_mut(|receipts| receipts.push(receipt));
 }
 
-fn start() {
+pub(super) fn start() {
     RECEIPTS.with_borrow_mut(Vec::clear);
     ENABLED.set(true);
 }
-fn finish() -> Vec<Value> {
+pub(super) fn finish() -> Vec<Value> {
     ENABLED.set(false);
     RECEIPTS.with_borrow_mut(std::mem::take)
 }
