@@ -157,11 +157,47 @@ under a new source/artifact receipt rather than replacing its failed predecessor
 The structural refinement pays its own metadata work. A sealed local census first
 debits the draw-header inventory before reading nested vector lengths. It then
 checks a ticket before traversing hazards, covariance and period headers:
-`S = 32 + 15*intervals + covariance_cells + 2*all_contract_periods + 8*draws`.
+`S = 32 + 15*intervals + covariance_cells + coupon_loadings + 2*all_contract_periods + 8*draws`.
 Observation **values**, strings, hashes and future realized states are not read;
 only typed observation-vector lengths enter the structural inventory. The hazard
 fact means literal `all(h == 0)`, rather than the absence of a positive value.
 Owned scan counters must fit this header-derived ticket.
+
+The joined generated-candidate suite subsequently exposed five new work-cap
+refusals, including a literal positive Physical default hazard. That failure is
+retained separately. Two actual-call refinements address it without changing
+cases or limits. First, with literal zero hazards, Supplied principal, no draws,
+reviews or transfer, and every declared coupon loading exactly zero, supplied
+fixed/indexed rates and availability clocks are path-constant. Their legal and
+observed coordinates therefore remain in the actual feature vector but need no
+active-column allowance. The new numerical upper is `d + optional_d`; nonzero
+loadings retain the broader bound above. The complete loading scalar scan is
+paid before reading entries. Signed fixed coupons and delayed rights do not
+change this path-constancy argument.
+
+Second, the generated Physical template only applies its already fitted Pricing
+policy. It does not train or solve a new continuation regression. That template
+retains every historical source/basis allowance, the new paid metadata scan and
+the entire conservative numerical workspace, but excludes the new checked-fit
+operation reserve. Standalone fits, Pricing fits and OAS refits still reserve it.
+A native uncalibrated-preparation counter separately verifies that only Pricing
+wrappers train, including when Physical credit is positive. It does not count
+the separately reserved retained-sample OAS fits. No Physical outcomes fit the policy.
+
+The first combined repair restored six of seven generated-candidate tests; the
+unchanged positive-default/recovery case still refused at 4,003,255,730 work.
+That intermediate failure remains retained. Its remaining excess exposed a
+separate old standalone allowance: generated Pricing runs one training owner
+and two evaluation owners per sample, while standalone admission reserves two
+training owners. The catalog/fee lane already charged the actual generated pass
+inventory. The same actual-call refinement now applies to omitted template
+roles, whose execution follows the identical `pricing_role` function. Explicit
+owner and source-construction counters cover both zero and positive Physical
+credit. Only that unexecuted training-source replay allowance changes; every
+actual source still runs, complete per-source bounds and all basis/checked-fit
+reserves remain. Standalone analysis retains its original admission. This is an
+explicit resource-metadata change, requiring a fresh complete compatibility
+receipt; it is not a silent deduction or a financial tolerance waiver.
 
 Each represented ordinary numerical role adds `8*S` work plus 128 bytes for its
 structural summary, capacity and ledger headers. Standalone exercise traverses
@@ -229,7 +265,10 @@ the first numerical reservation remain preserved. This is isolated component
 evidence; combined fee/history integration and release acceptance are separate.
 
 Complete baseline/corrected JSON comparisons must isolate numerical admission
-metadata from every other field. No-fit paths must remain byte-identical. All
+metadata from every other field. Standalone no-fit outputs remain byte-identical
+and acquire zero numerical ticket. The separately documented generated-only
+source-pass correction can change graph admission even without an option; its
+full output comparison must isolate those exact scalar paths as well. All
 declared 48 Gaussian/credit cells, prior 60 constant-state cells, the prior credit
 and general stochastic benchmark families, native regression controls and strict
 checks remain required after integration. The combined generated-fee family also

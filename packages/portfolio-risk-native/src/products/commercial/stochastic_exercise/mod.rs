@@ -178,6 +178,19 @@ pub fn admit(r: &Request) -> Result<(usize, usize), String> {
     admitted_law(r, CreditMeasure::Pricing)
 }
 pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize, usize), String> {
+    admitted_law_capacity(r, measure, true)
+}
+/// A generated Physical role applies an already fitted Pricing policy. Retain
+/// validation, every historical source/basis allowance and the full workspace,
+/// but do not charge the new checked-solver fit which this role never executes.
+pub(crate) fn admitted_physical_policy_application(r: &Request) -> Result<(usize, usize), String> {
+    admitted_law_capacity(r, CreditMeasure::Physical, false)
+}
+fn admitted_law_capacity(
+    r: &Request,
+    measure: CreditMeasure,
+    fits_continuation: bool,
+) -> Result<(usize, usize), String> {
     check()?;
     if r.source.source.transfer.is_some() {
         return Err("generated conditional secondary acquisition is unsupported".into());
@@ -413,7 +426,13 @@ pub(crate) fn admitted_law(r: &Request, measure: CreditMeasure) -> Result<(usize
     let total = work
         .checked_add(fee_work)
         .and_then(|v| v.checked_add(regress_work))
-        .and_then(|v| v.checked_add(numerical.work))
+        .and_then(|v| {
+            v.checked_add(if fits_continuation {
+                numerical.work
+            } else {
+                numerical.work.checked_sub(numerical.fitting_work)?
+            })
+        })
         .ok_or("generated aggregate overflow")?;
     if total > MAX_WORK || bytes > MAX_BYTES || strict_json::serialized_size(r, 1 << 20)? > 1 << 20
     {
@@ -434,6 +453,7 @@ fn regression_numerical_columns_upper(r: &Request) -> Result<usize, String> {
 struct NumericalCapacity {
     columns: usize,
     work: usize,
+    fitting_work: usize,
     bytes: usize,
 }
 fn regression_numerical_capacity(r: &Request) -> Result<NumericalCapacity, String> {
@@ -441,6 +461,7 @@ fn regression_numerical_capacity(r: &Request) -> Result<NumericalCapacity, Strin
         return Ok(NumericalCapacity {
             columns: 1,
             work: 0,
+            fitting_work: 0,
             bytes: 0,
         });
     }
@@ -464,13 +485,17 @@ fn numerical_capacity_for_columns(
     scan: usize,
 ) -> Result<NumericalCapacity, String> {
     let bound = checked_least_squares::WorkBound::new(r.training.paths, columns)?;
+    let fitting_work = bound
+        .total()
+        .checked_mul(r.policy.exercise_dates.len())
+        .ok_or("regression numerical fit work overflow")?;
     Ok(NumericalCapacity {
         columns,
-        work: bound
-            .total()
-            .checked_mul(r.policy.exercise_dates.len())
-            .and_then(|v| v.checked_add(scan.checked_mul(numerical_bound::SCAN_PASSES)?))
+        work: scan
+            .checked_mul(numerical_bound::SCAN_PASSES)
+            .and_then(|v| v.checked_add(fitting_work))
             .ok_or("regression numerical work overflow")?,
+        fitting_work,
         bytes: bound
             .bytes()
             .checked_add(numerical_bound::HEADER_BYTES)
@@ -893,9 +918,9 @@ mod numerical_bound;
 #[cfg(test)]
 mod numerical_bound_tests;
 #[cfg(test)]
-mod regression_constant_tests;
-#[cfg(test)]
 mod numerical_fee_bound_tests;
+#[cfg(test)]
+mod regression_constant_tests;
 #[cfg(test)]
 mod regression_svd_audit;
 
@@ -1069,7 +1094,11 @@ pub(crate) fn fitted_decision(
     };
     decide(&policy.request, index, point, continuation, cash)
 }
+#[cfg(test)]
+thread_local! { pub(crate) static TRAINING_FITS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)}; }
 pub fn fit_training(r: &Request) -> Result<NativeTrainedPolicy, String> {
+    #[cfg(test)]
+    TRAINING_FITS.set(TRAINING_FITS.get() + 1);
     admit(r)?;
     let train_tape = generate_tape(r, &r.training)?;
     let training = collect(r, &r.training, &train_tape)?;

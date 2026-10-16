@@ -148,6 +148,27 @@ every unweighted source/proof and real comparison. That requires a separate
 architecture and independent raw/persisted acceptance; it is not implemented or
 claimed here. No limits are widened and no former work is silently deducted.
 
+The first structural phase now has a separate raw-only independent census with
+25 focused controls. It counts all 27 represented source uses, complete original
+calendars, ordered loan/fee prefixes, Compiled/search dimensions and sixteen
+output families. Dynamic text uses a before-growth bounded deterministic trie;
+closed keys use a paid fixed grammar. Its partial application census requires
+31,208,287 work and 41,595,632 peak component bytes. These are verifier dimensions,
+not an accepted native source/work/aggregate-RSS bound. Complete source/layout,
+original Pricing proof lifetime, Sim, codec and publication gates remain missing;
+the module unconditionally refuses publication. A subsequent read-only review
+identified additional caller-list allocation, prior-proof lifetime and full
+event/prefix-sort/key/hash-work accounting needed before those provisional
+application totals can be treated as complete. The corrected stage charges
+descriptor scratch before factories, drops all prior proof/factor roots before
+release, and uses a prepaid numeric-tuple insertion sort with separately paid
+scenario resolution. All 30 controls pass, including 27 replay/108 factor-root
+lifetime checks. Its application work is 31,242,892, peak bytes41,595,632 and final
+bytes29,220,312. The earlier receipt remains immutable. These corrected partial
+totals still confer no native resource authority. It invokes only explicit
+independent references and no native producer or controller. The prior diagnostic
+receipts and their refusals remain unchanged.
+
 The separately retained exploratory minimal loan-only cases also refuse; neither
 replaces the full fee fixture. Removing only the fee selection leaves the same
 seasoned loan transfer contracts, surviving/acquired units and both scenarios:

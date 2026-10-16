@@ -352,17 +352,16 @@ fn acquisition_law(r: &Request) -> Result<stochastic::Request, String> {
     refresh_counted_source(&mut law.source)?;
     Ok(law)
 }
-fn pricing_admission(r: &Request, law: &stochastic::Request) -> Result<(usize, usize), String> {
+fn pricing_admission(law: &stochastic::Request) -> Result<(usize, usize), String> {
     let (mut work, bytes) = stochastic::admitted_law(law, CreditMeasure::Pricing)?;
-    if r.physical_path_inputs.is_some() || r.fee_acquisition.is_some() {
-        // This owner fits one Q training sample, then compiles each evaluation
-        // prefix and stopped tail. Standalone exercise's extra hypothetical
-        // training replay is not executed here. Preserve all regression work.
-        let source = stochastic::admitted_source(law, CreditMeasure::Pricing)?;
-        work = work
-            .checked_sub(mul(law.training.paths, source.joined_work_upper)?)
-            .ok_or("generated Pricing pass ownership differs")?;
-    }
+    // Every generated owner fits one Q training sample, then compiles each
+    // evaluation prefix and stopped tail. No template/catalog/fee variant runs
+    // standalone exercise's extra hypothetical training-source replay. Retain
+    // all actual owners, full source bounds, basis and checked numerical work.
+    let source = stochastic::admitted_source(law, CreditMeasure::Pricing)?;
+    work = work
+        .checked_sub(mul(law.training.paths, source.joined_work_upper)?)
+        .ok_or("generated Pricing pass ownership differs")?;
     Ok((work, bytes))
 }
 pub(crate) fn bind_counted_source(raw: &mut owner::Request) -> Result<(), String> {
@@ -453,7 +452,7 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
         return Err("explicit bounded generated Pricing/Physical role tier required".into());
     }
     let (fee_work, fee_bytes) = fees::audit(r)?;
-    let (mut work, trainbytes) = pricing_admission(r, &r.pricing_training)?;
+    let (mut work, trainbytes) = pricing_admission(&r.pricing_training)?;
     work = add(work, fee_work)?;
     let mut peak_bytes = trainbytes;
     let mut bytes = add(compact_upper(&r.pricing_training)?, fee_bytes)?;
@@ -491,7 +490,7 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
         {
             return Err("generated Pricing scenarios require immutable baseOAS, paired CRN and distinct bump roles".into());
         }
-        let (w, b) = pricing_admission(r, law)?;
+        let (w, b) = pricing_admission(law)?;
         work = add(work, w)?;
         peak_bytes = peak_bytes.max(b);
         bytes = add(bytes, compact_upper(law)?)?;

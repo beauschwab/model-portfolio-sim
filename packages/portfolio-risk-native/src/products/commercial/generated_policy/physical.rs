@@ -279,7 +279,7 @@ pub(super) fn upper(
         ));
     }
     if inputs.is_none() {
-        let (work, bytes) = stochastic::admitted_law(law, CreditMeasure::Physical)?;
+        let (work, bytes) = stochastic::admitted_physical_policy_application(law)?;
         let a = owner::admit(&law.source)?;
         return Ok((
             work,

@@ -25,8 +25,14 @@ tranches require separate selected ownership; they are explicitly refused here.
 The candidate journal selects additive outer schema
 `commercial-generated-candidate-fee-journal-1`, a separately versioned
 preparation/trailer, and the established protocol7 fee table layouts. The
-historical generated candidate schema remains protocol6 with exactly its old
-receipt fields, table inventory, admission and omitted-fee output.
+historical generated candidate schema remains protocol6 with its old receipt
+fields, table inventory and omitted-fee financial output. At the accepted0.29.19
+fee-integration checkpoint its full output and admission were byte-identical.
+Subsequent local0.29.20 checked numerical work adds explicit fit/scan reserves and
+corrects two unexecuted standalone-pass allowances in generated application.
+Only declared resource-admission scalars may change under the new matching
+artifact; complete typed/bitwise financial compatibility requires a fresh receipt.
+See [the checked numerical contract](commercial-checked-least-squares.md).
 
 ## Joint stopping ownership
 

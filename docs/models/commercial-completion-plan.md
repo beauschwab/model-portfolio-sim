@@ -63,6 +63,31 @@ fee-proof controls and 25 independent reserve controls also pass. These containe
 results do not establish combined installed acceptance; see
 [the history contract](native-history-least-squares.md).
 
+The next fresh all-target run passed core, pricing and ledger native/strict gates,
+then exposed five existing protocol6 generated-candidate work refusals in strategy
+tests. Those complete logs and the 783-input source freeze remain retained.
+The repair separates unexecuted Physical checked-fit work from its unchanged
+source/basis/scan/workspace allowances and proves deterministic coupon coordinates
+from the literal raw law. Actual matrices and full financial cases remain.
+The first repair restored six cases but retained a 4,003,255,730-work default
+refusal. Actual-call counters then confirmed that generated Pricing does not
+execute standalone's extra training-source replay. Applying its existing
+catalog/fee pass inventory to omitted templates restores all seven cases.
+The combined library passes 209 tests, both all-target/all-feature strict checks
+pass and 28 independent reserve controls pass. Seven complete archived/current
+comparisons differ only at eight identified admission scalar locations; all
+other typed fields/f64 bits match. Fresh installed acceptance remains required;
+no financial expectation, cap, actual source pass or tolerance changes.
+
+The new independent compact-cut inventory is a refusal-only analysis foundation.
+Its initial 25 controls and provisional census are retained. A subsequent review
+identified caller-list, prior-proof lifetime and complete sort/key/hash costs.
+Their corrected before-growth allocation, explicit drops and deterministic
+ordering pass all 30 controls at 31,242,892 application work and 41,595,632 peak
+component bytes. That partial census does not establish native admission or codec
+viability. Complete native source/layout, original Pricing proof capture, Sim,
+output, independent persisted verification and publication fences remain required.
+
 | Work | Implemented bounded scope | Remaining acceptance or engineering |
 |---|---|---|
 | Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later conveyed fee capital/FTP, signed prepaid refund acquisitions and generated fee stopping/journals | Combined installed acceptance; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |

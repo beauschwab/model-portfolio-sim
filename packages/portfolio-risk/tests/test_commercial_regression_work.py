@@ -28,6 +28,29 @@ def test_no_fit_has_no_numerical_admission_delta():
     assert numerical_reserve(raw)==(0,0)
 
 
+@pytest.mark.parametrize('hazard',[0.,.01])
+def test_physical_policy_application_keeps_scan_workspace_but_executes_no_fit(hazard):
+    raw=request(matrix()[0])
+    raw['policy']['exercise_dates']=[{}]
+    raw['source']['credit']['intervals'][0]['hazards_per_year'][0][3]=hazard
+    complete=numerical_reserve(raw)
+    applied=numerical_reserve(raw,fits_continuation=False)
+    assert applied==(8*scan_work_upper(raw),complete[1])
+    assert complete[0]>applied[0]
+    raw['policy']['exercise_dates']=[]
+    assert numerical_reserve(raw,fits_continuation=False)==(0,0)
+
+
+def test_fixed_coupons_only_reduce_new_structural_fit_ticket_from_raw_law():
+    fixture=json.loads((Path(__file__).resolve().parents[3]/'examples/models/commercial-generated-candidate-journal-1.json').read_text())
+    raw=fixture['commercial']['units'][0]['graph']['positions'][0]['generated_policy']['pricing_training']
+    assert any(c>0 for c in raw['annual_covariance'])
+    assert active_feature_upper(raw)==len(raw['drivers'])
+    assert numerical_reserve(raw)[0]<shape_bound(raw['training']['paths'],10)[0]
+    raw['source']['reviewed_credit_actions']={}
+    assert active_feature_upper(raw)>len(raw['drivers'])
+
+
 def test_every_training_fit_is_reserved_and_workspace_is_once():
     raw=request(matrix()[0]);raw["policy"]["exercise_dates"]=[{},{}]
     one=shape_bound(raw["training"]["paths"],3)

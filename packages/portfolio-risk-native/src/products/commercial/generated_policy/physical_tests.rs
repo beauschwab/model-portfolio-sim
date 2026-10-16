@@ -2,6 +2,53 @@
 use super::*;
 use crate::term_enhancements::indexed::{Coupon, PrincipalPlan};
 use physical::{PathInputs, RoleInputs, ScenarioInputs, SourceRecipe};
+use portfolio_model_core::cashflow::CashflowMeasure;
+
+#[test]
+fn template_physical_application_keeps_all_but_unexecuted_checked_fit_work() {
+    use crate::math::checked_least_squares::WorkBound;
+    let base = tests::request().original_physical;
+    for credit in [false, true] {
+        let mut law = base.clone();
+        if credit {
+            law.source.credit.intervals[0].hazards_per_year[0][3] = 0.01;
+        }
+        let full = stochastic::admitted_law(&law, CreditMeasure::Physical).unwrap();
+        let application = stochastic::admitted_physical_policy_application(&law).unwrap();
+        let columns = if credit {
+            stochastic::regression_columns_upper(&law).unwrap()
+        } else {
+            // Literal zero market covariance and hazards: all coordinates are
+            // path-constant; the unchanged actual fit retains an intercept.
+            assert!(law.annual_covariance.iter().all(|v| *v == 0.));
+            1
+        };
+        let unused_fit = WorkBound::new(law.training.paths, columns).unwrap().total()
+            * law.policy.exercise_dates.len();
+        assert_eq!(full.0 - application.0, unused_fit);
+        assert_eq!(full.1, application.1);
+        assert_eq!(physical::upper(&law, None, false).unwrap().0, application.0);
+        law.policy.exercise_dates.clear();
+        assert_eq!(
+            stochastic::admitted_law(&law, CreditMeasure::Physical).unwrap(),
+            stochastic::admitted_physical_policy_application(&law).unwrap()
+        );
+        law.source.source.current.measure = CashflowMeasure::Pricing;
+        assert!(stochastic::admitted_physical_policy_application(&law).is_err());
+    }
+}
+
+#[test]
+fn generated_preparation_fits_only_pricing_roles_despite_physical_credit() {
+    let mut r = tests::request();
+    r.current_physical[0].source.credit.intervals[0].hazards_per_year[0][3] = 0.01;
+    stochastic::TRAINING_FITS.set(0);
+    let prepared = prepare(&r).unwrap();
+    assert_eq!(stochastic::TRAINING_FITS.get(), 1 + r.current_pricing.len());
+    assert!(!prepared.physical_outcomes_used_for_policy_fit);
+    assert_eq!(prepared.current_physical.len(), r.current_physical.len());
+}
+
 fn draw_source(raw: &owner::Request) -> owner::PerformingDrawTranche {
     let mut source = raw.source.clone();
     let at = source.current.asof_ordinal + 1;
@@ -322,7 +369,7 @@ fn generated_selected_role_pass_reservation_covers_measured_true_owner_and_sourc
     for law in std::iter::once(&r.pricing_training).chain(&r.current_pricing) {
         let owner = stochastic::admitted_source(law, CreditMeasure::Pricing).unwrap();
         let (component, _) = stochastic::admitted_law(law, CreditMeasure::Pricing).unwrap();
-        let (selected, _) = pricing_admission(&r, law).unwrap();
+        let (selected, _) = pricing_admission(law).unwrap();
         assert_eq!(
             component - selected,
             law.training.paths * owner.joined_work_upper
@@ -342,12 +389,53 @@ fn generated_selected_role_pass_reservation_covers_measured_true_owner_and_sourc
     omitted.physical_path_inputs = None;
     let (component, _) =
         stochastic::admitted_law(&omitted.pricing_training, CreditMeasure::Pricing).unwrap();
+    let owner =
+        stochastic::admitted_source(&omitted.pricing_training, CreditMeasure::Pricing).unwrap();
     assert_eq!(
-        pricing_admission(&omitted, &omitted.pricing_training)
-            .unwrap()
-            .0,
-        component
+        component - pricing_admission(&omitted.pricing_training).unwrap().0,
+        omitted.pricing_training.training.paths * owner.joined_work_upper
     );
+}
+
+#[test]
+fn omitted_template_pricing_counts_every_actual_owner_and_no_extra_training_replay() {
+    use crate::products::commercial::factor_source::owner::SOURCE_CALLS;
+    for credit in [false, true] {
+        let mut r = tests::request();
+        assert!(r.physical_path_inputs.is_none() && r.fee_acquisition.is_none());
+        if credit {
+            r.current_physical[0].source.credit.intervals[0].hazards_per_year[0][3] = 0.01;
+        }
+        owner::OWNER_EVALUATIONS.set(0);
+        SOURCE_CALLS.set(0);
+        let prepared = prepare(&r).unwrap();
+        let expected_q: usize = std::iter::once(&r.pricing_training)
+            .chain(&r.current_pricing)
+            .map(|q| q.training.paths + 2 * q.evaluation.paths)
+            .sum();
+        let expected_p = 3 * r.original_physical.evaluation.paths
+            + r.current_physical
+                .iter()
+                .map(|p| 2 * p.evaluation.paths)
+                .sum::<usize>();
+        assert_eq!(owner::OWNER_EVALUATIONS.get(), expected_q + expected_p);
+        assert_eq!(SOURCE_CALLS.get(), 2 * (expected_q + expected_p));
+        let mut actual_q_reserve = 0;
+        for q in std::iter::once(&r.pricing_training).chain(&r.current_pricing) {
+            let source = stochastic::admitted_source(q, CreditMeasure::Pricing).unwrap();
+            let full = stochastic::admitted_law(q, CreditMeasure::Pricing).unwrap();
+            let selected = pricing_admission(q).unwrap();
+            assert_eq!(
+                full.0 - selected.0,
+                q.training.paths * source.joined_work_upper
+            );
+            assert_eq!(full.1, selected.1);
+            actual_q_reserve +=
+                (q.training.paths + 2 * q.evaluation.paths) * source.joined_work_upper;
+        }
+        assert!(prepared.admission.work_upper >= actual_q_reserve);
+        assert!(!prepared.physical_outcomes_used_for_policy_fit);
+    }
 }
 
 #[test]

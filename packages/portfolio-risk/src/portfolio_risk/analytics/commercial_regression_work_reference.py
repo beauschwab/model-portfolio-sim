@@ -19,7 +19,7 @@ def shape_bound(rows: int, columns: int) -> tuple[int, int]:
     return candidate+jacobi+2*check, workspace
 
 
-def numerical_reserve(raw, *, columns=None):
+def numerical_reserve(raw, *, columns=None, fits_continuation=True):
     dates = len(raw["policy"]["exercise_dates"])
     if not dates:
         return 0, 0
@@ -29,14 +29,17 @@ def numerical_reserve(raw, *, columns=None):
                   "native_observable_cubic_svd_train_evaluate-1":3}[raw["regression_policy"]]
         columns = min(comb(active_feature_upper(raw)+degree, degree), raw["training"]["paths"]//2)
     work, workspace = shape_bound(raw["training"]["paths"], columns)
-    return dates*work+8*scan_work_upper(raw), workspace+128
+    # Physical generated application runs the complete raw metadata census but
+    # applies retained Q coefficients. It does not execute this checked fit.
+    return (dates*work if fits_continuation else 0)+8*scan_work_upper(raw), workspace+128
 
 
 def scan_work_upper(raw):
     source=raw['source']
     draws=source.get('performing_draw_tranches',[])
     periods=len(source['source']['current']['periods'])+sum(len(d['source']['current']['periods'])for d in draws)
-    return 32+15*len(source['credit']['intervals'])+len(raw['annual_covariance'])+2*periods+8*len(draws)
+    return (32+15*len(source['credit']['intervals'])+len(raw['annual_covariance'])
+            +2*periods+8*len(draws)+len(raw['coupon_loadings']))
 
 
 def active_feature_upper(raw):
@@ -50,8 +53,12 @@ def active_feature_upper(raw):
         return full
     if not credit and all(c==0 for c in raw['annual_covariance']):return 0
     contract=source['source']['current']
-    if not credit and contract['principal_plan']['kind']=='supplied':
+    if (not credit and source.get('reviewed_credit_actions') is None
+            and source['source'].get('transfer') is None
+            and contract['principal_plan']['kind']=='supplied'):
         d=len(raw['drivers'])
+        if all(row['loading']==0 for row in raw['coupon_loadings']):
+            return d+(d if raw['hazard_loadings'] else 0)
         return (d+(d if raw['hazard_loadings']else 0)+1+len(contract['periods'])
                 +sum(len(p['coupon'].get('observations',[]))for p in contract['periods']))
     return full

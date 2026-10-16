@@ -61,6 +61,7 @@ pub(super) fn inspect(r: &Request) -> Result<StructuralFeatures, String> {
                 .ok_or("structural credit scan overflow")?,
         )
         .and_then(|v| v.checked_add(r.annual_covariance.len()))
+        .and_then(|v| v.checked_add(r.coupon_loadings.len()))
         .and_then(|v| v.checked_add(periods.checked_mul(2)?))
         .and_then(|v| v.checked_add(draws.checked_mul(8)?))
         .ok_or("structural metadata scan overflow")?;
@@ -111,27 +112,50 @@ pub(super) fn inspect(r: &Request) -> Result<StructuralFeatures, String> {
                 .ok_or("structural observation headers overflow")?;
         }
     }
+    // Generated coupon rates can depend on the market only through these
+    // declared loadings. Pay the complete scalar scan before reading any entry;
+    // no period IDs, fixing values, or sampled features enter this proof.
+    scan.debit(r.coupon_loadings.len())?;
+    let mut coupon_loadings_zero = true;
+    for loading in &r.coupon_loadings {
+        check()?;
+        coupon_loadings_zero &= loading.loading == 0.;
+    }
     let active = if draws > 0 {
         full
     } else if all_credit_hazards_zero && covariance_zero {
         0
     } else if all_credit_hazards_zero
+        && r.source.reviewed_credit_actions.is_none()
+        && r.source.source.transfer.is_none()
         && matches!(
             &r.source.source.current.principal_plan,
             term::indexed::PrincipalPlan::Supplied { .. }
         )
     {
-        r.drivers
+        let market = r
+            .drivers
             .len()
             .checked_add(if r.hazard_loadings.is_empty() {
                 0
             } else {
                 r.drivers.len()
             })
-            .and_then(|v| v.checked_add(observations))
-            .and_then(|v| v.checked_add(1))
-            .and_then(|v| v.checked_add(r.source.source.current.periods.len()))
-            .ok_or("structural varying feature upper overflow")?
+            .ok_or("structural market feature upper overflow")?;
+        if coupon_loadings_zero {
+            // With no transitions/draws/reviews and supplied principal, fixed
+            // and supplied indexed coupons have identical legal/entitlement
+            // paths at each decision clock. Availability masks depend only on
+            // raw dates. Signed or delayed cash changes these constants, never
+            // their path variation. Retain every feature in the actual fit.
+            market
+        } else {
+            market
+                .checked_add(observations)
+                .and_then(|v| v.checked_add(1))
+                .and_then(|v| v.checked_add(r.source.source.current.periods.len()))
+                .ok_or("structural varying feature upper overflow")?
+        }
     } else {
         full
     };
@@ -144,3 +168,7 @@ pub(super) fn inspect(r: &Request) -> Result<StructuralFeatures, String> {
         measured_work: scan.used,
     })
 }
+
+#[cfg(test)]
+#[path = "numerical_bound_coupon_tests.rs"]
+mod coupon_tests;

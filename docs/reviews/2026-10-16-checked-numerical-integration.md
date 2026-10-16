@@ -74,6 +74,41 @@ output. These bookkeeping/test corrections do not alter production money or gate
 
 ## Work still required
 
+The first fresh 783-input native run passed core, pricing and ledger tests and
+strict checks. Strategy compilation first encountered an old system CMake;
+retrying with the project's build dependencies reached the actual tests and
+exposed five unchanged generated-candidate work-cap refusals. Baseline work was
+4,018,823,648; a positive Physical default case required 4,111,372,496 against
+the unchanged four-billion cap. That source freeze and complete failure log are
+retained under `artifacts/issue15-secondary-and-cut-validation-attempt2/`.
+The first actual-call Physical/raw fixed-coupon repair restored six cases while
+the default case still refused at4,003,255,730work. Exact owner/source counters
+then proved the omitted generated Pricing lane also avoids standalone's extra
+training-source replay. Its existing catalog/fee pass inventory is now shared by
+all generated roles. The matching focused run passes209 risk-library tests, all
+seven unchanged candidate tests, strict all-target/all-feature risk and decision
+checks, and28 independent reserve controls. Original failures remain retained.
+
+Complete archived/current comparisons cover seven outputs, including the entire
+15,733,297-byte historical protocol6 stream. Only eight exact admission scalars
+change; every other type and f64 bit matches. The protocol6 work is now
+3,416,784,570 and bytes120,523,360. Finite graph, finite units and standalone
+no-fit stdout remain byte-identical. Receipt
+`5fceabafe031ad0f127996be0752a43e5ffef5d5a80c66b71c91f9ba3eef48a6`
+is retained under `artifacts/issue15-candidate-reserve-repair-attempt2/compatibility/`.
+The first comparison checker stopped on two nested preparation admission paths;
+its complete stdout and failure remain, and the saved outputs were rechecked
+with exact table/schema identities and only those two additional scalar paths.
+No financial field is waived. This is contained evidence before a fresh source
+freeze and matching release, not full installed acceptance.
+
+Refusal-only typed/native and independent cut inventories are also integrated.
+The native stage passes37 component tests in its sealed build; the corrected
+independent stage passes30 controls and58 combined census/reserve controls pass
+in primary. Review found and corrected paid lookup, allocation, proof-lifetime
+and ordering costs. Complete source/layout, original Pricing proof lifetime,
+full Sim/output/codec admission and publication remain unproved and fail closed.
+
 A fresh frozen-source release must build all eight matching native artifacts and
 pass all-target native/strict/doc, complete engine/API, browser, MCP, real durable
 publication, compatibility, operator-package and final artifact/source fences.
