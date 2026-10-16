@@ -418,7 +418,7 @@ def _source_dimensions(raw,ticket):
         count=len(contract['periods']);hcount=len(contract['principal_plan'].get('principal_events',[]))
         ticket.debit(16*count+8*hcount+16)
         total_periods+=count;total_principal+=hcount;period_squares+=count*count
-        calendar_span+=contract['tail_end_ordinal']-min([contract['asof_ordinal']]+[p['start_ordinal']for p in contract['periods']])
+        calendar_span+=contract['tail_end_ordinal']-min(contract['asof_ordinal'],min((p['start_ordinal']for p in contract['periods']),default=contract['asof_ordinal']))
         if contract['schema']!='term-enhancements-1' or contract['model_version']!='term-contracts-1':
             raise ArithmeticError('compact census source contract version')
         if contract['principal_plan']['kind'] not in ('supplied','dated_supplied_period_opening_nominal-1'):
@@ -433,10 +433,12 @@ def _source_dimensions(raw,ticket):
     days=_day(full_end(raw));p=len(current['periods']);h=len(current['principal_plan'].get('principal_events',[]))
     n=len(raw['credit']['paths']);j=raw['credit']['max_jumps_per_path']
     ticket.debit(16*len(raw['credit']['intervals'])+sum(len(t)for i in raw['credit']['intervals']for t in i['complete_recovery_tails']))
-    tails=[len(t)for i in raw['credit']['intervals']for t in i['complete_recovery_tails']]
-    if not n==1 or not 0<=days<=1080 or not 0<=j<=4096 or not tails or not 1<=max(tails)<=32:
+    r=0
+    for interval in intervals:
+        for tail in interval['complete_recovery_tails']:r=max(r,len(tail))
+    if not n==1 or not 0<=days<=1080 or not 0<=j<=4096 or not 1<=r<=32:
         raise ArithmeticError('compact census bounded complete source dimensions')
-    r=max(tails);i=days+len(raw['credit']['intervals'])+1;b=p+h;s=i+b+j+1;l=4*p
+    i=days+len(raw['credit']['intervals'])+1;b=p+h;s=i+b+j+1;l=4*p
     rows=n*(s+b+j+4+2*r+p+h+l*(1+r)+s*p)
     # Explicit independent reference ticket before any oracle/typed copy. This is
     # an application projection ceiling, not a guessed native source reservation.
@@ -536,7 +538,6 @@ def _build_side(candidate,side,cut,ticket,check):
     from .commercial_fee_adoption_reference import project as project_fee,validate as validate_fee
     from .commercial_reference_math import _cash
     use_shape=Shape();uses=[];bindings=[];prefix=[];all_events=[];families={};horizon=max(30,candidate['reporting_end_ordinal']-candidate['as_of_ordinal']);fee_index=0
-    mapping={r['source_scenario_id']:r['ledger_scenario_id']for r in candidate['run_mapping']}
     for ui,(unit,owner,allocation)in enumerate(zip(candidate['commercial']['units'],candidate['owners'],candidate['allocation'],strict=True)):
         graph=unit['graph'];position=graph['positions'][0];selection=position.get('fees');origin=graph['as_of_ordinal']-candidate['as_of_ordinal']
         if selection:validate_fee(selection,graph,position,check)
@@ -559,13 +560,13 @@ def _build_side(candidate,side,cut,ticket,check):
                 width=shape(value,ticket);family_shapes[name]=width
                 families[name]=families.get(name,Shape()).plus(width)
             body=shape(proof,ticket)
-            wrapper=_object([('raw_locator',shape(locator,ticket)),('role',shape(role,ticket)),('scenario',shape(scenario,ticket)),('original',_BOOL),('weight',_NUM),('proof',body)],ticket)
+            wrapper=_object_from(6,lambda:[('raw_locator',shape(locator,ticket)),('role',shape(role,ticket)),('scenario',shape(scenario,ticket)),('original',_BOOL),('weight',_NUM),('proof',body)],ticket)
             use_shape=use_shape.plus(wrapper)
             if body.cells>dim['reference_bytes_upper']//512:
                 raise ArithmeticError('independent proof exceeded before-growth cell/body reserve')
             ticket.grow(16384);uses.append(dict(raw_locator=locator,role=role,scenario=scenario,original=original,path_id=history['path_id'],weight=float(history['weight']),dimensions=dim,families={k:asdict(v)for k,v in family_shapes.items()}))
             if role=='physical':
-                bi=len(bindings);run=mapping[scenario];loan_groups=proof['loan_book']['groups'];fee=proof.get('fee_source',{}).get('bound_path')
+                bi=len(bindings);run=_ledger_scenario(candidate,scenario,ticket);run_index=_scenario_index(candidate,run,ticket);loan_groups=proof['loan_book']['groups'];fee=proof.get('fee_source',{}).get('bound_path')
                 fee_families=selection['allocations']if selection else []
                 binding=dict(index=bi,scenario=run,position_id=owner['position_id'],source_class='issuer_ac_security-1'if raw['credit'].get('instrument_kind')=='issuer_credit_debt'else'commercial_loan-1',path_key=raw['credit']['paths'][0]['path_key'],native_position_id=raw['source']['current']['position_id'],source_weight=float(history['weight']),allocated_face=float(allocation['face']),native_unit_face=float(unit['unit_face']),origin_day=origin,loan_groups=loan_groups,fee=fee,fee_index=fee_index if fee else None,fee_count=len(fee_families),raw_locator=locator)
                 retained=512*sum(shape(g,ticket).cells for g in loan_groups)
@@ -574,20 +575,21 @@ def _build_side(candidate,side,cut,ticket,check):
                 horizon=max(horizon,origin+_day(full_end(raw)))
                 def event(kind,index,gi,year,group):
                     day=origin+_day(year);global_year=origin/365.+year
-                    ticket.grow(2048)
+                    ticket.debit(32);ticket.grow(2048)
                     e=dict(scenario=run,day=day,global_native_year_bits=_bits(global_year),native_year_bits=_bits(year),kind=kind,binding=index,group_index=gi,group=group)
+                    e['_sort']=(run_index,day,_total_order(global_year),0 if kind=='loan'else 1,index,gi)
                     all_events.append(e)
-                    if day<=cut:prefix.append(e)
                 for gi,g in enumerate(loan_groups):event('loan',bi,gi,g['year'],g)
                 if fee:
                     horizon=max(horizon,origin+fee['source']['raw_request']['complete_end_ordinal']-graph['as_of_ordinal'])
                     for gi,(year,g)in enumerate(zip(fee['native_years'],fee['source']['groups'],strict=True)):event('fee',fee_index,gi,year,g)
                     fee_index+=1
+            # The next replay may allocate its entire reservation. Drop every
+            # Q/source proof local first; retained Physical groups/fee bodies have
+            # their separately charged binding/event ownership above.
+            del proof,result,projection,segments,value
             ticket.release(dim['reference_bytes_upper'])
-    run_order={name:i for i,name in enumerate(['baseline']+[s['name']for s in candidate['specification']['scenarios']])}
-    ticket.debit(_mul(max(len(all_events),1),max(len(all_events),1).bit_length()*16))
-    def order(e):return run_order[e['scenario']],e['day'],_total_order(struct.unpack('>d',bytes.fromhex(e['global_native_year_bits']))[0]),0 if e['kind']=='loan'else 1,e['binding'],e['group_index']
-    all_events.sort(key=order);prefix.sort(key=order)
+    prefix=_order_events(all_events,cut,ticket)
     specification=_normalize(candidate,horizon,ticket)
     return dict(whole_use_shape=use_shape,uses=uses,bindings=bindings,prefix=prefix,events=all_events,families=families,fee_bindings=fee_index,horizon=horizon,specification=specification)
 
@@ -598,15 +600,18 @@ def _compiled(side,ticket):
     two_search=reconcile_search=stock_clones=legal_clones=fee_clones=0
     loan_shape=fee_shape=Shape();all_group_shape=Shape();loan_snapshot=fee_state=Shape()
     for b in side['bindings']:
-        bp=sum(len(g['postings'])for g in b['loan_groups']);bl=sum(len(g['next']['lots'])for g in b['loan_groups']);bg=len(b['loan_groups'])
-        ticket.debit(bg*2)
+        bg=len(b['loan_groups']);ticket.debit(bg*2)
+        bp=sum(len(g['postings'])for g in b['loan_groups']);bl=sum(len(g['next']['lots'])for g in b['loan_groups'])
         two_search+=2*bp*bp;reconcile_search+=(4*bg+2*bl)*bp;stock_clones+=bg*bp;legal_clones+=bg*bl
         loan_postings+=bp;loan_groups+=bg
         for g in b['loan_groups']:
             max_lots=max(max_lots,len(g['next']['lots']))
-            for name in [p['coupon_id']for p in g['postings']]+[l['coupon_id']for l in g['next']['lots']]:
-                if name is not None:
-                    _,width=_text(name,ticket);max_coupon=max(max_coupon,width)
+            ticket.debit(len(g['postings'])+len(g['next']['lots']))
+            for posting in g['postings']:
+                if posting['coupon_id']is not None:
+                    _,width=_text(posting['coupon_id'],ticket);max_coupon=max(max_coupon,width)
+            for lot in g['next']['lots']:
+                _,width=_text(lot['coupon_id'],ticket);max_coupon=max(max_coupon,width)
             ticket.debit(1);postings+=len(g['postings']);lots+=len(g['next']['lots'])
             loan_rows+=len(g['postings'])+2*len(g['next']['lots'])+1
             width=group_shape(g,'loan',ticket);loan_shape=loan_shape.plus(width);all_group_shape=all_group_shape.plus(width);loan_snapshot=loan_snapshot.maximum(_snapshot(g['next'],ticket))
@@ -631,6 +636,73 @@ def _compiled(side,ticket):
 
 _NUM = Shape(32,1)
 _BOOL = Shape(5,1)
+
+def _object_from(count,make_parts,ticket):
+    # Charge caller-side temporary tuples/list and Shape descriptors BEFORE its
+    # factory evaluates any input-dependent parts. The descriptor body itself
+    # remains accounted by _object; no late reservation substitutes for this.
+    scratch=512+count*256
+    ticket.grow(scratch);ticket.debit(count)
+    parts=make_parts()
+    if len(parts)!=count:raise ArithmeticError('compact census descriptor count differs')
+    result=_object(parts,ticket)
+    del parts
+    ticket.release(scratch)
+    return result
+
+
+def _utf8_length(value,ticket):
+    ticket.debit(4*len(value)+1)
+    width=0
+    for ch in value:
+        code=ord(ch)
+        if 0xD800<=code<=0xDFFF:raise ArithmeticError('compact census unpaired surrogate')
+        width+=1 if code<128 else 2 if code<2048 else 3 if code<65536 else 4
+    return width
+
+
+def _ledger_scenario(candidate,scenario,ticket):
+    rows=candidate['run_mapping']
+    ticket.debit(sum(4*max(len(scenario),len(r['source_scenario_id']))+1 for r in rows)+len(rows)*128)
+    found=None
+    for row in rows:
+        if row['source_scenario_id']==scenario:
+            if found is not None:raise ArithmeticError('compact census duplicate scenario mapping')
+            found=row['ledger_scenario_id']
+    if found is None:raise ArithmeticError('compact census missing scenario mapping')
+    return found
+
+
+def _scenario_index(candidate,scenario,ticket):
+    rows=candidate['specification']['scenarios']
+    ticket.debit(4*max(len(scenario),8)+1+sum(4*max(len(scenario),len(r['name']))+1 for r in rows)+len(rows)*128)
+    if scenario=='baseline':return 0
+    for i,row in enumerate(rows):
+        if row['name']==scenario:return i+1
+    raise ArithmeticError('compact census missing native scenario')
+
+
+def _order_events(events,cut,ticket):
+    # Exactly ONE deterministic numeric-tuple insertion sort, then a linear
+    # prefix selection. Decorated pair/key workspace and output prefix slots
+    # coexist; no unmetered hash-based scenario lookup or second sort occurs.
+    n=len(events);scratch=4096+256*n
+    ticket.grow(scratch);ticket.debit(n*n*16+n*128+1)
+    pairs=[(e['_sort'],e)for e in events]
+    for i in range(1,n):
+        value=pairs[i];j=i
+        while j and pairs[j-1][0]>value[0]:
+            pairs[j]=pairs[j-1];j-=1
+        pairs[j]=value
+    ticket.grow(64+16*n)
+    prefix=[]
+    for i,(_,event)in enumerate(pairs):
+        events[i]=event
+        if event['day']<=cut:prefix.append(event)
+    del pairs
+    ticket.release(scratch)
+    return prefix
+
 
 def _object(parts,ticket):
     # The small template descriptor has a fixed before-growth envelope.
@@ -672,6 +744,7 @@ def _labels(spec,side,ticket):
 
 
 def _table_inventory(side,compiled,days,finish,opening_keys,ticket):
+    ticket.grow(32768) # fixed <=48fields, three coexisting caller descriptors
     spec=side['specification'];labels=_labels(spec,side,ticket);tables={}
     def row(strings,numbers='',children=()):
         return _object([(k,labels[v]if v in labels else shape(v,ticket))for k,v in strings]+[(k,_NUM)for k in numbers.split()]+list(children),ticket)
@@ -713,6 +786,7 @@ def _table_inventory(side,compiled,days,finish,opening_keys,ticket):
     record('consolidated',accounts*scenarios if finish else 0,row([('scenario','scenario'),('currency','currency')],'assets liabilities equity cash restricted_cash'))
     record('attribution',group_count*len(spec['scenarios'])if finish else 0,row([('scenario','scenario'),('account','account'),('event','phase')],'cash_delta earnings_delta aoci_delta'))
     if not _keys_match(tables,(tuple(sorted(TABLES)),),ticket):raise ArithmeticError('compact census complete16table coverage')
+    ticket.release(32768)
     return tables,key_upper
 
 
@@ -758,12 +832,17 @@ def _prefix_inventory(old,new,cut,ticket):
             ticket.grow(512)
             future_binding=future_binding.plus(shape(dict(loan_binding=b['index'],native_position_id=b['native_position_id']),ticket))
             ticket.release(512)
-    scenarios=['baseline']+[s['name']for s in old['specification']['scenarios']]
-    ticket.debit(len(scenarios)+len(old['bindings'])+len(new['bindings']))
-    maximum_scenario=max(len(s.encode('utf8'))for s in scenarios+[b['scenario']for b in old['bindings']+new['bindings']])
+    maximum_scenario=8;scenario_bytes=8
+    ticket.debit(runs+len(old['bindings'])+len(new['bindings']))
+    for scenario in old['specification']['scenarios']:
+        width=_utf8_length(scenario['name'],ticket)
+        scenario_bytes+=width;maximum_scenario=max(maximum_scenario,width)
+    for side in (old,new):
+        for binding in side['bindings']:
+            maximum_scenario=max(maximum_scenario,_utf8_length(binding['scenario'],ticket))
     accessor_strings=2*(24+2*maximum_scenario)
     accessor_lookup=4*(groups+1)*(2*maximum_scenario+2)*runs*(cut+1)
-    clone_bytes=4*sum(len(s.encode('utf8'))for s in scenarios)*(cut+1)
+    clone_bytes=4*scenario_bytes*(cut+1)
     ticket.grow(4096*len(old['prefix']))
     return dict(ordering_comparison_steps_upper=ordering,scheduled_layout_bytes_upper=24,ordered_event_workspace_bytes_upper=groups*6*24+2*24+accessor_strings,
         accessor_lookup_work_upper=accessor_lookup,scenario_clone_bytes_upper=clone_bytes,accessor_string_workspace_bytes_upper=accessor_strings,

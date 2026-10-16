@@ -193,3 +193,84 @@ def test_closed_field_grammar_and_exact_dictionary_comparison_ignore_order():
     with pytest.raises(ArithmeticError,match='field layout'):oracle.shape({'kind':'supplied','principal_payments':[],'unknown':1},t,strict_raw=True)
     with pytest.raises(ArithmeticError,match='field layout'):oracle.shape({'kínd':'supplied','principal_payments':[]},t,strict_raw=True)
     assert t.field_grammar_charged
+
+
+def test_descriptor_factory_is_reserved_before_constructing_parts():
+    called=False
+    def make():
+        nonlocal called
+        called=True
+        return [('number',oracle.Shape(32,1))]
+    t=oracle.Ticket(retained=oracle.MAX_BYTES-1)
+    with pytest.raises(ArithmeticError,match='before growth'):oracle._object_from(1,make,t)
+    assert not called
+    t=oracle.Ticket()
+    def admitted_make():
+        assert t.retained>=768
+        return [('number',oracle.Shape(32,1))]
+    assert oracle._object_from(1,admitted_make,t).cells==2
+
+
+def test_previous_projection_root_is_dropped_before_next_replay(raw,monkeypatch):
+    import weakref
+    from portfolio_risk.analytics import commercial_credit_reference
+    from portfolio_risk.analytics import commercial_source_reference
+    original=commercial_credit_reference.replay;original_project=commercial_source_reference.project_owned
+    previous=None;calls=0;factor_roots=[]
+    class TrackedResult(dict):pass
+    class TrackedSegments(list):pass
+    def observed_project(*args,**kwargs):
+        projection,segments=original_project(*args,**kwargs)
+        projection=TrackedResult(projection);segments=TrackedSegments(segments)
+        factor_roots.extend((weakref.ref(projection),weakref.ref(segments)))
+        return projection,segments
+    def observed(*args,**kwargs):
+        nonlocal previous,calls
+        assert previous is None or previous()is None,'previous proof root remained live into next replay'
+        assert all(ref()is None for ref in factor_roots),'previous factor/segments root remained live into next replay'
+        value=TrackedResult(original(*args,**kwargs));previous=weakref.ref(value);calls+=1
+        return value
+    original_shape=oracle.shape
+    def instrumented_shape(value,*args,**kwargs):
+        if type(value)is TrackedResult:value=dict(value)
+        elif type(value)is TrackedSegments:value=list(value)
+        return original_shape(value,*args,**kwargs)
+    monkeypatch.setattr(oracle,'shape',instrumented_shape)
+    monkeypatch.setattr(commercial_source_reference,'project_owned',observed_project)
+    monkeypatch.setattr(commercial_credit_reference,'replay',observed)
+    result=oracle.census(raw)
+    assert calls==result['source_histories']==27
+    assert previous()is None
+    assert len(factor_roots)>=108 and all(ref()is None for ref in factor_roots)
+
+
+def test_event_order_is_one_paid_numeric_sort_then_linear_prefix():
+    class NumericOnlyEvent(dict):
+        def __getitem__(self,key):
+            assert key in ('_sort','day'),'scenario/hash lookup in numeric event sorter'
+            return super().__getitem__(key)
+    events=[NumericOnlyEvent(_sort=(0,2,3,0,0,0),day=2,label='late'),NumericOnlyEvent(_sort=(0,1,2,1,0,0),day=1,label='fee'),NumericOnlyEvent(_sort=(0,1,2,0,0,0),day=1,label='loan'),NumericOnlyEvent(_sort=(0,1,2,1,0,0),day=1,label='same-fee')]
+    t=oracle.Ticket();prefix=oracle._order_events(events,1,t)
+    assert [dict.__getitem__(e,'label')for e in events]==['loan','fee','same-fee','late']
+    assert [dict.__getitem__(e,'label')for e in prefix]==['loan','fee','same-fee']
+    assert t.work==4*4*16+4*128+1
+    assert t.retained==64+16*4
+    assert t.peak_retained>=4096+256*4+64+16*4
+
+
+def test_event_sort_exhaustion_refuses_before_iterating_or_allocating_pairs():
+    calls=0
+    class ObservedEvents(list):
+        def __iter__(self):
+            nonlocal calls
+            calls+=1
+            return super().__iter__()
+    events=ObservedEvents([{'_sort':(0,0,0,0,0,0),'day':0}])
+    with pytest.raises(ArithmeticError,match='before scan/growth'):oracle._order_events(events,1,oracle.Ticket(work=oracle.MAX_WORK))
+    assert calls==0
+
+
+def test_utf8_clock_labels_are_counted_without_encoded_scratch():
+    t=oracle.Ticket()
+    assert oracle._utf8_length('a\u00e9\U0001f600',t)==7
+    assert t.retained==0 and t.work==13
