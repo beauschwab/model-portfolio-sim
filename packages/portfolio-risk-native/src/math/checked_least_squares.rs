@@ -358,7 +358,7 @@ fn jacobi(
     }
     let mut order: Vec<_> = (0..k).collect();
     meter.jacobi(3 * k * k + 4 * k, upper)?;
-    // Deterministic insertion sort also gives a direct k² comparison bound.
+    // Deterministic insertion sort also gives a direct kÂ² comparison bound.
     for j in 1..k {
         let mut i = j;
         while i > 0 && norms[order[i - 1]] < norms[order[i]] {
@@ -721,6 +721,48 @@ fn project(
         }
     }
     Ok(beta)
+}
+
+#[cfg(test)]
+pub(crate) fn audit_computed_candidate(a: &DMatrix<f64>, y: &[f64]) -> serde_json::Value {
+    let bound = WorkBound::new(a.nrows(), a.ncols()).unwrap();
+    let candidate =
+        nalgebra::linalg::SVD::try_new(a.clone(), true, true, 5. * f64::EPSILON, LEGACY_ITERATIONS);
+    let candidate_converged = candidate.is_some();
+    let candidate_check = candidate.map(|candidate| {
+        let cut = cutoff(a.nrows(), a.ncols(), candidate.singular_values[0]);
+        let beta = candidate
+            .solve(&DVector::from_column_slice(y), cut)
+            .unwrap();
+        let factors = Factors {
+            u: candidate.u.unwrap(),
+            s: candidate.singular_values,
+            vt: candidate.v_t.unwrap(),
+        };
+        let mut meter = Meter::default();
+        match certificate(
+            a,
+            y,
+            &factors,
+            beta.as_slice(),
+            &mut meter,
+            2 * bound.check,
+            &mut || Ok(()),
+        ) {
+            Ok(metric) => serde_json::json!({"passed":true,"metrics":format!("{metric:?}")}),
+            Err(error) => serde_json::json!({"passed":false,"reason":error.message()}),
+        }
+    });
+    let checked = solve(a, y, || Ok(())).unwrap();
+    serde_json::json!({
+        "bounded_candidate_converged": candidate_converged,
+        "bounded_candidate_check": candidate_check,
+        "checked_repaired": checked.repaired,
+        "checked_metrics": format!("{:?}", checked.certificate),
+        "checked_coefficients": checked.coefficients,
+        "checked_singular_values": checked.singular_values,
+        "checked_rank":checked.rank,
+    })
 }
 
 #[cfg(test)]

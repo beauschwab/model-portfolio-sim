@@ -254,3 +254,134 @@ fn minimal_deterministic_legacy_decomposition_defect_is_repaired() {
         panic!("retained pinned nalgebra defect was not reproduced");
     }
 }
+
+#[test]
+fn full_cubic_actual_matrix_preserves_factors_across_admission_refinement() {
+    fn assert_numeric_bits_equal(actual: &Value, expected: &Value) {
+        if let (Some(actual), Some(expected)) = (actual.as_array(), expected.as_array()) {
+            assert_eq!(actual.len(), expected.len());
+            for (actual, expected) in actual.iter().zip(expected) {
+                assert_numeric_bits_equal(actual, expected);
+            }
+        } else {
+            assert_eq!(
+                actual.as_f64().unwrap().to_bits(),
+                expected.as_f64().unwrap().to_bits()
+            );
+        }
+    }
+    let fixture: Value = serde_json::from_slice(include_bytes!(
+        "../../../../tests/fixtures/commercial-regression-cubic-compatibility.json"
+    ))
+    .unwrap();
+    let mut failures = Vec::new();
+    for (index, case) in fixture["cases"].as_array().unwrap().iter().enumerate() {
+        let request: Request = serde_json::from_value(case["raw"].clone()).unwrap();
+        start();
+        let fitted = fit_training(&request).unwrap();
+        let mut receipts = finish();
+        assert_eq!(receipts.len(), request.policy.exercise_dates.len());
+        receipts.reverse();
+        for (date_index, mut receipt) in receipts.into_iter().enumerate() {
+            let rows = receipt["feature_rows"].as_array().unwrap();
+            let points: Vec<_> = rows
+                .iter()
+                .map(|row| Point {
+                    features: row
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|x| x.as_f64().unwrap())
+                        .collect(),
+                    state: CreditState::Performing,
+                    principal: 100.,
+                    legal: 0.,
+                    surviving_rights: true,
+                    fee_payoffs: None,
+                })
+                .collect();
+            let references: Vec<_> = points.iter().collect();
+            let targets: Vec<_> = receipt["targets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_f64().unwrap())
+                .collect();
+            // This test-only direct fit exercises the pre-refinement unrestricted
+            // column admission; it cannot bypass production source/graph admission.
+            start();
+            let direct = fit(
+                request.policy.exercise_dates[date_index].ordinal,
+                &references,
+                &targets,
+                3,
+            )
+            .unwrap();
+            let mut direct_receipts = finish();
+            assert_eq!(direct_receipts.len(), 1);
+            let direct_receipt = direct_receipts.pop().unwrap();
+            assert_eq!(receipt["matrix"], direct_receipt["matrix"]);
+            assert_eq!(receipt["targets"], direct_receipt["targets"]);
+            assert_numeric_bits_equal(&receipt["matrix"], &direct_receipt["matrix"]);
+            assert_numeric_bits_equal(&receipt["targets"], &direct_receipt["targets"]);
+            let actual = serde_json::to_value(&fitted.regressions()[date_index]).unwrap();
+            let unrestricted = serde_json::to_value(&direct).unwrap();
+            for name in ["means", "scales", "coefficients", "singular_values"] {
+                assert_numeric_bits_equal(&actual[name], &unrestricted[name]);
+                assert_numeric_bits_equal(
+                    &actual[name],
+                    &case["corrected_regressions"][date_index][name],
+                );
+            }
+            let columns = fitted.regressions()[date_index].coefficients.len();
+            let matrix = DMatrix::from_row_slice(
+                rows.len(),
+                columns,
+                &receipt["matrix"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .flat_map(|row| row.as_array().unwrap().iter().map(|x| x.as_f64().unwrap()))
+                    .collect::<Vec<_>>(),
+            );
+            let diagnostic = checked_least_squares::audit_computed_candidate(&matrix, &targets);
+            let expected_repair =
+                case["id"].as_str().unwrap().ends_with("correlated_ou") && date_index == 0;
+            assert_eq!(diagnostic["bounded_candidate_converged"], json!(true));
+            assert_eq!(diagnostic["checked_repaired"], json!(expected_repair));
+            assert_eq!(
+                diagnostic["bounded_candidate_check"]["passed"],
+                json!(!expected_repair)
+            );
+            receipt["case_id"] = case["id"].clone();
+            receipt["raw"] = case["raw"].clone();
+            receipt["checked_candidate"] = diagnostic;
+            receipt["actual_checked_regression"] = actual.clone();
+            receipt["unrestricted_columns_regression"] = unrestricted.clone();
+            receipt["retained_legacy_regression"] = case["legacy_regressions"][date_index].clone();
+            receipt["retained_corrected_regression"] =
+                case["corrected_regressions"][date_index].clone();
+            save(&format!("cubic-case-{index}-date-{date_index}"), &receipt);
+            if actual != case["corrected_regressions"][date_index] {
+                failures.push(format!("case{index}: checked full regression changed"));
+            }
+            if actual != unrestricted {
+                failures.push(format!(
+                    "case{index}: column guard changed actual regression"
+                ));
+            }
+            for name in ["coefficients", "singular_values"] {
+                assert_numeric_bits_equal(
+                    &receipt[name],
+                    &case["legacy_regressions"][date_index][name],
+                );
+                if receipt[name] != case["legacy_regressions"][date_index][name] {
+                    failures.push(format!(
+                        "case{index}: original native {name} differs from retained legacy artifact"
+                    ));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("; "));
+}

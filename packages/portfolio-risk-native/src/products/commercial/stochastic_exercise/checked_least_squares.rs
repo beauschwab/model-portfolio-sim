@@ -1,6 +1,8 @@
 //! Historical continuation shape and numerical-policy boundary.
 use crate::math::checked_least_squares as shared;
 use nalgebra::DMatrix;
+#[cfg(test)]
+pub(super) use shared::audit_computed_candidate;
 pub(super) use shared::Checked;
 #[derive(Clone, Copy, Debug)]
 pub(super) struct WorkBound(shared::WorkBound);

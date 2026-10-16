@@ -205,6 +205,29 @@ change fitted coefficients, decisions, cash and sampling diagnostics. Saved
 identities, native artifacts and libraries/sessions require the normal explicit
 rebuild; prior faulty saved economics must not be silently reused.
 
+An invalid decomposition can also produce financial outputs within the existing
+reference tolerances. The four retained cubic-256 call/put controls demonstrate
+this distinction. All cash, decisions, valuation and risk fields remain exactly
+identical to the original artifact. In the correlated OU call and put, only ten
+coefficients and ten singular values change at the first exercise date (maximum
+coefficient change about `5.6e-12`). The actual native 256-by-10 matrix shows that
+the original candidate converges, but reconstructs that matrix with relative
+error `5.706249900576616e-10`, exceeding the unchanged backward-check limit
+`64*EPS*(256+10)`. The repaired reconstruction error is about `7.75e-16`.
+These two candidates are checked-invalid; their earlier passing financial tests
+are not a waiver of the numerical checks. The other six actual matrices across
+the four requests retain the original candidate and its exact factors. A native
+test retains every original matrix, target and factor comparison, and proves
+that applying the structural column guard leaves the matrix and fit identical
+to the unrestricted test-only fit. Production admission remains mandatory.
+
+The final isolated replay retains all 48 Gaussian/credit, 60 constant-state,
+24 option-free credit and 107 general-family cells unchanged: every admitted
+cell passes, and the general family's original declared capacity refusal remains.
+The earlier 36/12 Gaussian failure receipt and four new capacity refusals from
+the first numerical reservation remain preserved. This is isolated component
+evidence; combined fee/history integration and release acceptance are separate.
+
 Complete baseline/corrected JSON comparisons must isolate numerical admission
 metadata from every other field. No-fit paths must remain byte-identical. All
 declared 48 Gaussian/credit cells, prior 60 constant-state cells, the prior credit
