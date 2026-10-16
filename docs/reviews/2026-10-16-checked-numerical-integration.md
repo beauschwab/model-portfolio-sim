@@ -121,3 +121,34 @@ unfinished engineering stage. Broader saved/cohort/seasoned/generated-secondary
 adoption, observed histories/holdouts, reviewed policies, deployment/restarts and
 complete 60,000-position joint graph/credit/solver/journal acceptance remain open.
 No original issue15/25 requirement is removed or marked complete by this review.
+
+## Complete regression follow-through: retained failed stage
+
+The prepared 0.29.20 installed run on `411f0ea` ended at **3,618 engine passes,
+four failures and three skips**. Three unchanged supplied-draw graph controls
+exceeded the numerical reserve before generation; one transport test omitted
+the required model header. The concurrent API run was deliberately stopped
+after 2,902 seconds without a recorded failure to install the corrected source.
+It is incomplete, not a full API pass. All source and eight installed-artifact
+fences were checked before leaving that stage. Its immutable failed-stage receipt
+is `170f57986826df842d0a9b0304e85158391d569164ce6ec00ae92177554c6670`
+under `artifacts/issue15-secondary-and-cut-validation-attempt4/`.
+
+Local `2f1cb0c`/`3fab80e` integrate the deterministic supplied-draw raw-law guard
+and independent reference, plus the corrected protocol6/7 trailer fixtures.
+The corrected contained build passes all **643 native risk tests**, with zero
+failed/ignored cases, and **66 independent reserve/transport/measured-work
+controls**. The unchanged fixed/reviewed/floating draw graphs independently
+replay at 3,655,133,240 / 3,655,327,352 / 3,835,445,032 work under the same4B cap.
+Twelve retained actual-SVD captures prove selected/unrestricted bounds preserve
+all matrices, targets, feature rows, means/scales and fitted factors bit-for-bit.
+
+Complete archived19 draw comparisons retain exactly nine differences per case:
+one admission-work scalar and eight inactive means from the earlier exact-constant
+centering correction. All other typed fields/f64 bits match; specific paths and
+old/new mean bits are retained. See
+`docs/models/commercial-checked-least-squares.md` for the raw predicates, complete
+paid scan and compatibility boundary. No sample-derived feature pruning, limit
+increase or financial tolerance change is introduced. Full matching decision,
+release-artifact and installed acceptance are pending; **0.29.19 remains the
+last fully accepted installed checkpoint**.

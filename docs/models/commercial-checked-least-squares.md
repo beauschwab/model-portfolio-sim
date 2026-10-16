@@ -157,7 +157,7 @@ under a new source/artifact receipt rather than replacing its failed predecessor
 The structural refinement pays its own metadata work. A sealed local census first
 debits the draw-header inventory before reading nested vector lengths. It then
 checks a ticket before traversing hazards, covariance and period headers:
-`S = 32 + 15*intervals + covariance_cells + coupon_loadings + 2*all_contract_periods + 8*draws`.
+`S = 32 + 15*intervals + covariance_cells + coupon_loadings + 2*all_contract_periods + 12*draws`.
 Observation **values**, strings, hashes and future realized states are not read;
 only typed observation-vector lengths enter the structural inventory. The hazard
 fact means literal `all(h == 0)`, rather than the absence of a positive value.
@@ -232,6 +232,74 @@ use explicit complete exit policies and test both coincident cash timings and
 multiple observation dates. The independent raw-law predicate separately checks
 off-origin, late, smallest-positive and invalid hazards, ownership/policy mutations
 and per-role recomputation; invalid raw inputs gain no financial authority.
+
+## Supplied deterministic draw structural reserve
+
+The first complete installed engine run on the prepared 0.29.20 artifact set
+ended with 3,618 passes, four failures and three skips. Three unchanged generated
+draw graph fixtures exceeded the numerical work cap before financial generation;
+the fourth was a transport test missing its now-required model header. This
+failed stage remains retained and is not release acceptance.
+
+The draw correction narrows only the structural *active-column upper*. Every
+historical observed feature, source owner, actual matrix, target, normalization,
+basis value and fit remains. The old basis ticket, full numerical workspace,
+source validation and unchanged four-billion-work/128-MiB limits still apply.
+No fitted sample or observed equality establishes the admission predicate.
+
+For every draw, the raw proof requires no transfer or accounting-rate reviews,
+Supplied principal in both original and current contracts, original/current
+as-of dates equal to the supplied draw date, and a draw date strictly after the
+main source as-of date. The main source requires Supplied principal, no transfer
+and no reviewed credit actions. All declared credit hazards must be literal
+zero. Unsupported headers retain the full feature bound. Fee-plus-draw requests
+retain their separate generic fee-state allowance.
+
+The native draw adapter funds a supplied opening principal at a supplied date
+when its fixed eligible-origin flag allows it. Zero credit hazards remove
+random credit-origin transitions; CCF matters only on a default, which cannot
+occur in this selected law. Thus observed draw activation and nominal principal
+are constant across pricing paths at each decision date. With literal zero
+coupon loadings, the contractual coordinates are also constant. Signed and
+delayed cash can change those constants without creating path variation.
+
+The active upper is then `d + optional_d`, retaining the market drivers and any
+hazard-anchor coordinate inventory. For nonzero coupon loadings it additionally
+retains every observation from every current main/draw contract, one net-legal
+coordinate, and every main/draw period. With literal zero covariance, the selected
+law is intercept-only. Unsupported draw headers fall back to the complete bound
+even under zero covariance. Invalid raw inputs still fail normal admission.
+
+The paid census becomes
+`S = 32 + 15*intervals + covariance_cells + coupon_loadings + 2*all_contract_periods + 12*draws`.
+It pays the eight draw-header checks and all contract/period traversals. A
+32-draw inventory control verifies the complete scan remains within its ticket.
+No-draw declared scan work is unchanged.
+
+The three original fixed, reviewed and floating draw fixtures now admit at
+3,655,133,240; 3,655,327,352; and 3,835,445,032 work respectively in the contained
+corrected runtime. They pass their original independent source, Book, graph and
+corruption checks. Seventeen native numerical controls and 47 independent raw
+reserve controls cover signed/zero/subnormal loadings, optional anchors, CCF,
+zero covariance and unsupported ownership/date/policy headers. Twelve retained
+actual-SVD captures compare the selected and unrestricted test-only numerical
+bounds: complete feature rows, actual matrices, targets, means/scales,
+coefficients, spectra, active sets and basis values are bit-identical.
+
+The complete archived 0.29.19 comparisons have exactly nine changes per draw
+fixture: its admission-work scalar and eight inactive means from the earlier
+exact-constant centering correction. The means change from bits
+`3fc9999999999989` to `3fc999999999999a` at four retained policies and two explicit
+coordinates (8/9 for fixed/reviewed, 8/10 for floating). Every other typed field
+and f64 bit matches. This is a specific compatibility enumeration, not a general
+metadata exclusion. The current draw-reserve correction itself leaves those
+actual means and matrices unchanged.
+
+Contained evidence and commits 355422b/6f4628a do not establish new installed
+release acceptance. Full matching native, installed engine/API, contract,
+browser, MCP/publication, compatibility and source/artifact fences remain
+separate gates. The last fully accepted installed checkpoint remains 0.29.19
+until that complete successor receipt is sealed.
 
 ## Compatibility and remaining gates
 
