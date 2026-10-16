@@ -6,6 +6,13 @@ a genuine pricing defect. It changes no production source, financial tolerance,
 dependency, official binary or execution policy. It does not clear that release
 blocker or certify arbitrary matrices accepted by these callers.
 
+**Subsequent finding:** a separate 28-case current-coupon-shaped collinearity
+family finds six failures, including four incorrect solves. The earlier 29
+passing controls remain valid for their declared matrices; they did not expose
+this additional affected shape. The new evidence and remaining real-caller gate
+are recorded below. A commercial-only correction does not fix historical
+current-coupon calibration.
+
 ## Caller controls
 
 | Caller and accepted structure | Controls | Result |
@@ -53,3 +60,43 @@ check reconstruction and Moore-Penrose identities. No additional affected caller
 is demonstrated here. The independent commercial failure, its native repair,
 unchanged benchmark replay and combined release acceptance remain separate gates;
 see [the completion ledger](../models/commercial-completion-plan.md).
+
+## Subsequent current-coupon-shaped collinearity family
+
+All 28 controls cross row counts 16, 22, 32, 64, 128, 256 and 512 with four
+deterministic rank-two, eleven-column designs. Every design has the real
+caller's intercept in the last column. The first two designs contain normalized
+`x,x` or `x,7x` and eight zero features. The other two use positive affine rate
+and volatility features, with differing or repeated loadings. The target is
+`0.03 + 0.001*x`. These are mathematical controls, not observed histories or a
+calibrated mortgage model.
+
+The standalone audit uses the actual history caller's pinned SVD, epsilon,
+100,000-iteration setting and unchanged floating rank cutoff. It retains every
+outcome against the fixed 1e-12 reconstruction/solve/normal-residual limits.
+
+| Rows and design | Reconstruction error | Solve residual | Finding |
+|---|---|---|---|
+| 22, duplicate normalized features | 1.07156 | 0.00296750 | Incorrect fit |
+| 64, duplicate normalized features | 1.56045 | 0.00628050 | Incorrect fit |
+| 256, proportional normalized features | 0.419050 | 0.00243050 | Incorrect fit |
+| 512, proportional normalized features | 0.343871 | 0.00243541 | Incorrect fit |
+| 128, positive affine features | 4.70846e-7 | 7.59703e-14 | Invalid reconstruction; small solve residual |
+| 512, positive affine features | 4.11110e-7 | 1.15846e-13 | Invalid reconstruction; small solve residual |
+
+Errors use the normalization defined in the source, with reference norms floored
+at one. Twenty-two controls pass. The exact source, all 28 outputs, executable
+and status are retained separately, without replacing the earlier evidence:
+
+- `coupon-collinearity.rs`: SHA-256
+  `a297adb5029c3186b17f45ddf2cf26f7e90afec44d9af2db853616b1f7d28629`.
+- `coupon-collinearity-results.jsonl`: SHA-256
+  `60387023aeccda43f2ae94773b7343ef4e3200ba0b21fbfab41b2d67c4a92d7d`.
+- `coupon-collinearity.exe`: SHA-256
+  `00292ef0e52c62502dc15a9655b322eae1b7a482c81b0cdcf05d35e37089a239`.
+
+Reproduction through the actual `fit_current_coupon` function, independent NumPy
+comparison, a shared numerical correction preserving each caller's conventions,
+and matching release validation remain required. Tall commercial training and
+wide historical regressions have different admitted shapes; adopting the
+commercial-only wrapper blindly would change the history caller's contract.
