@@ -1,8 +1,10 @@
 # Checked native continuation least squares
 
-The private `stochastic_exercise/checked_least_squares.rs` helper corrects an
-observed native SVD defect. Only generated commercial continuation fitting adopts
-it. Other calibration and covariance callers retain their existing algorithms.
+The private `stochastic_exercise/checked_least_squares.rs` wrapper corrects an
+observed native SVD defect while retaining the commercial tall-domain contract.
+Its implementation is shared with the separately bounded
+[history least-squares owner](native-history-least-squares.md). Covariance and
+nonlinear calibration callers retain their existing algorithms.
 There is no Python execution path, new dependency, caller numerical allowance,
 model selector, normal-equation solve, or approximate feature removal.
 
@@ -171,6 +173,29 @@ retained-sample census and fixed admission overhead. Actual ordinary and
 calibration call counts have targeted controls. No-fit routes skip this new
 census and add zero. These are explicit additions, not deductions from the old
 normalization/basis ticket or assumed slack in the numerical kernel allowance.
+
+The combined fee owner retains all eleven observed coordinates per fee. Its
+structural bound can exclude those coordinates from the *active upper* only
+when the exact same raw role has literal zero hazards in every declared interval
+and origin, Supplied principal, no draws, no reviewed credit actions and no loan
+or fee transfer. Fixed supplied fee events and the unstopped deterministic loan
+exit clock then produce identical fee observations across market paths at each
+decision clock. Values may differ between decision dates. Positive market
+covariance and changing coupon values do not enter this separate service state.
+The paid typed census supplies the hazard fact; the fee proof reads only bounded
+headers, within the explicit structural scan allowance. Every original/current
+role recomputes it. Unsupported headers retain the full feature upper, including
+all fee coordinates. No sampled equality supplies authority.
+
+This proof applies only to the unstopped observations. Each genuine stopped
+loan/fee trial, selected stop, source validation, full fee cash/rights tail and
+the original normalization/basis work still executes and remains charged. Every
+observed feature stays in its original order, with retained means/scales and
+the existing exact-constant classification. Signed prepaid/earned-refund controls
+use explicit complete exit policies and test both coincident cash timings and
+multiple observation dates. The independent raw-law predicate separately checks
+off-origin, late, smallest-positive and invalid hazards, ownership/policy mutations
+and per-role recomputation; invalid raw inputs gain no financial authority.
 
 ## Compatibility and remaining gates
 

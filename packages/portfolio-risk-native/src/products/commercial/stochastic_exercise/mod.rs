@@ -447,7 +447,9 @@ fn regression_numerical_capacity(r: &Request) -> Result<NumericalCapacity, Strin
     let structural = numerical_bound::inspect(r)?;
     // An adopting owner with additional observable feature families must prove
     // those coordinates constant or retain structural.full_features_upper.
-    let active = if structural.all_credit_hazards_zero {
+    let fees_constant = r.nonintegral_fees.is_none()
+        || fees::observed_features_are_path_constant(r, structural.all_credit_hazards_zero);
+    let active = if structural.all_credit_hazards_zero && fees_constant {
         structural.active_features_upper
     } else {
         structural.full_features_upper

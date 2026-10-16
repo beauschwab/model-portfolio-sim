@@ -1,8 +1,11 @@
 """Independent exact integer checks for the new numerical reserve."""
 from copy import deepcopy
+from pathlib import Path
+import json
 import pytest
 from portfolio_risk.analytics.commercial_regression_work_reference import (
     numerical_reserve, shape_bound, verify_numeric_reserve, active_feature_upper,scan_work_upper,
+    constant_fee_observations, full_feature_upper,
 )
 from commercial_credit_gaussian_exercise_benchmark import matrix, request
 
@@ -64,3 +67,44 @@ def test_predeclared_cubic_cases_have_a_finite_raw_law_numerical_bound(driver,ac
     assert active_feature_upper(raw)==active
     assert numerical_reserve(raw)==(2*shape_bound(256,columns)[0]+8*scan_work_upper(raw),shape_bound(256,columns)[1]+128)
     assert 1_400_901_632+numerical_reserve(raw)[0]<4_000_000_000
+
+
+def fee_law():
+    graph=json.loads((Path(__file__).resolve().parents[3]/'examples/models/commercial-generated-fee-graph-1.json').read_text())
+    return graph['positions'][0]['generated_policy']['pricing_training']
+
+
+def test_independent_fee_proof_counts_every_feature_and_recomputes_each_raw_role():
+    raw=fee_law()
+    assert any(c>0 for c in raw['annual_covariance'])
+    assert constant_fee_observations(raw)
+    assert full_feature_upper(raw)>=22
+    assert active_feature_upper(raw)<full_feature_upper(raw)
+    for hazard in [float.fromhex('0x0.0000000000001p-1022'),.01,-.01,float('nan')]:
+        changed=deepcopy(raw)
+        changed['source']['credit']['intervals'][-1]['hazards_per_year'][2][3]=hazard
+        assert not constant_fee_observations(changed)
+        assert active_feature_upper(changed)==full_feature_upper(changed)
+        assert constant_fee_observations(raw)
+    zero=deepcopy(raw);zero['annual_covariance']=[0.]*len(zero['annual_covariance'])
+    assert active_feature_upper(zero)==0
+    del zero['nonintegral_fees']
+    assert not constant_fee_observations(zero)
+
+
+@pytest.mark.parametrize('mutation',['payment','dated','review','draw','fee_transfer','loan_transfer'])
+def test_unsupported_fee_constancy_headers_retain_the_full_numerical_bound(mutation):
+    raw=fee_law();source=raw['source']
+    if mutation=='payment':
+        source['source']['current']['principal_plan']={'kind':'retained_payment','original_payment':10.,'terminal':{'kind':'residual_payoff'}}
+    elif mutation=='dated':
+        source['source']['current']['principal_plan']={'kind':'dated_supplied_period_opening_nominal-1','principal_events':[]}
+    elif mutation=='review':
+        source['reviewed_credit_actions']={}
+    elif mutation=='draw':
+        source['performing_draw_tranches']=[dict(review=raw['identity'],draw_ordinal=1,eligible_origins=[True,False,False],source=source['source'])]
+    elif mutation=='fee_transfer':raw['nonintegral_fees']['policy']['transfer']={}
+    else:source['source']['transfer']={}
+    # These are header-predicate controls, not accepted native financial requests.
+    assert not constant_fee_observations(raw)
+    assert active_feature_upper(raw)==full_feature_upper(raw)

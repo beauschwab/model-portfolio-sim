@@ -997,8 +997,8 @@ mod tests {
                 for i in 0..m {
                     assert!((sum((0..11).map(|j| a[(i, j)] * beta[j])) - y[i]).abs() < 1e-12);
                 }
-                for j in rank..10 {
-                    assert_eq!(beta[j], 0.);
+                for coefficient in beta.iter().take(10).skip(rank) {
+                    assert_eq!(*coefficient, 0.);
                 }
                 let fit = solve_with_policy(&a, &y, LegacyPolicy::History, || Ok(())).unwrap();
                 for (x, y) in fit.coefficients.iter().zip(&beta) {

@@ -51,6 +51,7 @@ pub(crate) fn observed_features_are_path_constant(
             .as_ref()
             .is_some_and(|law| law.policy.transfer.is_none())
         && r.source.performing_draw_tranches.is_empty()
+        && r.source.source.transfer.is_none()
         && r.source.reviewed_credit_actions.is_none()
         && matches!(
             r.source.source.current.principal_plan,

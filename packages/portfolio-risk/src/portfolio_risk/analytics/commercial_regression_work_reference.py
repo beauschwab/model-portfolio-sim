@@ -41,18 +41,39 @@ def scan_work_upper(raw):
 
 def active_feature_upper(raw):
     """Structural constants only; no sample realizations or economic netting."""
-    from .commercial_generated_physical_reference import feature_bound
     source=raw['source']
-    if source.get('performing_draw_tranches'):return feature_bound(raw)
+    full=full_feature_upper(raw)
+    if source.get('performing_draw_tranches'):return full
     credit=any(h!=0 for interval in source['credit']['intervals']
                for row in interval['hazards_per_year']for h in row)
+    if raw.get('nonintegral_fees') is not None and not constant_fee_observations(raw):
+        return full
     if not credit and all(c==0 for c in raw['annual_covariance']):return 0
     contract=source['source']['current']
     if not credit and contract['principal_plan']['kind']=='supplied':
         d=len(raw['drivers'])
         return (d+(d if raw['hazard_loadings']else 0)+1+len(contract['periods'])
                 +sum(len(p['coupon'].get('observations',[]))for p in contract['periods']))
-    return feature_bound(raw)
+    return full
+
+
+def full_feature_upper(raw):
+    from .commercial_generated_physical_reference import feature_bound
+    law=raw.get('nonintegral_fees')
+    return feature_bound(raw)+11*len(law['policy']['fees'] if law is not None else [])
+
+
+def constant_fee_observations(raw):
+    """Independent raw-law proof; never infer constancy from generated samples."""
+    source=raw['source']
+    law=raw.get('nonintegral_fees')
+    return (law is not None and law['policy'].get('transfer') is None
+            and source['source'].get('transfer') is None
+            and not source.get('performing_draw_tranches')
+            and source.get('reviewed_credit_actions') is None
+            and source['source']['current']['principal_plan']['kind']=='supplied'
+            and all(h==0 for p in source['credit']['intervals']
+                    for row in p['hazards_per_year']for h in row))
 
 
 def verify_numeric_reserve(raw, actual):
