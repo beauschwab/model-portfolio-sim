@@ -439,6 +439,10 @@ policies without the treatment keep the historical audit unchanged. The result r
 the hedge result as evidence, the rows, policies, the bridge output (prepared
 capital, thirteen ratios, audit, contributions) and explicit false flags for
 interim capital, FTP, accounting-standard and regulatory approval. The
+Seasoned relationships contribute their retained basis/OCI rows and the
+matching `opening_equity` rows under the item/exposure identity; a combined
+written option contributes its own `derivative_value` and OCI rows under its
+position. The
 independent `hedge_treasury_reference` replays the hedge journal, the rows and
 the capital arithmetic. Regulatory eligibility, requirements, risk weights and
 the monetary unit remain supplied inputs; deferred-tax and AOCI opt-out policy

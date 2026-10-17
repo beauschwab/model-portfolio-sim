@@ -115,3 +115,22 @@ def test_integer_categories_from_browser_json_verify():
     p['capital']['common_equity'] = 0; p['capital']['requirements']['cet1']['buffer'] = 0
     request['amount_multiplier'] = 1
     result = prepare_hedge_treasury(request); assert verify(request, result)['closing_capital_recomputed']
+
+
+def test_seasoned_and_compound_hedges_feed_closing_capital():
+    """Retained opening balances and a combined written option flow through the same rows and bridge."""
+    from test_hedge_seasoned import seasoned_variant
+    from test_hedge_compound_option import compound_variant
+    seasoned = dict(raw(), hedge=seasoned_variant()); result = prepare_hedge_treasury(seasoned)
+    assert verify(seasoned, result)['verified']
+    rows = {(r['gl_account'], r['instrument_id']): r['balance'] for r in result['rows']}
+    # The opening basis/OCI reclassified from opening equity keep their item/exposure lineage.
+    assert abs(rows[('opening_equity', 'loan-1')] - .5) < 1e-9 and abs(rows[('opening_equity', 'float-1')] - .2) < 1e-9
+    assert abs(rows[('hedged_item_basis_adjustment', 'loan-1')] - result['hedge']['closing'][0]['basis_closing']) < 1e-9
+    audit = result['capital']['capital_bridge'][0]
+    assert abs(audit['cash_flow_hedge_aoci'] - result['hedge']['closing'][1]['oci_closing']) < 1e-9 and abs(audit['book_aoci'] - audit['cash_flow_hedge_aoci']) < 1e-9
+    compound = dict(raw(), hedge=compound_variant()); result = prepare_hedge_treasury(compound)
+    assert verify(compound, result)['verified']
+    rows = {(r['gl_account'], r['instrument_id']): r['balance'] for r in result['rows']}
+    assert ('cash_flow_hedge_oci', 'opt-cfh') in rows and ('derivative_value', 'opt-cfh') not in rows
+    assert abs(result['capital']['capital_bridge'][0]['cash_flow_hedge_aoci'] - result['hedge']['closing'][1]['oci_closing']) < 1e-9

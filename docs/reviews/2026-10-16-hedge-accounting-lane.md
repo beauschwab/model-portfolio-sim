@@ -129,7 +129,7 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
 |---|---|---|
 | Native election tests | `cargo test --release ... --test hedge_asu_2025_09 --test hedge_compound_option --test hedge_seasoned` | 4 + 2 + 2 passed |
 | Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 6 + 3 + 19 passed; strict Clippy and `cargo fmt --check` clean |
-| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 100 passed (23 + 15 + 15 + 26 + 21) with the rebuilt release binary |
+| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 101 passed (23 + 15 + 15 + 26 + 22) with the rebuilt release binary; the treasury suite now feeds the seasoned and compound variants through `hedge-treasury-1` with independent replay |
 | API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
 | Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
 | Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |
