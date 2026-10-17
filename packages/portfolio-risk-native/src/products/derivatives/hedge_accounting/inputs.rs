@@ -246,7 +246,7 @@ fn assessment_node(
     ctx: &Ctx<'_>,
     rel: &Relationship,
     cr: &CompiledRelationship,
-    swap: &SwapRequest,
+    swaps: &[&SwapRequest],
     ordinal: i32,
 ) -> Result<(), String> {
     let node = &ctx.path.nodes[ctx.node_index[&ordinal]];
@@ -258,21 +258,27 @@ fn assessment_node(
             .iter()
             .all(|m| ends(&ctx.r.forecast_exposures[m.exposure].periods)),
     };
-    let final_payment = swap
-        .fixed_periods
+    let final_payment = swaps
         .iter()
-        .map(|q| q.payment_ordinal)
-        .chain(swap.floating_periods.iter().map(|q| q.payment_ordinal))
+        .flat_map(|swap| {
+            swap.fixed_periods
+                .iter()
+                .map(|q| q.payment_ordinal)
+                .chain(swap.floating_periods.iter().map(|q| q.payment_ordinal))
+        })
         .max()
         .unwrap_or(ordinal);
+    let accrual_free = swaps.iter().all(|swap| {
+        swap.fixed_periods.iter().any(|q| q.end_ordinal == ordinal)
+            && swap
+                .floating_periods
+                .iter()
+                .any(|q| q.end_ordinal == ordinal)
+    });
     if ordinal <= rel.inception_ordinal
         || ordinal >= final_payment
         || node.payment_timing != PaymentTiming::AfterScheduledPayments
-        || !swap.fixed_periods.iter().any(|q| q.end_ordinal == ordinal)
-        || !swap
-            .floating_periods
-            .iter()
-            .any(|q| q.end_ordinal == ordinal)
+        || !accrual_free
         || !boundary
     {
         return Err("assessment requires an accrual-free after-payment node after inception and before the final instrument settlement".into());
@@ -627,16 +633,52 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         } else if !node_index.contains_key(&inception) {
             return Err("inception date is not a derivative path node".into());
         }
-        if !swap
-            .fixed_periods
-            .iter()
-            .any(|q| q.start_ordinal == inception)
-            || !swap
-                .floating_periods
+        // Every jointly designated swap shares the instrument review, proportion accounting and
+        // accrual-free inception boundary of the primary instrument.
+        let mut components = vec![swap];
+        for id in &rel.additional_instrument_position_ids {
+            text(id, &mut bytes)?;
+            if id == instrument
+                || rel.written_option_position_id.as_deref() == Some(id.as_str())
+                || components.iter().any(|s| &s.position_id == id)
+            {
+                return Err("additional instruments must be distinct from the primary instrument, the written option and each other".into());
+            }
+            let extra = opening_swap(c, id)?;
+            let extra_review = d
+                .policy
+                .trades
                 .iter()
-                .any(|q| q.start_ordinal == inception)
-        {
-            return Err("inception must be an accrual-free start of both instrument legs".into());
+                .find(|t| &t.position_id == id)
+                .ok_or(
+                    "additional instrument lacks a reviewed derivative accounting designation",
+                )?;
+            if extra_review.designation
+                != derivative_accounting::Designation::UndesignatedEconomicHedge
+                || (rel.designation == Designation::CashFlowHedge
+                    && extra_review.coupon_recognition
+                        != CouponRecognition::SettleDerivativeCarrying)
+            {
+                return Err("additional instruments require the raw undesignated_economic_hedge review and, for cash-flow hedges, settle_derivative_carrying".into());
+            }
+            let total = proportion_by_instrument.entry(id.as_str()).or_default();
+            *total += p;
+            if *total > 1. + 1e-12 {
+                return Err("designated proportions on an additional instrument exceed the whole instrument".into());
+            }
+            components.push(extra);
+        }
+        for s in &components {
+            if !s.fixed_periods.iter().any(|q| q.start_ordinal == inception)
+                || !s
+                    .floating_periods
+                    .iter()
+                    .any(|q| q.start_ordinal == inception)
+            {
+                return Err(
+                    "inception must be an accrual-free start of both instrument legs".into(),
+                );
+            }
         }
         let predecessor = match &rel.predecessor_relationship_id {
             None => None,
@@ -858,8 +900,11 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     }
                     _ => return Err("cash-flow hedge requires exactly one of a hypothetical derivative or matched critical terms evidence".into()),
                 };
-                if matched && rel.written_option_position_id.is_some() {
-                    return Err("a swap/written-option combination cannot claim matched critical terms; supply a hypothetical derivative".into());
+                if matched
+                    && (rel.written_option_position_id.is_some()
+                        || !rel.additional_instrument_position_ids.is_empty())
+                {
+                    return Err("a combination of instruments cannot claim matched critical terms; supply a hypothetical derivative".into());
                 }
                 let choose_your_rate = match (&exposure.choose_your_rate, &rel.rate_hypotheticals)
                 {
@@ -957,7 +1002,10 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         if ev.ordinal < rel.inception_ordinal {
             return Err("event precedes relationship inception".into());
         }
-        let swap = opening_swap(c, &rel.hedging_instrument_position_id)?;
+        let mut swaps = vec![opening_swap(c, &rel.hedging_instrument_position_id)?];
+        for id in &rel.additional_instrument_position_ids {
+            swaps.push(opening_swap(c, id)?);
+        }
         if ev.kind != EventKind::RateElection && ev.index_id.is_some() {
             return Err("only rate elections carry an index".into());
         }
@@ -971,7 +1019,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if ev.proportion.is_some() || ev.reason.is_some() || ev.status.is_some() {
                     return Err("assessment events carry no proportion/reason/status".into());
                 }
-                assessment_node(&ctx, rel, cr, swap, ev.ordinal)?;
+                assessment_node(&ctx, rel, cr, &swaps, ev.ordinal)?;
                 if let Some(eff) = ev.effective_ordinal {
                     if !node_index.contains_key(&eff)
                         || eff < rel.inception_ordinal
@@ -1023,7 +1071,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 // The newly selected rate begins accruing at an exposure period start that is also
                 // an accrual-free instrument boundary, so the final retrospective assessment on the
                 // prior rate measures clean values (815-30-35-37L).
-                assessment_node(&ctx, rel, cr, swap, ev.ordinal)?;
+                assessment_node(&ctx, rel, cr, &swaps, ev.ordinal)?;
             }
         }
     }

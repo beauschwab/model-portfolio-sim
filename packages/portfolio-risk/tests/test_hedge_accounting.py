@@ -259,3 +259,45 @@ def test_partial_term_fair_value_hedge_measures_to_the_assumed_maturity():
         with pytest.raises(ValueError): run(bad)
     cfh = deepcopy(request); cfh['relationships'][1]['hedged_term_end_ordinal'] = MAR1
     with pytest.raises(ValueError): run(cfh)
+
+
+def combination_variant():
+    """`swap-cfh` and an identical `swap-cfh2` jointly designated at half proportion each against one hypothetical."""
+    v = raw(); csa = v['derivative']['derivative']['operation']['request']
+    for n in csa['paths'][0]['nodes']:
+        second = deepcopy(n['trades'][1]); second['request'].update(position_id='swap-cfh2', contract=dict(id='swap-cfh2-contract', revision='r1')); n['trades'].append(second)
+    m = deepcopy(csa['mapping'][1]); m.update(position_id='swap-cfh2', contract=dict(id='swap-cfh2-contract', revision='r1')); csa['mapping'].append(m)
+    review = deepcopy(v['derivative']['policy']['trades'][1]); review['position_id'] = 'swap-cfh2'; v['derivative']['policy']['trades'].append(review)
+    opening = v['derivative']['opening']; value = opening['trades'][1]['clean_value']
+    opening['trades'].append(dict(position_id='swap-cfh2', clean_value=value)); opening['equity_credit_balance'] += value
+    for p in [p for p in v['derivative']['physical_index_paths'] if p['position_id'] == 'swap-cfh']:
+        q = deepcopy(p); q['position_id'] = 'swap-cfh2'; v['derivative']['physical_index_paths'].append(q)
+    hyp = [dict(ordinal=n['ordinal'], request=dict(deepcopy(n['trades'][1]['request']), position_id='hypothetical')) for n in csa['paths'][0]['nodes'] if n['ordinal'] >= FEB1]
+    v['relationships'][1].update(designated_proportion=.5, matched_critical_terms_evidence=None, hypothetical=dict(evidence=dict(id='hyp-evidence', revision='r1'), nodes=hyp),
+                                 additional_instrument_position_ids=['swap-cfh2'])
+    return v
+
+
+def test_jointly_designated_swaps_form_one_hedging_instrument():
+    v = combination_variant(); k = cfh_fixed(v)
+    result = run(v); assert verify(v, result)['verified']
+    cfh = result['assessments'][2]; near(cfh['ratio'], 1.); assert cfh['qualified']
+    near(cfh['cumulative_instrument_change'], swap_value(MAR1, k) - swap_value(FEB1, k))
+    mar1 = next(d for d in result['daily'] if d['ordinal'] == MAR1)['relationships'][1]; near(mar1['instrument_designated_value'], swap_value(MAR1, k))
+    for position in ('swap-cfh', 'swap-cfh2'):
+        marks = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == position and i['ordinal'] > FEB1]
+        assert marks
+        for i in marks:
+            oci = sum(p['debit_amount'] for p in i['postings'] if p['account'] == 'cash_flow_hedge_oci'); kept = sum(p['debit_amount'] for p in i['postings'] if p['account'] == 'mark_gain_loss')
+            near(oci, kept)
+    near(result['closing'][1]['oci_closing'], 0.)
+    assert result['relationships'][1]['additional_instrument_position_ids'] == ['swap-cfh2'] and 'additional_instrument_position_ids' not in result['relationships'][0]
+    for kind in ('duplicate', 'option', 'over', 'matched', 'unknown', 'coupon'):
+        bad = combination_variant()
+        if kind == 'duplicate': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-cfh']
+        elif kind == 'option': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-cfh2', 'swap-cfh2']
+        elif kind == 'over': bad['relationships'][1]['designated_proportion'] = .8; bad['relationships'].append(dict(deepcopy(bad['relationships'][1]), relationship_id='cfh-2', designated_proportion=.3))
+        elif kind == 'matched': bad['relationships'][1].update(hypothetical=None, matched_critical_terms_evidence=dict(id='cfh-1-critical-terms', revision='r1'))
+        elif kind == 'unknown': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-other']
+        else: bad['derivative']['policy']['trades'][2]['coupon_recognition'] = 'contractual_income_at_due_with_mark_offset'
+        with pytest.raises(ValueError): run(bad)

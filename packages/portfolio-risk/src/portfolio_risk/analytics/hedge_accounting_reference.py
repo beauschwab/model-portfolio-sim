@@ -196,7 +196,16 @@ def _admit(raw):
                 _require(t_['amount'] == 0. or _near(math.fsum(e['weight'] for e in t_['entries']), 1. - t_['released'] / t_['amount']), 'frozen OCI weights')
             _require((opening['oci_balance'] == 0. and not fo) if rel['designation'] == 'fair_value_hedge' else (opening['basis_balance'] == 0. and not fb), 'seasoned opening balance kind')
         else: _require(inception in nodes, 'inception node')
-        _require(any(q['start_ordinal'] == inception for q in swap['fixed_periods']) and any(q['start_ordinal'] == inception for q in swap['floating_periods']), 'inception boundary')
+        components = [swap]
+        for extra_id in rel.get('additional_instrument_position_ids') or []:
+            _require(extra_id != inst and extra_id != rel.get('written_option_position_id') and all(s['position_id'] != extra_id for s in components), 'distinct additional instruments')
+            extra = _swap_of(path['nodes'][0], extra_id)
+            _require(reviews[extra_id]['designation'] == 'undesignated_economic_hedge'
+                     and (rel['designation'] != 'cash_flow_hedge' or reviews[extra_id]['coupon_recognition'] == 'settle_derivative_carrying'), 'additional instrument review')
+            proportion[extra_id] = proportion.get(extra_id, 0.) + p; _require(proportion[extra_id] <= 1. + 1e-12, 'additional instrument over-designated')
+            components.append(extra)
+        for s in components:
+            _require(any(q['start_ordinal'] == inception for q in s['fixed_periods']) and any(q['start_ordinal'] == inception for q in s['floating_periods']), 'inception boundary')
         _require(rel['hedged_risk'] == 'benchmark_interest_rate', 'hedged risk')
         pred = rel['predecessor_relationship_id']
         if pred is not None:
@@ -269,7 +278,7 @@ def _admit(raw):
                     _require(_near(p * swap['notional'], x['notional']) and swap['side'] == side and _same_periods(swap['floating_periods'], x['periods'])
                              and all(q['coupon']['kind'] == 'indexed' and q['coupon']['index']['index_id'] == x['index_id'] for q in swap['floating_periods']), 'matched critical terms')
                     entry.update(matched=True)
-                    _require(rel.get('written_option_position_id') is None, 'combination cannot claim matched critical terms')
+                    _require(rel.get('written_option_position_id') is None and not rel.get('additional_instrument_position_ids'), 'combination cannot claim matched critical terms')
                 cyr = x.get('choose_your_rate'); rate_hyps = rel.get('rate_hypotheticals')
                 if cyr is not None or rate_hyps is not None:
                     # ASU 2025-09 Issue 2: one hypothetical per documented alternative, terms as of inception.
@@ -288,17 +297,17 @@ def _admit(raw):
         _require(ev['event_id'] not in ids and (prior is None or prior < clock), 'event order'); ids.add(ev['event_id']); prior = clock
         rel = raw['relationships'][compiled[ev['relationship_id']]['index']]; c = compiled[ev['relationship_id']]
         _require(ev['ordinal'] in nodes and ev['ordinal'] >= rel['inception_ordinal'], 'event node')
-        swap = _swap_of(path['nodes'][0], rel['hedging_instrument_position_id'])
+        swaps = [_swap_of(path['nodes'][0], rel['hedging_instrument_position_id'])] + [_swap_of(path['nodes'][0], i_) for i_ in rel.get('additional_instrument_position_ids') or []]
         extra = {k: ev.get(k) for k in ('proportion', 'reason', 'status')}
         _require(ev.get('index_id') is None or ev['kind'] == 'rate_election', 'index on a non-election event')
         _require(ev.get('effective_ordinal') is None or ev['kind'] == 'assess' and c['similar'] is not None, 'specific last-similar date on a non-group assessment')
 
         def assessment_node():
-            final = max(q['payment_ordinal'] for q in swap['fixed_periods'] + swap['floating_periods'])
+            final = max(q['payment_ordinal'] for s in swaps for q in s['fixed_periods'] + s['floating_periods'])
             ends = lambda periods: any(q['end_ordinal'] == ev['ordinal'] for q in periods)
             boundary = ends(c['item']['periods']) if c['item'] else all(ends(m['exposure']['periods']) for m in c['members'])
             _require(rel['inception_ordinal'] < ev['ordinal'] < final and path['nodes'][nodes[ev['ordinal']]]['payment_timing'] == 'after_scheduled_payments'
-                     and ends(swap['fixed_periods']) and ends(swap['floating_periods']) and boundary, 'assessment date')
+                     and all(ends(s['fixed_periods']) and ends(s['floating_periods']) for s in swaps) and boundary, 'assessment date')
 
         if ev['kind'] == 'assess':
             _require(all(v is None for v in extra.values()), 'assessment fields')
@@ -390,6 +399,7 @@ def replay(raw, check=lambda: False):
         if o is None: continue
         st, c = states[i], comp[i]; rid = rel['relationship_id']; inst = rel['hedging_instrument_position_id']
         instrument = opening_values[inst] + (opening_values[rel['written_option_position_id']] if rel.get('written_option_position_id') else 0.)
+        instrument = _money(instrument + math.fsum(opening_values[i_] for i_ in rel.get('additional_instrument_position_ids') or []))
         if c['matched']: _require(_near(o['hedged_value'], instrument), 'matched opening hedged value')
         st.update(status='qualified', inst=instrument, cum_d=o['cumulative_instrument_change'], cum_e=o['cumulative_hedged_change'], last_assessed=asof)
         st['scale'] = 1. if o.get('scale') is None else o['scale']; st['proportion'] = _money(rel['designated_proportion'] * st['scale'])
@@ -428,7 +438,9 @@ def replay(raw, check=lambda: False):
 
     def designated_value(k, rel):
         value = instrument_value(k, rel['hedging_instrument_position_id']); option = rel.get('written_option_position_id')
-        return value if option is None else _money(value + instrument_value(k, option))
+        value = value if option is None else _money(value + instrument_value(k, option))
+        for i_ in rel.get('additional_instrument_position_ids') or []: value = _money(value + instrument_value(k, i_))
+        return value
 
     def two(account_a, value, owner, rid, account_b):
         return [_posting(account_a, value, owner, None, rid), _posting(account_b, -value, owner, None, rid)]
@@ -507,7 +519,7 @@ def replay(raw, check=lambda: False):
                 if mark and p['account'] == 'mark_gain_loss':
                     m = _money(p['debit_amount']); mapped = di['mapped_position_id']; retained = 1.
                     for i, share in shares:
-                        if rels[i]['hedging_instrument_position_id'] != mapped and rels[i].get('written_option_position_id') != mapped: continue
+                        if rels[i]['hedging_instrument_position_id'] != mapped and rels[i].get('written_option_position_id') != mapped and mapped not in (rels[i].get('additional_instrument_position_ids') or []): continue
                         value = _money(m * share)
                         postings.append(_posting('cash_flow_hedge_oci', value, p['position_id'], p['bucket'], rels[i]['relationship_id']))
                         states[i]['oci'] = _money(states[i]['oci'] - value); states[i]['oci_recognized'] = _money(states[i]['oci_recognized'] - value)
@@ -718,6 +730,7 @@ def replay(raw, check=lambda: False):
         if rel.get('written_option_position_id') is not None: relationships[-1]['written_option_position_id'] = rel['written_option_position_id']
         if rel.get('opening') is not None: relationships[-1]['opening_evidence'] = deepcopy(rel['opening']['evidence'])
         if rel.get('hedged_term_end_ordinal') is not None: relationships[-1]['hedged_term_end_ordinal'] = rel['hedged_term_end_ordinal']
+        if rel.get('additional_instrument_position_ids'): relationships[-1]['additional_instrument_position_ids'] = list(rel['additional_instrument_position_ids'])
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))

@@ -315,6 +315,10 @@ pub struct Relationship {
     /// measured as if the item matured at this period end, which also bounds basis amortization.
     #[serde(default)]
     pub hedged_term_end_ordinal: Option<i32>,
+    /// Further mapped swaps jointly designated with the primary instrument (815-20-25-45): the
+    /// combination is one hedging instrument for clean value, cumulative change and mark ownership.
+    #[serde(default)]
+    pub additional_instrument_position_ids: Vec<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -568,6 +572,8 @@ pub struct RelationshipClosing {
     pub opening_evidence: Option<Identity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hedged_term_end_ordinal: Option<i32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub additional_instrument_position_ids: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct HedgeAccountingResult {

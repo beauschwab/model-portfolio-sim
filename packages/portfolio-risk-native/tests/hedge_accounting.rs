@@ -753,3 +753,182 @@ fn partial_term_fair_value_hedge_measures_to_the_assumed_maturity() {
     cfh["relationships"][1]["hedged_term_end_ordinal"] = json!(day(3, 1));
     assert!(run(&cfh).is_err());
 }
+
+/// `swap-cfh` and an identical `swap-cfh2` jointly designated at half proportion each.
+fn combination_variant() -> Value {
+    let mut v = raw();
+    let csa = &mut v["derivative"]["derivative"]["operation"]["request"];
+    for n in csa["paths"][0]["nodes"].as_array_mut().unwrap() {
+        let mut second = n["trades"][1].clone();
+        second["request"]["position_id"] = json!("swap-cfh2");
+        second["request"]["contract"] = json!({"id": "swap-cfh2-contract", "revision": "r1"});
+        n["trades"].as_array_mut().unwrap().push(second);
+    }
+    let mut m = csa["mapping"][1].clone();
+    m["position_id"] = json!("swap-cfh2");
+    m["contract"] = json!({"id": "swap-cfh2-contract", "revision": "r1"});
+    csa["mapping"].as_array_mut().unwrap().push(m);
+    let mut review = v["derivative"]["policy"]["trades"][1].clone();
+    review["position_id"] = json!("swap-cfh2");
+    v["derivative"]["policy"]["trades"]
+        .as_array_mut()
+        .unwrap()
+        .push(review);
+    let value = v["derivative"]["opening"]["trades"][1]["clean_value"]
+        .as_f64()
+        .unwrap();
+    v["derivative"]["opening"]["trades"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"position_id": "swap-cfh2", "clean_value": value}));
+    let equity = v["derivative"]["opening"]["equity_credit_balance"]
+        .as_f64()
+        .unwrap();
+    v["derivative"]["opening"]["equity_credit_balance"] = json!(equity + value);
+    let extra: Vec<Value> = v["derivative"]["physical_index_paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["position_id"] == json!("swap-cfh"))
+        .map(|p| {
+            let mut q = p.clone();
+            q["position_id"] = json!("swap-cfh2");
+            q
+        })
+        .collect();
+    v["derivative"]["physical_index_paths"]
+        .as_array_mut()
+        .unwrap()
+        .extend(extra);
+    let hyp: Vec<Value> = v["derivative"]["derivative"]["operation"]["request"]["paths"][0]
+        ["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|n| n["ordinal"].as_i64().unwrap() >= i64::from(day(2, 1)))
+        .map(|n| {
+            let mut req = n["trades"][1]["request"].clone();
+            req["position_id"] = json!("hypothetical");
+            json!({"ordinal": n["ordinal"], "request": req})
+        })
+        .collect();
+    let rel = &mut v["relationships"][1];
+    rel["designated_proportion"] = json!(0.5);
+    rel["matched_critical_terms_evidence"] = Value::Null;
+    rel["hypothetical"] =
+        json!({"evidence": {"id": "hyp-evidence", "revision": "r1"}, "nodes": hyp});
+    rel["additional_instrument_position_ids"] = json!(["swap-cfh2"]);
+    v
+}
+
+#[test]
+fn jointly_designated_swaps_form_one_hedging_instrument() {
+    let v = combination_variant();
+    let k = cfh_fixed(&v);
+    let result = run(&v).unwrap();
+    let cfh = &result.assessments[2];
+    close(cfh.ratio.unwrap(), 1.);
+    assert!(cfh.qualified);
+    close(
+        cfh.cumulative_instrument_change,
+        swap_value(day(3, 1), k) - swap_value(day(2, 1), k),
+    );
+    let mar1 = result
+        .daily
+        .iter()
+        .find(|d| d.ordinal == day(3, 1))
+        .unwrap();
+    close(
+        mar1.relationships[1].instrument_designated_value,
+        swap_value(day(3, 1), k),
+    );
+    for position in ["swap-cfh", "swap-cfh2"] {
+        let marks: Vec<_> = result
+            .intents
+            .iter()
+            .filter(|i| {
+                i.event_id.starts_with("clean_mark")
+                    && i.mapped_position_id.as_deref() == Some(position)
+                    && i.ordinal > day(2, 1)
+            })
+            .collect();
+        assert!(!marks.is_empty());
+        for i in marks {
+            let oci: f64 = i
+                .postings
+                .iter()
+                .filter(|p| p.account == Account::CashFlowHedgeOci)
+                .map(|p| p.debit_amount)
+                .sum();
+            let kept: f64 = i
+                .postings
+                .iter()
+                .filter(|p| p.account == Account::MarkGainLoss)
+                .map(|p| p.debit_amount)
+                .sum();
+            close(oci, kept);
+        }
+    }
+    close(result.closing[1].oci_closing, 0.);
+    assert_eq!(
+        result.relationships[1].additional_instrument_position_ids,
+        vec!["swap-cfh2".to_string()]
+    );
+    assert!(result.relationships[0]
+        .additional_instrument_position_ids
+        .is_empty());
+    let cases: Vec<(&str, Change)> = vec![
+        (
+            "duplicate of the primary",
+            Box::new(|v| {
+                v["relationships"][1]["additional_instrument_position_ids"] = json!(["swap-cfh"])
+            }),
+        ),
+        (
+            "repeated additional",
+            Box::new(|v| {
+                v["relationships"][1]["additional_instrument_position_ids"] =
+                    json!(["swap-cfh2", "swap-cfh2"])
+            }),
+        ),
+        (
+            "over-designation",
+            Box::new(|v| {
+                v["relationships"][1]["designated_proportion"] = json!(0.8);
+                let mut second = v["relationships"][1].clone();
+                second["relationship_id"] = json!("cfh-2");
+                second["designated_proportion"] = json!(0.3);
+                v["relationships"].as_array_mut().unwrap().push(second);
+            }),
+        ),
+        (
+            "matched critical terms",
+            Box::new(|v| {
+                v["relationships"][1]["hypothetical"] = Value::Null;
+                v["relationships"][1]["matched_critical_terms_evidence"] =
+                    json!({"id": "cfh-1-critical-terms", "revision": "r1"});
+            }),
+        ),
+        (
+            "unknown instrument",
+            Box::new(|v| {
+                v["relationships"][1]["additional_instrument_position_ids"] = json!(["swap-other"])
+            }),
+        ),
+        (
+            "coupon policy",
+            Box::new(|v| {
+                v["derivative"]["policy"]["trades"][2]["coupon_recognition"] =
+                    json!("contractual_income_at_due_with_mark_offset")
+            }),
+        ),
+    ];
+    for (label, change) in cases {
+        let mut v = combination_variant();
+        change(&mut v);
+        let outcome = serde_json::from_value::<HedgeAccountingRequest>(v)
+            .map_err(|e| e.to_string())
+            .and_then(|r| hedge::evaluate(&r).map(|_| ()));
+        assert!(outcome.is_err(), "{label} must reject");
+    }
+}

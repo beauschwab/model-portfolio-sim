@@ -397,6 +397,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         if let Some(option) = rel.written_option_position_id.as_deref() {
             instrument = amount(instrument + opening_value(option)?)?;
         }
+        for id in &rel.additional_instrument_position_ids {
+            instrument = amount(instrument + opening_value(id)?)?;
+        }
         if cr.matched && !near(o.hedged_value, instrument) {
             return Err("matched critical terms require the opening hedged value to equal the opening instrument value".into());
         }
@@ -627,6 +630,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let x = &r.relationships[*i];
                         x.hedging_instrument_position_id == mapped
                             || x.written_option_position_id.as_deref() == Some(mapped)
+                            || x.additional_instrument_position_ids
+                                .iter()
+                                .any(|id| id == mapped)
                     }) {
                         let st = &mut states[i];
                         let value = amount(m * share)?;
@@ -690,6 +696,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             let mut value = instrument_value(&rel.hedging_instrument_position_id)?;
             if let Some(option) = rel.written_option_position_id.as_deref() {
                 value = amount(value + instrument_value(option)?)?;
+            }
+            for id in &rel.additional_instrument_position_ids {
+                value = amount(value + instrument_value(id)?)?;
             }
             Ok(value)
         };
@@ -1629,6 +1638,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             written_option_position_id: rel.written_option_position_id.clone(),
             opening_evidence: rel.opening.as_ref().map(|o| o.evidence.clone()),
             hedged_term_end_ordinal: rel.hedged_term_end_ordinal,
+            additional_instrument_position_ids: rel.additional_instrument_position_ids.clone(),
         });
         let frozen_basis: f64 = st.frozen_basis.iter().map(|x| x.amount - x.amortized).sum();
         let frozen_oci: f64 = st.frozen_oci.iter().map(|x| x.amount - x.released).sum();

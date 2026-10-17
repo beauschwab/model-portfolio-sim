@@ -315,6 +315,17 @@ exposure is measured as dollar-offset mismatch, not excluded. Options expiring
 before inception, caps/floors as separate contracts and optioned hedged
 items/hypotheticals remain open.
 
+**Jointly designated swaps (815-20-25-45).** A relationship may name
+`additional_instrument_position_ids`: further mapped swaps, each with the raw
+`undesignated_economic_hedge` review (and `settle_derivative_carrying` for
+cash-flow hedges), distinct from the primary instrument and the written
+option, with designated proportions tracked per swap and the accrual-free
+inception boundary required on every leg. The combination is one hedging
+instrument: the designated clean value and cumulative change sum every
+component (plus any written option), cash-flow mark re-ownership covers every
+component's `clean_mark` intents, assessments require accrual-free dates on
+every component, and the hypothetical derivative method is required.
+
 **Refused elections.** `dual_hedge_basis` rejects; other option instruments
 still require their own lane. Nonfinancial price components (Issue 3) are
 outside the interest-rate scope of this owner.
@@ -382,7 +393,8 @@ explicit flags: `accounting_standard_approval=false`,
 (`similar_risk`, assessment and lifecycle `index_id`, `effective_ordinal`,
 `earnings_catch_up`, `reversed_reclassification`, daily `members`,
 `member_exposure_ids`, `selected_index_id`, `written_option_position_id`,
-`opening_evidence`, `hedged_term_end_ordinal`) appear only for relationships
+`opening_evidence`, `hedged_term_end_ordinal`,
+`additional_instrument_position_ids`) appear only for relationships
 that use an election, so results without elections are unchanged.
 
 Journal accounts are the derivative owner's accounts plus
