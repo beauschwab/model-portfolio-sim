@@ -373,3 +373,144 @@ fn seasoned_refusals_without_fallback() {
     }
     hedge::validate_request(&serde_json::from_value(seasoned_variant()).unwrap()).unwrap();
 }
+
+/// Partially discontinued fair-value hedge (scale 0.8, frozen basis tranche started 16 December)
+/// and a cash-flow hedge with a frozen OCI tranche released over the remaining payments.
+fn frozen_variant() -> Value {
+    let mut v = seasoned_variant();
+    let dec16 = dec1() + 15;
+    let span = f64::from(day(4, 1) - dec16);
+    let o = &mut v["relationships"][0]["opening"];
+    o["scale"] = json!(0.8);
+    o["basis_balance"] = json!(-0.6);
+    o["frozen_basis"] =
+        json!([{"amount": 0.1, "start_ordinal": dec16, "amortized": 0.1 * 15. / span}]);
+    v["relationships"][1]["opening"]["frozen_oci"] = json!([{"amount": 0.05, "released": 0., "entries": [
+        {"payment_ordinal": day(2, 1), "weight": 31. / 91.},
+        {"payment_ordinal": day(3, 1), "weight": 29. / 91.},
+        {"payment_ordinal": day(4, 1), "weight": 31. / 91.}]}]);
+    v
+}
+
+#[test]
+fn frozen_tranches_and_scale_at_the_opening_continue_amortization_and_release() {
+    let v = frozen_variant();
+    let span = f64::from(day(4, 1) - dec1() - 15);
+    let result = run(&v).unwrap();
+    let jan1 = item_unit_opening();
+    for (a, t) in result
+        .assessments
+        .iter()
+        .take(2)
+        .zip([day(2, 1), day(3, 1)])
+    {
+        let d = 0.5 + 0.8 * (swap_value(t, 0.06) - swap_value(day(1, 1), 0.06));
+        let e = 0.5 - 0.8 * 100. * (item_unit(t) - jan1);
+        close(a.cumulative_instrument_change, d);
+        close(a.cumulative_hedged_change, e);
+        assert!(a.qualified);
+    }
+    close(result.lifecycle[0].frozen_basis, 0.1 - 0.1 * 15. / span);
+    close(result.lifecycle[1].frozen_oci, 0.05);
+    close(result.lifecycle[0].proportion_after, 0.8);
+    close(
+        result.intents[0].postings[0].debit_amount,
+        -0.6 + 0.1 - 0.1 * 15. / span,
+    );
+    close(result.intents[1].postings[0].debit_amount, -0.25);
+    let first = &result.daily[0].relationships;
+    close(first[0].frozen_basis_balance, 0.1 * (span - 16.) / span);
+    close(first[0].designated_proportion, 0.8);
+    close(first[1].frozen_oci_balance, 0.05);
+    close(result.closing[0].basis_amortized, 0.1);
+    close(
+        result.closing[0].basis_closing,
+        -0.6 + 0.8 * 100. * (1. - jan1),
+    );
+    close(result.relationships[0].frozen_basis_balance, 0.);
+    let releases: Vec<&Intent> = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("frozen_oci_release"))
+        .collect();
+    assert_eq!(
+        releases.iter().map(|i| i.ordinal).collect::<Vec<_>>(),
+        [day(2, 1), day(3, 1), day(4, 1)]
+    );
+    close(releases[0].postings[0].debit_amount, 0.05 * 31. / 91.);
+    close(
+        releases
+            .iter()
+            .map(|i| i.postings[0].debit_amount)
+            .sum::<f64>(),
+        0.05,
+    );
+    let open = v["derivative"]["opening"]["trades"][1]["clean_value"]
+        .as_f64()
+        .unwrap();
+    close(result.closing[1].oci_closing, 0.2 - open);
+    close(result.relationships[1].frozen_oci_balance, 0.);
+    for intent in &result.intents {
+        let sum: f64 = intent.postings.iter().map(|p| p.debit_amount).sum();
+        assert!(sum.abs() < 1e-9, "{}", intent.event_id);
+    }
+    let cases: Vec<(&str, Change)> = vec![
+        (
+            "scale",
+            Box::new(|v| v["relationships"][0]["opening"]["scale"] = json!(1.5)),
+        ),
+        (
+            "identity",
+            Box::new(|v| v["relationships"][0]["opening"]["basis_balance"] = json!(-0.5)),
+        ),
+        (
+            "weights",
+            Box::new(|v| {
+                v["relationships"][1]["opening"]["frozen_oci"][0]["released"] = json!(0.01)
+            }),
+        ),
+        (
+            "early entry",
+            Box::new(|v| {
+                v["relationships"][1]["opening"]["frozen_oci"][0]["entries"][0]["payment_ordinal"] =
+                    json!(dec1())
+            }),
+        ),
+        (
+            "foreign entry",
+            Box::new(|v| {
+                v["relationships"][1]["opening"]["frozen_oci"][0]["entries"][0]["payment_ordinal"] =
+                    json!(day(2, 6))
+            }),
+        ),
+        (
+            "fair-value OCI tranche",
+            Box::new(|v| {
+                let t = v["relationships"][1]["opening"]["frozen_oci"].clone();
+                v["relationships"][0]["opening"]["frozen_oci"] = t;
+            }),
+        ),
+        (
+            "cash-flow basis tranche",
+            Box::new(|v| {
+                let t = v["relationships"][0]["opening"]["frozen_basis"].clone();
+                v["relationships"][1]["opening"]["frozen_basis"] = t;
+            }),
+        ),
+        (
+            "late start",
+            Box::new(|v| {
+                v["relationships"][0]["opening"]["frozen_basis"][0]["start_ordinal"] =
+                    json!(day(1, 1))
+            }),
+        ),
+    ];
+    for (label, change) in cases {
+        let mut v = frozen_variant();
+        change(&mut v);
+        let outcome = serde_json::from_value::<HedgeAccountingRequest>(v)
+            .map_err(|e| e.to_string())
+            .and_then(|r| hedge::evaluate(&r).map(|_| ()));
+        assert!(outcome.is_err(), "{label} must reject");
+    }
+}

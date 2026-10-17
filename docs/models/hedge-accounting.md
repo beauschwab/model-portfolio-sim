@@ -316,28 +316,42 @@ outside the interest-rate scope of this owner.
 ## Seasoned openings
 
 `opening = {evidence, hedged_value, cumulative_instrument_change,
-cumulative_hedged_change, basis_balance, oci_balance}` is required exactly
-when the relationship was designated before the derivative opening date. The
+cumulative_hedged_change, basis_balance, oci_balance, scale?, frozen_basis?,
+frozen_oci?}` is required exactly when the relationship was designated before
+the derivative opening date. The
 reviewed amounts are those through the opening: `hedged_value` is the
 after-payment benchmark-component value per unit of hedged notional (FVH) or
 the hypothetical's after-payment clean value (CFH; with matched critical terms
 it must equal the opening instrument value); a fair-value opening carries
 `basis_balance = -dir * cumulative_hedged_change` and no OCI, a cash-flow
-opening carries `oci_balance` and no basis (frozen tranches at the opening are
-not admitted). The instrument anchor is the derivative owner's opening clean
-value of the swap (plus any combined written option).
+opening carries `oci_balance` and no basis. `scale` (default 1, in (0, 1])
+is the remaining fraction of the designated proportion after earlier partial
+discontinuations. Frozen tranches retained at the opening are explicit:
+`frozen_basis[] = {amount, start_ordinal, amortized}` (FVH; amortization
+continues straight-line from `start_ordinal` to the item's principal date,
+and `basis_balance + sum(amount) = -dir * cumulative_hedged_change`) and
+`frozen_oci[] = {amount, released, entries[] = {payment_ordinal, weight}}`
+(CFH; the remaining entries are hedged exposure payment dates at or after the
+opening whose weights sum to the unreleased fraction, and the last entry
+clears the tranche exactly). Roll-forwards start from `basis_balance +
+sum(amount)` adjusted and `sum(amortized)` amortized, or `oci_balance +
+sum(amount)` recognized and `sum(released)` reclassified. The instrument
+anchor is the derivative owner's opening clean value of the swap (plus any
+combined written option).
 
 Before the first node the engine posts one `hedge_opening` intent per
-seasoned relationship: `hedged_item_basis_adjustment` debit `dir * basis`
-against `opening_equity` (FVH), or `cash_flow_hedge_oci` credit `oci` against
+seasoned relationship: `hedged_item_basis_adjustment` debit `dir * (basis +
+unamortized frozen basis)` against `opening_equity` (FVH), or
+`cash_flow_hedge_oci` credit `oci + unreleased frozen OCI` against
 `opening_equity` (CFH), so the hedge journal's opening equity differs from the
 derivative owner's by exactly those amounts (the daily reconciliation accounts
 for them). The relationship is qualified from the first node: its marks are
 re-owned from the opening, the first node's basis change measures the
 opening-node value against `hedged_value`, cumulative changes start from the
 supplied amounts, and roll-forwards start from the supplied balances. The
-lifecycle records an `opening` entry with the evidence identity; the closing
-row reports `opening_evidence`. Groups, rate options and redesignation
+lifecycle records an `opening` entry with the evidence identity and the
+unamortized/unreleased frozen amounts; the closing row reports
+`opening_evidence`. Groups, rate options and redesignation
 predecessors are not combined with seasoned openings. Supplied opening
 balances are reviewed inputs, not verified prior-publication evidence.
 

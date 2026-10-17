@@ -180,7 +180,18 @@ def _admit(raw):
         if opening is not None:
             for key in ('hedged_value', 'cumulative_instrument_change', 'cumulative_hedged_change', 'basis_balance', 'oci_balance'): _money(opening[key])
             _require(rel.get('group') is None and rel.get('rate_hypotheticals') is None and rel['predecessor_relationship_id'] is None, 'seasoned opening combinations')
-            _require(opening['oci_balance'] == 0. if rel['designation'] == 'fair_value_hedge' else opening['basis_balance'] == 0., 'seasoned opening balance kind')
+            scale = opening.get('scale'); scale = 1. if scale is None else _money(scale); _require(0. < scale <= 1., 'seasoned opening scale')
+            fb = opening.get('frozen_basis') or []; fo = opening.get('frozen_oci') or []
+            for t_ in fb:
+                _money(t_['amount']); _money(t_['amortized'])
+                _require(asof - 36600 <= t_['start_ordinal'] < asof and t_['amortized'] * t_['amount'] >= 0. and abs(t_['amortized']) <= abs(t_['amount']) + 1e-12, 'frozen basis tranche')
+            for t_ in fo:
+                _money(t_['amount']); _money(t_['released'])
+                _require(t_['released'] * t_['amount'] >= 0. and abs(t_['released']) <= abs(t_['amount']) + 1e-12, 'frozen OCI tranche')
+                pays = [e['payment_ordinal'] for e in t_['entries']]
+                _require(all(p_ >= asof for p_ in pays) and pays == sorted(set(pays)) and all(e['weight'] >= 0. for e in t_['entries']), 'frozen OCI entries')
+                _require(t_['amount'] == 0. or _near(math.fsum(e['weight'] for e in t_['entries']), 1. - t_['released'] / t_['amount']), 'frozen OCI weights')
+            _require((opening['oci_balance'] == 0. and not fo) if rel['designation'] == 'fair_value_hedge' else (opening['basis_balance'] == 0. and not fb), 'seasoned opening balance kind')
         else: _require(inception in nodes, 'inception node')
         _require(any(q['start_ordinal'] == inception for q in swap['fixed_periods']) and any(q['start_ordinal'] == inception for q in swap['floating_periods']), 'inception boundary')
         _require(rel['hedged_risk'] == 'benchmark_interest_rate', 'hedged risk')
@@ -221,7 +232,7 @@ def _admit(raw):
             _require(hedged_total[item['item_id']] <= item['notional'] + 1e-9, 'item over-hedged')
             _require(any(q['start_ordinal'] == inception for q in item['periods']), 'item inception boundary')
             entry.update(item=item, dir=1. if item['direction'] == 'asset' else -1.)
-            if opening is not None: _require(_near(opening['basis_balance'], -entry['dir'] * opening['cumulative_hedged_change']), 'seasoned basis equals signed cumulative hedged change')
+            if opening is not None: _require(_near(opening['basis_balance'] + math.fsum(t_['amount'] for t_ in opening.get('frozen_basis') or []), -entry['dir'] * opening['cumulative_hedged_change']), 'seasoned basis plus frozen equals signed cumulative hedged change')
         else:
             _require(rel['designation'] == 'cash_flow_hedge' and rel['hedged_item_id'] is None and rel['hedged_notional'] is None and rel['benchmark_rate'] is None, 'CFH inputs')
             _require(reviews[inst]['coupon_recognition'] == 'settle_derivative_carrying', 'CFH coupon policy')
@@ -239,6 +250,9 @@ def _admit(raw):
                 entry.update(similar=group['similar_risk_method'])
             else:
                 x = exposures[rel['forecast_exposure_id']]; hedged = hedged_of(x)
+                if opening is not None:
+                    pays = {x['periods'][k]['payment_ordinal'] for k in hedged}
+                    _require(all(e['payment_ordinal'] in pays for t_ in opening.get('frozen_oci') or [] for e in t_['entries']), 'frozen OCI entries name hedged payment dates')
                 side = 'payer' if x['direction'] == 'payment' else 'receiver'
                 hyps = {}
                 if rel['hypothetical'] is not None:
@@ -363,7 +377,7 @@ def replay(raw, check=lambda: False):
     rels = raw['relationships']; comp = [compiled[r['relationship_id']] for r in rels]; states = [_state(r, c) for r, c in zip(rels, comp)]
     lifecycle = []; assessments = []; daily = []
     cursor = 0; event_cursor = 0; intents = derivative['intents']
-    opening_equity_adjustment = 0.; opening_oci = 0.; asof = path['nodes'][0]['ordinal']
+    opening_equity_adjustment = 0.; opening_oci = 0.; opening_reclassified = 0.; asof = path['nodes'][0]['ordinal']
     opening_values = {t['position_id']: t['clean_value'] for t in raw['derivative']['opening']['trades']}
     for i, rel in enumerate(rels):
         o = rel.get('opening')
@@ -372,21 +386,34 @@ def replay(raw, check=lambda: False):
         instrument = opening_values[inst] + (opening_values[rel['written_option_position_id']] if rel.get('written_option_position_id') else 0.)
         if c['matched']: _require(_near(o['hedged_value'], instrument), 'matched opening hedged value')
         st.update(status='qualified', inst=instrument, cum_d=o['cumulative_instrument_change'], cum_e=o['cumulative_hedged_change'], last_assessed=asof)
+        st['scale'] = 1. if o.get('scale') is None else o['scale']; st['proportion'] = _money(rel['designated_proportion'] * st['scale'])
         sources = [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(o['evidence'])]
         if rel['designation'] == 'fair_value_hedge':
             item = c['item']; st.update(unit=o['hedged_value'], basis=o['basis_balance'], basis_adjustments=o['basis_balance'])
+            for t_ in o.get('frozen_basis') or []:
+                st['frozen_basis'].append(dict(amount=t_['amount'], start=t_['start_ordinal'], amortized=t_['amortized']))
+                st['basis_adjustments'] = _money(st['basis_adjustments'] + t_['amount']); st['basis_amortized'] = _money(st['basis_amortized'] + t_['amortized'])
+            retained = _money(o['basis_balance'] + math.fsum(t_['amount'] - t_['amortized'] for t_ in o.get('frozen_basis') or []))
             journal.emit('hedge_opening', asof, 'financial', inst, item['item_id'], None, rid, hedge_policy, sources,
-                         [_posting('hedged_item_basis_adjustment', c['dir'] * o['basis_balance'], item['item_id'], None, rid),
-                          _posting('opening_equity', -c['dir'] * o['basis_balance'], item['item_id'], None, rid)])
-            opening_equity_adjustment = _money(opening_equity_adjustment - c['dir'] * o['basis_balance'])
+                         [_posting('hedged_item_basis_adjustment', c['dir'] * retained, item['item_id'], None, rid),
+                          _posting('opening_equity', -c['dir'] * retained, item['item_id'], None, rid)])
+            opening_equity_adjustment = _money(opening_equity_adjustment - c['dir'] * retained)
         else:
             x = c['members'][0]['exposure']; st['members'][0].update(hyp=o['hedged_value'], cum_e=o['cumulative_hedged_change'])
             st.update(oci=o['oci_balance'], oci_recognized=o['oci_balance'])
+            for t_ in o.get('frozen_oci') or []:
+                st['frozen_oci'].append(dict(amount=t_['amount'], released=t_['released'],
+                                             entries=[dict(pay=e['payment_ordinal'], member=0, weight=e['weight'], released=False) for e in t_['entries']]))
+                st['oci_recognized'] = _money(st['oci_recognized'] + t_['amount']); st['oci_reclassified'] = _money(st['oci_reclassified'] + t_['released'])
+                opening_reclassified = _money(opening_reclassified + t_['released'])
+            retained = _money(o['oci_balance'] + math.fsum(t_['amount'] - t_['released'] for t_ in o.get('frozen_oci') or []))
             journal.emit('hedge_opening', asof, 'financial', inst, x['exposure_id'], None, rid, hedge_policy, sources,
-                         [_posting('cash_flow_hedge_oci', -o['oci_balance'], x['exposure_id'], None, rid), _posting('opening_equity', o['oci_balance'], x['exposure_id'], None, rid)])
-            opening_equity_adjustment = _money(opening_equity_adjustment + o['oci_balance']); opening_oci = _money(opening_oci + o['oci_balance'])
+                         [_posting('cash_flow_hedge_oci', -retained, x['exposure_id'], None, rid), _posting('opening_equity', retained, x['exposure_id'], None, rid)])
+            opening_equity_adjustment = _money(opening_equity_adjustment + retained); opening_oci = _money(opening_oci + retained)
         lifecycle.append(_record(asof, rel, st, kind='opening', review=deepcopy(o['evidence']), status_before='pending', status_after='qualified',
-                                 proportion_before=0., proportion_after=st['proportion']))
+                                 proportion_before=0., proportion_after=st['proportion'],
+                                 frozen_basis=math.fsum(t_['amount'] - t_['amortized'] for t_ in o.get('frozen_basis') or []),
+                                 frozen_oci=math.fsum(t_['amount'] - t_['released'] for t_ in o.get('frozen_oci') or [])))
 
     def instrument_value(k, position):
         for x in derivative['daily'][k]['trades']:
@@ -647,7 +674,7 @@ def replay(raw, check=lambda: False):
         for b in closing['financial_trial_balance']:
             mine = journal.gl.get(b['account'], 0.)
             if b['account'] == 'mark_gain_loss':
-                mine += journal.gl.get('cash_flow_hedge_oci', 0.) + opening_oci - math.fsum(s['oci_reclassified'] for s in states)
+                mine += journal.gl.get('cash_flow_hedge_oci', 0.) + opening_oci + opening_reclassified - math.fsum(s['oci_reclassified'] for s in states)
             elif b['account'] == 'opening_equity': mine -= opening_equity_adjustment
             _require(_near(mine, b['debit_balance']), 'derivative owner balance ' + b['account'])
         for b in closing['custody_trial_balance']: _require(_near(journal.memo.get(b['account'], 0.), b['debit_balance']), 'custody balance')

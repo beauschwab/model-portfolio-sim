@@ -377,6 +377,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
     // equity before the first node; the derivative opening clean values anchor the instrument.
     let mut opening_equity_adjustment = 0.;
     let mut opening_oci = 0.;
+    let mut opening_reclassified = 0.;
     let asof = path.nodes[0].ordinal;
     for (i, rel) in r.relationships.iter().enumerate() {
         let Some(o) = &rel.opening else { continue };
@@ -403,6 +404,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         st.cum_d = o.cumulative_instrument_change;
         st.cum_e = o.cumulative_hedged_change;
         st.last_assessed = asof;
+        st.scale = o.scale();
+        st.proportion = amount(rel.designated_proportion * st.scale)?;
         let sources = vec![
             r.policy.identity.clone(),
             rel.documentation.clone(),
@@ -414,6 +417,16 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 st.unit_clean = Some(o.hedged_value);
                 st.basis = o.basis_balance;
                 st.basis_adjustments = o.basis_balance;
+                for t in &o.frozen_basis {
+                    st.frozen_basis.push(FrozenBasis {
+                        amount: t.amount,
+                        start: t.start_ordinal,
+                        amortized: t.amortized,
+                    });
+                    st.basis_adjustments = amount(st.basis_adjustments + t.amount)?;
+                    st.basis_amortized = amount(st.basis_amortized + t.amortized)?;
+                }
+                let retained = amount(o.basis_balance + o.frozen_basis_remaining())?;
                 let dir = cr.direction_sign;
                 ledger.emit(
                     "hedge_opening",
@@ -427,14 +440,13 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     sources,
                     pair(
                         Account::HedgedItemBasisAdjustment,
-                        dir * o.basis_balance,
+                        dir * retained,
                         &item.item_id,
                         &rel.relationship_id,
                         Account::OpeningEquity,
                     ),
                 )?;
-                opening_equity_adjustment =
-                    amount(opening_equity_adjustment - dir * o.basis_balance)?;
+                opening_equity_adjustment = amount(opening_equity_adjustment - dir * retained)?;
             }
             Designation::CashFlowHedge => {
                 let exposure = &r.forecast_exposures[cr.members[0].exposure];
@@ -442,6 +454,26 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 st.members[0].cum_e = o.cumulative_hedged_change;
                 st.oci = o.oci_balance;
                 st.oci_recognized = o.oci_balance;
+                for t in &o.frozen_oci {
+                    st.frozen_oci.push(FrozenOci {
+                        amount: t.amount,
+                        released: t.released,
+                        entries: t
+                            .entries
+                            .iter()
+                            .map(|e| FrozenEntry {
+                                pay: e.payment_ordinal,
+                                member: 0,
+                                weight: e.weight,
+                                released: false,
+                            })
+                            .collect(),
+                    });
+                    st.oci_recognized = amount(st.oci_recognized + t.amount)?;
+                    st.oci_reclassified = amount(st.oci_reclassified + t.released)?;
+                    opening_reclassified = amount(opening_reclassified + t.released)?;
+                }
+                let retained = amount(o.oci_balance + o.frozen_oci_remaining())?;
                 ledger.emit(
                     "hedge_opening",
                     asof,
@@ -454,14 +486,14 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     sources,
                     pair(
                         Account::CashFlowHedgeOci,
-                        -o.oci_balance,
+                        -retained,
                         &exposure.exposure_id,
                         &rel.relationship_id,
                         Account::OpeningEquity,
                     ),
                 )?;
-                opening_equity_adjustment = amount(opening_equity_adjustment + o.oci_balance)?;
-                opening_oci = amount(opening_oci + o.oci_balance)?;
+                opening_equity_adjustment = amount(opening_equity_adjustment + retained)?;
+                opening_oci = amount(opening_oci + retained)?;
             }
         }
         lifecycle.push(LifecycleRecord {
@@ -476,8 +508,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             status_after: Status::Qualified,
             proportion_before: 0.,
             proportion_after: st.proportion,
-            frozen_basis: 0.,
-            frozen_oci: 0.,
+            frozen_basis: o.frozen_basis_remaining(),
+            frozen_oci: o.frozen_oci_remaining(),
             released_oci: 0.,
             derecognized_basis: 0.,
             index_id: None,
@@ -1462,6 +1494,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     .copied()
                     .unwrap_or(0.)
                     + opening_oci
+                    + opening_reclassified
                     - states.iter().map(|s| s.oci_reclassified).sum::<f64>()
             } else if b.account == DerivativeAccount::OpeningEquity {
                 mine - opening_equity_adjustment

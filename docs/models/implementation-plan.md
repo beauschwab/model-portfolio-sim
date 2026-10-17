@@ -23,8 +23,9 @@ clean values; evidence: two native tests (hand values for seasoned fair-value an
 cash-flow relationships with a matured unpaid pre-opening coupon, nine refusals)
 and 15 engine checks with independent replay and tamper refusals; the
 `hedge-treasury-1` feed accepts seasoned and combined-option hedges with
-independent row/capital replay. Verified prior-publication opening evidence and
-frozen tranches at the opening remain open.
+independent row/capital replay. Openings also carry the remaining designated
+scale and frozen basis/OCI tranches (two further native/engine hand-value cases
+with eight refusals each). Verified prior-publication opening evidence remains open.
 
 ASU 2025-09 (issued text, prospective under 815-20-65-7) is implemented for the
 two interest-rate elections: similar-risk groups of forecast exposures with the

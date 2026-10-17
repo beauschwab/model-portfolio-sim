@@ -549,12 +549,63 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             {
                 return Err("seasoned openings are not combined with groups, rate options or redesignation predecessors".into());
             }
-            match rel.designation {
-                Designation::FairValueHedge if o.oci_balance != 0. => {
-                    return Err("fair-value opening carries no OCI balance".into())
+            let scale = o.scale();
+            if !scale.is_finite() || scale <= 0. || scale > 1. {
+                return Err("seasoned opening scale must lie in (0, 1]".into());
+            }
+            if o.frozen_basis.len() > MAX_EVENTS || o.frozen_oci.len() > MAX_EVENTS {
+                return Err("seasoned opening tranche count exceeds admission".into());
+            }
+            for t in &o.frozen_basis {
+                amount(t.amount)?;
+                amount(t.amortized)?;
+                validate_ordinal(t.start_ordinal)?;
+                if t.start_ordinal >= asof
+                    || asof - t.start_ordinal > 36_600
+                    || t.amortized * t.amount < 0.
+                    || t.amortized.abs() > t.amount.abs() + 1e-12
+                {
+                    return Err("frozen basis tranche requires a start before the opening and an amortized amount within the tranche".into());
                 }
-                Designation::CashFlowHedge if o.basis_balance != 0. => {
-                    return Err("cash-flow opening carries no basis balance".into())
+            }
+            for t in &o.frozen_oci {
+                amount(t.amount)?;
+                amount(t.released)?;
+                if t.released * t.amount < 0. || t.released.abs() > t.amount.abs() + 1e-12 {
+                    return Err(
+                        "frozen OCI tranche released amount must lie within the tranche".into(),
+                    );
+                }
+                let mut prior: Option<i32> = None;
+                let mut total = 0.;
+                for e in &t.entries {
+                    validate_ordinal(e.payment_ordinal)?;
+                    if e.payment_ordinal < asof
+                        || prior.is_some_and(|p| p >= e.payment_ordinal)
+                        || !e.weight.is_finite()
+                        || e.weight < 0.
+                    {
+                        return Err("frozen OCI entries must be strictly increasing payment dates at or after the opening with nonnegative weights".into());
+                    }
+                    prior = Some(e.payment_ordinal);
+                    total += e.weight;
+                }
+                if t.amount != 0. && !near(total, 1. - t.released / t.amount) {
+                    return Err(
+                        "frozen OCI entry weights must sum to the unreleased fraction".into(),
+                    );
+                }
+            }
+            match rel.designation {
+                Designation::FairValueHedge if o.oci_balance != 0. || !o.frozen_oci.is_empty() => {
+                    return Err("fair-value opening carries no OCI balance or OCI tranches".into())
+                }
+                Designation::CashFlowHedge
+                    if o.basis_balance != 0. || !o.frozen_basis.is_empty() =>
+                {
+                    return Err(
+                        "cash-flow opening carries no basis balance or basis tranches".into(),
+                    )
                 }
                 _ => {}
             }
@@ -637,13 +688,14 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     -1.
                 };
                 if let Some(o) = &rel.opening {
-                    // Without frozen tranches the retained basis is the signed cumulative
-                    // benchmark-component change: basis = -dir * E.
+                    // The live basis plus the original frozen amounts is the signed cumulative
+                    // benchmark-component change: basis + sum(frozen amount) = -dir * E.
+                    let frozen: f64 = o.frozen_basis.iter().map(|t| t.amount).sum();
                     if !near(
-                        o.basis_balance,
+                        o.basis_balance + frozen,
                         -direction_sign * o.cumulative_hedged_change,
                     ) {
-                        return Err("seasoned fair-value opening basis must equal the signed cumulative hedged change".into());
+                        return Err("seasoned fair-value opening basis plus frozen amounts must equal the signed cumulative hedged change".into());
                     }
                 }
                 CompiledRelationship {
@@ -734,6 +786,18 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 let xi = exposure_index(r, exposure_id)?;
                 let exposure = &r.forecast_exposures[xi];
                 let hedged = hedged_periods(&ctx, exposure, inception)?;
+                if let Some(o) = &rel.opening {
+                    for e in o.frozen_oci.iter().flat_map(|t| &t.entries) {
+                        if !hedged
+                            .iter()
+                            .any(|&k| exposure.periods[k].payment_ordinal == e.payment_ordinal)
+                        {
+                            return Err(
+                                "frozen OCI entries must name hedged exposure payment dates".into(),
+                            );
+                        }
+                    }
+                }
                 let mut hyps = BTreeMap::new();
                 let matched = match (&rel.hypothetical, &rel.matched_critical_terms_evidence) {
                     (Some(h), None) => {

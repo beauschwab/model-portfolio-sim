@@ -176,3 +176,49 @@ def test_seasoned_refusals_without_fallback(kind):
     elif kind == 'boundary': v['relationships'][0]['inception_ordinal'] = DEC1 + 10
     else: v['relationships'][0]['opening']['frozen_basis'] = 0.
     with pytest.raises(ValueError): run(v)
+
+
+DEC16 = DEC1 + 15
+SPAN = APR1 - DEC16
+
+
+def frozen_variant():
+    """Partially discontinued fair-value hedge (scale 0.8, frozen basis tranche) and a cash-flow hedge with a frozen OCI tranche."""
+    v = seasoned_variant()
+    v['relationships'][0]['opening'].update(scale=.8, basis_balance=-.6, frozen_basis=[dict(amount=.1, start_ordinal=DEC16, amortized=.1 * 15. / SPAN)])
+    v['relationships'][1]['opening'].update(frozen_oci=[dict(amount=.05, released=0., entries=[dict(payment_ordinal=p, weight=w / 91.) for p, w in ((FEB1, 31.), (MAR1, 29.), (APR1, 31.))])])
+    return v
+
+
+def test_frozen_tranches_and_scale_at_the_opening_continue_amortization_and_release():
+    v = frozen_variant(); result = run(v); assert verify(v, result)['verified']
+    jan1 = item_unit_opening()
+    for a, t in zip(result['assessments'][:2], (FEB1, MAR1)):
+        d = .5 + .8 * (swap_value(t, .06) - swap_value(JAN1, .06)); e = .5 - .8 * 100. * (item_unit(t) - jan1)
+        near(a['cumulative_instrument_change'], d); near(a['cumulative_hedged_change'], e); assert a['qualified']
+    opening = result['lifecycle'][:2]
+    near(opening[0]['frozen_basis'], .1 - .1 * 15. / SPAN); near(opening[1]['frozen_oci'], .05); near(opening[0]['proportion_after'], .8)
+    near(result['intents'][0]['postings'][0]['debit_amount'], -.6 + .1 - .1 * 15. / SPAN); near(result['intents'][1]['postings'][0]['debit_amount'], -.25)
+    first = result['daily'][0]['relationships']
+    near(first[0]['frozen_basis_balance'], .1 * (SPAN - 16.) / SPAN); near(first[0]['designated_proportion'], .8); near(first[1]['frozen_oci_balance'], .05)
+    closing = result['closing'][0]
+    near(closing['basis_amortized'], .1); near(closing['basis_closing'], -.6 + .8 * 100. * (1. - jan1)); near(result['relationships'][0]['frozen_basis_balance'], 0.)
+    releases = [i for i in result['intents'] if i['event_id'].startswith('frozen_oci_release')]
+    assert [i['ordinal'] for i in releases] == [FEB1, MAR1, APR1]
+    near(releases[0]['postings'][0]['debit_amount'], .05 * 31. / 91.); near(sum(i['postings'][0]['debit_amount'] for i in releases), .05)
+    v_open = v['derivative']['opening']['trades'][1]['clean_value']
+    near(result['closing'][1]['oci_closing'], .2 - v_open); near(result['relationships'][1]['frozen_oci_balance'], 0.)
+
+
+@pytest.mark.parametrize('kind', ['scale', 'identity', 'weights', 'early_entry', 'foreign_entry', 'fvh_oci', 'cfh_basis', 'late_start'])
+def test_frozen_opening_refusals_without_fallback(kind):
+    v = frozen_variant()
+    if kind == 'scale': v['relationships'][0]['opening']['scale'] = 1.5
+    elif kind == 'identity': v['relationships'][0]['opening']['basis_balance'] = -.5
+    elif kind == 'weights': v['relationships'][1]['opening']['frozen_oci'][0]['released'] = .01
+    elif kind == 'early_entry': v['relationships'][1]['opening']['frozen_oci'][0]['entries'][0]['payment_ordinal'] = DEC1
+    elif kind == 'foreign_entry': v['relationships'][1]['opening']['frozen_oci'][0]['entries'][0]['payment_ordinal'] = FEB1 + 5
+    elif kind == 'fvh_oci': v['relationships'][0]['opening']['frozen_oci'] = v['relationships'][1]['opening']['frozen_oci']
+    elif kind == 'cfh_basis': v['relationships'][1]['opening']['frozen_basis'] = v['relationships'][0]['opening']['frozen_basis']
+    else: v['relationships'][0]['opening']['frozen_basis'][0]['start_ordinal'] = JAN1
+    with pytest.raises(ValueError): run(v)

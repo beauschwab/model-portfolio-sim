@@ -226,6 +226,31 @@ pub struct RateHypothetical {
 /// `hedged_value` is the after-payment hedged clean value at the opening (per unit of hedged
 /// notional for a fair-value hedge, the hypothetical or matched instrument value for a
 /// cash-flow hedge); cumulative changes and balances are those through the opening.
+/// A frozen basis tranche retained at the opening: amortizes straight-line from `start_ordinal`
+/// to the item's principal date; `amortized` is the amount already amortized through the opening.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenBasis {
+    pub amount: f64,
+    pub start_ordinal: i32,
+    pub amortized: f64,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenOciEntry {
+    pub payment_ordinal: i32,
+    pub weight: f64,
+}
+/// A frozen OCI tranche retained at the opening: `entries` are the remaining hedged payment dates
+/// (at or after the opening) with their original release weights; `released` is the amount
+/// already reclassified through the opening.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenOci {
+    pub amount: f64,
+    pub released: f64,
+    pub entries: Vec<OpeningFrozenOciEntry>,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RelationshipOpening {
@@ -235,6 +260,27 @@ pub struct RelationshipOpening {
     pub cumulative_hedged_change: f64,
     pub basis_balance: f64,
     pub oci_balance: f64,
+    /// Remaining fraction of the designated proportion after earlier partial discontinuations.
+    #[serde(default)]
+    pub scale: Option<f64>,
+    #[serde(default)]
+    pub frozen_basis: Vec<OpeningFrozenBasis>,
+    #[serde(default)]
+    pub frozen_oci: Vec<OpeningFrozenOci>,
+}
+impl RelationshipOpening {
+    pub fn scale(&self) -> f64 {
+        self.scale.unwrap_or(1.)
+    }
+    pub fn frozen_basis_remaining(&self) -> f64 {
+        self.frozen_basis
+            .iter()
+            .map(|t| t.amount - t.amortized)
+            .sum()
+    }
+    pub fn frozen_oci_remaining(&self) -> f64 {
+        self.frozen_oci.iter().map(|t| t.amount - t.released).sum()
+    }
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
