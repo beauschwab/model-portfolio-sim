@@ -39,6 +39,12 @@ struct MemberState {
     hyp_prev: Option<f64>,
     cum_e: f64,
     last_hyp: Option<f64>,
+    /// Hedged period index -> delayed date on which its reclassification posts.
+    delays: BTreeMap<usize, i32>,
+    /// Hedged periods that became probable of not occurring.
+    excluded: std::collections::BTreeSet<usize>,
+    /// Reclassifications computed at the original date and deferred to a delayed date.
+    deferred: Vec<(i32, f64)>,
 }
 struct State {
     status: Status,
@@ -321,6 +327,22 @@ fn hypothetical<'a>(
 fn sum_members(st: &State) -> f64 {
     st.members.iter().map(|m| m.cum_e).sum()
 }
+/// (member, hedged period index, original payment date) for a hedged exposure period id.
+fn locate(
+    cr: &CompiledRelationship,
+    r: &HedgeAccountingRequest,
+    period_id: &str,
+) -> Result<(usize, usize, i32), String> {
+    for (m, member) in cr.members.iter().enumerate() {
+        let exposure = &r.forecast_exposures[member.exposure];
+        for &q in &member.hedged_periods {
+            if exposure.periods[q].period_id == period_id {
+                return Ok((m, q, exposure.periods[q].payment_ordinal));
+            }
+        }
+    }
+    Err("period is not a hedged exposure period of the relationship".into())
+}
 
 pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResult, String> {
     let compiled = inputs::admit(r)?;
@@ -365,6 +387,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     hyp_prev: None,
                     cum_e: 0.,
                     last_hyp: None,
+                    delays: BTreeMap::new(),
+                    excluded: std::collections::BTreeSet::new(),
+                    deferred: Vec::new(),
                 })
                 .collect(),
             oci_at_node: BTreeMap::new(),
@@ -521,6 +546,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             effective_ordinal: None,
             earnings_catch_up: None,
             reversed_reclassification: None,
+            period_id: None,
+            new_payment_ordinal: None,
         });
     }
     let mut cursor = 0usize;
@@ -877,11 +904,20 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 let delta = amount(st.scale * (h - prev))?;
                                 ms.cum_e = amount(ms.cum_e + delta)?;
                                 st.cum_e = amount(st.cum_e + delta)?;
-                                let due = member
-                                    .hedged_periods
-                                    .iter()
-                                    .any(|&q| exposure.periods[q].payment_ordinal == t);
-                                if due {
+                                let (due, delay) = {
+                                    let ms = &st.members[m];
+                                    let q = member.hedged_periods.iter().copied().find(|&q| {
+                                        exposure.periods[q].payment_ordinal == t
+                                            && !ms.excluded.contains(&q)
+                                    });
+                                    (q, q.and_then(|q| ms.delays.get(&q).copied()))
+                                };
+                                if let Some(later) = delay {
+                                    // The hedged transaction affects earnings on its delayed date;
+                                    // the hypothetical settlement is measured now and deferred.
+                                    let reclass = amount(st.scale * settlement)?;
+                                    st.members[m].deferred.push((later, reclass));
+                                } else if due.is_some() {
                                     let reclass = amount(st.scale * settlement)?;
                                     if reclass != 0. {
                                         ledger.emit(
@@ -912,6 +948,45 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                         st.reclass_log.push((t, m, reclass));
                                     }
                                 }
+                            }
+                            // Deferred reclassifications post on the delayed date whatever the
+                            // relationship's status by then.
+                            let ready: Vec<f64> = {
+                                let ms = &mut st.members[m];
+                                let (now, later): (Vec<_>, Vec<_>) =
+                                    ms.deferred.drain(..).partition(|d| d.0 == t);
+                                ms.deferred = later;
+                                now.into_iter().map(|d| d.1).collect()
+                            };
+                            for reclass in ready {
+                                if reclass == 0. {
+                                    continue;
+                                }
+                                ledger.emit(
+                                    "cash_flow_hedge_reclassification",
+                                    t,
+                                    JournalLedger::Financial,
+                                    Some(instrument),
+                                    Some(&exposure.exposure_id),
+                                    None,
+                                    Some(&rel.relationship_id),
+                                    &r.policy.identity,
+                                    sources_base(vec![
+                                        exposure.source.clone(),
+                                        exposure.probability_evidence.clone(),
+                                        evidence.clone(),
+                                    ]),
+                                    pair(
+                                        Account::CashFlowHedgeOci,
+                                        reclass,
+                                        &exposure.exposure_id,
+                                        &rel.relationship_id,
+                                        Account::HedgedForecastReclassification,
+                                    ),
+                                )?;
+                                st.oci = amount(st.oci - reclass)?;
+                                st.oci_reclassified = amount(st.oci_reclassified + reclass)?;
+                                st.reclass_log.push((t, m, reclass));
                             }
                             let ms = &mut st.members[m];
                             ms.hyp_prev = Some(h);
@@ -976,6 +1051,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 effective_ordinal: None,
                 earnings_catch_up: None,
                 reversed_reclassification: None,
+                period_id: None,
+                new_payment_ordinal: None,
             });
         }
         // Reviewed events at this node, in sequence order.
@@ -1007,6 +1084,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 effective_ordinal: None,
                 earnings_catch_up: None,
                 reversed_reclassification: None,
+                period_id: None,
+                new_payment_ordinal: None,
             };
             let event_sources = || {
                 vec![
@@ -1107,15 +1186,18 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let mut entries = Vec::new();
                         for (m, member) in cr.members.iter().enumerate() {
                             let exposure = &r.forecast_exposures[member.exposure];
+                            let ms = &st.members[m];
                             for &k in &member.hedged_periods {
                                 let p = &exposure.periods[k];
-                                if p.payment_ordinal > cutoff {
+                                if p.payment_ordinal > cutoff && !ms.excluded.contains(&k) {
                                     let tau = actual_year_fraction(
                                         p.start_ordinal,
                                         p.end_ordinal,
                                         p.day_count,
                                     )?;
-                                    entries.push((p.payment_ordinal, m, exposure.notional * tau));
+                                    let pay =
+                                        ms.delays.get(&k).copied().unwrap_or(p.payment_ordinal);
+                                    entries.push((pay, m, exposure.notional * tau));
                                 }
                             }
                         }
@@ -1424,6 +1506,126 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             record.status_after = Status::Discontinued;
                             record.proportion_after = 0.;
                         }
+                        ForecastStatus::Delayed => {
+                            let period_id =
+                                ev.period_id.as_deref().ok_or("delayed period missing")?;
+                            let later = ev.new_payment_ordinal.ok_or("delayed date missing")?;
+                            let (m, q, original) = locate(cr, r, period_id)?;
+                            let st = &mut states[i];
+                            if st.status == Status::Pending {
+                                return Err("forecast status before inception".into());
+                            }
+                            let ms = &mut st.members[m];
+                            if ms.excluded.contains(&q) || ms.delays.contains_key(&q) {
+                                return Err("delayed period is excluded or already delayed".into());
+                            }
+                            ms.delays.insert(q, later);
+                            for tranche in &mut st.frozen_oci {
+                                for e in &mut tranche.entries {
+                                    if !e.released && e.member == m && e.pay == original {
+                                        e.pay = later;
+                                    }
+                                }
+                            }
+                            record.reason = Some("forecast_delayed".into());
+                            record.period_id = Some(period_id.into());
+                            record.new_payment_ordinal = Some(later);
+                        }
+                        ForecastStatus::PeriodProbableNotToOccur => {
+                            // 815-30-40-5 for one hedged period: its pro-rata share of the OCI
+                            // balance and of any frozen tranche is reclassified now and the period
+                            // leaves the relationship; the last remaining period discontinues it.
+                            let period_id = ev.period_id.as_deref().ok_or("period missing")?;
+                            let (m, q, original) = locate(cr, r, period_id)?;
+                            let st = &mut states[i];
+                            if st.status == Status::Pending {
+                                return Err("forecast status before inception".into());
+                            }
+                            let effective =
+                                st.members[m].delays.get(&q).copied().unwrap_or(original);
+                            if st.members[m].excluded.contains(&q) || original <= t {
+                                return Err(
+                                    "period already excluded or already affected earnings".into()
+                                );
+                            }
+                            let mut weights: Vec<(usize, usize, f64)> = Vec::new();
+                            for (m2, member) in cr.members.iter().enumerate() {
+                                let exposure = &r.forecast_exposures[member.exposure];
+                                let ms = &st.members[m2];
+                                for &k in &member.hedged_periods {
+                                    let p = &exposure.periods[k];
+                                    if p.payment_ordinal > t && !ms.excluded.contains(&k) {
+                                        let tau = actual_year_fraction(
+                                            p.start_ordinal,
+                                            p.end_ordinal,
+                                            p.day_count,
+                                        )?;
+                                        weights.push((m2, k, exposure.notional * tau));
+                                    }
+                                }
+                            }
+                            let total: f64 = weights.iter().map(|w| w.2).sum();
+                            let own = weights
+                                .iter()
+                                .find(|w| w.0 == m && w.1 == q)
+                                .map(|w| w.2)
+                                .unwrap_or(0.);
+                            let only = weights.len() == 1;
+                            let share = if only || total <= 0. {
+                                st.oci
+                            } else {
+                                amount(st.oci * own / total)?
+                            };
+                            let mut release = share;
+                            for tranche in &mut st.frozen_oci {
+                                let mut taken = 0.;
+                                for e in &mut tranche.entries {
+                                    if !e.released && e.member == m && e.pay == effective {
+                                        taken = amount(taken + tranche.amount * e.weight)?;
+                                        e.released = true;
+                                    }
+                                }
+                                if tranche.entries.iter().all(|e| e.released) {
+                                    taken = amount(tranche.amount - tranche.released)?;
+                                }
+                                tranche.released = amount(tranche.released + taken)?;
+                                release = amount(release + taken)?;
+                            }
+                            st.oci = amount(st.oci - share)?;
+                            let exposure = &r.forecast_exposures[cr.members[m].exposure];
+                            if release != 0. {
+                                ledger.emit(
+                                    "forecast_not_occurring_release",
+                                    t,
+                                    JournalLedger::Financial,
+                                    Some(instrument),
+                                    Some(&exposure.exposure_id),
+                                    None,
+                                    Some(&rel.relationship_id),
+                                    &r.policy.identity,
+                                    event_sources(),
+                                    pair(
+                                        Account::CashFlowHedgeOci,
+                                        release,
+                                        &exposure.exposure_id,
+                                        &rel.relationship_id,
+                                        Account::HedgedForecastReclassification,
+                                    ),
+                                )?;
+                                st.oci_reclassified = amount(st.oci_reclassified + release)?;
+                            }
+                            st.members[m].excluded.insert(q);
+                            if only && st.status == Status::Qualified {
+                                st.scale = 0.;
+                                st.proportion = 0.;
+                                st.status = Status::Discontinued;
+                            }
+                            record.reason = Some("forecast_period_probable_not_to_occur".into());
+                            record.period_id = Some(period_id.into());
+                            record.released_oci = release;
+                            record.status_after = st.status;
+                            record.proportion_after = st.proportion;
+                        }
                     }
                 }
                 EventKind::RateElection => {
@@ -1599,13 +1801,18 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         let pending = cr
             .members
             .iter()
-            .flat_map(|m| {
+            .zip(&st.members)
+            .flat_map(|(m, ms)| {
                 let exposure = &r.forecast_exposures[m.exposure];
                 m.hedged_periods
                     .iter()
-                    .map(|&k| &exposure.periods[k])
-                    .filter(|p| p.payment_ordinal > last)
-                    .map(|p| p.period_id.clone())
+                    .filter(|&&k| !ms.excluded.contains(&k))
+                    .map(|&k| {
+                        let p = &exposure.periods[k];
+                        (ms.delays.get(&k).copied().unwrap_or(p.payment_ordinal), p)
+                    })
+                    .filter(|(pay, _)| *pay > last)
+                    .map(|(_, p)| p.period_id.clone())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();

@@ -98,6 +98,21 @@ pub enum DiscontinueReason {
 pub enum ForecastStatus {
     NoLongerProbable,
     ProbableNotToOccur,
+    /// One hedged period is delayed within the documented timing window (815-30-40-4): its
+    /// reclassification waits for the new date.
+    Delayed,
+    /// One hedged period is probable of not occurring (815-30-40-5): its share of OCI is
+    /// reclassified at once and the period leaves the relationship.
+    PeriodProbableNotToOccur,
+}
+/// Reviewed timing-window policy: how far beyond its documented date a hedged forecast
+/// transaction may be delayed and remain hedged (the Codification's additional two-month
+/// period is a supplied day count, not a hard-coded rule).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ForecastTimingPolicy {
+    pub identity: Identity,
+    pub additional_delay_days: u32,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -145,6 +160,8 @@ pub struct Policy {
     pub assessment: AssessmentPolicy,
     pub fvh_basis_amortization: BasisAmortization,
     pub cfh_reclassification: Reclassification,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecast_timing: Option<ForecastTimingPolicy>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -341,6 +358,12 @@ pub struct Event {
     /// Group `assess`: the specific last-similar date when determined (815-20-55-23D).
     #[serde(default)]
     pub effective_ordinal: Option<i32>,
+    /// `forecast_status` delayed / period_probable_not_to_occur: the hedged exposure period.
+    #[serde(default)]
+    pub period_id: Option<String>,
+    /// `forecast_status` delayed: the new date on which the delayed transaction affects earnings.
+    #[serde(default)]
+    pub new_payment_ordinal: Option<i32>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -498,6 +521,10 @@ pub struct LifecycleRecord {
     /// Hedged-period reclassifications after the effective date reversed before freezing OCI.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed_reclassification: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_payment_ordinal: Option<i32>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct DailyMember {

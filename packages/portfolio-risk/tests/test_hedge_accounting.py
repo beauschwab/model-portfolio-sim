@@ -347,3 +347,34 @@ def test_forward_starting_hedge_of_forecast_issuance_is_assessed_and_released():
     with pytest.raises(ValueError): run(inside)
     mid = deepcopy(v); mid['events'][0] = event('assess', 'cfh-fwd', MAR1 + 3, 0)
     with pytest.raises(ValueError): run(mid)
+
+
+def test_delayed_and_cancelled_forecast_periods_follow_the_timing_policy():
+    request = raw(); k = cfh_fixed(request)
+    request['policy']['forecast_timing'] = dict(identity=dict(id='timing-policy', revision='r1'), additional_delay_days=62)
+    request['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='delayed', period_id='e2', new_payment_ordinal=MAR1 + 14)]
+    result = run(request); assert verify(request, result)['verified']
+    s2, s3 = (.04 - k) * 100. * 29. / 360., (.045 - k) * 100. * 31. / 360.
+    reclass = [i for i in result['intents'] if i['event_id'].startswith('cash_flow_hedge_reclassification')]
+    assert [i['ordinal'] for i in reclass] == [MAR1 + 14, APR1]; near(reclass[0]['postings'][0]['debit_amount'], s2); near(reclass[1]['postings'][0]['debit_amount'], s3)
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'forecast_status')
+    assert (record['reason'], record['period_id'], record['new_payment_ordinal'], record['status_after']) == ('forecast_delayed', 'e2', MAR1 + 14, 'qualified')
+    near(result['closing'][1]['oci_closing'], 0.)
+    cancelled = raw(); cancelled['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='period_probable_not_to_occur', period_id='e3')]
+    result = run(cancelled); assert verify(cancelled, result)['verified']
+    oci = swap_value(FEB1 + 9, k) - swap_value(FEB1, k); release = oci * 31. / 60.
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'forecast_status')
+    assert (record['reason'], record['period_id'], record['status_after']) == ('forecast_period_probable_not_to_occur', 'e3', 'qualified'); near(record['released_oci'], release)
+    releases = [i for i in result['intents'] if i['event_id'].startswith('forecast_not_occurring_release')]
+    assert [i['ordinal'] for i in releases] == [FEB1 + 9]; near(releases[0]['postings'][0]['debit_amount'], release)
+    reclass = [i for i in result['intents'] if i['event_id'].startswith('cash_flow_hedge_reclassification')]
+    assert [i['ordinal'] for i in reclass] == [MAR1]
+    near(result['closing'][1]['oci_closing'], s3 - release); assert result['relationships'][1]['pending_reclassification_periods'] == []
+    for kind in ('window', 'late', 'no_policy', 'unknown', 'twice'):
+        bad = deepcopy(request)
+        if kind == 'window': bad['events'][0]['new_payment_ordinal'] = MAR1 + 63
+        elif kind == 'late': bad['events'][0]['ordinal'] = MAR1
+        elif kind == 'no_policy': bad['policy'].pop('forecast_timing')
+        elif kind == 'unknown': bad['events'][0]['period_id'] = 'e9'
+        else: bad = deepcopy(cancelled); bad['events'].append(event('forecast_status', 'cfh-1', FEB1 + 10, 0, status='period_probable_not_to_occur', period_id='e3'))
+        with pytest.raises(ValueError): run(bad)

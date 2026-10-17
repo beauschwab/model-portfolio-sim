@@ -383,6 +383,12 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             )),
         }
     };
+    if let Some(timing) = &r.policy.forecast_timing {
+        identity(&timing.identity, &mut bytes)?;
+        if !(1..=366).contains(&timing.additional_delay_days) {
+            return Err("forecast timing policy requires 1..=366 additional delay days".into());
+        }
+    }
     let s = &r.policy.assessment;
     if !s.lower_bound.is_finite()
         || !s.upper_bound.is_finite()
@@ -1075,6 +1081,56 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     || ev.reason.is_some()
                 {
                     return Err("forecast status events apply to cash-flow hedges only and carry only a status".into());
+                }
+                let locate = |period_id: &str| -> Option<&Period> {
+                    cr.members.iter().find_map(|m| {
+                        let exposure = &r.forecast_exposures[m.exposure];
+                        m.hedged_periods
+                            .iter()
+                            .map(|&q| &exposure.periods[q])
+                            .find(|p| p.period_id == period_id)
+                    })
+                };
+                match ev.status.ok_or("forecast status missing")? {
+                    ForecastStatus::NoLongerProbable | ForecastStatus::ProbableNotToOccur => {
+                        if ev.period_id.is_some() || ev.new_payment_ordinal.is_some() {
+                            return Err(
+                                "relationship-level forecast status carries no period or new date"
+                                    .into(),
+                            );
+                        }
+                    }
+                    ForecastStatus::Delayed => {
+                        let timing = r
+                            .policy
+                            .forecast_timing
+                            .as_ref()
+                            .ok_or("delayed forecast transactions require the reviewed forecast timing policy")?;
+                        let period = ev.period_id.as_deref().and_then(locate).ok_or(
+                            "delayed period must be a hedged exposure period of the relationship",
+                        )?;
+                        let later = ev
+                            .new_payment_ordinal
+                            .ok_or("delayed forecast transaction requires its new date")?;
+                        validate_ordinal(later)?;
+                        if ev.ordinal >= period.payment_ordinal
+                            || later <= period.payment_ordinal
+                            || later > period.payment_ordinal + timing.additional_delay_days as i32
+                        {
+                            return Err("a delay must be recorded before the original date and fall within the documented timing window".into());
+                        }
+                        let last = path.nodes[path.nodes.len() - 1].ordinal;
+                        if later <= last && !node_index.contains_key(&later) {
+                            return Err("delayed payment date is not a derivative path node".into());
+                        }
+                    }
+                    ForecastStatus::PeriodProbableNotToOccur => {
+                        if ev.new_payment_ordinal.is_some()
+                            || ev.period_id.as_deref().and_then(locate).is_none()
+                        {
+                            return Err("period non-occurrence names one hedged exposure period and no new date".into());
+                        }
+                    }
                 }
             }
             EventKind::RateElection => {

@@ -96,9 +96,12 @@ A `cash_flow_hedge` relationship names `forecast_exposure_id` instead of
 Events are `assess`, `discontinue` (`reason` in `dedesignation`,
 `hedged_item_sold`, `instrument_terminated`; optional `proportion` in (0,1]
 of the remaining designated proportion, default 1), `forecast_status`
-(`status` in `no_longer_probable`, `probable_not_to_occur`; CFH only) and,
-under the ASU 2025-09 election, `rate_election` (`index_id`). Group
-assessments may carry `effective_ordinal`. Events are globally ordered by
+(`status` in `no_longer_probable`, `probable_not_to_occur`, `delayed`,
+`period_probable_not_to_occur`; CFH only) and, under the ASU 2025-09
+election, `rate_election` (`index_id`). Group assessments may carry
+`effective_ordinal`; `delayed` carries `period_id` and `new_payment_ordinal`
+and requires the reviewed `policy.forecast_timing = {identity,
+additional_delay_days}`; `period_probable_not_to_occur` carries `period_id`. Events are globally ordered by
 `(ordinal, sequence)` with unique ids and reviews.
 
 ## Admission
@@ -202,7 +205,13 @@ debit `-R`. After discontinuation the frozen OCI balance `F` is released at
 each remaining period `k` by `F * w_k` with `w_k = N tau_k / sum N tau` over
 periods remaining at discontinuation; the last release clears the balance
 exactly. `probable_not_to_occur` posts the entire remaining balance at the
-event node.
+event node. A `delayed` period (815-30-40-4) recorded before its original
+date, with a new date within the documented window, keeps its hypothetical
+settlement measured at the original node but posts the reclassification (or
+the frozen release) on the new date; `period_probable_not_to_occur`
+(815-30-40-5 for one period) reclassifies that period's `N tau` share of the
+OCI balance and its frozen entries at the event node and removes the period
+from the relationship, discontinuing it when no hedged period remains.
 
 **Assessment.** At an `assess` event, `ratio = D_t / E_t` where for FVH
 `E_t = -dir * sum(dC)` since inception (the clean benchmark-component change,

@@ -16,6 +16,11 @@ reclassification, frozen OCI release, basis amortization/derecognition and one
 ordered journal. See [the contract](hedge-accounting.md). The rule matrix is
 `asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 dual-hedge election,
 net investment, standalone options and defaulted paths refuse explicitly.
+Forecast timing follows a reviewed `forecast_timing` policy: a hedged period
+delayed within the documented window keeps its measured settlement and posts
+on the new date, and a single period probable of not occurring releases its
+pro-rata OCI share at once (native and engine hand-value cases with window,
+late-recording, policy and repeat refusals).
 Accrual-free dates are now any date strictly inside no period of the instrument
 legs and hedged item/exposure, so forward-starting instruments and forecast
 issuances are designated and assessed before their first period (native and

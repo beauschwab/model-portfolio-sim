@@ -1101,3 +1101,114 @@ fn forward_starting_hedge_of_forecast_issuance_is_assessed_and_released() {
     mid["events"][0]["ordinal"] = json!(day(3, 4));
     assert!(run(&mid).is_err());
 }
+
+#[test]
+fn delayed_and_cancelled_forecast_periods_follow_the_timing_policy() {
+    let mut v = raw();
+    let k = cfh_fixed(&v);
+    v["policy"]["forecast_timing"] =
+        json!({"identity": {"id": "timing-policy", "revision": "r1"}, "additional_delay_days": 62});
+    v["events"] = json!([{"event_id": "delay", "relationship_id": "cfh-1", "ordinal": day(2, 10), "sequence": 0, "kind": "forecast_status",
+        "review": {"id": "review", "revision": "r1"}, "status": "delayed", "period_id": "e2", "new_payment_ordinal": day(3, 15)}]);
+    let result = run(&v).unwrap();
+    let s2 = (0.04 - k) * 100. * 29. / 360.;
+    let s3 = (0.045 - k) * 100. * 31. / 360.;
+    let reclass: Vec<&Intent> = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("cash_flow_hedge_reclassification"))
+        .collect();
+    assert_eq!(
+        reclass.iter().map(|i| i.ordinal).collect::<Vec<_>>(),
+        [day(3, 15), day(4, 1)]
+    );
+    close(reclass[0].postings[0].debit_amount, s2);
+    close(reclass[1].postings[0].debit_amount, s3);
+    let record = result
+        .lifecycle
+        .iter()
+        .find(|l| l.kind == "forecast_status")
+        .unwrap();
+    assert_eq!(record.reason.as_deref(), Some("forecast_delayed"));
+    assert_eq!(record.period_id.as_deref(), Some("e2"));
+    assert_eq!(record.new_payment_ordinal, Some(day(3, 15)));
+    assert_eq!(record.status_after, Status::Qualified);
+    close(result.closing[1].oci_closing, 0.);
+    let mut cancelled = raw();
+    cancelled["events"] = json!([{"event_id": "cancel", "relationship_id": "cfh-1", "ordinal": day(2, 10), "sequence": 0, "kind": "forecast_status",
+        "review": {"id": "review", "revision": "r1"}, "status": "period_probable_not_to_occur", "period_id": "e3"}]);
+    let result = run(&cancelled).unwrap();
+    let oci = swap_value(day(2, 10), k) - swap_value(day(2, 1), k);
+    let release = oci * 31. / 60.;
+    let record = result
+        .lifecycle
+        .iter()
+        .find(|l| l.kind == "forecast_status")
+        .unwrap();
+    assert_eq!(
+        record.reason.as_deref(),
+        Some("forecast_period_probable_not_to_occur")
+    );
+    assert_eq!(record.period_id.as_deref(), Some("e3"));
+    assert_eq!(record.status_after, Status::Qualified);
+    close(record.released_oci, release);
+    let releases: Vec<&Intent> = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("forecast_not_occurring_release"))
+        .collect();
+    assert_eq!(
+        releases.iter().map(|i| i.ordinal).collect::<Vec<_>>(),
+        [day(2, 10)]
+    );
+    close(releases[0].postings[0].debit_amount, release);
+    let reclass: Vec<i32> = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("cash_flow_hedge_reclassification"))
+        .map(|i| i.ordinal)
+        .collect();
+    assert_eq!(reclass, [day(3, 1)]);
+    close(result.closing[1].oci_closing, s3 - release);
+    assert!(result.relationships[1]
+        .pending_reclassification_periods
+        .is_empty());
+    let cases: Vec<(&str, Value, Change)> = vec![
+        (
+            "window",
+            v.clone(),
+            Box::new(|x| x["events"][0]["new_payment_ordinal"] = json!(day(5, 3))),
+        ),
+        (
+            "late",
+            v.clone(),
+            Box::new(|x| x["events"][0]["ordinal"] = json!(day(3, 1))),
+        ),
+        (
+            "no policy",
+            v.clone(),
+            Box::new(|x| x["policy"]["forecast_timing"] = Value::Null),
+        ),
+        (
+            "unknown period",
+            v.clone(),
+            Box::new(|x| x["events"][0]["period_id"] = json!("e9")),
+        ),
+        (
+            "twice",
+            cancelled.clone(),
+            Box::new(|x| {
+                x["events"].as_array_mut().unwrap().push(json!({"event_id": "cancel2", "relationship_id": "cfh-1", "ordinal": day(2, 11), "sequence": 0,
+                    "kind": "forecast_status", "review": {"id": "review", "revision": "r1"}, "status": "period_probable_not_to_occur", "period_id": "e3"}));
+            }),
+        ),
+    ];
+    for (label, base, change) in cases {
+        let mut x = base;
+        change(&mut x);
+        let outcome = serde_json::from_value::<HedgeAccountingRequest>(x)
+            .map_err(|e| e.to_string())
+            .and_then(|r| hedge::evaluate(&r).map(|_| ()));
+        assert!(outcome.is_err(), "{label} must reject");
+    }
+}
