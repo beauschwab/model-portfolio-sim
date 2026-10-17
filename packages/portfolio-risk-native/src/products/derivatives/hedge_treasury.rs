@@ -167,6 +167,9 @@ pub fn evaluate(r: &Request) -> Result<HedgeTreasuryResult, String> {
         if p.capital.period != closing_date {
             return Err("ledger policy capital period must equal the closing date".into());
         }
+        if p.aoci_eligibility.is_none() {
+            return Err("hedge closing capital requires the reviewed AOCI deferred-tax/opt-out/phase-in policy on every ledger policy".into());
+        }
         if eligible.is_some_and(|e| e != p.cash_flow_hedge_aoci_eligible) {
             return Err(
                 "one reviewed cash-flow-hedge AOCI eligibility decision per closing".into(),

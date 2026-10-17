@@ -35,9 +35,12 @@ the existing treasury bridge: per-instrument rows reconciled to the closing tria
 balance, cash-flow-hedge AOCI under its own GL with the reviewed
 `cash_flow_hedge_aoci_eligible` policy flag (default excluded), hedged-item basis
 as a signed asset/liability adjustment, and the thirteen-ratio bridge with
-supplied requirements and weights. Evidence: three native tests, 20
-engine checks, five durable API checks, independent row/capital replay.
-Interim capital, FTP, deferred-tax/opt-out policy and approval remain open.
+supplied requirements and weights. Each policy carries the reviewed AOCI
+treatment (deferred-tax rate disclosed as an unposted DTA/DTL, opt-out election,
+phase-in fraction), the explicit #30/#72 inputs to eligible AOCI. Evidence: three
+native tests, 21 engine checks, five durable API checks, independent row/capital
+replay, unchanged treasury-bridge suites. Interim capital, FTP, posted deferred
+tax/threshold deductions and approval remain open.
 
 Not closed by this stage: accounting-standard approval, observed effectiveness,
 ASU 2025-09 lanes, portfolio layers, net investment, options, saved-book and shared

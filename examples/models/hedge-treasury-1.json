@@ -68276,6 +68276,15 @@
    },
    "include_aoci": true,
    "cash_flow_hedge_aoci_eligible": false,
+   "aoci_eligibility": {
+    "identity": {
+     "id": "aoci-capital-policy",
+     "revision": "r1"
+    },
+    "deferred_tax_rate": 0.21,
+    "opt_out_elected": false,
+    "phase_in_fraction": 0.4
+   },
    "equity_exclusions": 0.0,
    "intangible_assets": 0.0,
    "leverage_addon": 0.0,

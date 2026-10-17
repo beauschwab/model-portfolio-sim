@@ -95,13 +95,25 @@ fn example_maps_closing_balances_and_excludes_cash_flow_hedge_aoci_by_policy() {
     let mut eligible = raw();
     eligible["policies"][0]["cash_flow_hedge_aoci_eligible"] = json!(true);
     let result = run(&eligible).unwrap();
+    let audit = &result.capital["capital_bridge"][0];
+    // Eligible AOCI = included x (1 - deferred tax) x phase-in; the deferred tax is disclosed, not posted.
+    close(audit["included_aoci"].as_f64().unwrap(), -oci);
+    close(audit["deferred_tax_on_aoci"].as_f64().unwrap(), oci * 0.21);
+    close(audit["eligible_aoci"].as_f64().unwrap(), -oci * 0.79 * 0.4);
+    assert_eq!(audit["aoci_phase_in_fraction"], json!(0.4));
+    assert!(result.cash_flow_hedge_aoci_eligible);
+    let mut opted_out = eligible.clone();
+    opted_out["policies"][0]["aoci_eligibility"]["opt_out_elected"] = json!(true);
+    let result = run(&opted_out).unwrap();
     close(
         result.capital["capital_bridge"][0]["eligible_aoci"]
             .as_f64()
             .unwrap(),
-        -oci,
+        0.,
     );
-    assert!(result.cash_flow_hedge_aoci_eligible);
+    let mut untreated = eligible.clone();
+    untreated["policies"][0]["aoci_eligibility"] = Value::Null;
+    assert!(run(&untreated).unwrap_err().contains("reviewed AOCI"));
 }
 
 type Change = Box<dyn Fn(&mut Value)>;
@@ -141,6 +153,14 @@ fn explicit_refusals() {
             Box::new(|v| {
                 v["policies"][0]["gl_risk_weights"]["hedged_item_basis_adjustment"] = json!(1.)
             }),
+        ),
+        (
+            "tax rate",
+            Box::new(|v| v["policies"][0]["aoci_eligibility"]["deferred_tax_rate"] = json!(1.)),
+        ),
+        (
+            "phase-in",
+            Box::new(|v| v["policies"][0]["aoci_eligibility"]["phase_in_fraction"] = json!(1.5)),
         ),
         (
             "unknown field",

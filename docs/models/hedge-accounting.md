@@ -287,8 +287,19 @@ derivative rights at the closing date refuse. A negative asset-item basis
 cannot carry a nonzero risk weight because the item's own carrying rows are
 owned outside this journal. The bridge policy field
 `cash_flow_hedge_aoci_eligible` (default `false`) decides whether
-`cash_flow_hedge_oci` enters eligible AOCI when `include_aoci` is true; the
-bridge audit discloses `cash_flow_hedge_aoci` separately. The result retains
+`cash_flow_hedge_oci` enters eligible AOCI when `include_aoci` is true.
+
+Every policy on this route must also carry the reviewed `aoci_eligibility`
+treatment `{identity, deferred_tax_rate, opt_out_elected, phase_in_fraction}`
+(#30/#72 inputs): included AOCI is the book AOCI admitted by `include_aoci`
+and the cash-flow-hedge flag; `deferred_tax_on_aoci = -included * rate` is
+disclosed, not posted (the DTA/DTL and any threshold deduction stay with the
+item owners and tax policy); eligible AOCI is zero under an opt-out election,
+otherwise `included * (1 - rate) * phase_in_fraction`. The phase-in fraction
+is a supplied schedule value, not a hard-coded rule. The bridge audit then
+discloses `cash_flow_hedge_aoci`, `included_aoci`, `deferred_tax_on_aoci`,
+`aoci_opt_out_elected`, `aoci_phase_in_fraction` and the policy identity;
+policies without the treatment keep the historical audit unchanged. The result retains
 the hedge result as evidence, the rows, policies, the bridge output (prepared
 capital, thirteen ratios, audit, contributions) and explicit false flags for
 interim capital, FTP, accounting-standard and regulatory approval. The

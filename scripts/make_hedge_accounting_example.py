@@ -201,6 +201,7 @@ def treasury_request():
                                      tlac_leverage=requirement(.075), ltd_rwa=requirement(.06), ltd_leverage=requirement(.045),
                                      tce_ta=requirement(.05)))
     policy = dict(account='bank', scenario='physical', capital=capital, include_aoci=True, cash_flow_hedge_aoci_eligible=False,
+                  aoci_eligibility=dict(identity=ident('aoci-capital-policy'), deferred_tax_rate=.21, opt_out_elected=False, phase_in_fraction=.4),
                   equity_exclusions=0., intangible_assets=0., leverage_addon=0., leverage_deductions=0.,
                   gl_risk_weights={'cash': 0., 'derivative_value': 1., 'posted_margin': 0., 'hedged_item_basis_adjustment': 0.},
                   instrument_risk_weights={})

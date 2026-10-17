@@ -64,6 +64,9 @@ def _typed_policy(p):
     p = deepcopy(p)
     for key in ('equity_exclusions', 'intangible_assets', 'leverage_addon', 'leverage_deductions'): p[key] = _money(p[key])
     for name in ('gl_risk_weights', 'instrument_risk_weights'): p[name] = {k: _money(v) for k, v in p[name].items()}
+    _require(type(p.get('aoci_eligibility')) is dict, 'reviewed AOCI deferred-tax/opt-out/phase-in policy required')
+    a = p['aoci_eligibility']; a['deferred_tax_rate'] = _money(a['deferred_tax_rate']); a['phase_in_fraction'] = _money(a['phase_in_fraction'])
+    _require(0. <= a['deferred_tax_rate'] < 1. and 0. <= a['phase_in_fraction'] <= 1. and type(a['opt_out_elected']) is bool, 'AOCI eligibility policy domain')
     c = p['capital']
     for key, value in list(c.items()):
         if key in ('entity', 'currency', 'scenario', 'period', 'requirements'): continue
@@ -98,13 +101,19 @@ def capital(rows, policies, multiplier):
         p = rules[key]; equity = a[2] + a[3] + a[4]
         _require(abs(a[6]) <= 1e-8 * max(abs(a[0]), abs(a[1]), 1.) and abs(a[0] - a[1] - equity) <= 1e-8 * max(abs(a[0]), abs(a[1]), 1.), 'unbalanced bridge')
         c = deepcopy(p['capital'])
-        eligible = (a[4] - (0. if p.get('cash_flow_hedge_aoci_eligible') else a[7])) if p['include_aoci'] else 0.
+        included = (a[4] - (0. if p.get('cash_flow_hedge_aoci_eligible') else a[7])) if p['include_aoci'] else 0.
+        policy = p['aoci_eligibility']
+        deferred_tax = -included * policy['deferred_tax_rate']
+        eligible = 0. if policy['opt_out_elected'] else included * (1. - policy['deferred_tax_rate']) * policy['phase_in_fraction']
         c.update(scenario=key[0], common_equity=a[2] - p['equity_exclusions'], retained_earnings=a[3], eligible_aoci=eligible, credit_rwa=a[5],
                  total_leverage_exposure=a[0] + p['leverage_addon'] - p['leverage_deductions'],
                  tangible_common_equity=equity - p['equity_exclusions'] - p['intangible_assets'], tangible_assets=a[0] - p['intangible_assets'])
         capitals.append(c)
         audits.append(dict(scenario=key[0], account=key[1], entity=c['entity'], currency=c['currency'], assets=a[0], liabilities=a[1], book_equity=equity,
-                           common_equity=c['common_equity'], retained_earnings=a[3], book_aoci=a[4], cash_flow_hedge_aoci=a[7], eligible_aoci=eligible,
+                           common_equity=c['common_equity'], retained_earnings=a[3], book_aoci=a[4], eligible_aoci=eligible,
+                           cash_flow_hedge_aoci=a[7], included_aoci=included, deferred_tax_on_aoci=deferred_tax,
+                           aoci_opt_out_elected=policy['opt_out_elected'], aoci_phase_in_fraction=policy['phase_in_fraction'],
+                           aoci_eligibility_policy=deepcopy(policy['identity']),
                            equity_exclusions=p['equity_exclusions'], credit_rwa=a[5], reconciliation_error=a[6]))
     metrics = []
     for c in capitals:

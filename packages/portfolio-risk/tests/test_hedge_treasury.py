@@ -40,12 +40,19 @@ def test_closing_rows_and_capital_verify_independently(accepted):
     assert result['hedge']['relationships'][1]['pending_reclassification_periods'] == ['e4']
 
 
-def test_reviewed_policy_makes_cash_flow_hedge_aoci_eligible():
+def test_reviewed_policy_makes_cash_flow_hedge_aoci_eligible_after_tax_and_phase_in():
     request = raw(); request['policies'][0]['cash_flow_hedge_aoci_eligible'] = True
     result = prepare_hedge_treasury(request); receipt = verify(request, result)
     assert receipt['cash_flow_hedge_aoci_eligible'] is True
     audit = result['capital']['capital_bridge'][0]
-    assert abs(audit['eligible_aoci'] - audit['book_aoci']) < 1e-9 and abs(audit['book_aoci']) > 1e-6
+    assert abs(audit['included_aoci'] - audit['book_aoci']) < 1e-9 and abs(audit['book_aoci']) > 1e-6
+    assert abs(audit['deferred_tax_on_aoci'] + audit['book_aoci'] * .21) < 1e-9
+    assert abs(audit['eligible_aoci'] - audit['book_aoci'] * .79 * .4) < 1e-9
+    opted = deepcopy(request); opted['policies'][0]['aoci_eligibility']['opt_out_elected'] = True
+    result = prepare_hedge_treasury(opted); assert verify(opted, result)['verified']
+    assert result['capital']['capital_bridge'][0]['eligible_aoci'] == 0.
+    untreated = deepcopy(request); untreated['policies'][0]['aoci_eligibility'] = None
+    with pytest.raises(ValueError, match='reviewed AOCI'): prepare_hedge_treasury(untreated)
 
 
 @pytest.mark.parametrize('target', ['row', 'audit', 'metric', 'flag', 'eligible', 'hedge', 'policy'])
@@ -62,7 +69,7 @@ def test_independent_replay_rejects_tampered_results(accepted, target):
     with pytest.raises((ValueError, ArithmeticError)): verify(raw_request, changed)
 
 
-@pytest.mark.parametrize('kind', ['as_of', 'period', 'scenario', 'multiplier', 'capital', 'weight', 'basis_weight', 'unknown'])
+@pytest.mark.parametrize('kind', ['as_of', 'period', 'scenario', 'multiplier', 'capital', 'weight', 'basis_weight', 'unknown', 'tax_rate'])
 def test_native_refusals(kind):
     request = raw()
     if kind == 'as_of': request['treasury']['as_of'] = '2024-03-01'
@@ -72,6 +79,7 @@ def test_native_refusals(kind):
     elif kind == 'capital': request['treasury']['capital'] = [dict(entity='bank')]
     elif kind == 'weight': request['policies'][0]['gl_risk_weights'] = {'cash': 0.}
     elif kind == 'basis_weight': request['policies'][0]['gl_risk_weights']['hedged_item_basis_adjustment'] = 1.
+    elif kind == 'tax_rate': request['policies'][0]['aoci_eligibility']['deferred_tax_rate'] = 1.
     else: request['policies'][0]['ftp'] = True
     with pytest.raises(ValueError): prepare_hedge_treasury(request)
 
