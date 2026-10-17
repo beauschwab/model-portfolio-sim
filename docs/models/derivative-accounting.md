@@ -158,6 +158,47 @@ actual transaction ingestion, journal-to-capital/FTP reconciliation, production
 scale/deadline acceptance, empirical option/XVA validation and legally supported
 closeout/hedge-accounting scope. This component does not close those gates.
 
+## Closing capital feed (`derivative-treasury-1`)
+
+`portfolio_risk_native::derivative_treasury::evaluate` (protocol
+`derivative-treasury-1`, `analytics.model_contracts.prepare_derivative_treasury`)
+re-executes a standalone reviewed `derivative-accounting-1` request natively and
+feeds its balances to the existing treasury bridge (`treasury/bridge.rs`,
+`treasury-1`) under supplied ledger policies. It is the no-hedge counterpart of
+`hedge-treasury-1`: every mark stays in earnings, so no cash-flow-hedge AOCI,
+basis adjustment or reclassification row exists and the reviewed
+`aoci_eligibility` policy block is optional (absent, book AOCI is zero, eligible
+AOCI equals included AOCI and the extended AOCI audit keys are omitted, exactly
+as the native bridge emits them).
+
+Request: `schema`, the complete `derivative` request, `account`, a reviewed
+`mapping` identity, the `treasury` request with `as_of` and empty supplied
+capital/positions/curves/deltas/units, 1..=16 `policies` naming the derivative
+scenario, account and the closing date as capital period, a positive finite
+`amount_multiplier`, and an optional `interim_report` flag. Balances are
+accumulated per `(account, instrument)` from Financial-ledger intents with
+ordinal at or before the reporting node plus the opening anchors (cash, margin,
+opening equity, gross opening trade values), reconciled against that node's
+`financial_trial_balance`, and mapped: `cash`, `derivative_value` (gross asset
+and liability per instrument), `posted_margin`, `received_margin`,
+`opening_equity` and the `pnl:derivative_*` earnings GLs. Custodian memo
+accounts map to nothing; near-zero rows are omitted; unpaid rights at the
+reporting date refuse. `treasury.as_of` must equal the complete-tail closing
+date, or with `interim_report` a derivative path node strictly before it.
+
+Result: the reporting node (`closing_ordinal`, `closing_date`), rows, the
+embedded derivative result, the bridge `capital` output (thirteen ratios, no
+FTP positions or limits) and explicit flags: `closing_capital_selected`,
+`interim_capital`, `ftp_selected=false`, `hedge_accounting_applied=false`,
+and false accounting-standard, regulatory, empirical and persisted-verification
+claims. `derivative_treasury_reference.verify` independently re-derives the
+derivative journal with the existing raw verifier, rebuilds the rows through
+the selected node, recomputes the capital audit and ratios, and compares every
+field; its receipt reports `derivative_closing_capital_recomputed`. The durable
+`/models/runs` route, Model Lab panel and example `derivative-treasury-1.json`
+reuse the existing fences. Mixed saved-derivative journals, FTP and regulatory
+approval remain open.
+
 ## Independent raw-source verification
 
 `portfolio_risk.analytics.derivative_verification.verify_derivative_accounting(raw_request,

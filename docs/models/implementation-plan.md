@@ -80,6 +80,15 @@ journal and roll-forwards. Both oracles now treat rounding-level intents as zero
 events; the previous derivative verifier dropped native floating-noise marks for
 exactly offsetting legs, so at-market fixtures use a par rate with distinct legs.
 
+`derivative-treasury-1` (2026-10-17) feeds the standalone reviewed derivative
+journal to the same bridge without hedge accounting: per-instrument cash, gross
+value, margin, opening-equity and earnings rows reconciled to the selected
+reporting node, an optional AOCI policy block (no OCI arises), the same
+`interim_report` selection and refusals; evidence: two native tests (example
+rows against the trial balance, interim selection, nine refusals and the
+protocol envelope) and engine/API suites with independent row/capital replay
+and tamper refusals.
+
 `hedge-treasury-1` (same stage) feeds the verified complete-tail hedge closing to
 the existing treasury bridge: per-instrument rows reconciled to the closing trial
 balance, cash-flow-hedge AOCI under its own GL with the reviewed
@@ -109,7 +118,7 @@ browser flow beyond the generic model-analysis page, PostgreSQL parity and the
 | Netting vs gross, collateral, closeout conservation | CSA/MPOR/default native cases; independent raw replay before and after persistence | dynamic IM, own default/DVA |
 | Missing mapping/CSA fail before publication | saved-derivative admission and `/derivatives/mixed/runs` publication fences | saved-book UI adoption |
 | Margin transfers never counted twice as trading loss | derivative accounting intents; mixed shared-journal replay; hedge lane reuses the same owner once | treasury/capital feed |
-| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
+| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
 
 ## Separate fee owner (local0.29.16; supported component validated)
 

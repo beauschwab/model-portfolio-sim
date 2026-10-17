@@ -12,6 +12,7 @@ noise marks that the exact-zero posting filter treats differently across
 implementations. Opening anchors use the same simple discount formula as the
 curve; this is fixture construction, not a production calculation.
 """
+from copy import deepcopy
 import datetime as dt
 import json
 from pathlib import Path
@@ -211,8 +212,16 @@ def treasury_request():
                 policies=[policy], amount_multiplier=1.)
 
 
+def derivative_treasury_request():
+    """Closing capital on the standalone derivative journal: no hedge accounting, every mark in earnings."""
+    hedge = treasury_request(); policy = deepcopy(hedge['policies'][0])
+    policy['gl_risk_weights'] = {'cash': 0., 'derivative_value': 1., 'posted_margin': 0.}
+    return dict(schema='derivative-treasury-1', derivative=derivative(), account='bank', mapping=dict(identity=ident('derivative-gl-mapping')),
+                treasury=dict(hedge['treasury']), policies=[policy], amount_multiplier=1., interim_report=False)
+
+
 if __name__ == '__main__':
-    for name, body in (('hedge-accounting-1', request()), ('hedge-treasury-1', treasury_request())):
+    for name, body in (('hedge-accounting-1', request()), ('hedge-treasury-1', treasury_request()), ('derivative-treasury-1', derivative_treasury_request())):
         target = ROOT / f'examples/models/{name}.json'
         target.write_text(json.dumps(body, indent=1) + '\n', encoding='utf-8')
         print(target, target.stat().st_size, 'bytes')

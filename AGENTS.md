@@ -1119,3 +1119,7 @@ explicit `interim_report` selection of report-date capital at a path node, and
 the existing thirteen-ratio bridge. Rows near zero are omitted, unpaid rights
 and negative basis with nonzero weight refuse. Interim capital, FTP,
 deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.
+`derivative-treasury-1` feeds the standalone `derivative-accounting-1` journal
+to the same bridge with no hedge accounting: per-instrument rows reconciled to
+the selected reporting node, an optional AOCI policy block and the same interim
+selection and refusals. Mixed saved-derivative treasury feeds remain open.

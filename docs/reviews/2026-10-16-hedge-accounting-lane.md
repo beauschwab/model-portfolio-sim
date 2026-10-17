@@ -154,6 +154,16 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
   uses a zero pre-opening coupon and the cash-flow opening value carries it.
   The opening also carries the remaining designated scale and frozen basis/OCI
   tranches, which continue straight-line amortization and pro-rata release.
+- Derivative closing capital (2026-10-17): `derivative-treasury-1` maps the
+  standalone reviewed derivative journal (no hedge accounting) to the treasury
+  bridge: per-instrument cash, gross value, margin, opening-equity and earnings
+  rows through the complete tail or an explicit interim node, reconciled to that
+  node's trial balance; the AOCI policy block is optional and, absent, the
+  bridge emits no extended AOCI audit keys (the Python reference mirrors that
+  branch). Evidence: native `derivative_treasury` 2 passed, engine
+  `test_derivative_treasury.py` 17 passed (with the rebuilt release binary)
+  and API `test_derivative_treasury_jobs.py` 6 passed; the hedge treasury
+  engine (23) and API (5) suites were rerun after the optional-policy change.
 
 | Gate | Command | Result |
 |---|---|---|
@@ -161,6 +171,7 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
 | Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 10 + 4 + 19 passed; strict Clippy and `cargo fmt --check` clean |
 | Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 116 passed (23 + 16 + 24 + 30 + 23) with the rebuilt release binary; the treasury suite now feeds the seasoned and compound variants through `hedge-treasury-1` with independent replay |
 | API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
+| Derivative treasury (2026-10-17) | `cargo test --release ... --test derivative_treasury`; engine `tests/test_derivative_treasury.py tests/test_hedge_treasury.py`; API `tests/test_derivative_treasury_jobs.py tests/test_hedge_treasury_jobs.py` | 2 passed; 40 passed (17 + 23); 11 passed (6 + 5); strict Clippy and `cargo fmt --check` clean |
 | Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
 | Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |
 

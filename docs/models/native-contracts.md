@@ -402,3 +402,12 @@ AOCI only when the reviewed policy flag `cash_flow_hedge_aoci_eligible` is set.
 The independent reference recomputes rows, eligible amounts and the thirteen
 ratios; an explicit `interim_report` selects report-date capital at a path node
 before the complete tail. FTP and approval remain open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).
+
+`derivative-treasury-1` is the same bridge for a standalone reviewed
+`derivative-accounting-1` journal with no hedge accounting: cash, gross derivative
+values, margin, opening equity and earnings balances map once per instrument to
+reviewed GLs, reconcile to the selected reporting node's trial balance and enter
+the thirteen-ratio bridge under supplied policies, whose AOCI eligibility block
+is optional because no OCI arises. The same `interim_report` selection applies;
+unpaid rights, supplied capital/positions/curves and hedge accounts refuse. See
+[the derivative treasury feed](derivative-accounting.md#closing-capital-feed-derivative-treasury-1).
