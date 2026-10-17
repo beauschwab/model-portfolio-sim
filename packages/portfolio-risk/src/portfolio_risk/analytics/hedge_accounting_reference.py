@@ -21,7 +21,7 @@ ACCOUNTS = ('cash', 'derivative_asset', 'derivative_liability', 'unpaid_receivab
 FLAGS = dict(accounting_standard_approval=False, empirical_validation=False, persisted_journal_verified=False,
              saved_book_adoption=False, portfolio_layer_supported=False, net_investment_supported=False,
              asu_2025_09_similar_risk_supported=True, asu_2025_09_selectable_rate_supported=True,
-             asu_2025_09_swap_written_option_supported=True)
+             asu_2025_09_swap_written_option_supported=True, seasoned_openings_supported=True)
 SIMILAR_METHODS = ('instrument_highly_effective_each_risk', 'hedged_risks_similar_to_each_other')
 
 
@@ -104,7 +104,7 @@ def _periods(periods, asof, label):
     prior = None; ids = set()
     for p in periods:
         _require(set(p) == {'period_id', 'start_ordinal', 'end_ordinal', 'payment_ordinal', 'day_count'}, label + ' period fields')
-        _require(asof <= p['start_ordinal'] < p['end_ordinal'] <= p['payment_ordinal'] and (prior is None or prior == p['start_ordinal'])
+        _require(asof - 36600 <= p['start_ordinal'] < p['end_ordinal'] <= p['payment_ordinal'] <= asof + 36600 and (prior is None or prior == p['start_ordinal'])
                  and p['period_id'] not in ids, label + ' periods must be chronological, contiguous and unique')
         ids.add(p['period_id']); prior = p['end_ordinal']
 
@@ -175,7 +175,13 @@ def _admit(raw):
                 o = trade.get('request', trade.get('terminal'))
                 _require(o['side'] == 'short' and o['settlement'] == 'collateralized_cash_price'
                          and all(_near(s['underlying']['notional'], swap['notional']) for s in o['states']), 'written option terms')
-        _require(inception in nodes and inception >= asof, 'inception node')
+        opening = rel.get('opening'); seasoned = inception < asof
+        _require(seasoned == (opening is not None), 'opening block exactly for relationships designated before the opening date')
+        if opening is not None:
+            for key in ('hedged_value', 'cumulative_instrument_change', 'cumulative_hedged_change', 'basis_balance', 'oci_balance'): _money(opening[key])
+            _require(rel.get('group') is None and rel.get('rate_hypotheticals') is None and rel['predecessor_relationship_id'] is None, 'seasoned opening combinations')
+            _require(opening['oci_balance'] == 0. if rel['designation'] == 'fair_value_hedge' else opening['basis_balance'] == 0., 'seasoned opening balance kind')
+        else: _require(inception in nodes, 'inception node')
         _require(any(q['start_ordinal'] == inception for q in swap['fixed_periods']) and any(q['start_ordinal'] == inception for q in swap['floating_periods']), 'inception boundary')
         _require(rel['hedged_risk'] == 'benchmark_interest_rate', 'hedged risk')
         pred = rel['predecessor_relationship_id']
@@ -187,7 +193,8 @@ def _admit(raw):
         def hedged_of(x):
             _require(any(q['start_ordinal'] == inception for q in x['periods']), 'exposure inception boundary')
             hedged = [i for i, q in enumerate(x['periods']) if q['start_ordinal'] >= inception]; _require(hedged, 'hedged periods')
-            for i in hedged: _require(x['periods'][i]['payment_ordinal'] > last or x['periods'][i]['payment_ordinal'] in nodes, 'hedged period node')
+            first = path['nodes'][0]['ordinal']
+            for i in hedged: _require(not first <= x['periods'][i]['payment_ordinal'] <= last or x['periods'][i]['payment_ordinal'] in nodes, 'hedged period node')
             return hedged
 
         def hyp_nodes(h, x, index_id):
@@ -202,7 +209,7 @@ def _admit(raw):
                          and q['side'] == side and _same_periods(q['floating_periods'], x['periods'])
                          and all(f['coupon']['kind'] == 'indexed' and f['coupon']['index']['index_id'] == index_id for f in q['floating_periods']), 'hypothetical mirror')
                 hyp[o] = q; work += len(q['fixed_periods']) + sum(1 + len(f['coupon']['observations']) for f in q['floating_periods'])
-            _require(all(n['ordinal'] in hyp for n in path['nodes'][nodes[inception]:]), 'hypothetical coverage')
+            _require(all(n['ordinal'] in hyp for n in path['nodes'][nodes[max(inception, path['nodes'][0]['ordinal'])]:]), 'hypothetical coverage')
             return hyp
 
         if rel['designation'] == 'fair_value_hedge':
@@ -214,6 +221,7 @@ def _admit(raw):
             _require(hedged_total[item['item_id']] <= item['notional'] + 1e-9, 'item over-hedged')
             _require(any(q['start_ordinal'] == inception for q in item['periods']), 'item inception boundary')
             entry.update(item=item, dir=1. if item['direction'] == 'asset' else -1.)
+            if opening is not None: _require(_near(opening['basis_balance'], -entry['dir'] * opening['cumulative_hedged_change']), 'seasoned basis equals signed cumulative hedged change')
         else:
             _require(rel['designation'] == 'cash_flow_hedge' and rel['hedged_item_id'] is None and rel['hedged_notional'] is None and rel['benchmark_rate'] is None, 'CFH inputs')
             _require(reviews[inst]['coupon_recognition'] == 'settle_derivative_carrying', 'CFH coupon policy')
@@ -355,6 +363,30 @@ def replay(raw, check=lambda: False):
     rels = raw['relationships']; comp = [compiled[r['relationship_id']] for r in rels]; states = [_state(r, c) for r, c in zip(rels, comp)]
     lifecycle = []; assessments = []; daily = []
     cursor = 0; event_cursor = 0; intents = derivative['intents']
+    opening_equity_adjustment = 0.; opening_oci = 0.; asof = path['nodes'][0]['ordinal']
+    opening_values = {t['position_id']: t['clean_value'] for t in raw['derivative']['opening']['trades']}
+    for i, rel in enumerate(rels):
+        o = rel.get('opening')
+        if o is None: continue
+        st, c = states[i], comp[i]; rid = rel['relationship_id']; inst = rel['hedging_instrument_position_id']
+        instrument = opening_values[inst] + (opening_values[rel['written_option_position_id']] if rel.get('written_option_position_id') else 0.)
+        if c['matched']: _require(_near(o['hedged_value'], instrument), 'matched opening hedged value')
+        st.update(status='qualified', inst=instrument, cum_d=o['cumulative_instrument_change'], cum_e=o['cumulative_hedged_change'], last_assessed=asof)
+        sources = [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(o['evidence'])]
+        if rel['designation'] == 'fair_value_hedge':
+            item = c['item']; st.update(unit=o['hedged_value'], basis=o['basis_balance'], basis_adjustments=o['basis_balance'])
+            journal.emit('hedge_opening', asof, 'financial', inst, item['item_id'], None, rid, hedge_policy, sources,
+                         [_posting('hedged_item_basis_adjustment', c['dir'] * o['basis_balance'], item['item_id'], None, rid),
+                          _posting('opening_equity', -c['dir'] * o['basis_balance'], item['item_id'], None, rid)])
+            opening_equity_adjustment = _money(opening_equity_adjustment - c['dir'] * o['basis_balance'])
+        else:
+            x = c['members'][0]['exposure']; st['members'][0].update(hyp=o['hedged_value'], cum_e=o['cumulative_hedged_change'])
+            st.update(oci=o['oci_balance'], oci_recognized=o['oci_balance'])
+            journal.emit('hedge_opening', asof, 'financial', inst, x['exposure_id'], None, rid, hedge_policy, sources,
+                         [_posting('cash_flow_hedge_oci', -o['oci_balance'], x['exposure_id'], None, rid), _posting('opening_equity', o['oci_balance'], x['exposure_id'], None, rid)])
+            opening_equity_adjustment = _money(opening_equity_adjustment + o['oci_balance']); opening_oci = _money(opening_oci + o['oci_balance'])
+        lifecycle.append(_record(asof, rel, st, kind='opening', review=deepcopy(o['evidence']), status_before='pending', status_after='qualified',
+                                 proportion_before=0., proportion_after=st['proportion']))
 
     def instrument_value(k, position):
         for x in derivative['daily'][k]['trades']:
@@ -615,7 +647,8 @@ def replay(raw, check=lambda: False):
         for b in closing['financial_trial_balance']:
             mine = journal.gl.get(b['account'], 0.)
             if b['account'] == 'mark_gain_loss':
-                mine += journal.gl.get('cash_flow_hedge_oci', 0.) - math.fsum(s['oci_reclassified'] for s in states)
+                mine += journal.gl.get('cash_flow_hedge_oci', 0.) + opening_oci - math.fsum(s['oci_reclassified'] for s in states)
+            elif b['account'] == 'opening_equity': mine -= opening_equity_adjustment
             _require(_near(mine, b['debit_balance']), 'derivative owner balance ' + b['account'])
         for b in closing['custody_trial_balance']: _require(_near(journal.memo.get(b['account'], 0.), b['debit_balance']), 'custody balance')
         _require(_near(math.fsum(journal.gl.values()), 0.) and _near(math.fsum(journal.memo.values()), 0.), 'trial balance')
@@ -648,6 +681,7 @@ def replay(raw, check=lambda: False):
         if c['similar'] is not None: relationships[-1]['member_exposure_ids'] = [m['exposure']['exposure_id'] for m in c['members']]
         if c['cyr']: relationships[-1]['selected_index_id'] = st['members'][0]['selected']
         if rel.get('written_option_position_id') is not None: relationships[-1]['written_option_position_id'] = rel['written_option_position_id']
+        if rel.get('opening') is not None: relationships[-1]['opening_evidence'] = deepcopy(rel['opening']['evidence'])
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))

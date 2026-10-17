@@ -96,9 +96,16 @@ fn periods(periods: &[Period], asof: i32, bytes: &mut usize, label: &str) -> Res
     let mut prior: Option<i32> = None;
     for p in periods {
         text(&p.period_id, bytes)?;
-        domain(asof, p.start_ordinal)?;
-        domain(asof, p.end_ordinal)?;
-        domain(asof, p.payment_ordinal)?;
+        // Seasoned relationships carry periods that started before the opening date; the
+        // explicit horizon domain still bounds every date against the opening.
+        validate_ordinal(p.start_ordinal)?;
+        if asof - p.start_ordinal > 36_600 {
+            return Err(format!(
+                "{label} period starts beyond the explicit domain before the opening date"
+            ));
+        }
+        domain(asof.min(p.start_ordinal), p.end_ordinal)?;
+        domain(asof.min(p.start_ordinal), p.payment_ordinal)?;
         if p.start_ordinal >= p.end_ordinal
             || p.payment_ordinal < p.end_ordinal
             || prior.is_some_and(|e| e != p.start_ordinal)
@@ -185,7 +192,8 @@ fn hypothetical_nodes(
         }
         *work = work.saturating_add(swap_work(q));
     }
-    for n in &ctx.path.nodes[ctx.node_index[&inception]..] {
+    let first = ctx.node_index[&inception.max(ctx.path.nodes[0].ordinal)];
+    for n in &ctx.path.nodes[first..] {
         if !map.contains_key(&n.ordinal) {
             return Err(
                 "hypothetical derivative must cover every node from inception to the tail".into(),
@@ -223,9 +231,10 @@ fn hedged_periods(
         return Err("no forecast exposure period starts at or after inception".into());
     }
     let last = ctx.path.nodes[ctx.path.nodes.len() - 1].ordinal;
+    let first = ctx.path.nodes[0].ordinal;
     for &k in &hedged {
         let pay = exposure.periods[k].payment_ordinal;
-        if pay <= last && !ctx.node_index.contains_key(&pay) {
+        if pay >= first && pay <= last && !ctx.node_index.contains_key(&pay) {
             return Err("hedged forecast period payment date is not a derivative path node".into());
         }
     }
@@ -519,11 +528,38 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 return Err("written option absent from the derivative path".into());
             }
         }
-        if !node_index.contains_key(&inception) {
-            return Err("inception date is not a derivative path node".into());
+        let seasoned = inception < asof;
+        if seasoned != rel.opening.is_some() {
+            return Err("relationships designated before the opening date require a reviewed opening block, and only those".into());
         }
-        if inception < asof {
-            return Err("seasoned relationships before the opening date require retained opening balances; rejected".into());
+        if let Some(o) = &rel.opening {
+            identity(&o.evidence, &mut bytes)?;
+            for v in [
+                o.hedged_value,
+                o.cumulative_instrument_change,
+                o.cumulative_hedged_change,
+                o.basis_balance,
+                o.oci_balance,
+            ] {
+                amount(v)?;
+            }
+            if rel.group.is_some()
+                || rel.rate_hypotheticals.is_some()
+                || rel.predecessor_relationship_id.is_some()
+            {
+                return Err("seasoned openings are not combined with groups, rate options or redesignation predecessors".into());
+            }
+            match rel.designation {
+                Designation::FairValueHedge if o.oci_balance != 0. => {
+                    return Err("fair-value opening carries no OCI balance".into())
+                }
+                Designation::CashFlowHedge if o.basis_balance != 0. => {
+                    return Err("cash-flow opening carries no basis balance".into())
+                }
+                _ => {}
+            }
+        } else if !node_index.contains_key(&inception) {
+            return Err("inception date is not a derivative path node".into());
         }
         if !swap
             .fixed_periods
@@ -595,13 +631,24 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         "inception must be an accrual-free start of a hedged item period".into(),
                     );
                 }
+                let direction_sign = if item.direction == ItemDirection::Asset {
+                    1.
+                } else {
+                    -1.
+                };
+                if let Some(o) = &rel.opening {
+                    // Without frozen tranches the retained basis is the signed cumulative
+                    // benchmark-component change: basis = -dir * E.
+                    if !near(
+                        o.basis_balance,
+                        -direction_sign * o.cumulative_hedged_change,
+                    ) {
+                        return Err("seasoned fair-value opening basis must equal the signed cumulative hedged change".into());
+                    }
+                }
                 CompiledRelationship {
                     item: Some(item_index),
-                    direction_sign: if item.direction == ItemDirection::Asset {
-                        1.
-                    } else {
-                        -1.
-                    },
+                    direction_sign,
                     members: Vec::new(),
                     matched: false,
                     predecessor,

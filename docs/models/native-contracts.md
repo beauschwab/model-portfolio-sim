@@ -388,8 +388,9 @@ offset at accrual-free dates under reviewed bounds, and emits one ordered journa
 with basis, OCI, reclassification, amortization and derecognition entries. The
 rule matrix is `asc815-asu2017-12`; with an explicit adopted ASU 2025-09 policy the
 similar-risk group, choose-your-rate and swap/written-option elections apply
-prospectively; ASU 2022-01 layers, the dual-hedge election, net investment,
-standalone options and defaulted paths reject. Independent raw-source and
+prospectively, and relationships designated before the opening date carry
+reviewed retained balances; ASU 2022-01 layers, the dual-hedge election, net
+investment, standalone options and defaulted paths reject. Independent raw-source and
 persisted replay gate the durable `/models/runs` route; accounting-standard
 approval, saved-book/shared-journal adoption and capital feeds remain false.
 See [the detailed contract](hedge-accounting.md).

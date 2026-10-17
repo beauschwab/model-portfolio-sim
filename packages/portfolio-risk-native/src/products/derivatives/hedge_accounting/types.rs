@@ -222,6 +222,20 @@ pub struct RateHypothetical {
     pub index_id: String,
     pub hypothetical: Hypothetical,
 }
+/// Reviewed retained balances of a relationship designated before the derivative opening date.
+/// `hedged_value` is the after-payment hedged clean value at the opening (per unit of hedged
+/// notional for a fair-value hedge, the hypothetical or matched instrument value for a
+/// cash-flow hedge); cumulative changes and balances are those through the opening.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RelationshipOpening {
+    pub evidence: Identity,
+    pub hedged_value: f64,
+    pub cumulative_instrument_change: f64,
+    pub cumulative_hedged_change: f64,
+    pub basis_balance: f64,
+    pub oci_balance: f64,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Relationship {
@@ -248,6 +262,9 @@ pub struct Relationship {
     /// hedging instrument of interest-rate risk, exempt from the net written option test.
     #[serde(default)]
     pub written_option_position_id: Option<String>,
+    /// Required exactly when `inception_ordinal` precedes the derivative opening date.
+    #[serde(default)]
+    pub opening: Option<RelationshipOpening>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -497,6 +514,8 @@ pub struct RelationshipClosing {
     pub selected_index_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub written_option_position_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opening_evidence: Option<Identity>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct HedgeAccountingResult {
@@ -524,5 +543,6 @@ pub struct HedgeAccountingResult {
     pub asu_2025_09_similar_risk_supported: bool,
     pub asu_2025_09_selectable_rate_supported: bool,
     pub asu_2025_09_swap_written_option_supported: bool,
+    pub seasoned_openings_supported: bool,
     pub disclosure: String,
 }

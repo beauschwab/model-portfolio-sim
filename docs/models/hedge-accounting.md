@@ -26,7 +26,8 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
 | ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
 | ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). The `swap_written_option_exception` election designates a swap combined with a written cash-settled European swaption of matching notional as one hedging instrument without the net written option test (815-20-25-88). All apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `dual_hedge_basis` rejects as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
-| Net investment, nonfinancial components, options as instruments, counterparty default | Rejected explicitly. |
+| Seasoned relationships | A relationship whose `inception_ordinal` precedes the derivative opening date must carry a reviewed `opening` block (and only such relationships may): the after-payment hedged value at the opening, cumulative instrument and hedged changes, and the retained basis or OCI balance. Balances are posted once against opening equity before the first node; measurement continues from the derivative opening clean values. See [seasoned openings](#seasoned-openings). |
+| Net investment, nonfinancial components, standalone options as instruments, counterparty default | Rejected explicitly. |
 
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
 matrix is this document; accounting policy approval, auditor judgment and
@@ -112,9 +113,12 @@ assessments may carry `effective_ordinal`. Events are globally ordered by
   is at or after the last payment. `hedged_notional` is positive and at most
   the item notional; the sum over relationships cannot exceed it. The sum of
   designated proportions per instrument over relationships cannot exceed 1.
-- `inception_ordinal` is a path node at or after the opening date and an
+- `inception_ordinal` is a path node at or after the opening date, or an
+  earlier date with a reviewed `opening` block, and in both cases an
   accrual-free boundary: a `start_ordinal` of some fixed and some floating
   period of the instrument and (FVH) of the item, or (CFH) of the exposure.
+  Item and exposure periods may start before the opening date (within the
+  explicit 36,600-day domain); hedged payments before the opening need no node.
 - `assess` requires an accrual-free node: `end_ordinal` of some fixed and
   floating period of the instrument and of the item/exposure, with
   `after_scheduled_payments` timing, after inception and before the
@@ -309,6 +313,34 @@ separate contracts and optioned hedged items/hypotheticals remain open.
 still require their own lane. Nonfinancial price components (Issue 3) are
 outside the interest-rate scope of this owner.
 
+## Seasoned openings
+
+`opening = {evidence, hedged_value, cumulative_instrument_change,
+cumulative_hedged_change, basis_balance, oci_balance}` is required exactly
+when the relationship was designated before the derivative opening date. The
+reviewed amounts are those through the opening: `hedged_value` is the
+after-payment benchmark-component value per unit of hedged notional (FVH) or
+the hypothetical's after-payment clean value (CFH; with matched critical terms
+it must equal the opening instrument value); a fair-value opening carries
+`basis_balance = -dir * cumulative_hedged_change` and no OCI, a cash-flow
+opening carries `oci_balance` and no basis (frozen tranches at the opening are
+not admitted). The instrument anchor is the derivative owner's opening clean
+value of the swap (plus any combined written option).
+
+Before the first node the engine posts one `hedge_opening` intent per
+seasoned relationship: `hedged_item_basis_adjustment` debit `dir * basis`
+against `opening_equity` (FVH), or `cash_flow_hedge_oci` credit `oci` against
+`opening_equity` (CFH), so the hedge journal's opening equity differs from the
+derivative owner's by exactly those amounts (the daily reconciliation accounts
+for them). The relationship is qualified from the first node: its marks are
+re-owned from the opening, the first node's basis change measures the
+opening-node value against `hedged_value`, cumulative changes start from the
+supplied amounts, and roll-forwards start from the supplied balances. The
+lifecycle records an `opening` entry with the evidence identity; the closing
+row reports `opening_evidence`. Groups, rate options and redesignation
+predecessors are not combined with seasoned openings. Supplied opening
+balances are reviewed inputs, not verified prior-publication evidence.
+
 ## Output
 
 `HedgeAccountingResult` retains `schema`, `model_version`, `run`, entity,
@@ -325,11 +357,12 @@ explicit flags: `accounting_standard_approval=false`,
 `saved_book_adoption=false`, `portfolio_layer_supported=false`,
 `net_investment_supported=false`, `asu_2025_09_similar_risk_supported=true`,
 `asu_2025_09_selectable_rate_supported=true`,
-`asu_2025_09_swap_written_option_supported=true`. Election-only fields
+`asu_2025_09_swap_written_option_supported=true`,
+`seasoned_openings_supported=true`. Election-only fields
 (`similar_risk`, assessment and lifecycle `index_id`, `effective_ordinal`,
 `earnings_catch_up`, `reversed_reclassification`, daily `members`,
-`member_exposure_ids`, `selected_index_id`, `written_option_position_id`)
-appear only for relationships
+`member_exposure_ids`, `selected_index_id`, `written_option_position_id`,
+`opening_evidence`) appear only for relationships
 that use an election, so results without elections are unchanged.
 
 Journal accounts are the derivative owner's accounts plus

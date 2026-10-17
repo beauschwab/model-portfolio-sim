@@ -373,6 +373,119 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
     let mut lifecycle = Vec::new();
     let mut assessments = Vec::new();
     let mut daily = Vec::new();
+    // Seasoned relationships: reviewed retained balances are posted once against opening
+    // equity before the first node; the derivative opening clean values anchor the instrument.
+    let mut opening_equity_adjustment = 0.;
+    let mut opening_oci = 0.;
+    let asof = path.nodes[0].ordinal;
+    for (i, rel) in r.relationships.iter().enumerate() {
+        let Some(o) = &rel.opening else { continue };
+        let cr = &compiled.relationships[i];
+        let opening_value = |position: &str| -> Result<f64, String> {
+            r.derivative
+                .opening
+                .trades
+                .iter()
+                .find(|t| t.position_id == position)
+                .map(|t| t.clean_value)
+                .ok_or_else(|| "seasoned instrument missing from the derivative opening".into())
+        };
+        let mut instrument = opening_value(&rel.hedging_instrument_position_id)?;
+        if let Some(option) = rel.written_option_position_id.as_deref() {
+            instrument = amount(instrument + opening_value(option)?)?;
+        }
+        if cr.matched && !near(o.hedged_value, instrument) {
+            return Err("matched critical terms require the opening hedged value to equal the opening instrument value".into());
+        }
+        let st = &mut states[i];
+        st.status = Status::Qualified;
+        st.inst_prev = Some(instrument);
+        st.cum_d = o.cumulative_instrument_change;
+        st.cum_e = o.cumulative_hedged_change;
+        st.last_assessed = asof;
+        let sources = vec![
+            r.policy.identity.clone(),
+            rel.documentation.clone(),
+            o.evidence.clone(),
+        ];
+        match rel.designation {
+            Designation::FairValueHedge => {
+                let item = &r.hedged_items[cr.item.ok_or("compiled item missing")?];
+                st.unit_clean = Some(o.hedged_value);
+                st.basis = o.basis_balance;
+                st.basis_adjustments = o.basis_balance;
+                let dir = cr.direction_sign;
+                ledger.emit(
+                    "hedge_opening",
+                    asof,
+                    JournalLedger::Financial,
+                    Some(&rel.hedging_instrument_position_id),
+                    Some(&item.item_id),
+                    None,
+                    Some(&rel.relationship_id),
+                    &r.policy.identity,
+                    sources,
+                    pair(
+                        Account::HedgedItemBasisAdjustment,
+                        dir * o.basis_balance,
+                        &item.item_id,
+                        &rel.relationship_id,
+                        Account::OpeningEquity,
+                    ),
+                )?;
+                opening_equity_adjustment =
+                    amount(opening_equity_adjustment - dir * o.basis_balance)?;
+            }
+            Designation::CashFlowHedge => {
+                let exposure = &r.forecast_exposures[cr.members[0].exposure];
+                st.members[0].hyp_prev = Some(o.hedged_value);
+                st.members[0].cum_e = o.cumulative_hedged_change;
+                st.oci = o.oci_balance;
+                st.oci_recognized = o.oci_balance;
+                ledger.emit(
+                    "hedge_opening",
+                    asof,
+                    JournalLedger::Financial,
+                    Some(&rel.hedging_instrument_position_id),
+                    Some(&exposure.exposure_id),
+                    None,
+                    Some(&rel.relationship_id),
+                    &r.policy.identity,
+                    sources,
+                    pair(
+                        Account::CashFlowHedgeOci,
+                        -o.oci_balance,
+                        &exposure.exposure_id,
+                        &rel.relationship_id,
+                        Account::OpeningEquity,
+                    ),
+                )?;
+                opening_equity_adjustment = amount(opening_equity_adjustment + o.oci_balance)?;
+                opening_oci = amount(opening_oci + o.oci_balance)?;
+            }
+        }
+        lifecycle.push(LifecycleRecord {
+            ordinal: asof,
+            sequence: None,
+            relationship_id: rel.relationship_id.clone(),
+            kind: "opening".into(),
+            event_id: None,
+            review: Some(o.evidence.clone()),
+            reason: None,
+            status_before: Status::Pending,
+            status_after: Status::Qualified,
+            proportion_before: 0.,
+            proportion_after: st.proportion,
+            frozen_basis: 0.,
+            frozen_oci: 0.,
+            released_oci: 0.,
+            derecognized_basis: 0.,
+            index_id: None,
+            effective_ordinal: None,
+            earnings_catch_up: None,
+            reversed_reclassification: None,
+        });
+    }
     let mut cursor = 0usize;
     let mut event_cursor = 0usize;
     let rel_index: BTreeMap<&str, usize> = r
@@ -1341,13 +1454,17 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 .copied()
                 .unwrap_or(0.);
             let value = if b.account == DerivativeAccount::MarkGainLoss {
-                // Re-owned marks: OCI balance net of reclassifications equals the moved mark share.
+                // Re-owned marks: OCI balance net of reclassifications and the retained opening
+                // OCI equals the moved mark share.
                 mine + ledger
                     .financial
                     .get(&Account::CashFlowHedgeOci)
                     .copied()
                     .unwrap_or(0.)
+                    + opening_oci
                     - states.iter().map(|s| s.oci_reclassified).sum::<f64>()
+            } else if b.account == DerivativeAccount::OpeningEquity {
+                mine - opening_equity_adjustment
             } else {
                 mine
             };
@@ -1470,6 +1587,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 None
             },
             written_option_position_id: rel.written_option_position_id.clone(),
+            opening_evidence: rel.opening.as_ref().map(|o| o.evidence.clone()),
         });
         let frozen_basis: f64 = st.frozen_basis.iter().map(|x| x.amount - x.amortized).sum();
         let frozen_oci: f64 = st.frozen_oci.iter().map(|x| x.amount - x.released).sum();
@@ -1516,6 +1634,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         asu_2025_09_similar_risk_supported: true,
         asu_2025_09_selectable_rate_supported: true,
         asu_2025_09_swap_written_option_supported: true,
-        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Not accounting-standard approval, observed effectiveness, portfolio-layer, net-investment, option or nonfinancial coverage, saved-book or shared daily journal adoption, treasury/capital feed or complete-scale acceptance.".into(),
+        seasoned_openings_supported: true,
+        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Relationships designated before the derivative opening date carry reviewed retained cumulative changes and basis/OCI balances posted once against opening equity. Not accounting-standard approval, observed effectiveness, portfolio-layer, net-investment, option or nonfinancial coverage, saved-book or shared daily journal adoption, treasury/capital feed or complete-scale acceptance.".into(),
     })
 }

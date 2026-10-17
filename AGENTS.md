@@ -1095,8 +1095,9 @@ per-option hypotheticals, dated dedesignation and rate elections, and the
 swap/written-option combination (815-20-25-88) designates a swap plus a written
 cash-settled swaption of matching notional as one instrument. ASU 2022-01
 portfolio layers, the ASU 2025-09 dual-hedge election, net-investment,
-nonfinancial, standalone option instruments, counterparty default paths and
-seasoned opening balances reject explicitly. Assessment uses
+nonfinancial, standalone option instruments and counterparty default paths
+reject explicitly; relationships designated before the opening date carry
+reviewed retained balances posted once against opening equity. Assessment uses
 clean cumulative changes at accrual-free after-payment dates before the final
 instrument settlement; matched critical terms require a zero-value instrument at
 inception. Bounds: 64 relationships, 1,024 events, 32 MiB input/output and one

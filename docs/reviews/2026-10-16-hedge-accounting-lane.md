@@ -117,12 +117,19 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
 - All are additive and explicitly selected; results without elections are
   byte-identical (election-only fields are omitted). The dual-hedge election
   still refuses; nonfinancial components are out of scope.
+- Seasoned openings (2026-10-17): relationships designated before the
+  derivative opening date carry a reviewed `opening` block; balances post once
+  against opening equity, measurement continues from the derivative opening
+  clean values. The fixture adds a December period paid on 2 January; the
+  derivative owner's after-payment clean value carries a matured unpaid coupon
+  in full, which the hedged-item formula excludes, so the fair-value instrument
+  uses a zero pre-opening coupon and the cash-flow opening value carries it.
 
 | Gate | Command | Result |
 |---|---|---|
-| Native election tests | `cargo test --release ... --test hedge_asu_2025_09 --test hedge_compound_option` | 4 + 2 passed |
+| Native election tests | `cargo test --release ... --test hedge_asu_2025_09 --test hedge_compound_option --test hedge_seasoned` | 4 + 2 + 2 passed |
 | Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 6 + 3 + 19 passed; strict Clippy and `cargo fmt --check` clean |
-| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 85 passed (23 + 15 + 26 + 21) with the rebuilt release binary |
+| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 100 passed (23 + 15 + 15 + 26 + 21) with the rebuilt release binary |
 | API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
 | Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
 | Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |
@@ -131,5 +138,6 @@ Not established: tenor/timing changes of hedged payments, forecast-issuance
 documentation updates (35-37H), replacement-debt designation (35-37K),
 qualitative similarity (55-23B/C), physically delivered or pre-inception-expiring
 written options and optioned hedged items/hypotheticals within the 815-20-25-88
-combination, transition-date method changes for existing hedges, and any
-accounting-standard approval.
+combination, transition-date method changes for existing hedges, verified
+prior-publication opening evidence and frozen tranches at a seasoned opening,
+and any accounting-standard approval.
