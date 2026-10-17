@@ -92,6 +92,13 @@ refusals each, eight engine mixed-process checks (independent journal replay,
 five preparation tampers, three native refusals, cancellation and binary
 mismatch, derivative-only invariance) and seven durable API checks (publish and
 reopen, four rehashed persistence tampers, overlay drift, example route).
+Closing capital from either verified shared journal (2026-10-17): the treasury
+store admits completed saved derivative/hedge mixed jobs by their retained
+receipt at the complete-tail date; the native bridge classifies the gross
+derivative GLs. Evidence: eight API checks (both schemas with independent
+thirteen-ratio recomputation from the verified trial balance, five refusals
+including tampered receipts and journals, credit/FTP kinds) and the existing
+joint deposit/derivative refusal.
 
 `derivative-treasury-1` (2026-10-17) feeds the standalone reviewed derivative
 journal to the same bridge without hedge accounting: per-instrument cash, gross
@@ -131,7 +138,7 @@ browser flow beyond the generic model-analysis page, PostgreSQL parity and the
 | Netting vs gross, collateral, closeout conservation | CSA/MPOR/default native cases; independent raw replay before and after persistence | dynamic IM, own default/DVA |
 | Missing mapping/CSA fail before publication | saved-derivative admission and `/derivatives/mixed/runs` publication fences | saved-book UI adoption |
 | Margin transfers never counted twice as trading loss | derivative accounting intents; mixed shared-journal replay; hedge lane reuses the same owner once | treasury/capital feed |
-| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge journals in the same shared daily Sim (`saved-hedge-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
+| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge journals in the same shared daily Sim (`saved-hedge-mixed-1`); closing capital from either verified shared journal through `/treasury/bridges`; formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
 
 ## Separate fee owner (local0.29.16; supported component validated)
 

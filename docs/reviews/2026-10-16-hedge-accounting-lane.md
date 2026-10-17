@@ -234,3 +234,4 @@ Formal hedge owners run in the existing dated daily Sim through the decision
 | Native hedge suites | `cargo test --release ... --test hedge_accounting ...` | see run log below |
 | Engine | `pytest tests/test_saved_hedge_mixed_process.py tests/test_saved_derivative_mixed_process.py` plus the maturity case | 15 passed |
 | API | `pytest tests/test_saved_hedge_mixed_jobs.py tests/test_saved_derivative_mixed_jobs.py` | 43 passed |
+| Closing capital from the shared journal | `pytest tests/test_saved_mixed_treasury_sources.py` plus the derivative and joint capital permission tests | 12 passed (independent ratio recomputation for both schemas) |

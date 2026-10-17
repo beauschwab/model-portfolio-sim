@@ -1129,4 +1129,7 @@ once in place of the undesignated intents, basis a signed stock and
 cash-flow-hedge OCI equity outside earnings, the AFS `oci` GL and the CET1
 proxy, keyed per relationship and closed by the complete tail. The reviewed
 `hedged_item_matured` reason derecognizes basis on the principal date.
+Verified saved derivative and hedge mixed jobs are `ledger` sources for
+`/treasury/bridges` at their complete-tail date (receipt-gated; the native
+bridge classifies gross derivative GLs); credit/FTP kinds still refuse.
 Rebuild product and decision/ledger binaries and restart workers before use.

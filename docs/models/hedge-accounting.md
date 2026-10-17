@@ -498,7 +498,25 @@ The receipt `saved-hedge-mixed-verification-1` adds
 The durable `/derivatives/mixed/runs` job accepts either schema under the
 existing original-deadline, binary, lease/token and persisted-reopen fences;
 `/derivatives/hedge-mixed/example` serves the example. Accounting-standard
-approval, capital/FTP eligibility and empirical validation remain false.
+approval, FTP eligibility and empirical validation remain false.
+
+**Closing capital from the shared journal.** A completed `saved_derivative_mixed`
+job (either `saved-derivative-mixed-1` or `saved-hedge-mixed-1`) is a `ledger`
+capital source for `/treasury/bridges` only through its retained receipt: every
+independent source, ordered-journal and complete-tail flag (plus the hedge
+replay and basis/OCI-tail flags for the hedge schema) must be true and approval
+and capital/FTP permission flags false. The report date must equal the complete
+mixed tail (as-of plus horizon). The bridge replays the persisted journal
+against the trial balance, checks the closing statements, and runs the native
+thirteen-ratio bridge, which now classifies the gross shared-Sim derivative
+GLs (`derivative_asset`, `derivative_unpaid_receivable`, posted VM/IM as assets;
+`derivative_liability`, `derivative_unpaid_payable`, received VM as
+liabilities). Cash-flow-hedge OCI stays under its own GL and enters eligible
+AOCI only under the reviewed `cash_flow_hedge_aoci_eligible` flag. Credit and
+FTP source kinds still refuse, as do joint deposit/derivative journals. The
+receipt records `basis=complete_tail_shared_journal_closing-1`. Report-date
+capital from the shared journal and regulatory eligibility remain supplied or
+open.
 
 ## Closing capital feed (`hedge-treasury-1`)
 

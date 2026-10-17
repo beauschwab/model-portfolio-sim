@@ -14,6 +14,9 @@ SCHEMA = 'hedge-treasury-1'
 ZERO_ROW = 1e-9
 ASSETS = frozenset('cash restricted_cash asset_principal book_adjustment allowance accrued_interest fair_value_adjustment recovery_receivable derivative_value posted_margin intercompany_receivable dated_interest_receivable dated_prepaid_expense credit_default_principal credit_default_book_adjustment credit_default_interest_receivable live_interest_basis_adjustment default_interest_basis_adjustment hedged_item_basis_adjustment'.split())
 LIABILITIES = frozenset('funding_principal secured_funding received_margin intercompany_payable dated_interest_payable dated_deferred_income credit_default_deferred_income hedged_item_basis_liability'.split())
+# Gross shared-Sim derivative owner stocks, as the native bridge classifies them.
+ASSETS = ASSETS | frozenset('derivative_asset derivative_unpaid_receivable derivative_posted_vm_asset derivative_posted_im_asset'.split())
+LIABILITIES = LIABILITIES | frozenset('derivative_liability derivative_unpaid_payable derivative_received_vm_liability'.split())
 GL = {'cash': 'cash', 'derivative_asset': 'derivative_value', 'derivative_liability': 'derivative_value', 'unpaid_receivable': 'derivative_unpaid_receivable',
       'unpaid_payable': 'derivative_unpaid_payable', 'posted_vm_asset': 'posted_margin', 'posted_im_asset': 'posted_margin',
       'received_vm_liability': 'received_margin', 'opening_equity': 'opening_equity', 'mark_gain_loss': 'pnl:derivative_mark',
