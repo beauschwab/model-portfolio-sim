@@ -180,3 +180,30 @@ documentation updates (35-37H), replacement-debt designation (35-37K),
 qualitative similarity (55-23B/C), pre-inception-expiring written options and
 optioned hedged items/hypotheticals within the 815-20-25-88 combination, transition-date method changes for existing hedges, verified
 prior-publication opening evidence, and any accounting-standard approval.
+
+## Merged main regression (2026-10-17, after PR #85 merged at e8d818d)
+
+Complete suites rerun on the merged `main` content (branch
+`claude/hedge-validation-35`, same Windows machine, release artifacts rebuilt
+at the final PR commit). The native and engine suites ran concurrently, which
+loaded the machine during the engine run.
+
+| Gate | Command | Result |
+|---|---|---|
+| Native | `cargo test --release` in `packages/portfolio-risk-native` | 59 test binaries, 533 passed, 0 failed |
+| Model core | `cargo test --release` in `packages/portfolio-model-core` | 393 passed, 0 failed |
+| Engine | `uv run --extra dev python -m pytest tests/ -q` in `packages/portfolio-risk` | 2909 passed, 2 skipped, 1 failed in 35 min; the failure, `test_commercial_stochastic.py::test_original_duplicate_json_and_native_deadline_fail_without_result`, runs the native binary with a 1 ms budget and received `COMPUTE_DEADLINE_EXCEEDED` instead of the duplicate-key refusal under load; it passed three consecutive isolated reruns and its last change predates this work |
+| API | `uv run --extra dev python -m pytest tests/ -q` in `apps/api` | 1216 passed, 5 skipped in 41 min |
+| Web | `tsc -b` in `apps/web` | clean |
+| PR checks at merge | GitHub Actions on 98d6378 | 13 passed, 0 failed; the Windows parity and backend-storage runs were still in progress when the PR was merged (their Ubuntu counterparts passed on the same commit) |
+
+The 1 ms-budget duplicate-key test is a timing-sensitive design (decode-time
+refusal racing a wall-clock deadline) rather than a hedge regression; making the
+duplicate request use a budget independent of the deadline case is a separate
+test hardening item outside #35/#20.
+
+What this does and does not establish: the merged lanes pass every repository
+regression gate on Windows; accounting-standard approval, observed
+effectiveness and empirical holdouts, mixed saved-derivative journal/solver/
+capital adoption and complete 60,000-position acceptance remain open exactly as
+listed in `docs/models/implementation-plan.md`.
