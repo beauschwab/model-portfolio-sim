@@ -1114,7 +1114,8 @@ product artifact and restart API/workers before executing the new schema.
 `hedge-treasury-1` (same stage) maps the verified complete-tail hedge closing
 to the treasury bridge: derivative cash/margin/marks and hedge basis/OCI/
 reclassification rows once, cash-flow-hedge AOCI under its own GL with a
-reviewed `cash_flow_hedge_aoci_eligible` policy flag (default excluded), and
+reviewed `cash_flow_hedge_aoci_eligible` policy flag (default excluded), an
+explicit `interim_report` selection of report-date capital at a path node, and
 the existing thirteen-ratio bridge. Rows near zero are omitted, unpaid rights
 and negative basis with nonzero weight refuse. Interim capital, FTP,
 deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.

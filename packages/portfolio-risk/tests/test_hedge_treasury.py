@@ -134,3 +134,23 @@ def test_seasoned_and_compound_hedges_feed_closing_capital():
     rows = {(r['gl_account'], r['instrument_id']): r['balance'] for r in result['rows']}
     assert ('cash_flow_hedge_oci', 'opt-cfh') in rows and ('derivative_value', 'opt-cfh') not in rows
     assert abs(result['capital']['capital_bridge'][0]['cash_flow_hedge_aoci'] - result['hedge']['closing'][1]['oci_closing']) < 1e-9
+
+
+def test_explicit_interim_report_verifies_independently_through_the_reporting_node():
+    request = raw(); request.update(interim_report=True); request['treasury']['as_of'] = '2024-03-01'; request['policies'][0]['capital']['period'] = '2024-03-01'
+    result = prepare_hedge_treasury(request); receipt = verify(request, result)
+    assert receipt['verified'] and receipt['interim_capital'] is True and result['interim_capital'] is True and result['closing_capital_selected'] is False
+    assert result['closing_date'] == '2024-03-01'
+    day = next(d for d in result['hedge']['daily'] if d['ordinal'] == result['closing_ordinal'])
+    balances = {b['account']: b['debit_balance'] for b in day['financial_trial_balance']}
+    assert abs(row(result, 'cash') - balances['cash']) < 1e-9 and abs(row(result, 'cash_flow_hedge_oci') - balances['cash_flow_hedge_oci']) < 1e-9
+    audit = result['capital']['capital_bridge'][0]
+    assert abs(audit['cash_flow_hedge_aoci'] - sum(x['oci_balance'] + x['frozen_oci_balance'] for x in day['relationships'])) < 1e-9
+    changed = deepcopy(result); changed['interim_capital'] = False
+    with pytest.raises(ValueError): verify(request, changed)
+    for broken in ('tail', 'unselected', 'foreign'):
+        bad = deepcopy(request)
+        if broken == 'tail': bad['treasury']['as_of'] = '2024-04-01'; bad['policies'][0]['capital']['period'] = '2024-04-01'
+        elif broken == 'unselected': bad['interim_report'] = False
+        else: bad['treasury']['as_of'] = '2024-06-01'; bad['policies'][0]['capital']['period'] = '2024-06-01'
+        with pytest.raises(ValueError): prepare_hedge_treasury(bad)

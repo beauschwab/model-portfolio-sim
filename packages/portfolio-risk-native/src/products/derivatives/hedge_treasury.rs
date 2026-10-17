@@ -2,7 +2,9 @@
 //! The hedge journal is re-executed natively; its closing accounts map to reviewed
 //! bridge GLs, and the existing treasury bridge computes closing capital under
 //! supplied policies. Cash-flow-hedge AOCI keeps its own GL so eligibility is a
-//! policy decision, never an inference. No FTP, interim capital or approval.
+//! policy decision, never an inference. An explicit `interim_report` selects a
+//! reporting node before the complete tail: rows then carry the journal through that
+//! node and reconcile to that day's trial balance. No FTP or approval.
 use crate::products::derivatives::accounting::JournalLedger;
 use crate::products::derivatives::contract::{amount, identity, near, text, Identity};
 use crate::products::derivatives::hedge_accounting::{
@@ -35,6 +37,10 @@ pub struct Request {
     pub treasury: Treasury,
     pub policies: Vec<Value>,
     pub amount_multiplier: f64,
+    /// Explicit report-date selection: `treasury.as_of` must then be a path node strictly
+    /// before the complete-tail closing date.
+    #[serde(default)]
+    pub interim_report: bool,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct Row {
@@ -132,10 +138,26 @@ pub fn evaluate(r: &Request) -> Result<HedgeTreasuryResult, String> {
     portfolio_compute_control::checkpoint()?;
     let hedge = hedge_accounting::evaluate(&r.hedge)?;
     portfolio_compute_control::checkpoint()?;
-    let closing = hedge
+    let tail = hedge
         .daily
         .last()
         .ok_or("hedge journal has no closing day")?;
+    let closing = if r.interim_report {
+        let selected = hedge
+            .daily
+            .iter()
+            .find(|d| iso(d.ordinal).is_ok_and(|date| date == r.treasury.as_of))
+            .ok_or("interim report requires treasury as_of to be a hedge path node")?;
+        if selected.ordinal >= tail.ordinal {
+            return Err(
+                "interim report requires a reporting date before the complete-tail closing; select closing capital instead"
+                    .into(),
+            );
+        }
+        selected
+    } else {
+        tail
+    };
     let closing_ordinal = closing.ordinal;
     let closing_date = iso(closing_ordinal)?;
     let scenario = hedge
@@ -153,6 +175,7 @@ pub fn evaluate(r: &Request) -> Result<HedgeTreasuryResult, String> {
     if r.treasury.as_of != closing_date {
         return Err("treasury as_of must equal the verified complete-tail closing date".into());
     }
+    portfolio_compute_control::checkpoint()?;
     if r.policies.is_empty() || r.policies.len() > 16 {
         return Err("1..=16 reviewed ledger policies required".into());
     }
@@ -183,7 +206,7 @@ pub fn evaluate(r: &Request) -> Result<HedgeTreasuryResult, String> {
     for intent in hedge
         .intents
         .iter()
-        .filter(|i| i.ledger == JournalLedger::Financial)
+        .filter(|i| i.ledger == JournalLedger::Financial && i.ordinal <= closing_ordinal)
     {
         for p in &intent.postings {
             let instrument = p
@@ -325,13 +348,17 @@ pub fn evaluate(r: &Request) -> Result<HedgeTreasuryResult, String> {
         cash_flow_hedge_aoci_eligible: eligible.unwrap_or(false),
         hedge,
         capital,
-        closing_capital_selected: true,
-        interim_capital: false,
+        closing_capital_selected: !r.interim_report,
+        interim_capital: r.interim_report,
         ftp_selected: false,
         accounting_standard_approval: false,
         regulatory_credit_rwa_approval: false,
         empirical_validation: false,
         persisted_journal_verified: false,
-        disclosure: "Complete-tail closing capital from the natively re-executed formal hedge journal. Derivative cash, margin, marks and hedge basis/OCI/reclassification balances map to reviewed bridge GLs once; cash-flow-hedge AOCI stays under its own GL and enters eligible AOCI only when the supplied policy says so. Regulatory eligibility, requirements, risk weights and the monetary unit are supplied inputs. Not interim capital, FTP, accounting-standard or regulatory approval, empirical validation or persisted verification.".into(),
+        disclosure: if r.interim_report {
+            "Report-date capital from the natively re-executed formal hedge journal through the selected reporting node: derivative cash, margin, marks and hedge basis/OCI/reclassification balances through that date map to reviewed bridge GLs once and reconcile to that day's trial balance; later journal days are retained in the embedded hedge result but excluded from the rows. Cash-flow-hedge AOCI stays under its own GL and enters eligible AOCI only when the supplied policy says so. Regulatory eligibility, requirements, risk weights and the monetary unit are supplied inputs. Not complete-tail closing capital, FTP, accounting-standard or regulatory approval, empirical validation or persisted verification.".into()
+        } else {
+            "Complete-tail closing capital from the natively re-executed formal hedge journal. Derivative cash, margin, marks and hedge basis/OCI/reclassification balances map to reviewed bridge GLs once; cash-flow-hedge AOCI stays under its own GL and enters eligible AOCI only when the supplied policy says so. Regulatory eligibility, requirements, risk weights and the monetary unit are supplied inputs. Not interim capital, FTP, accounting-standard or regulatory approval, empirical validation or persisted verification.".into()
+        },
     })
 }

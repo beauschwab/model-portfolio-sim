@@ -416,7 +416,13 @@ protocol 0). The request carries the raw hedge request, the ledger `account`
 label, a reviewed GL `mapping` identity, a `treasury` request whose `as_of`
 equals the closing date and whose capital/FTP inputs are empty, one to sixteen
 bridge `policies` for the hedge scenario and account whose `capital.period`
-equals the closing date, and a positive `amount_multiplier`.
+equals the closing date, and a positive `amount_multiplier`. An explicit
+`interim_report: true` selects report-date capital instead: `as_of` (and every
+policy period) must then be a hedge path node strictly before the complete
+tail; rows carry the journal through that node and reconcile to that day's
+trial balance, the embedded hedge result keeps the complete tail, and the
+result reports `interim_capital=true` with `closing_capital_selected=false`.
+Without the flag an `as_of` before the tail still refuses.
 
 Rows are per instrument from the single ordered journal plus the opening
 anchors, reconciled to the owner's closing trial balance before mapping:
@@ -451,8 +457,9 @@ discloses `cash_flow_hedge_aoci`, `included_aoci`, `deferred_tax_on_aoci`,
 `aoci_opt_out_elected`, `aoci_phase_in_fraction` and the policy identity;
 policies without the treatment keep the historical audit unchanged. The result retains
 the hedge result as evidence, the rows, policies, the bridge output (prepared
-capital, thirteen ratios, audit, contributions) and explicit false flags for
-interim capital, FTP, accounting-standard and regulatory approval. The
+capital, thirteen ratios, audit, contributions) and explicit flags for the
+closing/interim selection and false flags for FTP, accounting-standard and
+regulatory approval. The
 Seasoned relationships contribute their retained basis/OCI rows and the
 matching `opening_equity` rows under the item/exposure identity; a combined
 written option contributes its own `derivative_value` and OCI rows under its

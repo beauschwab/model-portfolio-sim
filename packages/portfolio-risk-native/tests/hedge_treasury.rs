@@ -195,3 +195,66 @@ fn protocol_dispatch() {
         13
     );
 }
+
+#[test]
+fn explicit_interim_report_maps_balances_through_the_reporting_node() {
+    let mut v = raw();
+    v["interim_report"] = json!(true);
+    v["treasury"]["as_of"] = json!("2024-03-01");
+    v["policies"][0]["capital"]["period"] = json!("2024-03-01");
+    let result = run(&v).unwrap();
+    assert!(result.interim_capital && !result.closing_capital_selected);
+    assert_eq!(result.closing_date, "2024-03-01");
+    let day = result
+        .hedge
+        .daily
+        .iter()
+        .find(|d| d.ordinal == result.closing_ordinal)
+        .unwrap();
+    use portfolio_risk_native::hedge_accounting::Account;
+    let balance = |account: Account| {
+        day.financial_trial_balance
+            .iter()
+            .find(|b| b.account == account)
+            .map(|b| b.debit_balance)
+            .unwrap_or(0.)
+    };
+    close(row(&result, "cash"), balance(Account::Cash));
+    close(
+        row(&result, "cash_flow_hedge_oci"),
+        balance(Account::CashFlowHedgeOci),
+    );
+    // Cash-flow-hedge AOCI at the reporting date is the retained OCI of the relationships.
+    close(
+        result.capital["capital_bridge"][0]["cash_flow_hedge_aoci"]
+            .as_f64()
+            .unwrap(),
+        day.relationships
+            .iter()
+            .map(|x| x.oci_balance + x.frozen_oci_balance)
+            .sum::<f64>(),
+    );
+    assert!(result.rows.iter().all(|r| r.balance.abs() > 1e-9));
+    assert!(result.disclosure.starts_with("Report-date capital"));
+    // The complete-tail selection is unchanged; interim at the tail, a non-node date and an
+    // unselected early date refuse.
+    let tail = run(&raw()).unwrap();
+    assert!(!tail.interim_capital && tail.closing_date == "2024-04-01");
+    let mut at_tail = raw();
+    at_tail["interim_report"] = json!(true);
+    assert!(run(&at_tail)
+        .unwrap_err()
+        .contains("before the complete-tail"));
+    let mut off = v.clone();
+    off["treasury"]["as_of"] = json!("2024-02-15");
+    off["policies"][0]["capital"]["period"] = json!("2024-02-15");
+    assert!(run(&off).is_ok(), "any path node is a reporting node");
+    off["treasury"]["as_of"] = json!("2024-06-01");
+    off["policies"][0]["capital"]["period"] = json!("2024-06-01");
+    assert!(run(&off).unwrap_err().contains("path node"));
+    let mut unselected = v.clone();
+    unselected["interim_report"] = json!(false);
+    assert!(run(&unselected)
+        .unwrap_err()
+        .contains("complete-tail closing date"));
+}

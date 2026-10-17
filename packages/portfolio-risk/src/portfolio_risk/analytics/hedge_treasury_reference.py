@@ -26,13 +26,14 @@ METRICS = ('cet1', 'tier1', 'total_capital', 'advanced_cet1', 'advanced_tier1', 
            'tlac_leverage', 'ltd_rwa', 'ltd_leverage', 'tce_ta')
 
 
-def rows(raw, hedge):
-    """Closing bridge rows from the independently replayed hedge journal and opening anchors."""
+def rows(raw, hedge, k=-1):
+    """Bridge rows through hedge day k from the independently replayed journal and opening anchors."""
     balances = {}
+    report = hedge['daily'][k]['ordinal']
     def add(account, instrument, value):
         balances[(account, instrument)] = _money(balances.get((account, instrument), 0.) + value)
     for intent in hedge['intents']:
-        if intent['ledger'] != 'financial': continue
+        if intent['ledger'] != 'financial' or intent['ordinal'] > report: continue
         for p in intent['postings']: add(p['account'], p['position_id'] or p['bucket'] or 'book', p['debit_amount'])
     o = raw['derivative']['opening']
     for account, value in (('cash', o['cash']), ('posted_vm_asset', o['posted_vm_asset']), ('received_vm_liability', -o['received_vm_liability']),
@@ -40,7 +41,7 @@ def rows(raw, hedge):
         add(account, 'book', value)
     for t in o['trades']:
         add('derivative_asset', t['position_id'], max(t['clean_value'], 0.)); add('derivative_liability', t['position_id'], -max(-t['clean_value'], 0.))
-    closing = {b['account']: b['debit_balance'] for b in hedge['daily'][-1]['financial_trial_balance']}
+    closing = {b['account']: b['debit_balance'] for b in hedge['daily'][k]['financial_trial_balance']}
     totals = {}
     for (account, _), v in balances.items(): totals[account] = totals.get(account, 0.) + v
     for account, v in closing.items():
@@ -141,21 +142,27 @@ def verify(raw, result, check=lambda: False):
     _require(type(raw) is dict and raw.get('schema') == SCHEMA and type(result) is dict and result.get('schema') == SCHEMA, 'hedge treasury schema')
     _require(type(result.get('hedge')) is dict and verify_hedge(raw['hedge'], result['hedge'], check)['verified'], 'embedded hedge result differs')
     hedge = replay_hedge(raw['hedge'], check); check()
-    last = hedge['daily'][-1]['ordinal']; closing = date.fromordinal(last).isoformat()
+    interim = raw.get('interim_report', False); _require(type(interim) is bool, 'explicit interim selection')
+    k = len(hedge['daily']) - 1
+    if interim:
+        dates = [date.fromordinal(d['ordinal']).isoformat() for d in hedge['daily']]
+        _require(raw['treasury']['as_of'] in dates[:-1], 'interim report date must be a hedge path node before the complete tail')
+        k = dates.index(raw['treasury']['as_of'])
+    last = hedge['daily'][k]['ordinal']; closing = date.fromordinal(last).isoformat()
     multiplier = _money(raw['amount_multiplier']); _require(multiplier > 0., 'positive multiplier')
-    _require(raw['treasury']['as_of'] == closing and not any(raw['treasury'][k] for k in ('capital', 'curves', 'positions', 'capital_deltas', 'strategy_units')), 'treasury closing selection')
+    _require(raw['treasury']['as_of'] == closing and not any(raw['treasury'][k_] for k_ in ('capital', 'curves', 'positions', 'capital_deltas', 'strategy_units')), 'treasury closing selection')
     policies = [_typed_policy(p) for p in raw['policies']]; _require(1 <= len(policies) <= 16, 'policy count')
     scenario = raw['hedge']['derivative']['scenario_id']
     for p in policies:
         p.setdefault('cash_flow_hedge_aoci_eligible', False)
         _require(p['scenario'] == scenario and p['account'] == raw['account'] and p['capital']['period'] == closing, 'policy scope')
     eligible = {p['cash_flow_hedge_aoci_eligible'] for p in policies}; _require(len(eligible) == 1, 'one eligibility decision')
-    expected_rows = rows(_typed(raw['hedge']), hedge)
+    expected_rows = rows(_typed(raw['hedge']), hedge, k)
     for r in expected_rows: r['account'] = raw['account']
     audits, contributions, capitals, metrics = capital(expected_rows, policies, multiplier)
     expected = dict(schema=SCHEMA, closing_ordinal=last, closing_date=closing, scenario=scenario, account=raw['account'], mapping=deepcopy(raw['mapping']),
                     rows=expected_rows, policies=deepcopy(raw['policies']), amount_multiplier=multiplier, cash_flow_hedge_aoci_eligible=eligible.pop(),
-                    closing_capital_selected=True, interim_capital=False, ftp_selected=False, accounting_standard_approval=False,
+                    closing_capital_selected=not interim, interim_capital=interim, ftp_selected=False, accounting_standard_approval=False,
                     regulatory_credit_rwa_approval=False, empirical_validation=False, persisted_journal_verified=False)
     actual = {k: v for k, v in result.items() if k not in ('hedge', 'capital', 'disclosure')}
     _require(set(actual) == set(expected) and type(result.get('disclosure')) is str and result['disclosure'].strip() != '', 'hedge treasury fields')
@@ -167,5 +174,5 @@ def verify(raw, result, check=lambda: False):
              and cap['as_of'] == closing, 'closing capital cannot infer FTP or limits')
     check()
     return dict(verified=True, hedge_journal_replayed=True, closing_rows_recomputed=True, closing_capital_recomputed=True,
-                cash_flow_hedge_aoci_eligible=expected['cash_flow_hedge_aoci_eligible'], interim_capital=False, ftp_selected=False,
+                cash_flow_hedge_aoci_eligible=expected['cash_flow_hedge_aoci_eligible'], interim_capital=interim, ftp_selected=False,
                 accounting_standard_approval=False, regulatory_credit_rwa_approval=False, empirical_validation=False, persisted_journal_verified=False)

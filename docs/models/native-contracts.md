@@ -400,5 +400,5 @@ complete-tail closing balances to the existing treasury bridge under supplied
 policies. Cash-flow-hedge AOCI keeps its own bridge GL and enters eligible
 AOCI only when the reviewed policy flag `cash_flow_hedge_aoci_eligible` is set.
 The independent reference recomputes rows, eligible amounts and the thirteen
-ratios. Interim capital, FTP, deferred-tax/opt-out policy and approval remain
-open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).
+ratios; an explicit `interim_report` selects report-date capital at a path node
+before the complete tail. FTP and approval remain open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).
