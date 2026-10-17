@@ -29,6 +29,8 @@ pub(super) struct CompiledMember {
     pub exposure: usize,
     /// Exposure periods starting at or after inception, in order.
     pub hedged_periods: Vec<usize>,
+    /// Documented alternatives with their own payment schedule: (periods, hedged indices).
+    pub schedules: BTreeMap<String, (Vec<Period>, Vec<usize>)>,
     /// Hypothetical per documented index; empty when matched critical terms are elected.
     pub hypotheticals: BTreeMap<String, HypRef>,
 }
@@ -513,6 +515,22 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             {
                 return Err("choose-your-rate exposures require 2..=16 documented index options including the initial index on liability interest payments".into());
             }
+            if let Some(evidence) = &cyr.forecasted_issuance {
+                identity(evidence, &mut bytes)?;
+            }
+            let mut scheduled = HashSet::new();
+            for s in &cyr.option_schedules {
+                text(&s.index_id, &mut bytes)?;
+                if s.index_id == x.index_id
+                    || !options.contains(s.index_id.as_str())
+                    || !scheduled.insert(s.index_id.as_str())
+                {
+                    return Err(
+                        "an option schedule belongs once to a documented alternative index".into(),
+                    );
+                }
+                periods(&s.periods, asof, &mut bytes, "option schedule")?;
+            }
         }
         if !exposure_ids.insert(x.exposure_id.as_str()) {
             return Err("duplicate forecast exposure identity".into());
@@ -606,6 +624,13 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         delivered_underlying,
                         ..
                     }) if node.ordinal >= terminal.expiry_ordinal => {
+                        // An option that expired before designation is no longer part of the
+                        // hedging instrument: designate the swap (or its delivered swap) alone.
+                        if node.ordinal == inception.max(path.nodes[0].ordinal)
+                            && terminal.expiry_ordinal < inception
+                        {
+                            return Err("the written option expired before designation and is not part of the hedging instrument".into());
+                        }
                         // A physically delivered written option continues as the delivered swap
                         // under the same mapped position; its notional must still match.
                         if let Some(u) = delivered_underlying {
@@ -974,6 +999,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                             exposure: xi,
                             hedged_periods: hedged,
                             hypotheticals: hyps,
+                            schedules: BTreeMap::new(),
                         });
                     }
                     compiled.push(CompiledRelationship {
@@ -1046,6 +1072,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 {
                     return Err("a combination of instruments cannot claim matched critical terms; supply a hypothetical derivative".into());
                 }
+                let mut schedules = BTreeMap::new();
                 let choose_your_rate = match (&exposure.choose_your_rate, &rel.rate_hypotheticals)
                 {
                     (None, None) => false,
@@ -1073,10 +1100,21 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                                 .iter()
                                 .position(|x| x.index_id == rh.index_id)
                                 .unwrap_or(0);
+                            // A tenor alternative mirrors its own schedule (815-30-35-37C/37I).
+                            let tenor = cyr.option_schedules.iter().find(|s| s.index_id == rh.index_id);
+                            let alternative = tenor.map(|s| ForecastExposure {
+                                periods: s.periods.clone(),
+                                ..exposure.clone()
+                            });
+                            let mirrored = alternative.as_ref().unwrap_or(exposure);
+                            if let Some(alt) = &alternative {
+                                let hedged_alt = hedged_periods(&ctx, alt, inception)?;
+                                schedules.insert(rh.index_id.clone(), (alt.periods.clone(), hedged_alt));
+                            }
                             let nodes = hypothetical_nodes(
                                 &ctx,
                                 &rh.hypothetical,
-                                exposure,
+                                mirrored,
                                 &rh.index_id,
                                 inception,
                                 &mut bytes,
@@ -1103,6 +1141,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         exposure: xi,
                         hedged_periods: hedged,
                         hypotheticals: hyps,
+                        schedules,
                     }],
                     matched,
                     predecessor,
@@ -1146,8 +1185,23 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         for id in &rel.additional_instrument_position_ids {
             swaps.push(opening_swap(c, id)?);
         }
-        if ev.kind != EventKind::RateElection && ev.index_id.is_some() {
-            return Err("only rate elections carry an index".into());
+        let indexed = matches!(
+            ev.kind,
+            EventKind::RateElection | EventKind::DebtIssued | EventKind::DebtReplacement
+        );
+        if !indexed && ev.index_id.is_some() {
+            return Err("only rate elections, debt issuance and replacement carry an index".into());
+        }
+        if let Some(support) = &ev.qualitative_similarity_support {
+            identity(support, &mut bytes)?;
+            if ev.kind != EventKind::Assess
+                || rel
+                    .group
+                    .as_ref()
+                    .is_none_or(|g| g.qualitative_similarity_election.is_none())
+            {
+                return Err("qualitative similarity support requires a group assessment under the 55-23C election".into());
+            }
         }
         if ev.effective_ordinal.is_some()
             && (ev.kind != EventKind::Assess || cr.similar_risk.is_none())
@@ -1191,6 +1245,18 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 }
             }
             EventKind::ForecastStatus => {
+                let tenor_schedules = cr.members.iter().any(|m| !m.schedules.is_empty());
+                if tenor_schedules
+                    && matches!(
+                        ev.status,
+                        Some(ForecastStatus::Delayed | ForecastStatus::PeriodProbableNotToOccur)
+                    )
+                {
+                    return Err(
+                        "period-level forecast status is not admitted with tenor option schedules"
+                            .into(),
+                    );
+                }
                 if rel.designation != Designation::CashFlowHedge
                     || ev.status.is_none()
                     || ev.proportion.is_some()
@@ -1248,6 +1314,41 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         }
                     }
                 }
+            }
+            EventKind::DebtIssued | EventKind::DebtReplacement => {
+                let index_id = ev.index_id.as_deref().ok_or(
+                    "debt issuance and replacement name the documented index that accrues",
+                )?;
+                if !cr.choose_your_rate
+                    || ev.proportion.is_some()
+                    || ev.reason.is_some()
+                    || ev.status.is_some()
+                {
+                    return Err("debt issuance and replacement apply to choose-your-rate relationships and carry only an index".into());
+                }
+                let exposure = &r.forecast_exposures[cr.members[0].exposure];
+                let cyr = exposure
+                    .choose_your_rate
+                    .as_ref()
+                    .ok_or("choose-your-rate terms missing")?;
+                if !cyr.documented_index_ids.iter().any(|x| x == index_id) {
+                    return Err(
+                        "issued or replacement debt must accrue at a documented index option"
+                            .into(),
+                    );
+                }
+                if ev.kind == EventKind::DebtIssued {
+                    // 815-30-35-37H: the issuance stage ends no later than the first hedged period.
+                    let first = cr.members[0]
+                        .hedged_periods
+                        .first()
+                        .map(|&q| exposure.periods[q].start_ordinal)
+                        .ok_or("no hedged period")?;
+                    if cyr.forecasted_issuance.is_none() || ev.ordinal > first {
+                        return Err("debt issuance applies to a forecasted issuance on or before the first hedged period".into());
+                    }
+                }
+                assessment_node(&ctx, rel, cr, &swaps, ev.ordinal)?;
             }
             EventKind::RateElection => {
                 let index_id = ev

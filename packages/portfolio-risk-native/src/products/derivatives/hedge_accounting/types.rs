@@ -129,8 +129,14 @@ pub enum EventKind {
     Assess,
     Discontinue,
     ForecastStatus,
-    /// ASU 2025-09 choose-your-rate election (815-30-35-37I through 35-37M).
+    /// ASU 2025-09 choose-your-rate election (815-30-35-37I through 35-37M); before a forecasted
+    /// issuance it is a change in the best estimate (815-30-35-37E through 35-37G).
     RateElection,
+    /// The forecasted choose-your-rate debt is issued with its first selected index: the hedge
+    /// documentation is updated without dedesignation (815-30-35-37H).
+    DebtIssued,
+    /// Replacement debt accruing at a documented option of the original debt (815-30-35-37K).
+    DebtReplacement,
 }
 /// ASU 2025-09 similar-risk assessment method (815-20-55-23A).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -261,6 +267,20 @@ pub struct ChooseYourRate {
     pub evidence: Identity,
     pub documented_index_ids: Vec<String>,
     pub debt_classification: DebtClassification,
+    /// Payment schedules of documented alternatives whose tenor changes the number or timing of
+    /// the hedged payments (815-30-35-37C/37I); other alternatives use the exposure's periods.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub option_schedules: Vec<OptionSchedule>,
+    /// Evidence that issuance of this choose-your-rate debt is probable (815-30-35-37B(a), 37D):
+    /// the exposure is a forecasted issuance until a `debt_issued` event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecasted_issuance: Option<Identity>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OptionSchedule {
+    pub index_id: String,
+    pub periods: Vec<Period>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -300,6 +320,10 @@ pub struct GroupDesignation {
     pub member_exposure_ids: Vec<String>,
     pub similar_risk_method: SimilarRiskMethod,
     pub hypotheticals: Vec<MemberHypothetical>,
+    /// Hedge-by-hedge election to assess similarity qualitatively after an initial passing
+    /// quantitative assessment (815-20-55-23C).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualitative_similarity_election: Option<Identity>,
 }
 /// Hypothetical derivative for one documented alternative rate, with terms as of inception (35-37M).
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -437,6 +461,10 @@ pub struct Event {
     /// `forecast_status` delayed: the new date on which the delayed transaction affects earnings.
     #[serde(default)]
     pub new_payment_ordinal: Option<i32>,
+    /// Group `assess`: reviewed qualitative support that the hedged risks remain similar
+    /// (815-20-55-23C), in place of the quantitative member test.
+    #[serde(default)]
+    pub qualitative_similarity_support: Option<Identity>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -548,6 +576,10 @@ pub struct SimilarRiskAssessment {
     pub method: SimilarRiskMethod,
     pub similar: bool,
     pub members: Vec<MemberAssessment>,
+    /// `qualitative` when reviewed qualitative support replaced the member test (55-23C); the
+    /// quantitative member rows are still reported for information.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub basis: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct Assessment {

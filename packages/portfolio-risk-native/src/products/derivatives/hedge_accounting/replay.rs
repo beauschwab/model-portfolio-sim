@@ -1,7 +1,7 @@
 //! One ordered journal: the undesignated derivative owner's postings re-owned under
 //! reviewed formal relationships, plus hedged-item basis and OCI mechanics.
 use super::{
-    inputs::{self, CompiledRelationship, HypSource},
+    inputs::{self, CompiledMember, CompiledRelationship, HypSource},
     types::*,
 };
 use crate::products::derivatives::accounting::{
@@ -78,6 +78,10 @@ struct State {
     /// Portfolio-layer amounts dedesignated by anticipated and actual breaches.
     anticipated_breach: f64,
     actual_breach: f64,
+    /// Choose-your-rate: false while the debt is a forecasted issuance (815-30-35-37B(a)).
+    issued: bool,
+    /// Group: a quantitative similarity assessment has passed (55-23C precondition).
+    quantitative_similar: bool,
 }
 struct Ledger<'a> {
     request: &'a HedgeAccountingRequest,
@@ -402,6 +406,20 @@ fn hypothetical<'a>(
     let ni = *h.nodes.get(&t).ok_or("hypothetical node missing")?;
     Ok((&hyp.nodes[ni].request, &hyp.evidence))
 }
+/// The selected index's payment schedule: a tenor alternative's own periods, else the exposure's.
+fn schedule<'a>(
+    r: &'a HedgeAccountingRequest,
+    member: &'a CompiledMember,
+    selected: &str,
+) -> (&'a [Period], &'a [usize]) {
+    match member.schedules.get(selected) {
+        Some((periods, hedged)) => (periods, hedged),
+        None => (
+            &r.forecast_exposures[member.exposure].periods,
+            &member.hedged_periods,
+        ),
+    }
+}
 fn sum_members(st: &State) -> f64 {
     st.members.iter().map(|m| m.cum_e).sum()
 }
@@ -475,6 +493,14 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             last_assessed: rel.inception_ordinal,
             anticipated_breach: 0.,
             actual_breach: 0.,
+            issued: !compiled.relationships[i].choose_your_rate
+                || compiled.relationships[i].members.iter().all(|m| {
+                    r.forecast_exposures[m.exposure]
+                        .choose_your_rate
+                        .as_ref()
+                        .is_none_or(|c| c.forecasted_issuance.is_none())
+                }),
+            quantitative_similar: false,
         })
         .collect::<Vec<_>>();
     let mut lifecycle = Vec::new();
@@ -1015,9 +1041,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 st.cum_e = amount(st.cum_e + delta)?;
                                 let (due, delay) = {
                                     let ms = &st.members[m];
-                                    let q = member.hedged_periods.iter().copied().find(|&q| {
-                                        exposure.periods[q].payment_ordinal == t
-                                            && !ms.excluded.contains(&q)
+                                    let (periods, hedged) = schedule(r, member, &ms.selected);
+                                    let q = hedged.iter().copied().find(|&q| {
+                                        periods[q].payment_ordinal == t && !ms.excluded.contains(&q)
                                     });
                                     (q, q.and_then(|q| ms.delays.get(&q).copied()))
                                 };
@@ -1301,8 +1327,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         for (m, member) in cr.members.iter().enumerate() {
                             let exposure = &r.forecast_exposures[member.exposure];
                             let ms = &st.members[m];
-                            for &k in &member.hedged_periods {
-                                let p = &exposure.periods[k];
+                            let (periods, hedged) = schedule(r, member, &ms.selected);
+                            for &k in hedged {
+                                let p = &periods[k];
                                 if p.payment_ordinal > cutoff && !ms.excluded.contains(&k) {
                                     let tau = actual_year_fraction(
                                         p.start_ordinal,
@@ -1370,6 +1397,67 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 record.proportion_after = st.proportion;
                 Ok(())
             };
+            // 815-30-35-37F/G and 37L/M: final retrospective assessment on the previously selected
+            // rate; an ineffective period returns its instrument changes to earnings; then the
+            // hypothetical for the newly selected rate (terms as of inception) governs.
+            let elect = |states: &mut Vec<State>,
+                         ledger: &mut Ledger<'_>,
+                         assessments: &mut Vec<Assessment>,
+                         record: &mut LifecycleRecord,
+                         new_index: &str|
+             -> Result<(), String> {
+                let st = &states[i];
+                if st.status != Status::Qualified {
+                    return Err("rate election requires a qualified relationship".into());
+                }
+                let new_index = new_index.to_string();
+                let prior_index = st.members[0].selected.clone();
+                let (d, e) = (st.cum_d, st.cum_e);
+                if d == 0. && e == 0. {
+                    return Err(
+                        "final retrospective assessment requires nonzero cumulative change".into(),
+                    );
+                }
+                let ratio = ratio(d, e);
+                let qualified = in_band(band, ratio);
+                assessments.push(Assessment {
+                    event_id: ev.event_id.clone(),
+                    relationship_id: rel.relationship_id.clone(),
+                    ordinal: t,
+                    method: band.method,
+                    lower_bound: band.lower_bound,
+                    upper_bound: band.upper_bound,
+                    cumulative_instrument_change: d,
+                    cumulative_hedged_change: e,
+                    ratio,
+                    qualified,
+                    index_id: Some(prior_index),
+                    similar_risk: None,
+                });
+                if !qualified {
+                    let effective = states[i].last_assessed;
+                    let g = catch_up(states, ledger, "rate_election_earnings_catch_up", effective)?;
+                    record.effective_ordinal = Some(effective);
+                    record.earnings_catch_up = Some(g);
+                    record.reason = Some("ineffective_period_in_earnings".into());
+                } else {
+                    record.reason = Some("qualified".into());
+                }
+                let st = &mut states[i];
+                let (req, _) = hypothetical(rel, cr, 0, &new_index, t)?;
+                let h = hypothetical_value(req)?;
+                let scaled = amount(st.scale * h)?;
+                let ms = &mut st.members[0];
+                ms.selected = new_index.clone();
+                ms.hyp_prev = Some(h);
+                ms.cum_e = scaled;
+                ms.last_hyp = Some(scaled);
+                st.cum_e = sum_members(st);
+                st.last_hyp = Some(scaled);
+                st.last_assessed = t;
+                record.index_id = Some(new_index);
+                Ok(())
+            };
             match ev.kind {
                 EventKind::Assess => {
                     record.kind = "assessment".into();
@@ -1385,6 +1473,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     }
                     let ratio = ratio(d, e);
                     let qualified = in_band(band, ratio);
+                    let mut mark_similar = false;
                     let similar_risk = match cr.similar_risk {
                         None => None,
                         Some(method) => {
@@ -1423,14 +1512,36 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                     similar,
                                 });
                             }
-                            Some(SimilarRiskAssessment {
-                                method,
-                                similar: members.iter().all(|m| m.similar),
-                                members,
-                            })
+                            match &ev.qualitative_similarity_support {
+                                // 815-20-55-23C: after an initial passing quantitative assessment,
+                                // reviewed qualitative support establishes similarity; the member
+                                // rows remain reported for information.
+                                Some(_) => {
+                                    if !states[i].quantitative_similar {
+                                        return Err("qualitative similarity requires an initial passing quantitative assessment".into());
+                                    }
+                                    Some(SimilarRiskAssessment {
+                                        method,
+                                        similar: true,
+                                        members,
+                                        basis: Some("qualitative".into()),
+                                    })
+                                }
+                                None => {
+                                    let similar = members.iter().all(|m| m.similar);
+                                    mark_similar = similar;
+                                    Some(SimilarRiskAssessment {
+                                        method,
+                                        similar,
+                                        members,
+                                        basis: None,
+                                    })
+                                }
+                            }
                         }
                     };
                     let similar = similar_risk.as_ref().is_none_or(|s| s.similar);
+
                     assessments.push(Assessment {
                         event_id: ev.event_id.clone(),
                         relationship_id: rel.relationship_id.clone(),
@@ -1449,6 +1560,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         },
                         similar_risk,
                     });
+                    if mark_similar {
+                        states[i].quantitative_similar = true;
+                    }
                     if !similar {
                         // 815-20-55-23D: dedesignate as of the last date all hedged risks were
                         // assessed similar (or the specific date determined); OCI through that date
@@ -1744,72 +1858,81 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     }
                 }
                 EventKind::RateElection => {
-                    // 815-30-35-37L/M: final retrospective assessment on the previously selected
-                    // rate; an ineffective period returns its instrument changes to earnings; then
-                    // the hypothetical for the newly selected rate (terms as of inception) governs.
-                    record.kind = "rate_election".into();
-                    let st = &states[i];
-                    if st.status != Status::Qualified {
-                        return Err("rate election requires a qualified relationship".into());
+                    let i_issued = states[i].issued;
+                    record.kind = if i_issued {
+                        "rate_election"
+                    } else {
+                        "best_estimate_change"
                     }
+                    .into();
                     let new_index = ev.index_id.clone().ok_or("rate election index missing")?;
-                    let prior_index = st.members[0].selected.clone();
-                    if new_index == prior_index {
+                    if new_index == states[i].members[0].selected {
                         return Err("rate election must change the selected index".into());
                     }
-                    let (d, e) = (st.cum_d, st.cum_e);
-                    if d == 0. && e == 0. {
-                        return Err(
-                            "final retrospective assessment requires nonzero cumulative change"
-                                .into(),
-                        );
+                    elect(
+                        &mut states,
+                        &mut ledger,
+                        &mut assessments,
+                        &mut record,
+                        &new_index,
+                    )?;
+                }
+                EventKind::DebtIssued | EventKind::DebtReplacement => {
+                    let issuing = ev.kind == EventKind::DebtIssued;
+                    record.kind = if issuing {
+                        "debt_issued"
+                    } else {
+                        "debt_replacement"
                     }
-                    let ratio = ratio(d, e);
-                    let qualified = in_band(band, ratio);
-                    assessments.push(Assessment {
-                        event_id: ev.event_id.clone(),
-                        relationship_id: rel.relationship_id.clone(),
-                        ordinal: t,
-                        method: band.method,
-                        lower_bound: band.lower_bound,
-                        upper_bound: band.upper_bound,
-                        cumulative_instrument_change: d,
-                        cumulative_hedged_change: e,
-                        ratio,
-                        qualified,
-                        index_id: Some(prior_index),
-                        similar_risk: None,
-                    });
-                    if !qualified {
-                        let effective = states[i].last_assessed;
-                        let g = catch_up(
+                    .into();
+                    if states[i].status != Status::Qualified || states[i].issued == issuing {
+                        return Err(if issuing {
+                            "debt issuance is recorded once for a qualified forecasted issuance"
+                        } else {
+                            "replacement debt follows issued choose-your-rate debt in a qualified relationship"
+                        }
+                        .into());
+                    }
+                    let new_index = ev.index_id.clone().ok_or("accruing index missing")?;
+                    if new_index != states[i].members[0].selected {
+                        elect(
                             &mut states,
                             &mut ledger,
-                            "rate_election_earnings_catch_up",
-                            effective,
+                            &mut assessments,
+                            &mut record,
+                            &new_index,
                         )?;
-                        record.effective_ordinal = Some(effective);
-                        record.earnings_catch_up = Some(g);
-                        record.reason = Some("ineffective_period_in_earnings".into());
                     } else {
-                        record.reason = Some("qualified".into());
+                        record.reason = Some(
+                            if issuing {
+                                "documentation_updated"
+                            } else {
+                                "replacement_at_selected_index"
+                            }
+                            .into(),
+                        );
+                        record.index_id = Some(new_index);
                     }
-                    let st = &mut states[i];
-                    let (req, _) = hypothetical(rel, cr, 0, &new_index, t)?;
-                    let h = hypothetical_value(req)?;
-                    let scaled = amount(st.scale * h)?;
-                    let ms = &mut st.members[0];
-                    ms.selected = new_index.clone();
-                    ms.hyp_prev = Some(h);
-                    ms.cum_e = scaled;
-                    ms.last_hyp = Some(scaled);
-                    st.cum_e = sum_members(st);
-                    st.last_hyp = Some(scaled);
-                    st.last_assessed = t;
-                    record.index_id = Some(new_index);
+                    states[i].issued = true;
                 }
             }
             lifecycle.push(record);
+        }
+        // 815-30-35-37H: a forecasted issuance is recorded by its first hedged interest period.
+        for (i, st) in states.iter().enumerate() {
+            let cr = &compiled.relationships[i];
+            if st.issued || st.status != Status::Qualified || !cr.choose_your_rate {
+                continue;
+            }
+            let member = &cr.members[0];
+            let exposure = &r.forecast_exposures[member.exposure];
+            if member
+                .hedged_periods
+                .first()
+                .is_some_and(|&q| t >= exposure.periods[q].start_ordinal)
+            {
+                return Err("a forecasted choose-your-rate issuance must be recorded by its first hedged interest period, or its forecast status reported".into());
+            }
         }
         // ASU 2022-01 portfolio layers: actual, then anticipated, breach monitoring after events.
         for (item_index, item) in r.hedged_items.iter().enumerate() {
@@ -2172,12 +2295,12 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             .iter()
             .zip(&st.members)
             .flat_map(|(m, ms)| {
-                let exposure = &r.forecast_exposures[m.exposure];
-                m.hedged_periods
+                let (periods, hedged) = schedule(r, m, &ms.selected);
+                hedged
                     .iter()
                     .filter(|&&k| !ms.excluded.contains(&k))
                     .map(|&k| {
-                        let p = &exposure.periods[k];
+                        let p = &periods[k];
                         (ms.delays.get(&k).copied().unwrap_or(p.payment_ordinal), p)
                     })
                     .filter(|(pay, _)| *pay > last)
