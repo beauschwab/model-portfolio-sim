@@ -260,3 +260,7 @@ tables and re-verifies the persisted result before publication. The receipt keep
 `accounting_standard_approval`, `persisted_journal_verified`, `saved_book_adoption`
 and `portfolio_layer_supported` false; nothing feeds capital or FTP. See
 `docs/models/hedge-accounting.md`.
+`hedge-treasury-1` follows the same durable route and receipt rules; its
+independent reference (`hedge_treasury_reference.verify`) recomputes closing
+rows, eligible AOCI and capital ratios, and the receipt reports the reviewed
+cash-flow-hedge AOCI eligibility decision.

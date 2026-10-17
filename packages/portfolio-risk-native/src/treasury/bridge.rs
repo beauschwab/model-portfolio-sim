@@ -86,6 +86,10 @@ pub struct LedgerPolicy {
     pub scenario: String,
     pub capital: Capital,
     pub include_aoci: bool,
+    /// Cash-flow-hedge AOCI (`cash_flow_hedge_oci` rows) is excluded from eligible
+    /// AOCI unless this reviewed policy flag is set, even when `include_aoci` is true.
+    #[serde(default)]
+    pub cash_flow_hedge_aoci_eligible: bool,
     /// Book equity not eligible as common equity (including preferred equity).
     pub equity_exclusions: f64,
     pub intangible_assets: f64,
@@ -174,8 +178,12 @@ const ASSET_GLS: &[&str] = &[
     // Existing explicit instrument/GL policy weights apply to each signed row.
     "live_interest_basis_adjustment",
     "default_interest_basis_adjustment",
+    // Formal fair-value hedge basis adjustment on an asset item (signed carrying adjustment).
+    "hedged_item_basis_adjustment",
 ];
 const LIAB_GLS: &[&str] = &[
+    // Formal fair-value hedge basis adjustment on a liability item.
+    "hedged_item_basis_liability",
     "funding_principal",
     "secured_funding",
     "received_margin",
@@ -330,7 +338,7 @@ pub(crate) fn ledger_with_exposure(
     }
     // GL debit signs determine balances. Retained earnings includes all posted
     // P&L (including tax/provision); distributions reduce common equity once.
-    let mut sums: BTreeMap<(&str, &str), [f64; 7]> = BTreeMap::new();
+    let mut sums: BTreeMap<(&str, &str), [f64; 8]> = BTreeMap::new();
     let mut contributions = Vec::new();
     let mut groups: BTreeMap<(&str, &str, &str), (f64, f64)> = BTreeMap::new();
     for r in &rows {
@@ -361,6 +369,9 @@ pub(crate) fn ledger_with_exposure(
             s[3] -= v;
         } else if gl == "oci" {
             s[4] -= v;
+        } else if gl == "cash_flow_hedge_oci" {
+            s[4] -= v;
+            s[7] -= v;
         } else if LIAB_GLS.contains(&gl)
             || (["book_adjustment", "accrued_interest"].contains(&gl)
                 && funding.contains(&(&r.scenario, &r.account, &r.instrument_id)))
@@ -453,7 +464,15 @@ pub(crate) fn ledger_with_exposure(
         c.scenario = scenario.into();
         c.common_equity = s[2] - p.equity_exclusions;
         c.retained_earnings = s[3];
-        c.eligible_aoci = if p.include_aoci { s[4] } else { 0. };
+        c.eligible_aoci = if p.include_aoci {
+            s[4] - if p.cash_flow_hedge_aoci_eligible {
+                0.
+            } else {
+                s[7]
+            }
+        } else {
+            0.
+        };
         c.credit_rwa = s[5];
         c.total_leverage_exposure = s[0] + p.leverage_addon - p.leverage_deductions;
         c.tangible_common_equity = equity - p.equity_exclusions - p.intangible_assets;
@@ -461,7 +480,7 @@ pub(crate) fn ledger_with_exposure(
         audit.push(
             json!({"scenario":scenario,"account":account,"entity":c.entity,"currency":c.currency,
             "assets":s[0],"liabilities":s[1],"book_equity":equity,"common_equity":c.common_equity,
-            "retained_earnings":s[3],"book_aoci":s[4],"eligible_aoci":c.eligible_aoci,
+            "retained_earnings":s[3],"book_aoci":s[4],"cash_flow_hedge_aoci":s[7],"eligible_aoci":c.eligible_aoci,
             "equity_exclusions":p.equity_exclusions,"credit_rwa":s[5],"reconciliation_error":s[6]}),
         );
         t.capital.push(c);

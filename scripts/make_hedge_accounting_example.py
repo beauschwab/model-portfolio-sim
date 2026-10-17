@@ -17,10 +17,13 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-JAN1, FEB1, MAR1, APR1 = (dt.date(2024, m, 1).toordinal() for m in (1, 2, 3, 4))
+JAN1, FEB1, MAR1, APR1, MAY1 = (dt.date(2024, m, 1).toordinal() for m in (1, 2, 3, 4, 5))
 LAST = APR1
 PERIODS = [('1', JAN1, FEB1), ('2', FEB1, MAR1), ('3', MAR1, APR1)]
-OBSERVED = {'1': .065, '2': .04, '3': .045}
+# The treasury example hedges one forecast period beyond the instrument so closing
+# cash-flow-hedge AOCI is nonzero and its CET1 eligibility is a visible policy choice.
+EXTENDED = PERIODS + [('4', APR1, MAY1)]
+OBSERVED = {'1': .065, '2': .04, '3': .045, '4': .045}
 SWAPS = ['swap-fvh', 'swap-cfh']
 
 
@@ -33,11 +36,10 @@ def df(rate, days):
     return 1. / (1. + rate * days / 360.)
 
 
-def par_rate_feb1():
-    """Fixed rate making the two remaining periods at market on 1 February."""
-    tau2, tau3 = (MAR1 - FEB1) / 360., (APR1 - MAR1) / 360.
-    d2, d3 = df(.04, MAR1 - FEB1), df(.04, APR1 - FEB1)
-    return (OBSERVED['2'] * tau2 * d2 + .045 * tau3 * d3) / (tau2 * d2 + tau3 * d3)
+def par_rate_feb1(periods=PERIODS):
+    """Fixed rate making the remaining periods at market on 1 February (4% simple curve)."""
+    weights = [((e - s) / 360., df(.04, e - FEB1), OBSERVED[pid] if s <= FEB1 else .045) for pid, s, e in periods if s >= FEB1]
+    return sum(r * tau * d for tau, d, r in weights) / sum(tau * d for tau, d, _ in weights)
 
 
 FIXED = {'swap-fvh': .06, 'swap-cfh': par_rate_feb1()}
@@ -60,10 +62,10 @@ def utc(ordinal, hour):
     return (ordinal - 719163) * 86400 + hour * 3600
 
 
-def curve(t):
+def curve(t, last=APR1):
     rate = .06 if t < FEB1 else .04
     points = [dict(ordinal=t, discount_factor=1.)]
-    points += [dict(ordinal=d, discount_factor=df(rate, d - t)) for d in (FEB1, MAR1, APR1) if d > t]
+    points += [dict(ordinal=d, discount_factor=df(rate, d - t)) for d in (FEB1, MAR1, APR1, MAY1) if t < d <= last]
     return dict(source=ident('discount'), collateral_discount_policy=ident('discount-policy'), currency='USD',
                 asof_ordinal=t, information_unix_seconds=utc(t, 9), basis='collateralized_clean', points=points)
 
@@ -88,15 +90,16 @@ def floating(t, pid, start, end):
                 coupon=coupon, fee=0.)
 
 
-def swap(t, position):
+def swap(t, position, periods=PERIODS, fixed=None, last=LAST):
     return dict(kind='swap', request=dict(
         contract=ident(position + '-contract'), index_basis=ident('index-basis'), rate_path=ident('index-path'),
         position_id=position, scenario_id='physical', currency='USD', monetary_unit='currency_units',
-        asof_ordinal=t, valuation_cutoff_unix_seconds=utc(t, 9), tail_end_ordinal=LAST,
-        payment_timing='after_scheduled_payments', side='payer', notional=100., fixed_rate=FIXED[position],
+        asof_ordinal=t, valuation_cutoff_unix_seconds=utc(t, 9), tail_end_ordinal=last,
+        payment_timing='after_scheduled_payments', side='payer', notional=100.,
+        fixed_rate=FIXED[position] if fixed is None else fixed,
         fixed_periods=[dict(period_id='f' + pid, start_ordinal=s, end_ordinal=e, payment_ordinal=e, day_count='act360')
-                       for pid, s, e in PERIODS],
-        floating_periods=[floating(t, pid, s, e) for pid, s, e in PERIODS], discount_curve=curve(t)))
+                       for pid, s, e in periods],
+        floating_periods=[floating(t, pid, s, e) for pid, s, e in periods], discount_curve=curve(t, last)))
 
 
 def node(t):
@@ -138,12 +141,12 @@ def derivative():
                 derivative=raw, physical_index_paths=physical, pricing_xva_reference=None)
 
 
-def periods(prefix):
+def periods(prefix, source=PERIODS):
     return [dict(period_id=prefix + pid, start_ordinal=s, end_ordinal=e, payment_ordinal=e, day_count='act360')
-            for pid, s, e in PERIODS]
+            for pid, s, e in source]
 
 
-def request():
+def request(extended=False):
     policy = dict(identity=ident('hedge-policy'), rule_version='asc815-asu2017-12',
                   adoption=dict(asu_2025_09=dict(adopted=False, adoption_ordinal=None, elections=dict(
                       similar_risk_grouping=False, selectable_rate_debt=False, swap_written_option_exception=False,
@@ -155,8 +158,12 @@ def request():
     items = [dict(item_id='loan-1', source=ident('loan-1-terms'), carrying_source=ident('loan-1-carrying'),
                   kind='fixed_rate_instrument', direction='asset', notional=100., contractual_rate=.07,
                   periods=periods('p'), principal_ordinal=APR1)]
+    exposure_periods = EXTENDED if extended else PERIODS
     exposures = [dict(exposure_id='float-1', source=ident('float-1-forecast'), probability_evidence=ident('float-1-probability'),
-                      direction='payment', notional=100., index_id='term-1m', periods=periods('e'))]
+                      direction='payment', notional=100., index_id='term-1m', periods=periods('e', exposure_periods))]
+    hypothetical = None if not extended else dict(evidence=ident('cfh-1-hypothetical'), nodes=[
+        dict(ordinal=t, request=swap(t, 'hypothetical', EXTENDED, par_rate_feb1(EXTENDED), MAY1)['request'])
+        for t in range(FEB1, LAST + 1)])
     relationships = [
         dict(relationship_id='fvh-1', predecessor_relationship_id=None, designation='fair_value_hedge',
              hedging_instrument_position_id='swap-fvh', designated_proportion=1., hedged_item_id='loan-1',
@@ -167,8 +174,8 @@ def request():
              hedging_instrument_position_id='swap-cfh', designated_proportion=1., hedged_item_id=None,
              hedged_notional=None, forecast_exposure_id='float-1', hedged_risk='benchmark_interest_rate',
              benchmark_rate=None, inception_ordinal=FEB1, risk_management_objective=ident('cfh-1-objective'),
-             documentation=ident('cfh-1-documentation'), hypothetical=None,
-             matched_critical_terms_evidence=ident('cfh-1-critical-terms')),
+             documentation=ident('cfh-1-documentation'), hypothetical=hypothetical,
+             matched_critical_terms_evidence=None if extended else ident('cfh-1-critical-terms')),
     ]
     events = [dict(event_id=f'assess-{r}-{o}', relationship_id=r, ordinal=o, sequence=i, kind='assess',
                    review=ident('assessment-' + r)) for o, i, r in ((FEB1, 0, 'fvh-1'), (MAR1, 0, 'fvh-1'), (MAR1, 1, 'cfh-1'))]
@@ -177,7 +184,34 @@ def request():
                 forecast_exposures=exposures, relationships=relationships, events=events)
 
 
+def requirement(minimum, buffer=0.):
+    return dict(minimum=minimum, buffer=buffer, management=.005)
+
+
+def treasury_request():
+    """Closing capital on the extended hedge: one reviewed policy for the Physical scenario."""
+    closing = dt.date.fromordinal(LAST).isoformat()
+    capital = dict(entity='bank', currency='USD', scenario='physical', period=closing, common_equity=0., retained_earnings=0.,
+                   eligible_aoci=0., cet1_deductions=2., additional_tier1=5., tier2=4., eligible_tlac=60., eligible_ltd=20.,
+                   credit_rwa=0., market_rwa=10., operational_rwa=20., advanced_rwa=240., average_assets=400.,
+                   total_leverage_exposure=0., tangible_common_equity=0., tangible_assets=0.,
+                   requirements=dict(cet1=requirement(.045, .025), tier1=requirement(.06, .025), total_capital=requirement(.08, .025),
+                                     advanced_cet1=requirement(.045), advanced_tier1=requirement(.06), advanced_total_capital=requirement(.08),
+                                     tier1_leverage=requirement(.04), slr=requirement(.03), tlac_rwa=requirement(.18),
+                                     tlac_leverage=requirement(.075), ltd_rwa=requirement(.06), ltd_leverage=requirement(.045),
+                                     tce_ta=requirement(.05)))
+    policy = dict(account='bank', scenario='physical', capital=capital, include_aoci=True, cash_flow_hedge_aoci_eligible=False,
+                  equity_exclusions=0., intangible_assets=0., leverage_addon=0., leverage_deductions=0.,
+                  gl_risk_weights={'cash': 0., 'derivative_value': 1., 'posted_margin': 0., 'hedged_item_basis_adjustment': 0.},
+                  instrument_risk_weights={})
+    return dict(schema='hedge-treasury-1', hedge=request(extended=True), account='bank', mapping=dict(identity=ident('hedge-gl-mapping')),
+                treasury=dict(as_of=closing, policy_id='synthetic-example-not-regulatory-advice-v1', capital=[], curves=[], positions=[],
+                              strategy_units=[], capital_deltas=[]),
+                policies=[policy], amount_multiplier=1.)
+
+
 if __name__ == '__main__':
-    target = ROOT / 'examples/models/hedge-accounting-1.json'
-    target.write_text(json.dumps(request(), indent=1) + '\n', encoding='utf-8')
-    print(target, target.stat().st_size, 'bytes')
+    for name, body in (('hedge-accounting-1', request()), ('hedge-treasury-1', treasury_request())):
+        target = ROOT / f'examples/models/{name}.json'
+        target.write_text(json.dumps(body, indent=1) + '\n', encoding='utf-8')
+        print(target, target.stat().st_size, 'bytes')

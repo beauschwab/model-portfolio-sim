@@ -391,3 +391,11 @@ net investment, options and defaulted paths reject. Independent raw-source and
 persisted replay gate the durable `/models/runs` route; accounting-standard
 approval, saved-book/shared-journal adoption and capital feeds remain false.
 See [the detailed contract](hedge-accounting.md).
+
+`hedge-treasury-1` re-executes a hedge journal natively and feeds its
+complete-tail closing balances to the existing treasury bridge under supplied
+policies. Cash-flow-hedge AOCI keeps its own bridge GL and enters eligible
+AOCI only when the reviewed policy flag `cash_flow_hedge_aoci_eligible` is set.
+The independent reference recomputes rows, eligible amounts and the thirteen
+ratios. Interim capital, FTP, deferred-tax/opt-out policy and approval remain
+open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).

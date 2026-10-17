@@ -75,3 +75,18 @@ capital/AOCI feeds, PostgreSQL/S3 parity and complete 60,000-position
 acceptance remain open under #35, #20 and #25. Nothing here deploys artifacts or
 restarts workers; rebuild the product artifact and restart API/workers before
 executing the new schema.
+
+## Closing capital feed (`hedge-treasury-1`, same day)
+
+Added after the PR opened: the verified complete-tail hedge closing mapped to
+the existing treasury bridge with cash-flow-hedge AOCI under its own GL and a
+reviewed eligibility flag (default excluded), hedged-item basis as a signed
+asset/liability adjustment, and the thirteen-ratio bridge under supplied
+policies. The example extends the cash-flow hedge by one forecast period beyond
+the instrument (supplied hypothetical) so closing AOCI is nonzero.
+
+- Native: `hedge_treasury` 3 passed (`hedge_accounting` 6 unchanged); strict Clippy clean; `cargo fmt --check` clean after formatting the new files (the first CI parity run failed only on formatting).
+- Engine: `test_hedge_treasury.py` 20 passed (incl. integer-category policy inputs) with `test_hedge_accounting.py` 26.
+- API: `test_hedge_treasury_jobs.py` 5 passed with `test_hedge_accounting_jobs.py` 10 (15 in one run).
+- Browser: `model analysis stores and restores hedge-treasury-1` 1 passed (10.2 s) against durable servers; a first run exposed the same integer-category echo issue in the treasury reference, fixed by typing the bridge policy fields.
+- The saved-derivative and joint-deposit process suites could not run in this worktree (they need the decision-native `portfolio-model-ledger` binary, not built here); they only monkeypatch `derivative_verification._derive`, which is unchanged. CI builds every binary and runs the full engine suite.

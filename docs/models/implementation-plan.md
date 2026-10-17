@@ -19,10 +19,10 @@ options, defaulted paths and seasoned openings refuse explicitly.
 
 Evidence (worktree `claude/hedge-accounting-35`, Windows, rebuilt release binary):
 six native hand/lifecycle/refusal/protocol tests plus the unchanged 45 derivative
-contract/accounting tests and strict all-target Clippy; 20 engine checks (hand
+contract/accounting tests and strict all-target Clippy; 26 engine checks (hand
 values, partial dedesignation, sale, forecast outcomes, failed assessment, supplied
 hypothetical, eleven tamper refusals, eight native refusals, fresh-process ownership,
-cancellation and strict scalar categories) with the derivative accounting suite
+cancellation, strict scalar and integer categories) with the derivative accounting suite
 unchanged; ten durable API checks (original deadline, independent receipt, seven
 persistence tampers, expired deadline, listing). The independent Python reference
 replays the derivative source, item/hypothetical values, lifecycle, assessments,
@@ -30,11 +30,20 @@ journal and roll-forwards. Both oracles now treat rounding-level intents as zero
 events; the previous derivative verifier dropped native floating-noise marks for
 exactly offsetting legs, so at-market fixtures use a par rate with distinct legs.
 
+`hedge-treasury-1` (same stage) feeds the verified complete-tail hedge closing to
+the existing treasury bridge: per-instrument rows reconciled to the closing trial
+balance, cash-flow-hedge AOCI under its own GL with the reviewed
+`cash_flow_hedge_aoci_eligible` policy flag (default excluded), hedged-item basis
+as a signed asset/liability adjustment, and the thirteen-ratio bridge with
+supplied requirements and weights. Evidence: three native tests, 20
+engine checks, five durable API checks, independent row/capital replay.
+Interim capital, FTP, deferred-tax/opt-out policy and approval remain open.
+
 Not closed by this stage: accounting-standard approval, observed effectiveness,
 ASU 2025-09 lanes, portfolio layers, net investment, options, saved-book and shared
-daily journal adoption, treasury/capital/AOCI policy feeds (#24/#30), browser flow
-beyond the generic model-analysis page, PostgreSQL parity and the 60,000-position
-joint acceptance. Local validation does not deploy or restart workers.
+daily journal adoption, deferred-tax/AOCI opt-out and interim capital policy (#30/#72),
+browser flow beyond the generic model-analysis page, PostgreSQL parity and the
+60,000-position joint acceptance. Local validation does not deploy or restart workers.
 
 ### Issue #20 acceptance mapping
 
@@ -45,7 +54,7 @@ joint acceptance. Local validation does not deploy or restart workers.
 | Netting vs gross, collateral, closeout conservation | CSA/MPOR/default native cases; independent raw replay before and after persistence | dynamic IM, own default/DVA |
 | Missing mapping/CSA fail before publication | saved-derivative admission and `/derivatives/mixed/runs` publication fences | saved-book UI adoption |
 | Margin transfers never counted twice as trading loss | derivative accounting intents; mixed shared-journal replay; hedge lane reuses the same owner once | treasury/capital feed |
-| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge accounting lane | treasury reporting, saved hedge graph/paired risk, strategy coefficients, complete scale |
+| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
 
 ## Separate fee owner (local0.29.16; supported component validated)
 
@@ -1146,7 +1155,7 @@ the ledger below.
 | #19 | Revolving credit cards | Native statement/grace/promotion/payment/utilization state and full-tail P/Q graph; public acquired source and shared tagged mixed GL; explicit Card2 gross unpaid interest, signed live/default basis and separate original-EIR/realization owner pass rebuilt-release source, durable and browser gates | Wider fees/grace/draw/CCF, default-before-principal-zero/nonaccrual/PCD/modification policies, cohort/library/saved-book adoption, joint scenarios and complete empirical gates |
 | #16 | CDs | Explicit withdrawal/penalty/renewal/switch contracts; chronological graph2/reprice2 sequence retains locked original OAS, exclusive unsuperseded tails and post-principal-zero rights; the combined public CD/source2 successor is now applied after 158 distinct contained checks and exact 86-file root review, with fresh matching native/default acceptance pending | Complete installed/public sequence adoption, broader contractual policies, joint election/exercise generation, ledger/library/saved-book adoption and complete empirical gates |
 | #20 | Derivatives and dealer counterparties | Raw dated swaps/European options, CSA/MPOR/closeout and reviewed physical accounting; frozen saved-source/shared-Sim components and seasoned opening replay; selected raw enum refusal passes 13 native/221 contained checks, and the durable 28-file proposal passes 221 rebased checks; additive CD/source2 and joint journal composition remains staged | Installed/durable saved hedge graph and mixed journal/solver/capital adoption and complete issue gates |
-| #35 | Formal ASC 815 hedge accounting | Explicit `hedge-accounting-1` lane: FVH/CFH relationships, assessment, OCI/basis mechanics, single journal, independent Python replay and durable `/models/runs` publication (six native, 20 engine, ten API checks) | Accounting-standard approval, observed effectiveness, ASU 2025-09 and portfolio-layer lanes, net investment/options, saved-book and shared-journal adoption, treasury/AOCI feeds and complete scale |
+| #35 | Formal ASC 815 hedge accounting | Explicit `hedge-accounting-1` lane: FVH/CFH relationships, assessment, OCI/basis mechanics, single journal, independent Python replay and durable `/models/runs` publication; `hedge-treasury-1` closing capital feed with reviewed cash-flow-hedge AOCI eligibility | Accounting-standard approval, observed effectiveness, ASU 2025-09 and portfolio-layer lanes, net investment/options, saved-book and shared-journal adoption, interim capital/FTP/deferred-tax policy and complete scale |
 | #21 | Markets/repo/funding | Actual-date funding/rollover/collateral/default state plus whole-book P/Q pricing graph with retained replacement and collateral tails implemented | Ledger/library/treasury/saved-book integration and complete issue gates |
 | #10 | Market drivers | Supplied multicurve/smile/PSD joint-driver contract; source-linked explicit-schedule par bootstrap with quote residuals; native incremental registry/raw-book/month-360/runtime controls and indexed-book durable route now pass installed-default acceptance; actual-native option study publishes 2,160 paired PV/DV01 comparisons; Treasury history and strike diagnostics remain isolated analysis | Joint stochastic market/borrower generation, quote-vintage/observed predictive calibration, smile/new-model option/risk admission, complete saved-workspace/cohort adoption and full issue gates |
 | #22 | Income accounting | Dated yield/fee/review engine, credit/accounting/claims, deposit original-EIR/mixed acquisitions and public revised-expectation income route pass installed-default release/application gates; installment/Card2 original-EIR and realization share the verified GL; paired mortgage analytical source and bounded mixed owner remain independently replayed | Complete product yield/reset/modification/nonaccrual adoption, complete source-owned deposit portfolio adoption, product FTP and complete-scale issue gates |

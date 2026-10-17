@@ -53,7 +53,13 @@ struct Ledger<'a> {
     memo: BTreeMap<Account, f64>,
     intents: Vec<Intent>,
 }
-fn posting(account: Account, value: f64, owner: Option<&str>, bucket: Option<&str>, relationship: Option<&str>) -> Posting {
+fn posting(
+    account: Account,
+    value: f64,
+    owner: Option<&str>,
+    bucket: Option<&str>,
+    relationship: Option<&str>,
+) -> Posting {
     Posting {
         account,
         position_id: owner.map(str::to_string),
@@ -82,7 +88,13 @@ impl<'a> Ledger<'a> {
         let mut memo = BTreeMap::new();
         memo.insert(Account::MemoCustodianAsset, o.received_im_custody);
         memo.insert(Account::MemoCustodianObligation, -o.received_im_custody);
-        Ok(Self { request, scenario_id: scenario_id.into(), financial, memo, intents: Vec::new() })
+        Ok(Self {
+            request,
+            scenario_id: scenario_id.into(),
+            financial,
+            memo,
+            intents: Vec::new(),
+        })
     }
     #[allow(clippy::too_many_arguments)]
     fn emit(
@@ -102,14 +114,20 @@ impl<'a> Ledger<'a> {
         if postings.is_empty() {
             return Ok(());
         }
-        let sum = postings.iter().try_fold(0., |a, p| amount(a + amount(p.debit_amount)?))?;
+        let sum = postings
+            .iter()
+            .try_fold(0., |a, p| amount(a + amount(p.debit_amount)?))?;
         if !near(sum, 0.) {
             return Err(format!("unbalanced hedge intent {kind}: {sum}"));
         }
         if self.intents.len() >= 250000 {
             return Err("hedge journal output exceeds 250000 intents".into());
         }
-        let balances = if ledger == JournalLedger::Financial { &mut self.financial } else { &mut self.memo };
+        let balances = if ledger == JournalLedger::Financial {
+            &mut self.financial
+        } else {
+            &mut self.memo
+        };
         for p in &postings {
             let value = balances.entry(p.account).or_default();
             *value = amount(*value + p.debit_amount)?;
@@ -136,22 +154,44 @@ impl<'a> Ledger<'a> {
         Ok(())
     }
     fn balances(map: &BTreeMap<Account, f64>) -> Vec<Balance> {
-        map.iter().map(|(a, v)| Balance { account: *a, debit_balance: *v }).collect()
+        map.iter()
+            .map(|(a, v)| Balance {
+                account: *a,
+                debit_balance: *v,
+            })
+            .collect()
     }
 }
 
-fn node_curve<'a>(node: &'a crate::products::derivatives::contract::csa::Node, position: &str) -> Result<&'a DiscountCurve, String> {
+fn node_curve<'a>(
+    node: &'a crate::products::derivatives::contract::csa::Node,
+    position: &str,
+) -> Result<&'a DiscountCurve, String> {
     node.trades
         .iter()
         .find_map(|t| match t {
-            Trade::Swap { request } if request.position_id == position => Some(&request.discount_curve),
+            Trade::Swap { request } if request.position_id == position => {
+                Some(&request.discount_curve)
+            }
             _ => None,
         })
         .ok_or_else(|| "hedging instrument absent from derivative node".into())
 }
 /// Benchmark-component clean value per unit of hedged notional.
-fn unit_clean(item: &HedgedItem, rate: f64, curve: &DiscountCurve, t: i32, timing: PaymentTiming) -> Result<f64, String> {
-    let active = |pay: i32| if timing == PaymentTiming::BeforeScheduledPayments { pay >= t } else { pay > t };
+fn unit_clean(
+    item: &HedgedItem,
+    rate: f64,
+    curve: &DiscountCurve,
+    t: i32,
+    timing: PaymentTiming,
+) -> Result<f64, String> {
+    let active = |pay: i32| {
+        if timing == PaymentTiming::BeforeScheduledPayments {
+            pay >= t
+        } else {
+            pay > t
+        }
+    };
     let mut dirty = 0.;
     let mut accrued = 0.;
     for p in &item.periods {
@@ -181,8 +221,16 @@ fn hypothetical_settlement(req: &SwapRequest, t: i32) -> Result<f64, String> {
                 for o in observations {
                     match &o.source {
                         RateSource::Observed { .. } => {}
-                        RateSource::ConditionalProjection { measure: CashflowMeasure::Physical, .. } => {}
-                        _ => return Err("matured hypothetical period requires observed or Physical fixings".into()),
+                        RateSource::ConditionalProjection {
+                            measure: CashflowMeasure::Physical,
+                            ..
+                        } => {}
+                        _ => {
+                            return Err(
+                                "matured hypothetical period requires observed or Physical fixings"
+                                    .into(),
+                            )
+                        }
                     }
                 }
             }
@@ -248,7 +296,12 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
     let mut daily = Vec::new();
     let mut cursor = 0usize;
     let mut event_cursor = 0usize;
-    let rel_index: BTreeMap<&str, usize> = r.relationships.iter().enumerate().map(|(i, x)| (x.relationship_id.as_str(), i)).collect();
+    let rel_index: BTreeMap<&str, usize> = r
+        .relationships
+        .iter()
+        .enumerate()
+        .map(|(i, x)| (x.relationship_id.as_str(), i))
+        .collect();
     for (k, node) in path.nodes.iter().enumerate() {
         portfolio_compute_control::checkpoint()?;
         let t = node.ordinal;
@@ -257,7 +310,10 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             .relationships
             .iter()
             .enumerate()
-            .filter(|(i, x)| x.designation == Designation::CashFlowHedge && states[*i].status == Status::Qualified)
+            .filter(|(i, x)| {
+                x.designation == Designation::CashFlowHedge
+                    && states[*i].status == Status::Qualified
+            })
             .map(|(i, _)| (i, states[i].proportion))
             .collect();
         if cursor < derivative.intents.len() && derivative.intents[cursor].ordinal < t {
@@ -272,24 +328,58 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             for p in &di.postings {
                 if mark && p.account == DerivativeAccount::MarkGainLoss {
                     let m = amount(p.debit_amount)?;
-                    let mapped = di.mapped_position_id.as_deref().ok_or("mark intent lacks mapped position")?;
+                    let mapped = di
+                        .mapped_position_id
+                        .as_deref()
+                        .ok_or("mark intent lacks mapped position")?;
                     let mut retained = 1.;
-                    for &(i, share) in cfh_shares.iter().filter(|(i, _)| r.relationships[*i].hedging_instrument_position_id == mapped) {
+                    for &(i, share) in cfh_shares.iter().filter(|(i, _)| {
+                        r.relationships[*i].hedging_instrument_position_id == mapped
+                    }) {
                         let st = &mut states[i];
                         let value = amount(m * share)?;
-                        postings.push(posting(Account::CashFlowHedgeOci, value, p.position_id.as_deref(), p.bucket.as_deref(), Some(&r.relationships[i].relationship_id)));
+                        postings.push(posting(
+                            Account::CashFlowHedgeOci,
+                            value,
+                            p.position_id.as_deref(),
+                            p.bucket.as_deref(),
+                            Some(&r.relationships[i].relationship_id),
+                        ));
                         st.oci = amount(st.oci - value)?;
                         st.oci_recognized = amount(st.oci_recognized - value)?;
                         retained -= share;
                         relationship = Some(r.relationships[i].relationship_id.clone());
                     }
-                    postings.push(posting(Account::MarkGainLoss, amount(m * retained)?, p.position_id.as_deref(), p.bucket.as_deref(), None));
+                    postings.push(posting(
+                        Account::MarkGainLoss,
+                        amount(m * retained)?,
+                        p.position_id.as_deref(),
+                        p.bucket.as_deref(),
+                        None,
+                    ));
                 } else {
-                    postings.push(posting(p.account.into(), p.debit_amount, p.position_id.as_deref(), p.bucket.as_deref(), None));
+                    postings.push(posting(
+                        p.account.into(),
+                        p.debit_amount,
+                        p.position_id.as_deref(),
+                        p.bucket.as_deref(),
+                        None,
+                    ));
                 }
             }
             let kind = di.event_id.split(':').next().unwrap_or("derivative");
-            ledger.emit(kind, t, di.ledger, di.mapped_position_id.as_deref(), di.contract_position_id.as_deref(), di.bucket.as_deref(), relationship.as_deref(), &di.policy, di.sources.clone(), postings)?;
+            ledger.emit(
+                kind,
+                t,
+                di.ledger,
+                di.mapped_position_id.as_deref(),
+                di.contract_position_id.as_deref(),
+                di.bucket.as_deref(),
+                relationship.as_deref(),
+                &di.policy,
+                di.sources.clone(),
+                postings,
+            )?;
         }
         let closing_k = &derivative.daily[k];
         let instrument_value = |position: &str| -> Result<f64, String> {
@@ -315,7 +405,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 // settled net coupons, matching the clean hedged-item measure at accrual-free dates.
                 let value = instrument_value(instrument)?;
                 if st.status == Status::Qualified {
-                    let prev = st.inst_prev.ok_or("relationship lacks its inception instrument value")?;
+                    let prev = st
+                        .inst_prev
+                        .ok_or("relationship lacks its inception instrument value")?;
                     st.cum_d = amount(st.cum_d + st.proportion * (value - prev))?;
                 }
                 st.inst_prev = Some(value);
@@ -329,10 +421,24 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let curve = node_curve(node, instrument)?;
                         // Settled item cash is excluded exactly as the derivative owner excludes coupons:
                         // the change measures before-payment value against the prior after-payment value.
-                        let before = unit_clean(item, rate, curve, t, PaymentTiming::BeforeScheduledPayments)?;
-                        let unit = unit_clean(item, rate, curve, t, PaymentTiming::AfterScheduledPayments)?;
+                        let before = unit_clean(
+                            item,
+                            rate,
+                            curve,
+                            t,
+                            PaymentTiming::BeforeScheduledPayments,
+                        )?;
+                        let unit = unit_clean(
+                            item,
+                            rate,
+                            curve,
+                            t,
+                            PaymentTiming::AfterScheduledPayments,
+                        )?;
                         if st.status == Status::Qualified {
-                            let prev = st.unit_clean.ok_or("fair-value relationship lacks its inception clean value")?;
+                            let prev = st
+                                .unit_clean
+                                .ok_or("fair-value relationship lacks its inception clean value")?;
                             let d_c = amount(hedged * st.scale * (before - prev))?;
                             if d_c != 0. {
                                 let dir = cr.direction_sign;
@@ -345,10 +451,25 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                     None,
                                     Some(&rel.relationship_id),
                                     &r.policy.identity,
-                                    sources_base(vec![item.source.clone(), item.carrying_source.clone()]),
+                                    sources_base(vec![
+                                        item.source.clone(),
+                                        item.carrying_source.clone(),
+                                    ]),
                                     vec![
-                                        posting(Account::HedgedItemBasisAdjustment, dir * d_c, Some(&item.item_id), None, Some(&rel.relationship_id)),
-                                        posting(Account::HedgedItemBasisGainLoss, -dir * d_c, Some(&item.item_id), None, Some(&rel.relationship_id)),
+                                        posting(
+                                            Account::HedgedItemBasisAdjustment,
+                                            dir * d_c,
+                                            Some(&item.item_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
+                                        posting(
+                                            Account::HedgedItemBasisGainLoss,
+                                            -dir * d_c,
+                                            Some(&item.item_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
                                     ],
                                 )?;
                                 st.basis = amount(st.basis + d_c)?;
@@ -363,7 +484,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let target = if item.principal_ordinal <= tranche.start {
                             tranche.amount
                         } else {
-                            let fraction = (f64::from(t - tranche.start) / f64::from(item.principal_ordinal - tranche.start)).min(1.);
+                            let fraction = (f64::from(t - tranche.start)
+                                / f64::from(item.principal_ordinal - tranche.start))
+                            .min(1.);
                             amount(tranche.amount * fraction)?
                         };
                         let delta = amount(target - tranche.amortized)?;
@@ -378,10 +501,25 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 None,
                                 Some(&rel.relationship_id),
                                 &r.policy.identity,
-                                sources_base(vec![item.source.clone(), item.carrying_source.clone()]),
+                                sources_base(vec![
+                                    item.source.clone(),
+                                    item.carrying_source.clone(),
+                                ]),
                                 vec![
-                                    posting(Account::HedgedItemBasisAdjustment, -dir * delta, Some(&item.item_id), None, Some(&rel.relationship_id)),
-                                    posting(Account::HedgedItemBasisAmortization, dir * delta, Some(&item.item_id), None, Some(&rel.relationship_id)),
+                                    posting(
+                                        Account::HedgedItemBasisAdjustment,
+                                        -dir * delta,
+                                        Some(&item.item_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
+                                    posting(
+                                        Account::HedgedItemBasisAmortization,
+                                        dir * delta,
+                                        Some(&item.item_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
                                 ],
                             )?;
                             tranche.amortized = target;
@@ -390,26 +528,48 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     }
                 }
                 Designation::CashFlowHedge => {
-                    let exposure = &r.forecast_exposures[cr.exposure.ok_or("compiled exposure missing")?];
+                    let exposure =
+                        &r.forecast_exposures[cr.exposure.ok_or("compiled exposure missing")?];
                     if t >= rel.inception_ordinal {
                         let (h, settlement, evidence) = if let Some(hyp) = &rel.hypothetical {
-                            let req = &hyp.nodes[*cr.hypothetical.get(&t).ok_or("hypothetical node missing")?].request;
-                            (hypothetical_value(req)?, hypothetical_settlement(req, t)?, hyp.evidence.clone())
+                            let req = &hyp.nodes
+                                [*cr.hypothetical.get(&t).ok_or("hypothetical node missing")?]
+                            .request;
+                            (
+                                hypothetical_value(req)?,
+                                hypothetical_settlement(req, t)?,
+                                hyp.evidence.clone(),
+                            )
                         } else {
                             let physical = derivative
                                 .cash_rights
                                 .iter()
                                 .filter(|x| x.position_id == instrument && x.payment_ordinal == t)
                                 .try_fold(0., |a, x| amount(a + x.physical_amount))?;
-                            (instrument_value(instrument)?, amount(rel.designated_proportion * physical)?, rel.matched_critical_terms_evidence.clone().ok_or("matched evidence missing")?)
+                            (
+                                instrument_value(instrument)?,
+                                amount(rel.designated_proportion * physical)?,
+                                rel.matched_critical_terms_evidence
+                                    .clone()
+                                    .ok_or("matched evidence missing")?,
+                            )
                         };
-                        if t == rel.inception_ordinal && rel.hypothetical.is_some() && !near(h, 0.) {
-                            return Err("hypothetical derivative must have zero clean value at inception".into());
+                        if t == rel.inception_ordinal && rel.hypothetical.is_some() && !near(h, 0.)
+                        {
+                            return Err(
+                                "hypothetical derivative must have zero clean value at inception"
+                                    .into(),
+                            );
                         }
                         if st.status == Status::Qualified {
-                            let prev = st.hyp_prev.ok_or("cash-flow relationship lacks its inception hypothetical value")?;
+                            let prev = st.hyp_prev.ok_or(
+                                "cash-flow relationship lacks its inception hypothetical value",
+                            )?;
                             st.cum_e = amount(st.cum_e + st.scale * (h - prev))?;
-                            let due = cr.hedged_periods.iter().any(|&q| exposure.periods[q].payment_ordinal == t);
+                            let due = cr
+                                .hedged_periods
+                                .iter()
+                                .any(|&q| exposure.periods[q].payment_ordinal == t);
                             if due {
                                 let reclass = amount(st.scale * settlement)?;
                                 if reclass != 0. {
@@ -422,10 +582,26 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                         None,
                                         Some(&rel.relationship_id),
                                         &r.policy.identity,
-                                        sources_base(vec![exposure.source.clone(), exposure.probability_evidence.clone(), evidence.clone()]),
+                                        sources_base(vec![
+                                            exposure.source.clone(),
+                                            exposure.probability_evidence.clone(),
+                                            evidence.clone(),
+                                        ]),
                                         vec![
-                                            posting(Account::CashFlowHedgeOci, reclass, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
-                                            posting(Account::HedgedForecastReclassification, -reclass, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
+                                            posting(
+                                                Account::CashFlowHedgeOci,
+                                                reclass,
+                                                Some(&exposure.exposure_id),
+                                                None,
+                                                Some(&rel.relationship_id),
+                                            ),
+                                            posting(
+                                                Account::HedgedForecastReclassification,
+                                                -reclass,
+                                                Some(&exposure.exposure_id),
+                                                None,
+                                                Some(&rel.relationship_id),
+                                            ),
                                         ],
                                     )?;
                                     st.oci = amount(st.oci - reclass)?;
@@ -441,7 +617,11 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let mut release = 0.;
                         for (pay, w) in &tranche.weights {
                             if *pay == t {
-                                release = if last == Some(t) { amount(tranche.amount - tranche.released)? } else { amount(tranche.amount * w)? };
+                                release = if last == Some(t) {
+                                    amount(tranche.amount - tranche.released)?
+                                } else {
+                                    amount(tranche.amount * w)?
+                                };
                             }
                         }
                         if release != 0. {
@@ -454,10 +634,25 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 None,
                                 Some(&rel.relationship_id),
                                 &r.policy.identity,
-                                sources_base(vec![exposure.source.clone(), exposure.probability_evidence.clone()]),
+                                sources_base(vec![
+                                    exposure.source.clone(),
+                                    exposure.probability_evidence.clone(),
+                                ]),
                                 vec![
-                                    posting(Account::CashFlowHedgeOci, release, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
-                                    posting(Account::HedgedForecastReclassification, -release, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
+                                    posting(
+                                        Account::CashFlowHedgeOci,
+                                        release,
+                                        Some(&exposure.exposure_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
+                                    posting(
+                                        Account::HedgedForecastReclassification,
+                                        -release,
+                                        Some(&exposure.exposure_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
                                 ],
                             )?;
                             tranche.released = amount(tranche.released + release)?;
@@ -481,7 +676,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 && rel.hypothetical.is_none()
                 && !near(instrument_value(&rel.hedging_instrument_position_id)?, 0.)
             {
-                return Err("matched critical terms require zero instrument fair value at inception".into());
+                return Err(
+                    "matched critical terms require zero instrument fair value at inception".into(),
+                );
             }
             let st = &mut states[i];
             if st.status != Status::Pending {
@@ -532,12 +729,21 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 released_oci: 0.,
                 derecognized_basis: 0.,
             };
-            let discontinue = |states: &mut Vec<State>, ledger: &mut Ledger<'_>, q: f64, reason: &str, record: &mut LifecycleRecord| -> Result<(), String> {
+            let discontinue = |states: &mut Vec<State>,
+                               ledger: &mut Ledger<'_>,
+                               q: f64,
+                               reason: &str,
+                               record: &mut LifecycleRecord|
+             -> Result<(), String> {
                 let st = &mut states[i];
                 if st.status != Status::Qualified {
                     return Err("discontinuation requires a qualified relationship".into());
                 }
-                let sources = vec![r.policy.identity.clone(), rel.documentation.clone(), ev.review.clone()];
+                let sources = vec![
+                    r.policy.identity.clone(),
+                    rel.documentation.clone(),
+                    ev.review.clone(),
+                ];
                 match rel.designation {
                     Designation::FairValueHedge => {
                         let item = &r.hedged_items[cr.item.ok_or("compiled item missing")?];
@@ -556,19 +762,36 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 &r.policy.identity,
                                 sources,
                                 vec![
-                                    posting(Account::HedgedItemBasisAdjustment, -dir * frozen, Some(&item.item_id), None, Some(&rel.relationship_id)),
-                                    posting(Account::HedgedItemBasisDerecognition, dir * frozen, Some(&item.item_id), None, Some(&rel.relationship_id)),
+                                    posting(
+                                        Account::HedgedItemBasisAdjustment,
+                                        -dir * frozen,
+                                        Some(&item.item_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
+                                    posting(
+                                        Account::HedgedItemBasisDerecognition,
+                                        dir * frozen,
+                                        Some(&item.item_id),
+                                        None,
+                                        Some(&rel.relationship_id),
+                                    ),
                                 ],
                             )?;
                             st.basis_derecognized = amount(st.basis_derecognized + frozen)?;
                             record.derecognized_basis = frozen;
                         } else if frozen != 0. {
-                            st.frozen_basis.push(FrozenBasis { amount: frozen, start: t, amortized: 0. });
+                            st.frozen_basis.push(FrozenBasis {
+                                amount: frozen,
+                                start: t,
+                                amortized: 0.,
+                            });
                             record.frozen_basis = frozen;
                         }
                     }
                     Designation::CashFlowHedge => {
-                        let exposure = &r.forecast_exposures[cr.exposure.ok_or("compiled exposure missing")?];
+                        let exposure = &r.forecast_exposures
+                            [cr.exposure.ok_or("compiled exposure missing")?];
                         let frozen = amount(q * st.oci)?;
                         st.oci = amount(st.oci - frozen)?;
                         let remaining: Vec<(i32, f64)> = cr
@@ -576,7 +799,10 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             .iter()
                             .map(|&k| &exposure.periods[k])
                             .filter(|p| p.payment_ordinal > t)
-                            .map(|p| actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count).map(|tau| (p.payment_ordinal, tau)))
+                            .map(|p| {
+                                actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count)
+                                    .map(|tau| (p.payment_ordinal, tau))
+                            })
                             .collect::<Result<_, _>>()?;
                         let total: f64 = remaining.iter().map(|x| x.1).sum();
                         if remaining.is_empty() || total <= 0. {
@@ -592,8 +818,20 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                     &r.policy.identity,
                                     sources,
                                     vec![
-                                        posting(Account::CashFlowHedgeOci, frozen, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
-                                        posting(Account::HedgedForecastReclassification, -frozen, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
+                                        posting(
+                                            Account::CashFlowHedgeOci,
+                                            frozen,
+                                            Some(&exposure.exposure_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
+                                        posting(
+                                            Account::HedgedForecastReclassification,
+                                            -frozen,
+                                            Some(&exposure.exposure_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
                                     ],
                                 )?;
                                 st.oci_reclassified = amount(st.oci_reclassified + frozen)?;
@@ -603,7 +841,10 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             st.frozen_oci.push(FrozenOci {
                                 amount: frozen,
                                 released: 0.,
-                                weights: remaining.into_iter().map(|(pay, tau)| (pay, tau / total)).collect(),
+                                weights: remaining
+                                    .into_iter()
+                                    .map(|(pay, tau)| (pay, tau / total))
+                                    .collect(),
                             });
                             record.frozen_oci = frozen;
                         }
@@ -630,10 +871,13 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     }
                     let (d, e) = (st.cum_d, st.cum_e);
                     if d == 0. && e == 0. {
-                        return Err("assessment requires nonzero cumulative change to measure".into());
+                        return Err(
+                            "assessment requires nonzero cumulative change to measure".into()
+                        );
                     }
                     let ratio = ratio(d, e);
-                    let qualified = ratio.is_some_and(|x| x >= band.lower_bound && x <= band.upper_bound);
+                    let qualified =
+                        ratio.is_some_and(|x| x >= band.lower_bound && x <= band.upper_bound);
                     assessments.push(Assessment {
                         event_id: ev.event_id.clone(),
                         relationship_id: rel.relationship_id.clone(),
@@ -647,7 +891,13 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         qualified,
                     });
                     if !qualified {
-                        discontinue(&mut states, &mut ledger, 1., "failed_assessment", &mut record)?;
+                        discontinue(
+                            &mut states,
+                            &mut ledger,
+                            1.,
+                            "failed_assessment",
+                            &mut record,
+                        )?;
                     } else {
                         record.reason = Some("qualified".into());
                     }
@@ -659,14 +909,26 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         DiscontinueReason::HedgedItemSold => "hedged_item_sold",
                         DiscontinueReason::InstrumentTerminated => "instrument_terminated",
                     };
-                    discontinue(&mut states, &mut ledger, ev.proportion.unwrap_or(1.), reason, &mut record)?;
+                    discontinue(
+                        &mut states,
+                        &mut ledger,
+                        ev.proportion.unwrap_or(1.),
+                        reason,
+                        &mut record,
+                    )?;
                 }
                 EventKind::ForecastStatus => {
                     record.kind = "forecast_status".into();
                     match ev.status.ok_or("forecast status missing")? {
                         ForecastStatus::NoLongerProbable => {
                             if states[i].status == Status::Qualified {
-                                discontinue(&mut states, &mut ledger, 1., "forecast_no_longer_probable", &mut record)?;
+                                discontinue(
+                                    &mut states,
+                                    &mut ledger,
+                                    1.,
+                                    "forecast_no_longer_probable",
+                                    &mut record,
+                                )?;
                             } else if states[i].status == Status::Pending {
                                 return Err("forecast status before inception".into());
                             } else {
@@ -678,7 +940,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             if st.status == Status::Pending {
                                 return Err("forecast status before inception".into());
                             }
-                            let exposure = &r.forecast_exposures[cr.exposure.ok_or("compiled exposure missing")?];
+                            let exposure = &r.forecast_exposures
+                                [cr.exposure.ok_or("compiled exposure missing")?];
                             let mut release = st.oci;
                             for tranche in &mut st.frozen_oci {
                                 let left = amount(tranche.amount - tranche.released)?;
@@ -696,10 +959,26 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                     None,
                                     Some(&rel.relationship_id),
                                     &r.policy.identity,
-                                    vec![r.policy.identity.clone(), rel.documentation.clone(), ev.review.clone()],
                                     vec![
-                                        posting(Account::CashFlowHedgeOci, release, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
-                                        posting(Account::HedgedForecastReclassification, -release, Some(&exposure.exposure_id), None, Some(&rel.relationship_id)),
+                                        r.policy.identity.clone(),
+                                        rel.documentation.clone(),
+                                        ev.review.clone(),
+                                    ],
+                                    vec![
+                                        posting(
+                                            Account::CashFlowHedgeOci,
+                                            release,
+                                            Some(&exposure.exposure_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
+                                        posting(
+                                            Account::HedgedForecastReclassification,
+                                            -release,
+                                            Some(&exposure.exposure_id),
+                                            None,
+                                            Some(&rel.relationship_id),
+                                        ),
                                     ],
                                 )?;
                                 st.oci_reclassified = amount(st.oci_reclassified + release)?;
@@ -719,21 +998,37 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         }
         // Daily closing reconciles the derivative owner's balances except re-owned marks.
         for b in &closing_k.financial_trial_balance {
-            let mine = ledger.financial.get(&b.account.into()).copied().unwrap_or(0.);
+            let mine = ledger
+                .financial
+                .get(&b.account.into())
+                .copied()
+                .unwrap_or(0.);
             let value = if b.account == DerivativeAccount::MarkGainLoss {
                 // Re-owned marks: OCI balance net of reclassifications equals the moved mark share.
-                mine + ledger.financial.get(&Account::CashFlowHedgeOci).copied().unwrap_or(0.)
+                mine + ledger
+                    .financial
+                    .get(&Account::CashFlowHedgeOci)
+                    .copied()
+                    .unwrap_or(0.)
                     - states.iter().map(|s| s.oci_reclassified).sum::<f64>()
             } else {
                 mine
             };
             if !near(value, b.debit_balance) {
-                return Err(format!("hedge journal does not reconcile the derivative owner's {:?} balance", b.account));
+                return Err(format!(
+                    "hedge journal does not reconcile the derivative owner's {:?} balance",
+                    b.account
+                ));
             }
         }
         for b in &closing_k.custody_trial_balance {
-            if !near(ledger.memo.get(&b.account.into()).copied().unwrap_or(0.), b.debit_balance) {
-                return Err("hedge journal custody memo does not reconcile the derivative owner".into());
+            if !near(
+                ledger.memo.get(&b.account.into()).copied().unwrap_or(0.),
+                b.debit_balance,
+            ) {
+                return Err(
+                    "hedge journal custody memo does not reconcile the derivative owner".into(),
+                );
             }
         }
         if !near(ledger.financial.values().sum(), 0.) || !near(ledger.memo.values().sum(), 0.) {
@@ -742,7 +1037,11 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         let mut rels = Vec::with_capacity(states.len());
         for (i, rel) in r.relationships.iter().enumerate() {
             let st = &states[i];
-            let value = if t >= rel.inception_ordinal { amount(st.proportion * instrument_value(&rel.hedging_instrument_position_id)?)? } else { 0. };
+            let value = if t >= rel.inception_ordinal {
+                amount(st.proportion * instrument_value(&rel.hedging_instrument_position_id)?)?
+            } else {
+                0.
+            };
             rels.push(DailyRelationship {
                 relationship_id: rel.relationship_id.clone(),
                 status: st.status,
@@ -816,8 +1115,10 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             oci_reclassified: st.oci_reclassified,
             oci_closing: amount(st.oci + frozen_oci)?,
         });
-        if !near(st.basis_adjustments - st.basis_amortized - st.basis_derecognized, st.basis + frozen_basis)
-            || !near(st.oci_recognized - st.oci_reclassified, st.oci + frozen_oci)
+        if !near(
+            st.basis_adjustments - st.basis_amortized - st.basis_derecognized,
+            st.basis + frozen_basis,
+        ) || !near(st.oci_recognized - st.oci_reclassified, st.oci + frozen_oci)
         {
             return Err("hedge roll-forward does not reconcile retained balances".into());
         }

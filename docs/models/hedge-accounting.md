@@ -256,3 +256,43 @@ accounting-standard compliance, observed effectiveness, portfolio-layer,
 net-investment, option or nonfinancial coverage, saved-book or shared daily
 journal adoption, treasury/capital feeds or complete-scale acceptance. Those
 remain open under issue #35 and are listed in `implementation-plan.md`.
+
+## Closing capital feed (`hedge-treasury-1`)
+
+`portfolio_risk_native::hedge_treasury::evaluate` re-executes a complete
+`hedge-accounting-1` request natively and maps its complete-tail closing
+balances to the existing treasury bridge (`treasury-bridge-1`, ledger kind,
+protocol 0). The request carries the raw hedge request, the ledger `account`
+label, a reviewed GL `mapping` identity, a `treasury` request whose `as_of`
+equals the closing date and whose capital/FTP inputs are empty, one to sixteen
+bridge `policies` for the hedge scenario and account whose `capital.period`
+equals the closing date, and a positive `amount_multiplier`.
+
+Rows are per instrument from the single ordered journal plus the opening
+anchors, reconciled to the owner's closing trial balance before mapping:
+
+| Hedge journal account | Bridge GL |
+|---|---|
+| cash | `cash` |
+| derivative asset/liability (signed per position) | `derivative_value` |
+| posted VM/IM, received VM | `posted_margin`, `received_margin` |
+| opening equity | `opening_equity` |
+| mark, contractual income, collateral interest, closeout losses | `pnl:derivative_*` |
+| cash-flow hedge OCI | `cash_flow_hedge_oci` (AOCI with its own eligibility) |
+| hedged-item basis adjustment | `hedged_item_basis_adjustment` (asset item) or `hedged_item_basis_liability` (liability item) |
+| basis gain/loss, amortization, derecognition, forecast reclassification | `pnl:hedged_*` |
+
+Rows within the 1e-9 comparison tolerance of zero are omitted; unpaid
+derivative rights at the closing date refuse. A negative asset-item basis
+cannot carry a nonzero risk weight because the item's own carrying rows are
+owned outside this journal. The bridge policy field
+`cash_flow_hedge_aoci_eligible` (default `false`) decides whether
+`cash_flow_hedge_oci` enters eligible AOCI when `include_aoci` is true; the
+bridge audit discloses `cash_flow_hedge_aoci` separately. The result retains
+the hedge result as evidence, the rows, policies, the bridge output (prepared
+capital, thirteen ratios, audit, contributions) and explicit false flags for
+interim capital, FTP, accounting-standard and regulatory approval. The
+independent `hedge_treasury_reference` replays the hedge journal, the rows and
+the capital arithmetic. Regulatory eligibility, requirements, risk weights and
+the monetary unit remain supplied inputs; deferred-tax and AOCI opt-out policy
+(#30/#72) are not inferred.

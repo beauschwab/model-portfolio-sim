@@ -25,6 +25,7 @@ pub use products::deposits::lifecycle as deposit_lifecycle;
 pub use products::derivatives::accounting as derivative_accounting;
 pub use products::derivatives::contract as derivative_contract;
 pub use products::derivatives::hedge_accounting;
+pub use products::derivatives::hedge_treasury;
 pub use products::term::dated as dated_term;
 
 pub use products::funding::contract as funding_contract;

@@ -2,7 +2,10 @@
 use super::types::*;
 use crate::products::derivatives::accounting::{self as derivative_accounting, CouponRecognition};
 use crate::products::derivatives::contract::{
-    amount, csa::{CsaRequest, Trade}, domain, identity, near, swaps::{PaymentTiming, Side, SwapRequest},
+    amount,
+    csa::{CsaRequest, Trade},
+    domain, identity, near,
+    swaps::{PaymentTiming, Side, SwapRequest},
     text, Operation,
 };
 use crate::products::term::contracts::indexed::Coupon;
@@ -26,11 +29,19 @@ pub(super) struct Compiled {
 pub(super) fn csa(r: &HedgeAccountingRequest) -> Result<&CsaRequest, String> {
     match &r.derivative.derivative.operation {
         Operation::Netting { request } => Ok(request),
-        _ => Err("hedge accounting requires the complete raw netting/CSA derivative lifecycle".into()),
+        _ => Err(
+            "hedge accounting requires the complete raw netting/CSA derivative lifecycle".into(),
+        ),
     }
 }
-pub(super) fn opening_swap<'a>(c: &'a CsaRequest, position: &str) -> Result<&'a SwapRequest, String> {
-    let node = c.paths[0].nodes.first().ok_or("derivative path lacks an opening node")?;
+pub(super) fn opening_swap<'a>(
+    c: &'a CsaRequest,
+    position: &str,
+) -> Result<&'a SwapRequest, String> {
+    let node = c.paths[0]
+        .nodes
+        .first()
+        .ok_or("derivative path lacks an opening node")?;
     for trade in &node.trades {
         match trade {
             Trade::Swap { request } if request.position_id == position => return Ok(request),
@@ -47,16 +58,20 @@ pub(super) fn opening_swap<'a>(c: &'a CsaRequest, position: &str) -> Result<&'a 
     Err("hedging instrument is not a mapped raw swap in the derivative source".into())
 }
 pub(super) fn swap_work(s: &SwapRequest) -> usize {
-    s.floating_periods.iter().fold(s.fixed_periods.len(), |w, p| {
-        w.saturating_add(1).saturating_add(match &p.coupon {
-            Coupon::Indexed { observations, .. } => observations.len(),
-            _ => 0,
+    s.floating_periods
+        .iter()
+        .fold(s.fixed_periods.len(), |w, p| {
+            w.saturating_add(1).saturating_add(match &p.coupon {
+                Coupon::Indexed { observations, .. } => observations.len(),
+                _ => 0,
+            })
         })
-    })
 }
 fn periods(periods: &[Period], asof: i32, bytes: &mut usize, label: &str) -> Result<(), String> {
     if periods.is_empty() || periods.len() > MAX_PERIODS {
-        return Err(format!("{label} requires 1..={MAX_PERIODS} contiguous periods"));
+        return Err(format!(
+            "{label} requires 1..={MAX_PERIODS} contiguous periods"
+        ));
     }
     let mut ids = HashSet::new();
     let mut prior: Option<i32> = None;
@@ -76,7 +91,10 @@ fn periods(periods: &[Period], asof: i32, bytes: &mut usize, label: &str) -> Res
     }
     Ok(())
 }
-fn same_periods(contract: &[crate::products::term::contracts::indexed::ContractPeriod], exposure: &[Period]) -> bool {
+fn same_periods(
+    contract: &[crate::products::term::contracts::indexed::ContractPeriod],
+    exposure: &[Period],
+) -> bool {
     contract.len() == exposure.len()
         && contract.iter().zip(exposure).all(|(c, e)| {
             c.start_ordinal == e.start_ordinal
@@ -86,8 +104,13 @@ fn same_periods(contract: &[crate::products::term::contracts::indexed::ContractP
                 && c.fee == 0.
         })
 }
-fn index_matches(contract: &[crate::products::term::contracts::indexed::ContractPeriod], index_id: &str) -> bool {
-    contract.iter().all(|p| matches!(&p.coupon, Coupon::Indexed { index, .. } if index.index_id == index_id))
+fn index_matches(
+    contract: &[crate::products::term::contracts::indexed::ContractPeriod],
+    index_id: &str,
+) -> bool {
+    contract
+        .iter()
+        .all(|p| matches!(&p.coupon, Coupon::Indexed { index, .. } if index.index_id == index_id))
 }
 fn side_for(direction: ExposureDirection) -> Side {
     match direction {
@@ -99,24 +122,35 @@ fn side_for(direction: ExposureDirection) -> Side {
 pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     let mut bytes = 0usize;
     if r.schema != SCHEMA || r.model_version != MODEL_VERSION {
-        return Err("hedge accounting requires explicit hedge-accounting-1 schema/model selection".into());
+        return Err(
+            "hedge accounting requires explicit hedge-accounting-1 schema/model selection".into(),
+        );
     }
     if r.policy.rule_version != RULE_VERSION {
-        return Err("unsupported hedge accounting rule matrix; only asc815-asu2017-12 is implemented".into());
+        return Err(
+            "unsupported hedge accounting rule matrix; only asc815-asu2017-12 is implemented"
+                .into(),
+        );
     }
     for i in [&r.run, &r.policy.identity, &r.policy.assessment.identity] {
         identity(i, &mut bytes)?;
     }
     text(&r.entity, &mut bytes)?;
     let d = &r.derivative;
-    if r.entity != d.entity || r.currency != d.currency || r.monetary_unit != d.monetary_unit || r.monetary_unit != "currency_units" {
+    if r.entity != d.entity
+        || r.currency != d.currency
+        || r.monetary_unit != d.monetary_unit
+        || r.monetary_unit != "currency_units"
+    {
         return Err("hedge entity/currency/unit must match the derivative source".into());
     }
     derivative_accounting::validate_request(d)?;
     let c = csa(r)?;
     let path = &c.paths[0];
     if path.default.is_some() {
-        return Err("counterparty default paths require a reviewed discontinuation lane; rejected".into());
+        return Err(
+            "counterparty default paths require a reviewed discontinuation lane; rejected".into(),
+        );
     }
     let asof = c.asof_ordinal;
     let mut node_index = BTreeMap::new();
@@ -128,18 +162,32 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     let a = &r.policy.adoption;
     let e = &a.asu_2025_09.elections;
     if a.asu_2022_01_portfolio_layer {
-        return Err("ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into());
+        return Err(
+            "ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into(),
+        );
     }
-    if e.similar_risk_grouping || e.selectable_rate_debt || e.swap_written_option_exception || e.dual_hedge_basis {
+    if e.similar_risk_grouping
+        || e.selectable_rate_debt
+        || e.swap_written_option_exception
+        || e.dual_hedge_basis
+    {
         return Err("ASU 2025-09 elections are not implemented; explicit refusal".into());
     }
     match (a.asu_2025_09.adopted, a.asu_2025_09.adoption_ordinal) {
         (true, Some(o)) => validate_ordinal(o)?,
         (false, None) => {}
-        _ => return Err("ASU 2025-09 adoption requires exactly one adoption date when adopted".into()),
+        _ => {
+            return Err(
+                "ASU 2025-09 adoption requires exactly one adoption date when adopted".into(),
+            )
+        }
     }
     let s = &r.policy.assessment;
-    if !s.lower_bound.is_finite() || !s.upper_bound.is_finite() || s.lower_bound <= 0. || s.lower_bound >= s.upper_bound {
+    if !s.lower_bound.is_finite()
+        || !s.upper_bound.is_finite()
+        || s.lower_bound <= 0.
+        || s.lower_bound >= s.upper_bound
+    {
         return Err("assessment band requires finite 0 < lower_bound < upper_bound".into());
     }
     if r.hedged_items.len() > MAX_SOURCES || r.forecast_exposures.len() > MAX_SOURCES {
@@ -178,7 +226,9 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         }
     }
     if r.relationships.is_empty() || r.relationships.len() > MAX_RELATIONSHIPS {
-        return Err(format!("1..={MAX_RELATIONSHIPS} hedge relationships required"));
+        return Err(format!(
+            "1..={MAX_RELATIONSHIPS} hedge relationships required"
+        ));
     }
     let mut ids: BTreeMap<&str, usize> = BTreeMap::new();
     let mut proportion_by_instrument: BTreeMap<&str, f64> = BTreeMap::new();
@@ -210,7 +260,9 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         let total = proportion_by_instrument.entry(instrument).or_default();
         *total += p;
         if *total > 1. + 1e-12 {
-            return Err("designated proportions on one instrument exceed the whole instrument".into());
+            return Err(
+                "designated proportions on one instrument exceed the whole instrument".into(),
+            );
         }
         let inception = rel.inception_ordinal;
         let node = *node_index
@@ -219,34 +271,65 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         if inception < asof {
             return Err("seasoned relationships before the opening date require retained opening balances; rejected".into());
         }
-        let boundary = |periods: &[crate::products::term::contracts::indexed::ContractPeriod], date: i32| periods.iter().any(|q| q.start_ordinal == date);
-        if !swap.fixed_periods.iter().any(|q| q.start_ordinal == inception) || !boundary(&swap.floating_periods, inception) {
+        let boundary = |periods: &[crate::products::term::contracts::indexed::ContractPeriod],
+                        date: i32| {
+            periods.iter().any(|q| q.start_ordinal == date)
+        };
+        if !swap
+            .fixed_periods
+            .iter()
+            .any(|q| q.start_ordinal == inception)
+            || !boundary(&swap.floating_periods, inception)
+        {
             return Err("inception must be an accrual-free start of both instrument legs".into());
         }
         let _ = node;
         let predecessor = match &rel.predecessor_relationship_id {
             None => None,
             Some(id) => {
-                let prior = *ids.get(id.as_str()).ok_or("predecessor must be an earlier listed relationship")?;
-                if prior >= index || r.relationships[prior].hedging_instrument_position_id != rel.hedging_instrument_position_id {
-                    return Err("redesignation predecessor must precede and share the instrument".into());
+                let prior = *ids
+                    .get(id.as_str())
+                    .ok_or("predecessor must be an earlier listed relationship")?;
+                if prior >= index
+                    || r.relationships[prior].hedging_instrument_position_id
+                        != rel.hedging_instrument_position_id
+                {
+                    return Err(
+                        "redesignation predecessor must precede and share the instrument".into(),
+                    );
                 }
                 Some(prior)
             }
         };
         let entry = match rel.designation {
             Designation::FairValueHedge => {
-                if rel.forecast_exposure_id.is_some() || rel.hypothetical.is_some() || rel.matched_critical_terms_evidence.is_some() {
+                if rel.forecast_exposure_id.is_some()
+                    || rel.hypothetical.is_some()
+                    || rel.matched_critical_terms_evidence.is_some()
+                {
                     return Err("fair-value relationships cannot carry forecast exposure or hypothetical inputs".into());
                 }
-                let item_id = rel.hedged_item_id.as_deref().ok_or("fair-value hedge requires a hedged item")?;
-                let item_index = r.hedged_items.iter().position(|i| i.item_id == item_id).ok_or("unknown hedged item")?;
+                let item_id = rel
+                    .hedged_item_id
+                    .as_deref()
+                    .ok_or("fair-value hedge requires a hedged item")?;
+                let item_index = r
+                    .hedged_items
+                    .iter()
+                    .position(|i| i.item_id == item_id)
+                    .ok_or("unknown hedged item")?;
                 let item = &r.hedged_items[item_index];
-                let hedged = rel.hedged_notional.ok_or("fair-value hedge requires hedged_notional")?;
-                let rate = rel.benchmark_rate.ok_or("fair-value hedge requires the designated benchmark rate")?;
+                let hedged = rel
+                    .hedged_notional
+                    .ok_or("fair-value hedge requires hedged_notional")?;
+                let rate = rel
+                    .benchmark_rate
+                    .ok_or("fair-value hedge requires the designated benchmark rate")?;
                 amount(rate)?;
                 if !hedged.is_finite() || hedged <= 0. || hedged > item.notional + 1e-12 {
-                    return Err("hedged notional must be positive and within the item notional".into());
+                    return Err(
+                        "hedged notional must be positive and within the item notional".into(),
+                    );
                 }
                 let total = notional_by_item.entry(item_id).or_default();
                 *total += hedged;
@@ -254,29 +337,52 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     return Err("hedged notionals on one item exceed the item".into());
                 }
                 if !item.periods.iter().any(|q| q.start_ordinal == inception) {
-                    return Err("inception must be an accrual-free start of a hedged item period".into());
+                    return Err(
+                        "inception must be an accrual-free start of a hedged item period".into(),
+                    );
                 }
                 CompiledRelationship {
                     item: Some(item_index),
                     exposure: None,
-                    direction_sign: if item.direction == ItemDirection::Asset { 1. } else { -1. },
+                    direction_sign: if item.direction == ItemDirection::Asset {
+                        1.
+                    } else {
+                        -1.
+                    },
                     hedged_periods: Vec::new(),
                     hypothetical: BTreeMap::new(),
                     predecessor,
                 }
             }
             Designation::CashFlowHedge => {
-                if rel.hedged_item_id.is_some() || rel.hedged_notional.is_some() || rel.benchmark_rate.is_some() {
+                if rel.hedged_item_id.is_some()
+                    || rel.hedged_notional.is_some()
+                    || rel.benchmark_rate.is_some()
+                {
                     return Err("cash-flow relationships cannot carry hedged item inputs".into());
                 }
                 if review.coupon_recognition != CouponRecognition::SettleDerivativeCarrying {
                     return Err("cash-flow hedge instruments require settle_derivative_carrying coupon recognition".into());
                 }
-                let exposure_id = rel.forecast_exposure_id.as_deref().ok_or("cash-flow hedge requires a forecast exposure")?;
-                let exposure_index = r.forecast_exposures.iter().position(|x| x.exposure_id == exposure_id).ok_or("unknown forecast exposure")?;
+                let exposure_id = rel
+                    .forecast_exposure_id
+                    .as_deref()
+                    .ok_or("cash-flow hedge requires a forecast exposure")?;
+                let exposure_index = r
+                    .forecast_exposures
+                    .iter()
+                    .position(|x| x.exposure_id == exposure_id)
+                    .ok_or("unknown forecast exposure")?;
                 let exposure = &r.forecast_exposures[exposure_index];
-                if !exposure.periods.iter().any(|q| q.start_ordinal == inception) {
-                    return Err("inception must be an accrual-free start of a forecast exposure period".into());
+                if !exposure
+                    .periods
+                    .iter()
+                    .any(|q| q.start_ordinal == inception)
+                {
+                    return Err(
+                        "inception must be an accrual-free start of a forecast exposure period"
+                            .into(),
+                    );
                 }
                 let hedged_periods = exposure
                     .periods
@@ -292,7 +398,10 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 for &k in &hedged_periods {
                     let pay = exposure.periods[k].payment_ordinal;
                     if pay <= last && !node_index.contains_key(&pay) {
-                        return Err("hedged forecast period payment date is not a derivative path node".into());
+                        return Err(
+                            "hedged forecast period payment date is not a derivative path node"
+                                .into(),
+                        );
                     }
                 }
                 let hypothetical = match (&rel.hypothetical, &rel.matched_critical_terms_evidence) {
@@ -367,12 +476,18 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         identity(&ev.review, &mut bytes)?;
         let clock = (ev.ordinal, ev.sequence);
         if !event_ids.insert(ev.event_id.as_str()) || prior.is_some_and(|c| c >= clock) {
-            return Err("hedge events must be unique and strictly ordered by (ordinal, sequence)".into());
+            return Err(
+                "hedge events must be unique and strictly ordered by (ordinal, sequence)".into(),
+            );
         }
         prior = Some(clock);
-        let &index = ids.get(ev.relationship_id.as_str()).ok_or("event names an unknown relationship")?;
+        let &index = ids
+            .get(ev.relationship_id.as_str())
+            .ok_or("event names an unknown relationship")?;
         let rel = &r.relationships[index];
-        let ni = *node_index.get(&ev.ordinal).ok_or("event date is not a derivative path node")?;
+        let ni = *node_index
+            .get(&ev.ordinal)
+            .ok_or("event date is not a derivative path node")?;
         if ev.ordinal < rel.inception_ordinal {
             return Err("event precedes relationship inception".into());
         }
@@ -384,8 +499,14 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 }
                 let node = &path.nodes[ni];
                 let boundary = match (compiled[index].item, compiled[index].exposure) {
-                    (Some(i), _) => r.hedged_items[i].periods.iter().any(|q| q.end_ordinal == ev.ordinal),
-                    (_, Some(x)) => r.forecast_exposures[x].periods.iter().any(|q| q.end_ordinal == ev.ordinal),
+                    (Some(i), _) => r.hedged_items[i]
+                        .periods
+                        .iter()
+                        .any(|q| q.end_ordinal == ev.ordinal),
+                    (_, Some(x)) => r.forecast_exposures[x]
+                        .periods
+                        .iter()
+                        .any(|q| q.end_ordinal == ev.ordinal),
                     _ => false,
                 };
                 let final_payment = swap
@@ -398,8 +519,14 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if ev.ordinal <= rel.inception_ordinal
                     || ev.ordinal >= final_payment
                     || node.payment_timing != PaymentTiming::AfterScheduledPayments
-                    || !swap.fixed_periods.iter().any(|q| q.end_ordinal == ev.ordinal)
-                    || !swap.floating_periods.iter().any(|q| q.end_ordinal == ev.ordinal)
+                    || !swap
+                        .fixed_periods
+                        .iter()
+                        .any(|q| q.end_ordinal == ev.ordinal)
+                    || !swap
+                        .floating_periods
+                        .iter()
+                        .any(|q| q.end_ordinal == ev.ordinal)
                     || !boundary
                 {
                     return Err("assessment requires an accrual-free after-payment node after inception and before the final instrument settlement".into());
@@ -416,11 +543,17 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 }
             }
             EventKind::ForecastStatus => {
-                if rel.designation != Designation::CashFlowHedge || ev.status.is_none() || ev.proportion.is_some() || ev.reason.is_some() {
+                if rel.designation != Designation::CashFlowHedge
+                    || ev.status.is_none()
+                    || ev.proportion.is_some()
+                    || ev.reason.is_some()
+                {
                     return Err("forecast status events apply to cash-flow hedges only and carry only a status".into());
                 }
             }
         }
     }
-    Ok(Compiled { relationships: compiled })
+    Ok(Compiled {
+        relationships: compiled,
+    })
 }

@@ -1103,3 +1103,11 @@ label is not an input. Saved-book, shared daily journal, treasury/capital/AOCI
 policy, portfolio-layer, empirical effectiveness and complete-scale acceptance
 remain open under #35; see `docs/models/hedge-accounting.md`. Rebuild the
 product artifact and restart API/workers before executing the new schema.
+
+`hedge-treasury-1` (same stage) maps the verified complete-tail hedge closing
+to the treasury bridge: derivative cash/margin/marks and hedge basis/OCI/
+reclassification rows once, cash-flow-hedge AOCI under its own GL with a
+reviewed `cash_flow_hedge_aoci_eligible` policy flag (default excluded), and
+the existing thirteen-ratio bridge. Rows near zero are omitted, unpaid rights
+and negative basis with nonzero weight refuse. Interim capital, FTP,
+deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.

@@ -188,6 +188,12 @@ def account_hedge_relationships(request: dict, **execution_options) -> dict:
     return run("hedge-accounting-1", request, **execution_options)[0]
 
 
+def prepare_hedge_treasury(request: dict, **execution_options) -> dict:
+    """Transport a hedge journal and reviewed policies for complete-tail closing capital."""
+    from portfolio_risk.core.model_native import run
+    return run("hedge-treasury-1", request, **execution_options)[0]
+
+
 def fit_credit_snapshots(request: dict) -> dict:
     """Fit declared interval-censored snapshot models with isolated holdouts."""
     return term_call("credit-snapshot-calibration-1", request)
