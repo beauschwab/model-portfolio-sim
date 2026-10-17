@@ -24,6 +24,9 @@ pub struct Fee {
     /// Receipts/fee income positive; payments/fee expense negative.
     pub entitlement: f64,
     pub prepaid_refunds_allowed: bool,
+    /// Explicit permission to rebate earned AND collected service cash.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub earned_refunds_allowed: bool,
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +34,7 @@ pub enum Action {
     Earn,
     Cash,
     RefundPrepaid,
+    RefundEarned,
     WaiveUnpaidEarned,
     CancelUnearned,
     RecoverWaived,
@@ -95,6 +99,9 @@ pub struct Posting {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct State {
     pub earned: f64,
+    /// Historical gross earning is retained; rebates do not grant new service.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub refunded_earned: f64,
     pub cancelled_unearned: f64,
     pub waived_earned: f64,
     pub recovered_waived: f64,
@@ -165,9 +172,15 @@ fn money(x: f64) -> Result<f64, String> {
         Err("fee monetary domain exceeded".into())
     }
 }
+fn is_false(v: &bool) -> bool {
+    !v
+}
+fn is_zero(v: &f64) -> bool {
+    *v == 0.
+}
 fn refresh(f: &Fee, s: &mut State) -> Result<(), String> {
     let sign = f.entitlement.signum();
-    let net = money(s.earned - s.waived_earned - s.net_service_cash)? * sign;
+    let net = money(s.earned - s.refunded_earned - s.waived_earned - s.net_service_cash)? * sign;
     s.fee_receivable = if sign > 0. { net.max(0.) } else { 0. };
     s.fee_payable = if sign < 0. { -net.max(0.) } else { 0. };
     s.deferred_fee_income = if sign > 0. { net.min(0.) } else { 0. };
@@ -272,10 +285,21 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
         let capacity = match e.action {
             Action::Earn | Action::CancelUnearned => s.unearned_entitlement * sign,
             Action::Cash => {
-                (f.entitlement - s.cancelled_unearned - s.waived_earned - s.net_service_cash) * sign
+                (f.entitlement
+                    - s.cancelled_unearned
+                    - s.refunded_earned
+                    - s.waived_earned
+                    - s.net_service_cash)
+                    * sign
             }
-            Action::RefundPrepaid => (s.net_service_cash - s.earned + s.waived_earned) * sign,
-            Action::WaiveUnpaidEarned => (s.earned - s.waived_earned - s.net_service_cash) * sign,
+            Action::RefundPrepaid => {
+                (s.net_service_cash - s.earned + s.refunded_earned + s.waived_earned) * sign
+            }
+            Action::RefundEarned => ((s.earned - s.refunded_earned - s.waived_earned) * sign)
+                .min(s.net_service_cash * sign),
+            Action::WaiveUnpaidEarned => {
+                (s.earned - s.refunded_earned - s.waived_earned - s.net_service_cash) * sign
+            }
             Action::RecoverWaived => (s.waived_earned - s.recovered_waived) * sign,
         };
         // No rounding clamp or tolerance can grant an extra legal entitlement.
@@ -287,7 +311,10 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
                 && e.reason != Reason::Settlement
             || matches!(
                 e.action,
-                Action::WaiveUnpaidEarned | Action::CancelUnearned | Action::RecoverWaived
+                Action::WaiveUnpaidEarned
+                    | Action::CancelUnearned
+                    | Action::RecoverWaived
+                    | Action::RefundEarned
             ) && !matches!(
                 e.reason,
                 Reason::Default | Reason::Exercise | Reason::Maturity | Reason::OtherReviewed
@@ -318,6 +345,15 @@ pub fn evaluate_with_check<F: FnMut() -> Result<(), String>>(
                 }
                 s.net_service_cash = money(s.net_service_cash - e.amount)?;
                 post(Account::Cash, -e.amount);
+            }
+            Action::RefundEarned => {
+                if !f.earned_refunds_allowed {
+                    return Err("earned fee refund is not allowed by supplied terms".into());
+                }
+                s.refunded_earned = money(s.refunded_earned + e.amount)?;
+                s.net_service_cash = money(s.net_service_cash - e.amount)?;
+                post(Account::Cash, -e.amount);
+                post(Account::FeeIncome, e.amount);
             }
             Action::WaiveUnpaidEarned => {
                 s.waived_earned = money(s.waived_earned + e.amount)?;

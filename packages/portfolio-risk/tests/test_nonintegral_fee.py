@@ -26,6 +26,21 @@ def event(request, day, sequence, action, amount, reason):
                 sequence=sequence,action=action,amount=amount,reason=reason)
 
 
+@pytest.mark.parametrize('sign',[1.,-1.])
+def test_earned_refund_preserves_service_history_and_reverses_collected_income_once(sign):
+    request=raw();request['fees']=request['fees'][:1]
+    request['fees'][0].update(entitlement=5.*sign,earned_refunds_allowed=True)
+    request['events']=[event(request,day,i,action,amount*sign,reason)for i,(day,action,amount,reason)in enumerate([
+        (5,'earn',5.,'service'),(10,'cash',5.,'settlement'),(30,'refund_earned',2.,'other_reviewed')])]
+    result=run(request);assert verify(request,result)['verified']
+    state=result['closing'][0]['state']
+    assert state['earned']==5.*sign and state['refunded_earned']==2.*sign and state['net_service_cash']==3.*sign
+    assert state['fee_receivable']==state['fee_payable']==state['unearned_entitlement']==0.
+    assert result['groups'][-1]['postings']==[dict(account='cash',amount=-2.*sign),dict(account='fee_income',amount=2.*sign)]
+    changed=deepcopy(result);changed['closing'][0]['state']['refunded_earned']+=sign
+    with pytest.raises(ValueError):verify(request,changed)
+
+
 @pytest.fixture(scope='module')
 def accepted():
     request=raw();return request,run(request)

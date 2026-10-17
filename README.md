@@ -1,5 +1,13 @@
 # Rates Workbench
 
+Commercial fee follow-through (0.29.18): explicitly reviewed earned-and-collected
+fee refunds now retain separate gross refund history and reverse fee cash/income
+through the standalone owner and native loan/fee daily journal. Loan cost/EIR is
+unchanged. See [fee ownership](docs/models/nonintegral-fees.md) and the
+[remaining commercial acceptance work](docs/models/commercial-completion-plan.md).
+Matching native artifacts and explicit saved-library/session rebuilding are
+required; full issue #15 acceptance and observed/policy validation remain open.
+
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
 forecasts, unit libraries, strategy coordination, and daily ledger/closing reports.

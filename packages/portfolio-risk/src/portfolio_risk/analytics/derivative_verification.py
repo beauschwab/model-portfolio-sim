@@ -778,6 +778,32 @@ def _derive(r):
     return dict(schema="derivative-accounting-1",model_version="derivative-accounting-1",run=r["run"],measure="physical",basis=r["basis"],entity=r["entity"],currency=r["currency"],monetary_unit=r["monetary_unit"],policy=r["policy"],opening=opening,intents=journal.intents,daily=journal.daily,cash_rights=rights,native=native,pricing_xva_diagnostic=xva)
 
 
+NOISE_TOLERANCE = 1e-9
+
+
+def normalize_intents(intents):
+    """Drop rounding-level intents and renumber the rest in order.
+
+    Both implementations post any nonzero change, so a last-ulp difference in a
+    near-zero carrying value decides whether an intent exists at all. An intent
+    whose postings all lie within the absolute financial tolerance of zero is a
+    zero event for comparison; identities keep their kind and sequential order.
+    """
+    kept = []
+    for intent in intents:
+        _require(type(intent) is dict and type(intent.get("postings")) is list and type(intent.get("event_id")) is str, "malformed journal intent")
+        if all(type(p) is dict and type(p.get("debit_amount")) in (int, float) and abs(p["debit_amount"]) <= NOISE_TOLERANCE for p in intent["postings"]):
+            continue
+        copy = dict(intent); copy["event_id"] = f'{intent["event_id"].split(":")[0]}:{len(kept)}'
+        kept.append(copy)
+    return kept
+
+
+def _normalized(value):
+    copy = dict(value); copy["intents"] = normalize_intents(value["intents"])
+    return copy
+
+
 def verify_derivative_accounting(raw_request, result):
     """Verify the complete supported raw-source result or raise without a receipt.
 
@@ -785,8 +811,9 @@ def verify_derivative_accounting(raw_request, result):
     A model JSON receipt is distinct from persisted Parquet/journal verification.
     """
     try:
-        expected=_derive(raw_request)
-        _same(result,expected)
+        expected=_normalized(_derive(raw_request))
+        _require(type(result) is dict and "intents" in result, "missing derivative journal")
+        _same(_normalized(result),expected)
         encoded=json.dumps(raw_request,sort_keys=True,allow_nan=False,separators=(",",":")).encode()
         return dict(schema="derivative-accounting-verification-1",verified=True,raw_request_sha256=hashlib.sha256(encoded).hexdigest(),checked_daily_rows=len(expected["daily"]),checked_journal_intents=len(expected["intents"]),checked_cash_rights=len(expected["cash_rights"]),checked_native_paths=len(expected["native"]["paths"]),pricing_xva_checked=expected["pricing_xva_diagnostic"] is not None,persisted_journal_verified=False)
     except DerivativeVerificationError:

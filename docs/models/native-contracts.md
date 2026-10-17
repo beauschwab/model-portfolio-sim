@@ -354,3 +354,60 @@ under15/25. See docs/models/commercial-fee-journal.md and the complete ledger.
 Rebuild compatible native artifacts, restart deployed workers and explicitly
 rebuild selected saved sessions/libraries before use; local validation does not
 deploy or close the full issues.
+
+
+## Reviewed earned-fee refunds (0.29.18)
+
+The standalone nonintegral fee owner and native commercial loan/fee journal
+support explicitly permitted earned AND collected service refunds. A reviewed
+refund reverses fee cash/income, retaining separate cumulative refunded earning
+and historical gross service. It cannot grant new earning/collection capacity,
+use prepaid cash or waived recoveries, or change loan original cost/EIR/credit
+paths. Native exit policies optionally select a bounded refund fraction and
+reserve the additional group before generation; absent/zero selections retain
+historical outputs and admission. Signed gross rights, full tails, independent
+raw-source/persisted replay and original publication fences remain required.
+
+See docs/models/nonintegral-fees.md and commercial-fee-journal.md for the supplied
+policies, controls and exclusions. Fee Pricing/acquisition/units/capital/FTP,
+exercise/candidate/holding and draw/secondary adoption, in-arrears earning,
+generated streaming/convergence, full saved/cohort/mixed adoption and observed/
+reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
+ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
+libraries before new execution; local validation does not deploy or close15.
+
+
+## Formal interest-rate hedge relationships (local 0.29.19)
+
+`hedge-accounting-1` binds explicitly reviewed ASC 815 fair-value and cash-flow
+relationships to one complete `derivative-accounting-1` Physical source and to
+explicit hedged-item/forecast-exposure sources. Rust re-owns the undesignated
+owner's marks under the selected designation, values the hedged item's benchmark
+component and any supplied hypothetical natively, assesses cumulative dollar
+offset at accrual-free dates under reviewed bounds, and emits one ordered journal
+with basis, OCI, reclassification, amortization and derecognition entries. The
+rule matrix is `asc815-asu2017-12`; with an explicit adopted ASU 2025-09 policy the
+similar-risk group, choose-your-rate and swap/written-option elections apply
+prospectively, and relationships designated before the opening date carry
+reviewed retained balances; ASU 2022-01 layers, the dual-hedge election, net
+investment, standalone options and defaulted paths reject. Independent raw-source and
+persisted replay gate the durable `/models/runs` route; accounting-standard
+approval, saved-book/shared-journal adoption and capital feeds remain false.
+See [the detailed contract](hedge-accounting.md).
+
+`hedge-treasury-1` re-executes a hedge journal natively and feeds its
+complete-tail closing balances to the existing treasury bridge under supplied
+policies. Cash-flow-hedge AOCI keeps its own bridge GL and enters eligible
+AOCI only when the reviewed policy flag `cash_flow_hedge_aoci_eligible` is set.
+The independent reference recomputes rows, eligible amounts and the thirteen
+ratios; an explicit `interim_report` selects report-date capital at a path node
+before the complete tail. FTP and approval remain open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).
+
+`derivative-treasury-1` is the same bridge for a standalone reviewed
+`derivative-accounting-1` journal with no hedge accounting: cash, gross derivative
+values, margin, opening equity and earnings balances map once per instrument to
+reviewed GLs, reconcile to the selected reporting node's trial balance and enter
+the thirteen-ratio bridge under supplied policies, whose AOCI eligibility block
+is optional because no OCI arises. The same `interim_report` selection applies;
+unpaid rights, supplied capital/positions/curves and hedge accounts refuse. See
+[the derivative treasury feed](derivative-accounting.md#closing-capital-feed-derivative-treasury-1).

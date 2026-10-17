@@ -55,15 +55,8 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
             return Err("fee complete calendar domain".into());
         }
         horizon = horizon.max(days as usize);
-        let recovery = [&p.default, &p.prepayment, &p.exercise, &p.maturity]
-            .iter()
-            .map(|x| x.recoveries.len())
-            .max()
-            .unwrap_or(0);
         rows = rows
-            .checked_add(
-                (p.events.len() + p.fees.len() * (3 + recovery)) * raw.credit.paths.len() * 8,
-            )
+            .checked_add(fee::event_bound(p) * raw.credit.paths.len() * 8)
             .ok_or("fee ledger rows overflow")?;
     }
     current.spec["horizon_days"] = json!(horizon);

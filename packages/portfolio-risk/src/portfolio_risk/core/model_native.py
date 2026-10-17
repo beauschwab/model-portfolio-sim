@@ -44,7 +44,7 @@ def run(schema,request,*,threads=1,expected_binary=None,cancelled=None,timeout=1
     if type(threads) is not int or not 1<=threads<=256:raise ValueError('invalid model thread count')
     if not math.isfinite(timeout) or not .001<=timeout<=1800.:raise ValueError('invalid model deadline')
     envelope=dict(schema=schema,threads=threads,request=request)
-    controlled=schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1'} or is_generated_oas_calibration(schema,request)
+    controlled=schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1'} or is_generated_oas_calibration(schema,request)
     if controlled:envelope['execution_timeout_ms']=max(1,int(timeout*1000))
     data=json.dumps(envelope,allow_nan=False,separators=(',',':')).encode()
     input_limit=1024*1024 if schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1'} else 2*1024*1024 if schema=='nonintegral-fee-accounting-1' else MAX_INPUT

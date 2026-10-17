@@ -1,0 +1,380 @@
+"""Independent hand values, native ownership, lifecycle cases and tamper controls for hedge-accounting-1.
+
+Fixture: scripts/make_hedge_accounting_example.py (daily nodes 1 Jan-1 Apr 2024, three ACT/360
+periods, 6% simple curve dropping to 4% on 1 February, floating 6.5% / 4% / 4.5%).
+"""
+from copy import deepcopy
+import datetime as dt
+import json
+from pathlib import Path
+import subprocess
+import sys
+import pytest
+from portfolio_risk.core import model_native
+from portfolio_risk.analytics.model_contracts import account_hedge_relationships
+from portfolio_risk.analytics.hedge_accounting_reference import verify
+
+ROOT = Path(__file__).resolve().parents[3]
+JAN1, FEB1, MAR1, APR1 = (dt.date(2024, m, 1).toordinal() for m in (1, 2, 3, 4))
+PERIODS = [(JAN1, FEB1), (FEB1, MAR1), (MAR1, APR1)]
+
+
+def raw():
+    return json.loads((ROOT / 'examples/models/hedge-accounting-1.json').read_text())
+
+
+def run(request):
+    return account_hedge_relationships(request)
+
+
+def df(rate, days):
+    return 1. / (1. + rate * days / 360.)
+
+
+def curve(t):
+    return .06 if t < FEB1 else .04
+
+
+def floating(period, t):
+    return (.065, .06 if t < FEB1 else .04, .06 if t < FEB1 else .045)[period]
+
+
+def item_unit(t):
+    """Benchmark-component clean value per unit after payments (6% coupon, principal 1 April)."""
+    r = curve(t); dirty = accrued = 0.
+    for s, e in PERIODS:
+        if e > t: dirty += .06 * (e - s) / 360. * df(r, e - t)
+        if s <= t < e: accrued += .06 * (t - s) / 360.
+    if APR1 > t: dirty += df(r, APR1 - t)
+    return dirty - accrued
+
+
+def swap_value(t, fixed):
+    r = curve(t)
+    return sum((floating(i, t) - fixed) * 100. * (e - s) / 360. * df(r, e - t) for i, (s, e) in enumerate(PERIODS) if e > t)
+
+
+def cfh_fixed(request):
+    return request['derivative']['derivative']['operation']['request']['paths'][0]['nodes'][0]['trades'][1]['request']['fixed_rate']
+
+
+def event(kind, rid, ordinal, sequence, **fields):
+    return dict(event_id=f'{kind}-{rid}-{ordinal}-{sequence}', relationship_id=rid, ordinal=ordinal, sequence=sequence, kind=kind,
+                review=dict(id='review', revision='r1'), **fields)
+
+
+def near(a, b):
+    assert abs(a - b) <= 1e-9 * (1. + max(abs(a), abs(b))), (a, b)
+
+
+@pytest.fixture(scope='module')
+def accepted():
+    request = raw()
+    return request, run(request)
+
+
+def test_example_hand_values_verify_independently(accepted):
+    request, result = accepted
+    receipt = verify(request, result)
+    assert receipt['verified'] and receipt['formal_hedge_relationships_replayed'] and receipt['accounting_standard_approval'] is False
+    jan1 = item_unit(JAN1)
+    for a, ordinal in zip(result['assessments'][:2], (FEB1, MAR1)):
+        d = swap_value(ordinal, .06) - swap_value(JAN1, .06); e = -100. * (item_unit(ordinal) - jan1)
+        assert (a['relationship_id'], a['ordinal'], a['qualified']) == ('fvh-1', ordinal, True)
+        near(a['cumulative_instrument_change'], d); near(a['cumulative_hedged_change'], e); near(a['ratio'], d / e)
+        assert .8 <= a['ratio'] <= 1.25
+    k = cfh_fixed(request); cfh = result['assessments'][2]
+    assert (cfh['relationship_id'], cfh['ordinal'], cfh['qualified']) == ('cfh-1', MAR1, True)
+    near(cfh['ratio'], 1.); assert abs(swap_value(FEB1, k)) < 1e-12
+    near(result['closing'][0]['basis_closing'], 100. * (1. - jan1))
+    s2, s3 = (.04 - k) * 100. * 29. / 360., (.045 - k) * 100. * 31. / 360.
+    near(result['closing'][1]['oci_recognized'], s2 + s3); near(result['closing'][1]['oci_reclassified'], s2 + s3)
+    near(result['closing'][1]['oci_closing'], 0.)
+    reclass = [i for i in result['intents'] if i['event_id'].startswith('cash_flow_hedge_reclassification')]
+    assert [i['ordinal'] for i in reclass] == [MAR1, APR1]
+    marks = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == 'swap-cfh' and i['ordinal'] > FEB1]
+    assert marks and all(p['account'] != 'mark_gain_loss' for i in marks for p in i['postings'])
+    assert all(rel['status'] == 'qualified' for rel in result['relationships'])
+    assert result['saved_book_adoption'] is False and result['persisted_journal_verified'] is False
+
+
+def test_partial_dedesignation_sale_and_forecast_outcomes_verify_independently():
+    request = raw(); request['events'] = [event('assess', 'fvh-1', FEB1, 0), event('discontinue', 'fvh-1', FEB1, 1, reason='dedesignation', proportion=.5)]
+    result = run(request); assert verify(request, result)['verified']
+    basis_feb1 = 100. * (item_unit(FEB1) - item_unit(JAN1))
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'discontinuation')
+    near(record['frozen_basis'], .5 * basis_feb1); near(record['proportion_after'], .5)
+    mid = next(d for d in result['daily'] if d['ordinal'] == FEB1 + 14)
+    near(mid['relationships'][0]['frozen_basis_balance'], .5 * basis_feb1 * (1. - 14. / 60.))
+    near(result['closing'][0]['basis_amortized'], .5 * basis_feb1); near(result['closing'][0]['basis_closing'], .5 * 100. * (1. - item_unit(JAN1)))
+    sold = raw(); sold['events'] = [event('discontinue', 'fvh-1', FEB1, 0, reason='hedged_item_sold')]
+    result = run(sold); assert verify(sold, result)['verified']
+    near(result['closing'][0]['basis_derecognized'], basis_feb1); near(result['closing'][0]['basis_closing'], 0.)
+    assert result['relationships'][0]['status'] == 'discontinued'
+    pnto = raw(); k = cfh_fixed(pnto); pnto['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='probable_not_to_occur')]
+    result = run(pnto); assert verify(pnto, result)['verified']
+    oci = swap_value(FEB1 + 9, k) - swap_value(FEB1, k)
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'forecast_status')
+    near(record['released_oci'], oci); assert record['status_after'] == 'discontinued'
+    assert not any(i['event_id'].startswith('cash_flow_hedge_reclassification') for i in result['intents'])
+    near(result['closing'][1]['oci_closing'], 0.)
+    nlp = raw(); nlp['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='no_longer_probable')]
+    result = run(nlp); assert verify(nlp, result)['verified']
+    releases = [i for i in result['intents'] if i['event_id'].startswith('frozen_oci_release')]
+    assert [i['ordinal'] for i in releases] == [MAR1, APR1]
+    near(releases[0]['postings'][0]['debit_amount'], oci * 29. / 60.); near(result['closing'][1]['oci_closing'], 0.)
+
+
+def test_narrow_band_fails_assessment_and_supplied_hypothetical_matches_matched_terms():
+    narrow = raw(); narrow['events'] = [event('assess', 'fvh-1', FEB1, 0), event('assess', 'cfh-1', MAR1, 0)]
+    narrow['policy']['assessment'].update(lower_bound=.99, upper_bound=1.01)
+    result = run(narrow); assert verify(narrow, result)['verified']
+    assert result['assessments'][0]['qualified'] is False and result['assessments'][1]['qualified'] is True
+    record = next(l for l in result['lifecycle'] if l['relationship_id'] == 'fvh-1' and l['kind'] == 'assessment')
+    assert (record['reason'], record['status_after']) == ('failed_assessment', 'discontinued')
+    near(result['closing'][0]['basis_amortized'], record['frozen_basis']); near(result['relationships'][0]['frozen_basis_balance'], 0.)
+    hyp = raw(); nodes = hyp['derivative']['derivative']['operation']['request']['paths'][0]['nodes']
+    hyp['relationships'][1].update(matched_critical_terms_evidence=None, hypothetical=dict(evidence=dict(id='hyp-evidence', revision='r1'), nodes=[
+        dict(ordinal=n['ordinal'], request=dict(deepcopy(n['trades'][1]['request']), position_id='hypothetical')) for n in nodes if n['ordinal'] >= FEB1]))
+    supplied = run(hyp); assert verify(hyp, supplied)['verified']
+    matched = run(raw())
+    near(supplied['assessments'][2]['ratio'], 1.); near(supplied['closing'][1]['oci_reclassified'], matched['closing'][1]['oci_reclassified'])
+    assert len(supplied['intents']) == len(matched['intents'])
+    for n in hyp['relationships'][1]['hypothetical']['nodes']: n['request']['fixed_rate'] = .05
+    with pytest.raises(ValueError, match='zero clean value at inception'): run(hyp)
+
+
+@pytest.mark.parametrize('target', ['ratio', 'qualified', 'posting', 'drop', 'status', 'oci', 'flag', 'derivative', 'order', 'proportion', 'raw'])
+def test_independent_replay_rejects_tampered_results(accepted, target):
+    request, result = accepted; changed = deepcopy(result); raw_request = request
+    if target == 'ratio': changed['assessments'][0]['ratio'] += 1e-6
+    elif target == 'qualified': changed['assessments'][0]['qualified'] = False
+    elif target == 'posting': changed['intents'][-1]['postings'][0]['debit_amount'] += 1e-6
+    elif target == 'drop': changed['intents'].pop()
+    elif target == 'status': changed['relationships'][1]['status'] = 'discontinued'
+    elif target == 'oci': changed['daily'][-1]['relationships'][1]['oci_balance'] += 1e-6
+    elif target == 'flag': changed['accounting_standard_approval'] = True
+    elif target == 'derivative': changed['derivative']['daily'][5]['trades'][0]['clean_carrying'] += 1e-6
+    elif target == 'order': changed['intents'][-1]['postings'].reverse()
+    elif target == 'proportion': changed['closing'][0]['basis_closing'] += 1e-6
+    else:
+        raw_request = deepcopy(request); raw_request['relationships'][0]['benchmark_rate'] = .05
+    with pytest.raises((ValueError, ArithmeticError)): verify(raw_request, changed)
+
+
+@pytest.mark.parametrize('kind', ['rule', 'election', 'inception', 'accrual', 'proportion', 'matched', 'order', 'coupon'])
+def test_native_refusals_without_fallback(kind):
+    request = raw()
+    if kind == 'rule': request['policy']['rule_version'] = 'asc815-2024'
+    elif kind == 'election': request['policy']['adoption']['asu_2025_09']['elections']['dual_hedge_basis'] = True
+    elif kind == 'inception': request['events'][0]['ordinal'] = JAN1
+    elif kind == 'accrual': request['events'][0]['ordinal'] = FEB1 + 3
+    elif kind == 'proportion': request['relationships'][0]['designated_proportion'] = 1.5
+    elif kind == 'matched':
+        v0 = swap_value(JAN1, .06)
+        for n in request['derivative']['derivative']['operation']['request']['paths'][0]['nodes']: n['trades'][1]['request']['fixed_rate'] = .06
+        request['derivative']['opening']['trades'][1]['clean_value'] = v0
+        request['derivative']['opening']['equity_credit_balance'] = 100. + 2. * v0
+    elif kind == 'order': request['events'].reverse()
+    else: request['derivative']['policy']['trades'][1]['coupon_recognition'] = 'contractual_income_at_due_with_mark_offset'
+    with pytest.raises(ValueError): run(request)
+
+
+def test_hedge_process_is_native_with_python_financial_callbacks_forbidden():
+    script = '''
+from portfolio_risk.core import quant_native, pricing
+def forbidden(*a,**k):raise AssertionError('Python financial callback')
+quant_native.term_call=forbidden
+pricing.pv_from_A=forbidden
+pricing.solve_oas_from_A=forbidden
+import json
+from pathlib import Path
+from portfolio_risk.analytics.model_contracts import account_hedge_relationships
+r=json.loads(Path('examples/models/hedge-accounting-1.json').read_text())
+out=account_hedge_relationships(r)
+assert len(out['assessments'])==3 and all(a['qualified'] for a in out['assessments'])
+'''
+    child = subprocess.run([sys.executable, '-c', script], cwd=ROOT, capture_output=True, text=True)
+    assert child.returncode == 0, child.stderr
+
+
+def test_independent_replay_cancellation(accepted):
+    request, result = accepted
+    def stop(): raise InterruptedError('cancelled during reference replay')
+    with pytest.raises(InterruptedError): verify(request, result, stop)
+
+
+def test_native_strict_scalar_categories_and_duplicate_keys():
+    request = raw(); envelope = dict(schema=request['schema'], threads=1, execution_timeout_ms=60000, request=request)
+    changed = deepcopy(envelope); changed['execution_timeout_ms'] = True
+    child = subprocess.run([str(model_native.binary_path())], input=json.dumps(changed).encode(), capture_output=True)
+    assert child.returncode == 1 and json.loads(child.stdout)['ok'] is False
+    body = json.dumps(envelope).replace('"rule_version": "asc815-asu2017-12"', '"rule_version": "x", "rule_version": "asc815-asu2017-12"', 1).encode()
+    assert body != json.dumps(envelope).encode()
+    child = subprocess.run([str(model_native.binary_path())], input=body, capture_output=True)
+    assert child.returncode == 1 and json.loads(child.stdout)['ok'] is False
+
+
+def test_integer_categories_for_typed_money_verify_but_clock_categories_stay_exact():
+    """Browser JSON re-serialization turns 1.0 into 1; f64 fields accept it, dates and sequences do not change."""
+    request = raw()
+    request['relationships'][0]['designated_proportion'] = 1; request['relationships'][1]['designated_proportion'] = 1
+    request['relationships'][0]['hedged_notional'] = 100; request['hedged_items'][0]['notional'] = 100
+    request['forecast_exposures'][0]['notional'] = 100; request['policy']['assessment']['upper_bound'] = 2
+    result = run(request); assert verify(request, result)['verified']
+    assert result['relationships'][0]['designated_proportion'] == 1.
+    changed = deepcopy(result); changed['lifecycle'][0]['ordinal'] = float(changed['lifecycle'][0]['ordinal'])
+    with pytest.raises(ValueError): verify(request, changed)
+
+
+def item_unit_partial(t, term_end=MAR1):
+    """Benchmark-component unit value with the principal assumed repaid at the hedged term end."""
+    r = curve(t); dirty = accrued = 0.
+    for s, e in PERIODS:
+        if e > term_end: continue
+        if e > t: dirty += .06 * (e - s) / 360. * df(r, e - t)
+        if s <= t < e: accrued += .06 * (t - s) / 360.
+    if term_end > t: dirty += df(r, term_end - t)
+    return dirty - accrued
+
+
+def test_partial_term_fair_value_hedge_measures_to_the_assumed_maturity():
+    request = raw(); request['relationships'][0]['hedged_term_end_ordinal'] = MAR1
+    request['events'] = [event('assess', 'fvh-1', FEB1, 0)]
+    result = run(request); assert verify(request, result)['verified']
+    jan1 = item_unit_partial(JAN1); a = result['assessments'][0]
+    d = swap_value(FEB1, .06) - swap_value(JAN1, .06); e = -100. * (item_unit_partial(FEB1) - jan1)
+    near(a['cumulative_instrument_change'], d); near(a['cumulative_hedged_change'], e); near(a['ratio'], d / e)
+    assert not a['qualified'] and a['ratio'] > 1.25
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'assessment'); frozen = 100. * (item_unit_partial(FEB1) - jan1)
+    near(record['frozen_basis'], frozen)
+    mid = next(x for x in result['daily'] if x['ordinal'] == FEB1 + 14)['relationships'][0]
+    near(mid['frozen_basis_balance'], frozen * (1. - 14. / 29.))
+    early = next(x for x in result['daily'] if x['ordinal'] == JAN1 + 14)['relationships'][0]; near(early['hedged_item_clean_value'], 100. * item_unit_partial(JAN1 + 14))
+    at_end = next(x for x in result['daily'] if x['ordinal'] == MAR1)['relationships'][0]; near(at_end['frozen_basis_balance'], 0.)
+    near(result['closing'][0]['basis_amortized'], frozen); near(result['closing'][0]['basis_closing'], 0.)
+    assert result['relationships'][0]['hedged_term_end_ordinal'] == MAR1 and 'hedged_term_end_ordinal' not in result['relationships'][1]
+    for end in (FEB1 + 3, APR1, JAN1):
+        bad = deepcopy(request); bad['relationships'][0]['hedged_term_end_ordinal'] = end
+        with pytest.raises(ValueError): run(bad)
+    cfh = deepcopy(request); cfh['relationships'][1]['hedged_term_end_ordinal'] = MAR1
+    with pytest.raises(ValueError): run(cfh)
+
+
+def combination_variant():
+    """`swap-cfh` and an identical `swap-cfh2` jointly designated at half proportion each against one hypothetical."""
+    v = raw(); csa = v['derivative']['derivative']['operation']['request']
+    for n in csa['paths'][0]['nodes']:
+        second = deepcopy(n['trades'][1]); second['request'].update(position_id='swap-cfh2', contract=dict(id='swap-cfh2-contract', revision='r1')); n['trades'].append(second)
+    m = deepcopy(csa['mapping'][1]); m.update(position_id='swap-cfh2', contract=dict(id='swap-cfh2-contract', revision='r1')); csa['mapping'].append(m)
+    review = deepcopy(v['derivative']['policy']['trades'][1]); review['position_id'] = 'swap-cfh2'; v['derivative']['policy']['trades'].append(review)
+    opening = v['derivative']['opening']; value = opening['trades'][1]['clean_value']
+    opening['trades'].append(dict(position_id='swap-cfh2', clean_value=value)); opening['equity_credit_balance'] += value
+    for p in [p for p in v['derivative']['physical_index_paths'] if p['position_id'] == 'swap-cfh']:
+        q = deepcopy(p); q['position_id'] = 'swap-cfh2'; v['derivative']['physical_index_paths'].append(q)
+    hyp = [dict(ordinal=n['ordinal'], request=dict(deepcopy(n['trades'][1]['request']), position_id='hypothetical')) for n in csa['paths'][0]['nodes'] if n['ordinal'] >= FEB1]
+    v['relationships'][1].update(designated_proportion=.5, matched_critical_terms_evidence=None, hypothetical=dict(evidence=dict(id='hyp-evidence', revision='r1'), nodes=hyp),
+                                 additional_instrument_position_ids=['swap-cfh2'])
+    return v
+
+
+def test_jointly_designated_swaps_form_one_hedging_instrument():
+    v = combination_variant(); k = cfh_fixed(v)
+    result = run(v); assert verify(v, result)['verified']
+    cfh = result['assessments'][2]; near(cfh['ratio'], 1.); assert cfh['qualified']
+    near(cfh['cumulative_instrument_change'], swap_value(MAR1, k) - swap_value(FEB1, k))
+    mar1 = next(d for d in result['daily'] if d['ordinal'] == MAR1)['relationships'][1]; near(mar1['instrument_designated_value'], swap_value(MAR1, k))
+    for position in ('swap-cfh', 'swap-cfh2'):
+        marks = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == position and i['ordinal'] > FEB1]
+        assert marks
+        for i in marks:
+            oci = sum(p['debit_amount'] for p in i['postings'] if p['account'] == 'cash_flow_hedge_oci'); kept = sum(p['debit_amount'] for p in i['postings'] if p['account'] == 'mark_gain_loss')
+            near(oci, kept)
+    near(result['closing'][1]['oci_closing'], 0.)
+    assert result['relationships'][1]['additional_instrument_position_ids'] == ['swap-cfh2'] and 'additional_instrument_position_ids' not in result['relationships'][0]
+    for kind in ('duplicate', 'option', 'over', 'matched', 'unknown', 'coupon'):
+        bad = combination_variant()
+        if kind == 'duplicate': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-cfh']
+        elif kind == 'option': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-cfh2', 'swap-cfh2']
+        elif kind == 'over': bad['relationships'][1]['designated_proportion'] = .8; bad['relationships'].append(dict(deepcopy(bad['relationships'][1]), relationship_id='cfh-2', designated_proportion=.3))
+        elif kind == 'matched': bad['relationships'][1].update(hypothetical=None, matched_critical_terms_evidence=dict(id='cfh-1-critical-terms', revision='r1'))
+        elif kind == 'unknown': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-other']
+        else: bad['derivative']['policy']['trades'][2]['coupon_recognition'] = 'contractual_income_at_due_with_mark_offset'
+        with pytest.raises(ValueError): run(bad)
+
+
+def forecast_issuance_variant():
+    """Hedge of forecast fixed-rate debt issued 1 March with a forward-starting swap designated 1 January and terminated at issuance."""
+    v = raw(); csa = v['derivative']['derivative']['operation']['request']
+    for n in csa['paths'][0]['nodes']:
+        fwd = deepcopy(n['trades'][1]); r = fwd['request']
+        r.update(position_id='swap-fwd', contract=dict(id='swap-fwd-contract', revision='r1'), fixed_rate=.06,
+                 fixed_periods=r['fixed_periods'][2:], floating_periods=r['floating_periods'][2:])
+        n['trades'].append(fwd)
+    m = deepcopy(csa['mapping'][1]); m.update(position_id='swap-fwd', contract=dict(id='swap-fwd-contract', revision='r1')); csa['mapping'].append(m)
+    review = deepcopy(v['derivative']['policy']['trades'][1]); review['position_id'] = 'swap-fwd'; v['derivative']['policy']['trades'].append(review)
+    v['derivative']['opening']['trades'].append(dict(position_id='swap-fwd', clean_value=0.))
+    for p in [p for p in v['derivative']['physical_index_paths'] if p['position_id'] == 'swap-cfh' and p['period_id'] == 'l3']:
+        q = deepcopy(p); q['position_id'] = 'swap-fwd'; v['derivative']['physical_index_paths'].append(q)
+    exposure = deepcopy(v['forecast_exposures'][0]); exposure.update(exposure_id='issue-1', periods=exposure['periods'][2:]); v['forecast_exposures'].append(exposure)
+    hyp = [dict(ordinal=n['ordinal'], request=dict(deepcopy(n['trades'][2]['request']), position_id='hypothetical')) for n in csa['paths'][0]['nodes']]
+    v['relationships'].append(dict(deepcopy(v['relationships'][1]), relationship_id='cfh-fwd', hedging_instrument_position_id='swap-fwd', forecast_exposure_id='issue-1',
+                                   inception_ordinal=JAN1, matched_critical_terms_evidence=None, hypothetical=dict(evidence=dict(id='fwd-evidence', revision='r1'), nodes=hyp)))
+    v['events'] = [event('assess', 'cfh-fwd', MAR1, 0), event('discontinue', 'cfh-fwd', MAR1, 1, reason='instrument_terminated')]
+    return v
+
+
+def forward_value(t):
+    """Forward-starting payer swap at 6% on period 3 (projected 6% before February, then 4.5%)."""
+    r = curve(t)
+    return sum((floating(i, t) - .06) * 100. * (e - s) / 360. * df(r, e - t) for i, (s, e) in enumerate(PERIODS) if i >= 2 and e > t)
+
+
+def test_forward_starting_hedge_of_forecast_issuance_is_assessed_and_released():
+    v = forecast_issuance_variant(); result = run(v); assert verify(v, result)['verified']
+    assert [l['kind'] for l in result['lifecycle']] == ['inception', 'inception', 'inception', 'assessment', 'discontinuation']
+    a = result['assessments'][0]; assert a['relationship_id'] == 'cfh-fwd' and a['ordinal'] == MAR1 and a['qualified']; near(a['ratio'], 1.)
+    near(a['cumulative_instrument_change'], forward_value(MAR1) - forward_value(JAN1)); assert abs(forward_value(JAN1)) < 1e-12
+    oci = forward_value(MAR1) - forward_value(JAN1)
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'discontinuation'); near(record['frozen_oci'], oci); assert record['status_after'] == 'discontinued'
+    releases = [i for i in result['intents'] if i['event_id'].startswith('frozen_oci_release') and i['relationship_id'] == 'cfh-fwd']
+    assert [i['ordinal'] for i in releases] == [APR1]
+    near(releases[0]['postings'][0]['debit_amount'], oci)
+    near(result['closing'][2]['oci_recognized'], oci); near(result['closing'][2]['oci_closing'], 0.)
+    later = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == 'swap-fwd' and i['ordinal'] > MAR1]
+    assert later and all(p['account'] != 'cash_flow_hedge_oci' for i in later for p in i['postings'])
+    inside = deepcopy(v); inside['relationships'][2]['inception_ordinal'] = MAR1 + 3
+    with pytest.raises(ValueError): run(inside)
+    mid = deepcopy(v); mid['events'][0] = event('assess', 'cfh-fwd', MAR1 + 3, 0)
+    with pytest.raises(ValueError): run(mid)
+
+
+def test_delayed_and_cancelled_forecast_periods_follow_the_timing_policy():
+    request = raw(); k = cfh_fixed(request)
+    request['policy']['forecast_timing'] = dict(identity=dict(id='timing-policy', revision='r1'), additional_delay_days=62)
+    request['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='delayed', period_id='e2', new_payment_ordinal=MAR1 + 14)]
+    result = run(request); assert verify(request, result)['verified']
+    s2, s3 = (.04 - k) * 100. * 29. / 360., (.045 - k) * 100. * 31. / 360.
+    reclass = [i for i in result['intents'] if i['event_id'].startswith('cash_flow_hedge_reclassification')]
+    assert [i['ordinal'] for i in reclass] == [MAR1 + 14, APR1]; near(reclass[0]['postings'][0]['debit_amount'], s2); near(reclass[1]['postings'][0]['debit_amount'], s3)
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'forecast_status')
+    assert (record['reason'], record['period_id'], record['new_payment_ordinal'], record['status_after']) == ('forecast_delayed', 'e2', MAR1 + 14, 'qualified')
+    near(result['closing'][1]['oci_closing'], 0.)
+    cancelled = raw(); cancelled['events'] = [event('forecast_status', 'cfh-1', FEB1 + 9, 0, status='period_probable_not_to_occur', period_id='e3')]
+    result = run(cancelled); assert verify(cancelled, result)['verified']
+    oci = swap_value(FEB1 + 9, k) - swap_value(FEB1, k); release = oci * 31. / 60.
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'forecast_status')
+    assert (record['reason'], record['period_id'], record['status_after']) == ('forecast_period_probable_not_to_occur', 'e3', 'qualified'); near(record['released_oci'], release)
+    releases = [i for i in result['intents'] if i['event_id'].startswith('forecast_not_occurring_release')]
+    assert [i['ordinal'] for i in releases] == [FEB1 + 9]; near(releases[0]['postings'][0]['debit_amount'], release)
+    reclass = [i for i in result['intents'] if i['event_id'].startswith('cash_flow_hedge_reclassification')]
+    assert [i['ordinal'] for i in reclass] == [MAR1]
+    near(result['closing'][1]['oci_closing'], s3 - release); assert result['relationships'][1]['pending_reclassification_periods'] == []
+    for kind in ('window', 'late', 'no_policy', 'unknown', 'twice'):
+        bad = deepcopy(request)
+        if kind == 'window': bad['events'][0]['new_payment_ordinal'] = MAR1 + 63
+        elif kind == 'late': bad['events'][0]['ordinal'] = MAR1
+        elif kind == 'no_policy': bad['policy'].pop('forecast_timing')
+        elif kind == 'unknown': bad['events'][0]['period_id'] = 'e9'
+        else: bad = deepcopy(cancelled); bad['events'].append(event('forecast_status', 'cfh-1', FEB1 + 10, 0, status='period_probable_not_to_occur', period_id='e3'))
+        with pytest.raises(ValueError): run(bad)

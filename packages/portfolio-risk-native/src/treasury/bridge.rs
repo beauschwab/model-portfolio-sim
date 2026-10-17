@@ -79,6 +79,36 @@ pub struct Trial {
     pub instrument_id: String,
     pub balance: f64,
 }
+/// Reviewed AOCI capital treatment: deferred tax on gross AOCI, the regulatory
+/// opt-out election and a phase-in fraction are supplied policy, never inferred.
+/// The DTA/DTL itself is disclosed, not posted to the bridge balance sheet.
+#[derive(Deserialize, serde::Serialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct AociEligibility {
+    pub identity: portfolio_model_core::credit_accounting::Identity,
+    pub deferred_tax_rate: f64,
+    pub opt_out_elected: bool,
+    pub phase_in_fraction: f64,
+}
+impl AociEligibility {
+    pub fn validate(&self) -> Result<(), String> {
+        for s in [&self.identity.id, &self.identity.revision] {
+            if s.trim().is_empty() || s.len() > 200 || s.chars().any(char::is_control) {
+                return Err("reviewed AOCI eligibility identity required".into());
+            }
+        }
+        if !self.deferred_tax_rate.is_finite()
+            || !(0. ..1.).contains(&self.deferred_tax_rate)
+            || !self.phase_in_fraction.is_finite()
+            || !(0. ..=1.).contains(&self.phase_in_fraction)
+        {
+            return Err(
+                "AOCI deferred tax rate in [0,1) and phase-in fraction in [0,1] required".into(),
+            );
+        }
+        Ok(())
+    }
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LedgerPolicy {
@@ -86,6 +116,13 @@ pub struct LedgerPolicy {
     pub scenario: String,
     pub capital: Capital,
     pub include_aoci: bool,
+    /// Cash-flow-hedge AOCI (`cash_flow_hedge_oci` rows) is excluded from eligible
+    /// AOCI unless this reviewed policy flag is set, even when `include_aoci` is true.
+    #[serde(default)]
+    pub cash_flow_hedge_aoci_eligible: bool,
+    /// Optional reviewed deferred-tax / opt-out / phase-in treatment of included AOCI.
+    #[serde(default)]
+    pub aoci_eligibility: Option<AociEligibility>,
     /// Book equity not eligible as common equity (including preferred equity).
     pub equity_exclusions: f64,
     pub intangible_assets: f64,
@@ -174,8 +211,12 @@ const ASSET_GLS: &[&str] = &[
     // Existing explicit instrument/GL policy weights apply to each signed row.
     "live_interest_basis_adjustment",
     "default_interest_basis_adjustment",
+    // Formal fair-value hedge basis adjustment on an asset item (signed carrying adjustment).
+    "hedged_item_basis_adjustment",
 ];
 const LIAB_GLS: &[&str] = &[
+    // Formal fair-value hedge basis adjustment on a liability item.
+    "hedged_item_basis_liability",
     "funding_principal",
     "secured_funding",
     "received_margin",
@@ -297,6 +338,9 @@ pub(crate) fn ledger_with_exposure(
             label(k)?;
             check(*v, true)?;
         }
+        if let Some(a) = &p.aoci_eligibility {
+            a.validate()?;
+        }
         if p.gl_risk_weights.keys().any(|k| {
             !(ASSET_GLS.contains(&k.as_str())
                 || mortgage_closing && MORTGAGE_PENDING_ASSET_GLS.contains(&k.as_str())
@@ -330,7 +374,7 @@ pub(crate) fn ledger_with_exposure(
     }
     // GL debit signs determine balances. Retained earnings includes all posted
     // P&L (including tax/provision); distributions reduce common equity once.
-    let mut sums: BTreeMap<(&str, &str), [f64; 7]> = BTreeMap::new();
+    let mut sums: BTreeMap<(&str, &str), [f64; 8]> = BTreeMap::new();
     let mut contributions = Vec::new();
     let mut groups: BTreeMap<(&str, &str, &str), (f64, f64)> = BTreeMap::new();
     for r in &rows {
@@ -361,6 +405,9 @@ pub(crate) fn ledger_with_exposure(
             s[3] -= v;
         } else if gl == "oci" {
             s[4] -= v;
+        } else if gl == "cash_flow_hedge_oci" {
+            s[4] -= v;
+            s[7] -= v;
         } else if LIAB_GLS.contains(&gl)
             || (["book_adjustment", "accrued_interest"].contains(&gl)
                 && funding.contains(&(&r.scenario, &r.account, &r.instrument_id)))
@@ -453,17 +500,45 @@ pub(crate) fn ledger_with_exposure(
         c.scenario = scenario.into();
         c.common_equity = s[2] - p.equity_exclusions;
         c.retained_earnings = s[3];
-        c.eligible_aoci = if p.include_aoci { s[4] } else { 0. };
+        let included = if p.include_aoci {
+            s[4] - if p.cash_flow_hedge_aoci_eligible {
+                0.
+            } else {
+                s[7]
+            }
+        } else {
+            0.
+        };
+        let (deferred_tax, eligible) = match &p.aoci_eligibility {
+            None => (0., included),
+            Some(a) => (
+                -included * a.deferred_tax_rate,
+                if a.opt_out_elected {
+                    0.
+                } else {
+                    included * (1. - a.deferred_tax_rate) * a.phase_in_fraction
+                },
+            ),
+        };
+        c.eligible_aoci = eligible;
         c.credit_rwa = s[5];
         c.total_leverage_exposure = s[0] + p.leverage_addon - p.leverage_deductions;
         c.tangible_common_equity = equity - p.equity_exclusions - p.intangible_assets;
         c.tangible_assets = s[0] - p.intangible_assets;
-        audit.push(
-            json!({"scenario":scenario,"account":account,"entity":c.entity,"currency":c.currency,
+        let mut row = json!({"scenario":scenario,"account":account,"entity":c.entity,"currency":c.currency,
             "assets":s[0],"liabilities":s[1],"book_equity":equity,"common_equity":c.common_equity,
             "retained_earnings":s[3],"book_aoci":s[4],"eligible_aoci":c.eligible_aoci,
-            "equity_exclusions":p.equity_exclusions,"credit_rwa":s[5],"reconciliation_error":s[6]}),
-        );
+            "equity_exclusions":p.equity_exclusions,"credit_rwa":s[5],"reconciliation_error":s[6]});
+        if let Some(a) = &p.aoci_eligibility {
+            // Extended disclosure only under the reviewed AOCI treatment; historical audits are unchanged.
+            row["cash_flow_hedge_aoci"] = json!(s[7]);
+            row["included_aoci"] = json!(included);
+            row["deferred_tax_on_aoci"] = json!(deferred_tax);
+            row["aoci_opt_out_elected"] = json!(a.opt_out_elected);
+            row["aoci_phase_in_fraction"] = json!(a.phase_in_fraction);
+            row["aoci_eligibility_policy"] = json!(a.identity);
+        }
+        audit.push(row);
         t.capital.push(c);
     }
     let mut out = t.run()?;

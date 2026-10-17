@@ -11,7 +11,7 @@ The request supplies `loan` (the existing `commercial-credit-ledger-1` request)
 and one `commercial-native-fees-1` policy per commercial source, in source order.
 Each fee retains its exact position, original tranche, service, classification
 review and source identity. Supplied events contain only service earning, cash
-and permitted prepaid refunds. Caller default/exercise/waiver/recovery money is
+and permitted prepaid or explicitly reviewed earned refunds. Caller default/exercise/waiver/recovery money is
 rejected. The complete supplied tape must be valid before loan generation.
 
 Rust generates each loan owner once, then binds fee dispositions to that owner's
@@ -24,11 +24,23 @@ yet accept an exercise graph or acquired exercise candidate source.
 Every exit category supplies a separate review and explicit cancellation,
 unpaid-earned waiver, prepaid-refund and recovery policy. At the exit, let E be
 signed earned service, W signed previously waived service and K net service cash.
-For entitlement sign s, eligible unpaid earning is max((E-W-K)s,0)s and eligible
-prepaid cash is max((K-E+W)s,0)s. Apply separately supplied fractions to those
+With F the separately retained earned refunds and entitlement sign s, eligible
+unpaid earning is max((E-F-W-K)s,0)s and eligible prepaid cash is
+max((K-E+F+W)s,0)s. Apply separately supplied fractions to those
 rights. Fee recovery applies only to the newly waived fee, with independent
 fractions and actual-day lags; loan LGD and coupon recovery cannot supply it.
 Recovery fractions total at most one. Refund policy must agree with fee terms.
+
+Local 0.29.18 adds optional `refund_earned_fraction` (default0) to each reviewed
+exit policy. Every affected fee must explicitly allow earned refunds. At the same
+native exit, refund `max(min((E-F-W)s,Ks),0)s * refund_earned_fraction` through the
+separate fee owner. Earlier supplied earned refunds reduce that remaining right.
+The event reverses collected fee income and cash once without changing gross
+service earned, loan carrying value/EIR, prepaid obligations or waived recoveries.
+It retains the exit reason/review and the original fractional clock. Zero/omitted
+selection adds no group or admission charge; selected policies reserve one extra
+group per fee/path before loan generation. Historical output/protocols remain
+unchanged. See [the fee owner](nonintegral-fees.md) for the signed hand controls.
 
 The required `native_exit_before_coincident_service_cash-1` policy retires eligible
 future events and posts reviewed dispositions before service/cash at the identical
@@ -68,7 +80,7 @@ actual complete-tail and serialized-output checks remain required.
 
 This lane handles exclusive loan owners and cash accounts with separately owned
 original service fees. Issuer securities use their existing candidate route;
-draw/secondary fee ownership, earned refunds, acquisition fee allocation,
+draw/secondary fee ownership, acquisition fee allocation,
 conditional exercise/candidate/holding adoption, fee Pricing graphs/units,
 capital/FTP, saved/cohort adoption, daily in-arrears indexed earning and generated
 streaming remain separate work. Native flags explicitly retain those boundaries.

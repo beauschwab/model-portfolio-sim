@@ -1053,3 +1053,73 @@ as not_assessed. This is a research implementation of the stated rule, not an
 accounting opinion: management intent, auditor judgment and tainting periods
 are not modeled (HTM positions originating after a reclassification stay HTM). Rebuild the ledger and decision/workflow binaries and restart
 workers; the new output columns are additive.
+
+
+## Reviewed earned-fee refunds (0.29.18)
+
+The standalone nonintegral fee owner and native commercial loan/fee journal
+support explicitly permitted earned AND collected service refunds. A reviewed
+refund reverses fee cash/income, retaining separate cumulative refunded earning
+and historical gross service. It cannot grant new earning/collection capacity,
+use prepaid cash or waived recoveries, or change loan original cost/EIR/credit
+paths. Native exit policies optionally select a bounded refund fraction and
+reserve the additional group before generation; absent/zero selections retain
+historical outputs and admission. Signed gross rights, full tails, independent
+raw-source/persisted replay and original publication fences remain required.
+
+See docs/models/nonintegral-fees.md and commercial-fee-journal.md for the supplied
+policies, controls and exclusions. Fee Pricing/acquisition/units/capital/FTP,
+exercise/candidate/holding and draw/secondary adoption, in-arrears earning,
+generated streaming/convergence, full saved/cohort/mixed adoption and observed/
+reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
+ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
+libraries before new execution; local validation does not deploy or close15.
+
+## Formal ASC 815 hedge relationships (local 0.29.19)
+
+`hedge-accounting-1` is an explicitly selected additive lane for issue #35. It
+consumes one complete reviewed `derivative-accounting-1` Physical source whose
+hedging instruments carry the raw `undesignated_economic_hedge` review, plus
+explicit hedged-item and forecast-exposure sources. Rust owns relationship
+admission, the append-only lifecycle, hedged-item benchmark-component valuation,
+hypothetical valuation, cumulative dollar-offset assessment under reviewed
+bounds, mark re-ownership into OCI, hedged-period reclassification, frozen
+OCI release, basis amortization/derecognition and the single ordered journal.
+Each derivative mark, coupon, collateral and closeout entry is recognized once.
+
+The implemented rule matrix is `asc815-asu2017-12` (post ASU 2017-12 recognition
+without separate ineffectiveness). Under an explicit adopted ASU 2025-09 policy
+the similar-risk group (815-20-55-23A through 55-23D) and choose-your-rate debt
+(815-30-35-37I through 35-37M) elections apply prospectively with per-member and
+per-option hypotheticals, dated dedesignation and rate elections, and the
+swap/written-option combination (815-20-25-88) designates a swap plus a written
+cash-settled swaption of matching notional as one instrument. ASU 2022-01
+portfolio layers, the ASU 2025-09 dual-hedge election, net-investment,
+nonfinancial, standalone option instruments and counterparty default paths
+reject explicitly; relationships designated before the opening date carry
+reviewed retained balances posted once against opening equity. Assessment uses
+clean cumulative changes at accrual-free after-payment dates before the final
+instrument settlement; matched critical terms require a zero-value instrument at
+inception. Bounds: 64 relationships, 1,024 events, 32 MiB input/output and one
+million hypothetical work units beyond the derivative owner's own admission.
+
+Independent Python replay (`hedge_accounting_reference`) reconstructs the
+derivative source, item/hypothetical values, lifecycle, assessments, journal and
+roll-forwards before and after persistence. A legacy saved-book `fvh`/`cfh`
+label is not an input. Saved-book, shared daily journal, treasury/capital/AOCI
+policy, portfolio-layer, empirical effectiveness and complete-scale acceptance
+remain open under #35; see `docs/models/hedge-accounting.md`. Rebuild the
+product artifact and restart API/workers before executing the new schema.
+
+`hedge-treasury-1` (same stage) maps the verified complete-tail hedge closing
+to the treasury bridge: derivative cash/margin/marks and hedge basis/OCI/
+reclassification rows once, cash-flow-hedge AOCI under its own GL with a
+reviewed `cash_flow_hedge_aoci_eligible` policy flag (default excluded), an
+explicit `interim_report` selection of report-date capital at a path node, and
+the existing thirteen-ratio bridge. Rows near zero are omitted, unpaid rights
+and negative basis with nonzero weight refuse. Interim capital, FTP,
+deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.
+`derivative-treasury-1` feeds the standalone `derivative-accounting-1` journal
+to the same bridge with no hedge accounting: per-instrument rows reconciled to
+the selected reporting node, an optional AOCI policy block and the same interim
+selection and refusals. Mixed saved-derivative treasury feeds remain open.
