@@ -14,9 +14,9 @@ exposures, append-only lifecycle, cumulative dollar-offset assessment under revi
 bounds at accrual-free dates, mark re-ownership into OCI, hedged-period
 reclassification, frozen OCI release, basis amortization/derecognition and one
 ordered journal. See [the contract](hedge-accounting.md). The rule matrix is
-`asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 swap/written-option
-and dual-hedge elections, net investment, options, defaulted paths and seasoned
-openings refuse explicitly.
+`asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 dual-hedge election,
+net investment, standalone options, defaulted paths and seasoned openings refuse
+explicitly.
 
 ASU 2025-09 (issued text, prospective under 815-20-65-7) is implemented for the
 two interest-rate elections: similar-risk groups of forecast exposures with the
@@ -29,10 +29,17 @@ inception, rate elections with the final retrospective assessment on the prior
 rate and ineffective-period earnings recognition (35-37I through 35-37M).
 Evidence: four native tests (hand values for both methods, dated dedesignation,
 rate election and ineffective period, sixteen refusals, election-only
-invariance) and 24 engine checks with independent replay and tamper refusals.
-Tenor/timing changes, forecast-issuance documentation updates, replacement-debt
-designation, qualitative similarity and the compound written-option exception
-remain open.
+invariance) and 23 engine checks with independent replay and tamper refusals.
+The `swap_written_option_exception` election (815-20-25-88) designates a swap
+plus a written cash-settled swaption of matching notional as one instrument:
+combined clean value and cumulative change, mark re-ownership of both positions
+and proportion tracking on the option, with the hypothetical derivative method
+required. Evidence: two native tests (hand values with the option's cash expiry
+inside the hedge window, nine refusals) and 15 engine checks with independent
+replay and tamper refusals. Tenor/timing changes, forecast-issuance
+documentation updates, replacement-debt designation, qualitative similarity,
+physically delivered or pre-inception-expiring written options and optioned
+hedged items/hypotheticals remain open.
 
 Evidence (worktree `claude/hedge-accounting-35`, Windows, rebuilt release binary):
 six native hand/lifecycle/refusal/protocol tests plus the unchanged 45 derivative
@@ -1175,7 +1182,7 @@ the ledger below.
 | #19 | Revolving credit cards | Native statement/grace/promotion/payment/utilization state and full-tail P/Q graph; public acquired source and shared tagged mixed GL; explicit Card2 gross unpaid interest, signed live/default basis and separate original-EIR/realization owner pass rebuilt-release source, durable and browser gates | Wider fees/grace/draw/CCF, default-before-principal-zero/nonaccrual/PCD/modification policies, cohort/library/saved-book adoption, joint scenarios and complete empirical gates |
 | #16 | CDs | Explicit withdrawal/penalty/renewal/switch contracts; chronological graph2/reprice2 sequence retains locked original OAS, exclusive unsuperseded tails and post-principal-zero rights; the combined public CD/source2 successor is now applied after 158 distinct contained checks and exact 86-file root review, with fresh matching native/default acceptance pending | Complete installed/public sequence adoption, broader contractual policies, joint election/exercise generation, ledger/library/saved-book adoption and complete empirical gates |
 | #20 | Derivatives and dealer counterparties | Raw dated swaps/European options, CSA/MPOR/closeout and reviewed physical accounting; frozen saved-source/shared-Sim components and seasoned opening replay; selected raw enum refusal passes 13 native/221 contained checks, and the durable 28-file proposal passes 221 rebased checks; additive CD/source2 and joint journal composition remains staged | Installed/durable saved hedge graph and mixed journal/solver/capital adoption and complete issue gates |
-| #35 | Formal ASC 815 hedge accounting | Explicit `hedge-accounting-1` lane: FVH/CFH relationships, assessment, OCI/basis mechanics, single journal, independent Python replay and durable `/models/runs` publication; ASU 2025-09 similar-risk group and choose-your-rate elections from the issued text; `hedge-treasury-1` closing capital feed with reviewed cash-flow-hedge AOCI, deferred-tax, opt-out and phase-in policy | Accounting-standard approval, observed effectiveness, ASU 2025-09 swap/written-option and dual-hedge elections, portfolio-layer lane, net investment/options, saved-book and shared-journal adoption, interim capital/FTP and complete scale |
+| #35 | Formal ASC 815 hedge accounting | Explicit `hedge-accounting-1` lane: FVH/CFH relationships, assessment, OCI/basis mechanics, single journal, independent Python replay and durable `/models/runs` publication; ASU 2025-09 similar-risk group, choose-your-rate and swap/written-option elections from the issued text; `hedge-treasury-1` closing capital feed with reviewed cash-flow-hedge AOCI, deferred-tax, opt-out and phase-in policy | Accounting-standard approval, observed effectiveness, ASU 2025-09 dual-hedge election, portfolio-layer lane, net investment/standalone options, saved-book and shared-journal adoption, interim capital/FTP and complete scale |
 | #21 | Markets/repo/funding | Actual-date funding/rollover/collateral/default state plus whole-book P/Q pricing graph with retained replacement and collateral tails implemented | Ledger/library/treasury/saved-book integration and complete issue gates |
 | #10 | Market drivers | Supplied multicurve/smile/PSD joint-driver contract; source-linked explicit-schedule par bootstrap with quote residuals; native incremental registry/raw-book/month-360/runtime controls and indexed-book durable route now pass installed-default acceptance; actual-native option study publishes 2,160 paired PV/DV01 comparisons; Treasury history and strike diagnostics remain isolated analysis | Joint stochastic market/borrower generation, quote-vintage/observed predictive calibration, smile/new-model option/risk admission, complete saved-workspace/cohort adoption and full issue gates |
 | #22 | Income accounting | Dated yield/fee/review engine, credit/accounting/claims, deposit original-EIR/mixed acquisitions and public revised-expectation income route pass installed-default release/application gates; installment/Card2 original-EIR and realization share the verified GL; paired mortgage analytical source and bounded mixed owner remain independently replayed | Complete product yield/reset/modification/nonaccrual adoption, complete source-owned deposit portfolio adoption, product FTP and complete-scale issue gates |

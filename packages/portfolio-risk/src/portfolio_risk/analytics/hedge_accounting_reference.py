@@ -20,7 +20,8 @@ ACCOUNTS = ('cash', 'derivative_asset', 'derivative_liability', 'unpaid_receivab
             'hedged_forecast_reclassification')
 FLAGS = dict(accounting_standard_approval=False, empirical_validation=False, persisted_journal_verified=False,
              saved_book_adoption=False, portfolio_layer_supported=False, net_investment_supported=False,
-             asu_2025_09_similar_risk_supported=True, asu_2025_09_selectable_rate_supported=True)
+             asu_2025_09_similar_risk_supported=True, asu_2025_09_selectable_rate_supported=True,
+             asu_2025_09_swap_written_option_supported=True)
 SIMILAR_METHODS = ('instrument_highly_effective_each_risk', 'hedged_risks_similar_to_each_other')
 
 
@@ -50,6 +51,10 @@ def _typed(raw):
         for key in ('designated_proportion', 'hedged_notional', 'benchmark_rate'): money(rel, key)
     for ev in raw['events']: money(ev, 'proportion')
     return raw
+
+
+def _position(t):
+    return (t['terminal'] if t['kind'] == 'expired_european' else t['request'])['position_id']
 
 
 def _swap_of(node, position):
@@ -115,8 +120,7 @@ def _admit(raw):
     policy = raw['policy']
     _require(policy['rule_version'] == RULE, 'unsupported rule matrix')
     adoption = policy['adoption']; asu = adoption['asu_2025_09']; elections = asu['elections']
-    _require(adoption['asu_2022_01_portfolio_layer'] is False and elections['swap_written_option_exception'] is False
-             and elections['dual_hedge_basis'] is False, 'unimplemented election')
+    _require(adoption['asu_2022_01_portfolio_layer'] is False and elections['dual_hedge_basis'] is False, 'unimplemented election')
     _require((asu['adopted'] is True) == (asu['adoption_ordinal'] is not None), 'adoption date selection')
 
     def elected(flag, inception, label):
@@ -156,6 +160,21 @@ def _admit(raw):
         _require(reviews[inst]['designation'] == 'undesignated_economic_hedge', 'raw instrument review')
         proportion[inst] = proportion.get(inst, 0.) + p; _require(proportion[inst] <= 1. + 1e-12, 'instrument over-designated')
         inception = rel['inception_ordinal']
+        option = rel.get('written_option_position_id')
+        if option is not None:
+            # 815-20-25-88(a)-(c): written cash-settled swaption of matching notional combined with the swap.
+            elected(elections['swap_written_option_exception'], inception, 'swap/written-option combination')
+            _require(option != inst and reviews[option]['designation'] == 'undesignated_economic_hedge'
+                     and (rel['designation'] != 'cash_flow_hedge' or reviews[option]['coupon_recognition'] == 'settle_derivative_carrying'), 'written option review')
+            proportion[option] = proportion.get(option, 0.) + p; _require(proportion[option] <= 1. + 1e-12, 'option over-designated')
+            for node in path['nodes']:
+                trade = next((t for t in node['trades'] if _position(t) == option), None)
+                _require(trade is not None and trade['kind'] in ('european_swaption', 'expired_european'), 'written option on every node')
+                if trade['kind'] == 'expired_european':
+                    _require(trade['delivered_underlying'] is None and node['ordinal'] >= trade['terminal']['expiry_ordinal'], 'cash-settled expired written option')
+                o = trade.get('request', trade.get('terminal'))
+                _require(o['side'] == 'short' and o['settlement'] == 'collateralized_cash_price'
+                         and all(_near(s['underlying']['notional'], swap['notional']) for s in o['states']), 'written option terms')
         _require(inception in nodes and inception >= asof, 'inception node')
         _require(any(q['start_ordinal'] == inception for q in swap['fixed_periods']) and any(q['start_ordinal'] == inception for q in swap['floating_periods']), 'inception boundary')
         _require(rel['hedged_risk'] == 'benchmark_interest_rate', 'hedged risk')
@@ -222,6 +241,7 @@ def _admit(raw):
                     _require(_near(p * swap['notional'], x['notional']) and swap['side'] == side and _same_periods(swap['floating_periods'], x['periods'])
                              and all(q['coupon']['kind'] == 'indexed' and q['coupon']['index']['index_id'] == x['index_id'] for q in swap['floating_periods']), 'matched critical terms')
                     entry.update(matched=True)
+                    _require(rel.get('written_option_position_id') is None, 'combination cannot claim matched critical terms')
                 cyr = x.get('choose_your_rate'); rate_hyps = rel.get('rate_hypotheticals')
                 if cyr is not None or rate_hyps is not None:
                     # ASU 2025-09 Issue 2: one hypothetical per documented alternative, terms as of inception.
@@ -341,6 +361,10 @@ def replay(raw, check=lambda: False):
             if x['mapped_position_id'] == position: return x['clean_carrying']
         raise ValueError('instrument missing from derivative closing')
 
+    def designated_value(k, rel):
+        value = instrument_value(k, rel['hedging_instrument_position_id']); option = rel.get('written_option_position_id')
+        return value if option is None else _money(value + instrument_value(k, option))
+
     def two(account_a, value, owner, rid, account_b):
         return [_posting(account_a, value, owner, None, rid), _posting(account_b, -value, owner, None, rid)]
 
@@ -418,7 +442,7 @@ def replay(raw, check=lambda: False):
                 if mark and p['account'] == 'mark_gain_loss':
                     m = _money(p['debit_amount']); mapped = di['mapped_position_id']; retained = 1.
                     for i, share in shares:
-                        if rels[i]['hedging_instrument_position_id'] != mapped: continue
+                        if rels[i]['hedging_instrument_position_id'] != mapped and rels[i].get('written_option_position_id') != mapped: continue
                         value = _money(m * share)
                         postings.append(_posting('cash_flow_hedge_oci', value, p['position_id'], p['bucket'], rels[i]['relationship_id']))
                         states[i]['oci'] = _money(states[i]['oci'] - value); states[i]['oci_recognized'] = _money(states[i]['oci_recognized'] - value)
@@ -433,7 +457,7 @@ def replay(raw, check=lambda: False):
             st, c = states[i], comp[i]; inst = rel['hedging_instrument_position_id']; rid = rel['relationship_id']
             base = lambda extra: [deepcopy(hedge_policy), deepcopy(rel['documentation'])] + [deepcopy(e) for e in extra]
             if t >= rel['inception_ordinal']:
-                value = instrument_value(k, inst)
+                value = designated_value(k, rel)
                 if st['status'] == 'qualified': st['cum_d'] = _money(st['cum_d'] + st['proportion'] * (value - st['inst']))
                 st['inst'] = value
             if rel['designation'] == 'fair_value_hedge':
@@ -598,7 +622,7 @@ def replay(raw, check=lambda: False):
         rows = []
         for i, rel in enumerate(rels):
             st = states[i]
-            value = _money(st['proportion'] * instrument_value(k, rel['hedging_instrument_position_id'])) if t >= rel['inception_ordinal'] else 0.
+            value = _money(st['proportion'] * designated_value(k, rel)) if t >= rel['inception_ordinal'] else 0.
             row = dict(relationship_id=rel['relationship_id'], status=st['status'], designated_proportion=st['proportion'],
                        instrument_designated_value=value, hedged_item_clean_value=st['last_clean'], hypothetical_value=st['last_hyp'],
                        cumulative_instrument_change=st['cum_d'], cumulative_hedged_change=st['cum_e'], basis_adjustment_balance=st['basis'],
@@ -623,6 +647,7 @@ def replay(raw, check=lambda: False):
                                   oci_balance=st['oci'], frozen_oci_balance=frozen_oci, pending_reclassification_periods=pending))
         if c['similar'] is not None: relationships[-1]['member_exposure_ids'] = [m['exposure']['exposure_id'] for m in c['members']]
         if c['cyr']: relationships[-1]['selected_index_id'] = st['members'][0]['selected']
+        if rel.get('written_option_position_id') is not None: relationships[-1]['written_option_position_id'] = rel['written_option_position_id']
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))

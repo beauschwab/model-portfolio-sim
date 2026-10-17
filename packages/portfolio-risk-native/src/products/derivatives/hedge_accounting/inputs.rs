@@ -323,8 +323,8 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             "ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into(),
         );
     }
-    if e.swap_written_option_exception || e.dual_hedge_basis {
-        return Err("ASU 2025-09 swap/written-option and dual-hedge elections are not implemented; explicit refusal".into());
+    if e.dual_hedge_basis {
+        return Err("ASU 2025-09 dual-hedge election is not implemented; explicit refusal".into());
     }
     let adoption = match (a.asu_2025_09.adopted, a.asu_2025_09.adoption_ordinal) {
         (true, Some(o)) => {
@@ -450,6 +450,75 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             );
         }
         let inception = rel.inception_ordinal;
+        if let Some(option) = rel.written_option_position_id.as_deref() {
+            // 815-20-25-88(a)-(c): a written option combined with the swap, matching notional, in
+            // a hedge of interest-rate risk, is not a net written option; the combination is one
+            // instrument whose marks and clean value are designated together.
+            elected(
+                e.swap_written_option_exception,
+                inception,
+                "swap/written-option combination",
+            )?;
+            text(option, &mut bytes)?;
+            if option == instrument {
+                return Err("written option must be a distinct mapped position".into());
+            }
+            let option_review = d
+                .policy
+                .trades
+                .iter()
+                .find(|t| t.position_id == option)
+                .ok_or("written option lacks a reviewed derivative accounting designation")?;
+            if option_review.designation
+                != derivative_accounting::Designation::UndesignatedEconomicHedge
+                || (rel.designation == Designation::CashFlowHedge
+                    && option_review.coupon_recognition
+                        != CouponRecognition::SettleDerivativeCarrying)
+            {
+                return Err("written option requires the raw undesignated_economic_hedge review and, for cash-flow hedges, settle_derivative_carrying".into());
+            }
+            let total = proportion_by_instrument.entry(option).or_default();
+            *total += p;
+            if *total > 1. + 1e-12 {
+                return Err(
+                    "designated proportions on the written option exceed the whole option".into(),
+                );
+            }
+            let mut seen = false;
+            for node in &path.nodes {
+                let trade = node.trades.iter().find(|t| match t {
+                    Trade::EuropeanSwaption { request } => request.position_id == option,
+                    Trade::ExpiredEuropean { terminal, .. } => terminal.position_id == option,
+                    Trade::Swap { request } => request.position_id == option,
+                });
+                let terminal = match trade {
+                    Some(Trade::EuropeanSwaption { request }) => request,
+                    Some(Trade::ExpiredEuropean {
+                        terminal,
+                        delivered_underlying: None,
+                        ..
+                    }) if node.ordinal >= terminal.expiry_ordinal => terminal,
+                    Some(Trade::ExpiredEuropean { .. }) => {
+                        return Err("physically delivered written options transfer the underlying and require their own reviewed lane".into())
+                    }
+                    _ => return Err("written option must be a mapped European swaption on every path node".into()),
+                };
+                if terminal.side != crate::products::derivatives::contract::options::OptionSide::Short
+                    || terminal.settlement
+                        != crate::products::derivatives::contract::options::Settlement::CollateralizedCashPrice
+                    || terminal
+                        .states
+                        .iter()
+                        .any(|s| !near(s.underlying.notional, swap.notional))
+                {
+                    return Err("815-20-25-88 requires a written (short) cash-settled option whose notional matches the swap".into());
+                }
+                seen = true;
+            }
+            if !seen {
+                return Err("written option absent from the derivative path".into());
+            }
+        }
         if !node_index.contains_key(&inception) {
             return Err("inception date is not a derivative path node".into());
         }
@@ -652,6 +721,9 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     }
                     _ => return Err("cash-flow hedge requires exactly one of a hypothetical derivative or matched critical terms evidence".into()),
                 };
+                if matched && rel.written_option_position_id.is_some() {
+                    return Err("a swap/written-option combination cannot claim matched critical terms; supply a hypothetical derivative".into());
+                }
                 let choose_your_rate = match (&exposure.choose_your_rate, &rel.rate_hypotheticals)
                 {
                     (None, None) => false,

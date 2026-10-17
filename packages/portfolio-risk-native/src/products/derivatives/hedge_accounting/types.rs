@@ -244,6 +244,10 @@ pub struct Relationship {
     pub group: Option<GroupDesignation>,
     #[serde(default)]
     pub rate_hypotheticals: Option<Vec<RateHypothetical>>,
+    /// ASU 2025-09 (815-20-25-88): a written European swaption combined with the swap as one
+    /// hedging instrument of interest-rate risk, exempt from the net written option test.
+    #[serde(default)]
+    pub written_option_position_id: Option<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -491,6 +495,8 @@ pub struct RelationshipClosing {
     pub member_exposure_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub written_option_position_id: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct HedgeAccountingResult {
@@ -517,5 +523,6 @@ pub struct HedgeAccountingResult {
     pub net_investment_supported: bool,
     pub asu_2025_09_similar_risk_supported: bool,
     pub asu_2025_09_selectable_rate_supported: bool,
+    pub asu_2025_09_swap_written_option_supported: bool,
     pub disclosure: String,
 }

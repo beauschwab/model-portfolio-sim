@@ -495,11 +495,11 @@ fn election_refusals_without_fallback() {
             Box::new(|v| v["events"][2]["ordinal"] = json!(day(2, 15))),
         ),
         (
-            "swap/written-option election",
+            "dual-hedge election",
             || raw(),
             Box::new(|v| {
-                v["policy"]["adoption"]["asu_2025_09"]["elections"]
-                    ["swap_written_option_exception"] = json!(true)
+                v["policy"]["adoption"]["asu_2025_09"]["elections"]["dual_hedge_basis"] =
+                    json!(true)
             }),
         ),
         (

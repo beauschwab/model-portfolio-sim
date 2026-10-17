@@ -109,21 +109,27 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
   `rate_election` events with the final retrospective assessment on the prior
   rate, ineffective-period earnings recognition and the new hypothetical
   governing subsequent assessment and reclassification.
-- Both are additive and explicitly selected; results without elections are
-  byte-identical (election-only fields are omitted). Swap/written-option and
-  dual-hedge elections still refuse; nonfinancial components are out of scope.
+- Swap plus written option (815-20-25-88, later the same day): `written_option_position_id`
+  names a written cash-settled European swaption of matching notional on every
+  path node (live, then cash-settled expired); the combination is one
+  designated instrument for clean value, cumulative change and cash-flow mark
+  re-ownership, with the hypothetical derivative method required.
+- All are additive and explicitly selected; results without elections are
+  byte-identical (election-only fields are omitted). The dual-hedge election
+  still refuses; nonfinancial components are out of scope.
 
 | Gate | Command | Result |
 |---|---|---|
-| Native election tests | `cargo test --release ... --test hedge_asu_2025_09` | 4 passed |
+| Native election tests | `cargo test --release ... --test hedge_asu_2025_09 --test hedge_compound_option` | 4 + 2 passed |
 | Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 6 + 3 + 19 passed; strict Clippy and `cargo fmt --check` clean |
-| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 71 passed (24 + 26 + 21) with the rebuilt release binary |
+| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 85 passed (23 + 15 + 26 + 21) with the rebuilt release binary |
 | API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
 | Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
 | Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |
 
 Not established: tenor/timing changes of hedged payments, forecast-issuance
 documentation updates (35-37H), replacement-debt designation (35-37K),
-qualitative similarity (55-23B/C), the compound written-option exception
-(815-20-25-88), transition-date method changes for existing hedges, and any
+qualitative similarity (55-23B/C), physically delivered or pre-inception-expiring
+written options and optioned hedged items/hypotheticals within the 815-20-25-88
+combination, transition-date method changes for existing hedges, and any
 accounting-standard approval.

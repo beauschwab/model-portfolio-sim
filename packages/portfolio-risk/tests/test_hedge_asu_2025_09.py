@@ -204,7 +204,7 @@ def test_independent_replay_rejects_tampered_election_results(target):
 
 
 @pytest.mark.parametrize('kind', ['group_election', 'before_adoption', 'member_order', 'cyr_asset', 'undocumented', 'unchanged', 'ordinary',
-                                  'effective_single', 'missing_alternative', 'off_market', 'accrual_date', 'written_option', 'dual'])
+                                  'effective_single', 'missing_alternative', 'off_market', 'accrual_date', 'dual'])
 def test_election_refusals_without_fallback(kind):
     if kind == 'group_election': v = group_variant(); v['policy']['adoption']['asu_2025_09']['elections']['similar_risk_grouping'] = False
     elif kind == 'before_adoption': v = group_variant(); v['policy']['adoption']['asu_2025_09']['adoption_ordinal'] = MAR1
@@ -222,7 +222,6 @@ def test_election_refusals_without_fallback(kind):
         v = rate_variant()
         for n in v['relationships'][1]['rate_hypotheticals'][0]['hypothetical']['nodes']: n['request']['fixed_rate'] = .05
     elif kind == 'accrual_date': v = rate_variant(); v['events'][2]['ordinal'] = FEB15
-    elif kind == 'written_option': v = raw(); v['policy']['adoption']['asu_2025_09']['elections']['swap_written_option_exception'] = True
     else: v = raw(); v['policy']['adoption']['asu_2025_09']['elections']['dual_hedge_basis'] = True
     with pytest.raises(ValueError): run(v)
 

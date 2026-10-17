@@ -477,7 +477,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         .ok_or("mark intent lacks mapped position")?;
                     let mut retained = 1.;
                     for &(i, share) in cfh_shares.iter().filter(|(i, _)| {
-                        r.relationships[*i].hedging_instrument_position_id == mapped
+                        let x = &r.relationships[*i];
+                        x.hedging_instrument_position_id == mapped
+                            || x.written_option_position_id.as_deref() == Some(mapped)
                     }) {
                         let st = &mut states[i];
                         let value = amount(m * share)?;
@@ -536,6 +538,14 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 .map(|x| x.clean_carrying)
                 .ok_or_else(|| "hedging instrument missing from derivative daily closing".into())
         };
+        // The designated instrument's clean value: the swap plus any combined written option.
+        let designated_value = |rel: &Relationship| -> Result<f64, String> {
+            let mut value = instrument_value(&rel.hedging_instrument_position_id)?;
+            if let Some(option) = rel.written_option_position_id.as_deref() {
+                value = amount(value + instrument_value(option)?)?;
+            }
+            Ok(value)
+        };
         // Hedge postings under the status at the start of the node.
         for (i, rel) in r.relationships.iter().enumerate() {
             let cr = &compiled.relationships[i];
@@ -549,7 +559,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             if t >= rel.inception_ordinal {
                 // Clean cumulative instrument change: after-payment carrying differences exclude
                 // settled net coupons, matching the clean hedged-item measure at accrual-free dates.
-                let value = instrument_value(instrument)?;
+                let value = designated_value(rel)?;
                 if st.status == Status::Qualified {
                     let prev = st
                         .inst_prev
@@ -1366,7 +1376,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             let st = &states[i];
             let cr = &compiled.relationships[i];
             let value = if t >= rel.inception_ordinal {
-                amount(st.proportion * instrument_value(&rel.hedging_instrument_position_id)?)?
+                amount(st.proportion * designated_value(rel)?)?
             } else {
                 0.
             };
@@ -1459,6 +1469,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             } else {
                 None
             },
+            written_option_position_id: rel.written_option_position_id.clone(),
         });
         let frozen_basis: f64 = st.frozen_basis.iter().map(|x| x.amount - x.amortized).sum();
         let frozen_oci: f64 = st.frozen_oci.iter().map(|x| x.amount - x.released).sum();
@@ -1504,6 +1515,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         net_investment_supported: false,
         asu_2025_09_similar_risk_supported: true,
         asu_2025_09_selectable_rate_supported: true,
-        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively; swap/written-option, dual-hedge and nonfinancial elections remain refused. Not accounting-standard approval, observed effectiveness, portfolio-layer, net-investment, option or nonfinancial coverage, saved-book or shared daily journal adoption, treasury/capital feed or complete-scale acceptance.".into(),
+        asu_2025_09_swap_written_option_supported: true,
+        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Not accounting-standard approval, observed effectiveness, portfolio-layer, net-investment, option or nonfinancial coverage, saved-book or shared daily journal adoption, treasury/capital feed or complete-scale acceptance.".into(),
     })
 }

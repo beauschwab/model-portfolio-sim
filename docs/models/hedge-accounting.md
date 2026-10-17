@@ -25,7 +25,7 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
 | ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
-| ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). Both apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `swap_written_option_exception` (815-20-25-88) and `dual_hedge_basis` reject as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
+| ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). The `swap_written_option_exception` election designates a swap combined with a written cash-settled European swaption of matching notional as one hedging instrument without the net written option test (815-20-25-88). All apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `dual_hedge_basis` rejects as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
 | Net investment, nonfinancial components, options as instruments, counterparty default | Rejected explicitly. |
 
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
@@ -286,10 +286,28 @@ designation are not modeled: periods are fixed per exposure, and a probable
 non-documented rate or fixed-rate replacement is recorded by the existing
 `probable_not_to_occur` status (37E/37K). Assets and analogies reject (37B).
 
-**Refused elections.** `swap_written_option_exception` (compound swap plus
-written option, 815-20-25-88) and `dual_hedge_basis` reject; option
-instruments still require their own lane. Nonfinancial price components
-(Issue 3) are outside the interest-rate scope of this owner.
+**Swap plus written option (815-20-25-88).** A relationship may name
+`written_option_position_id`: a mapped European swaption that is `short`
+(written), `collateralized_cash_price` settled, whose terminal-state
+underlying notional equals the swap notional, present on every path node as a
+live `european_swaption` or, from expiry, a cash-settled `expired_european`
+(physical delivery transfers the underlying and rejects). The option carries
+the raw `undesignated_economic_hedge` review and, for cash-flow hedges,
+`settle_derivative_carrying`, so its expiry cash settles carrying without
+earnings. The combination is one instrument: the designated clean value and
+cumulative change `D_t` sum the swap and the option, cash-flow mark
+re-ownership covers both positions' `clean_mark` intents, and designated
+proportions are tracked on the option as on the swap. The hypothetical
+derivative method is required (matched critical terms cannot describe a
+combination); the hypothetical still mirrors the forecast exposure's
+contractual terms, so a written option without a corresponding feature in the
+exposure is measured as dollar-offset mismatch, not excluded. Written options
+with physical delivery, options expiring before inception, caps/floors as
+separate contracts and optioned hedged items/hypotheticals remain open.
+
+**Refused elections.** `dual_hedge_basis` rejects; other option instruments
+still require their own lane. Nonfinancial price components (Issue 3) are
+outside the interest-rate scope of this owner.
 
 ## Output
 
@@ -306,10 +324,12 @@ explicit flags: `accounting_standard_approval=false`,
 `empirical_validation=false`, `persisted_journal_verified=false`,
 `saved_book_adoption=false`, `portfolio_layer_supported=false`,
 `net_investment_supported=false`, `asu_2025_09_similar_risk_supported=true`,
-`asu_2025_09_selectable_rate_supported=true`. Election-only fields
+`asu_2025_09_selectable_rate_supported=true`,
+`asu_2025_09_swap_written_option_supported=true`. Election-only fields
 (`similar_risk`, assessment and lifecycle `index_id`, `effective_ordinal`,
 `earnings_catch_up`, `reversed_reclassification`, daily `members`,
-`member_exposure_ids`, `selected_index_id`) appear only for relationships
+`member_exposure_ids`, `selected_index_id`, `written_option_position_id`)
+appear only for relationships
 that use an election, so results without elections are unchanged.
 
 Journal accounts are the derivative owner's accounts plus
@@ -334,10 +354,9 @@ no native callbacks. A receipt is returned only when the whole result passes.
 
 This lane admits single-currency fixed/floating swaps against fixed-rate
 assets/liabilities and forecast index-linked interest, with the ASU 2025-09
-similar-risk group and choose-your-rate elections above. It does not establish
-accounting-standard compliance, observed effectiveness, portfolio-layer,
-net-investment, option (including the swap/written-option exception) or
-nonfinancial coverage, saved-book or shared daily journal adoption, or
+similar-risk group, choose-your-rate and swap/written-option elections above.
+It does not establish accounting-standard compliance, observed effectiveness,
+portfolio-layer, net-investment, standalone option or nonfinancial coverage, saved-book or shared daily journal adoption, or
 complete-scale acceptance. Those remain open under issue #35 and are listed in
 `implementation-plan.md`.
 
