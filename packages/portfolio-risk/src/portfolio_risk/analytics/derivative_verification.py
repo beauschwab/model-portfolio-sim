@@ -350,7 +350,7 @@ def _native(raw):
     _keys(raw, ("schema", "model_version", "operation"))
     _require(raw["schema"] == "derivative-contract-1" and raw["model_version"] in {"derivative-contracts-1", "derivative-contracts-2"}, "unsupported derivative version")
     op=raw["operation"]; _keys(op, ("kind","request")); _require(op["kind"] == "netting", "full raw netting lifecycle required")
-    c=op["request"]; _keys(c, ("asof_ordinal","measure","conditional_model","crn","policy","mapping","paths"))
+    c=op["request"]; _keys(c, ("asof_ordinal","measure","conditional_model","crn","policy","mapping","paths"), ("own_credit",))
     p=c["policy"]; _keys(p, ("identity","entity","counterparty","currency","monetary_unit","receive_threshold","post_threshold","minimum_transfer","settlement_lag_calendar_days","opening_vm","opening_received_im","opening_posted_im","opening_source","received_vm_reusable_for_funding","received_im_segregated","collateral_interest_day_count","tail_return_ordinal"))
     for i in (c["conditional_model"],c["crn"],p["identity"],p["opening_source"]): _identity(i)
     _require(c["measure"] in {"pricing","physical"} and p["monetary_unit"] == "currency_units" and p["received_im_segregated"] is True and type(p["received_vm_reusable_for_funding"]) is bool and type(p["settlement_lag_calendar_days"]) is int and 0 <= p["settlement_lag_calendar_days"] <= 366, "unsupported CSA policy")
@@ -368,6 +368,14 @@ def _native(raw):
         legal[bucket]=descriptor; mappings[m["position_id"]]=(m,bucket)
     buckets=sorted(legal)
     _require(len(buckets) == 1 or all(p[k] == 0. for k in ("opening_vm","opening_received_im","opening_posted_im")), "ambiguous opening collateral allocation")
+    surv=None; own=c.get("own_credit")
+    if own is not None:
+        # Independent own-credit DVA memo: reviewed survival at every node date, Pricing only.
+        _keys(own, ("identity","recovery","survival")); _identity(own["identity"]); pts=own["survival"]
+        _require(c["measure"] == "pricing" and 0. <= _money(own["recovery"]) <= 1. and 0 < len(pts) <= 8192, "invalid own-credit DVA policy")
+        for q in pts: _keys(q, ("ordinal","survival_probability")); _day(q["ordinal"]); _finite(q["survival_probability"])
+        _require(pts[0]["ordinal"] == c["asof_ordinal"] and pts[0]["survival_probability"] == 1. and all(a["ordinal"] < b["ordinal"] and 0. <= b["survival_probability"] <= a["survival_probability"] for a,b in zip(pts,pts[1:])), "invalid own-credit survival curve")
+        surv={q["ordinal"]: float(q["survival_probability"]) for q in pts}
     results=[]; clean=None; probabilities=[]
     for path in c["paths"]:
         _keys(path, ("path_id","source","probability","nodes","default")); _identity(path["source"])
@@ -398,7 +406,7 @@ def _native(raw):
         rim={b:float(p["opening_received_im"]) if len(buckets)==1 else 0. for b in buckets}
         pim={b:float(p["opening_posted_im"]) if len(buckets)==1 else 0. for b in buckets}
         calls=[]; movements=[]; exposures=[]; closeouts=[]; obligations=[]; exercises=[]; used=set(); descriptors={}; elections={}
-        credit_loss=0.; funding_cost=0.; default_seen=False; closed=False; previous=None
+        credit_loss=0.; funding_cost=0.; own_benefit=0.; default_seen=False; closed=False; previous=None
         def movement(n,b,kind,cash=0.,vd=0.,rd=0.,pd=0.,custodian=0.):
             movements.append(dict(ordinal=n["ordinal"],bucket=b,kind=kind,entity_cash=_money(cash),vm_delta=_money(vd),received_im_delta=_money(rd),posted_im_delta=_money(pd),custodian_cash=_money(custodian),modeled_measure=c["measure"]))
         for original in nodes:
@@ -467,6 +475,10 @@ def _native(raw):
                 unpaid=math.fsum(o["amount"] for o in obligations if o["bucket"]==b and o["settled_ordinal"] is None and not o["included_in_closeout"]) if not closed else 0.
                 claim=replacement+unpaid
                 exposures.append(dict(ordinal=day,bucket=b,clean_value=float(v),vm=float(vm[b]),received_im=float(rim[b]),posted_im=float(pim[b]),unsecured_receivable=max(claim-max(vm[b],0.),0.),posted_collateral_return_claim=max(-vm[b],0.)+pim[b],clean_trade_values=values[b],extinguished_after_closeout=closed,replacement_after_due_obligations=float(replacement),unpaid_obligation_claim=float(unpaid),total_closeout_claim=float(claim)))
+                if surv is not None and previous is not None and (not default_seen or at_default):
+                    _require(previous["ordinal"] in surv and day in surv, "own-credit survival must cover every path node date")
+                    payable=max(-claim-max(-vm[b],0.)-pim[b],0.)
+                    own_benefit+=(surv[previous["ordinal"]]-surv[day])*(1.-own["recovery"])*n["discount_from_asof"]*payable
                 if at_closeout:
                     close=_closeout(claim,vm[b],rim[b],pim[b],d,day,b); close["clean_replacement_value"]=float(replacement); close["unpaid_obligation_claim"]=float(unpaid)
                     credit_loss+=(close["counterparty_loss"]+close["posted_return_loss"])*n["discount_from_asof"]
@@ -491,11 +503,15 @@ def _native(raw):
             if at_closeout: closed=True
             previous=n
         _require(used==set(instructions) and used_paths==set(physical), "unmatched MPOR source/instruction")
-        results.append(dict(mpor_policy=mp["identity"] if mp else None,closing_legal_review=d["legal_review"] if d else None,replacement_value_policy=d["replacement_value_policy"] if d else None,path_id=path["path_id"],probability=float(path["probability"]),source=path["source"],exposures=exposures,calls=calls,movements=movements,closeouts=closeouts,discounted_credit_loss=float(credit_loss),discounted_funding_cost=float(funding_cost),residual_vm=float(math.fsum(vm.values())),residual_received_im=float(math.fsum(rim.values())),residual_posted_im=float(math.fsum(pim.values())),pending_calls=float(math.fsum(x["amount"] for x in calls if x["settled_ordinal"] is None and not x["cancelled_at_default"] and not x["cancelled_at_tail"])),obligations=obligations,mpor_exercises=exercises))
+        results.append(dict(mpor_policy=mp["identity"] if mp else None,closing_legal_review=d["legal_review"] if d else None,replacement_value_policy=d["replacement_value_policy"] if d else None,path_id=path["path_id"],probability=float(path["probability"]),source=path["source"],exposures=exposures,calls=calls,movements=movements,closeouts=closeouts,discounted_credit_loss=float(credit_loss),**({"discounted_own_default_benefit":float(own_benefit)} if surv is not None else {}),discounted_funding_cost=float(funding_cost),residual_vm=float(math.fsum(vm.values())),residual_received_im=float(math.fsum(rim.values())),residual_posted_im=float(math.fsum(pim.values())),pending_calls=float(math.fsum(x["amount"] for x in calls if x["settled_ordinal"] is None and not x["cancelled_at_default"] and not x["cancelled_at_tail"])),obligations=obligations,mpor_exercises=exercises))
         probabilities.append(path["probability"])
     _same(float(math.fsum(probabilities)),1.,"path probability")
     pricing=c["measure"]=="pricing"; cva=math.fsum(x["probability"]*x["discounted_credit_loss"] for x in results); fva=math.fsum(x["probability"]*x["discounted_funding_cost"] for x in results)
-    return dict(policy=p["identity"],legal_mapping=c["mapping"],conditional_model=c["conditional_model"],crn=c["crn"],clean_value=clean,cva=cva if pricing else None,fva=fva if pricing else None,clean_less_cva_fva=clean-cva-fva if pricing else None,paths=results)
+    out=dict(policy=p["identity"],legal_mapping=c["mapping"],conditional_model=c["conditional_model"],crn=c["crn"],clean_value=clean,cva=cva if pricing else None,fva=fva if pricing else None,clean_less_cva_fva=clean-cva-fva if pricing else None,paths=results)
+    if surv is not None:
+        dva=math.fsum(x["probability"]*x["discounted_own_default_benefit"] for x in results)
+        out.update(own_credit_policy=own["identity"],dva=dva,clean_less_cva_fva_plus_dva=clean-cva-fva+dva)
+    return out
 
 
 def _closeout(claim, vm, received_im, posted_im, policy, day, bucket):

@@ -113,6 +113,33 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
     {
         return Err("opening collateral requires a single reviewed bucket; split separate CSA requests otherwise".into());
     }
+    // Own-credit DVA memo: a reviewed survival curve at every node date, Pricing only.
+    let survival: Option<HashMap<i32, f64>> = match &r.own_credit {
+        None => None,
+        Some(o) => {
+            identity(&o.identity, &mut bytes)?;
+            if r.measure != CashflowMeasure::Pricing
+                || !(0. ..=1.).contains(&o.recovery)
+                || o.survival.is_empty()
+                || o.survival.len() > 8192
+                || o.survival[0].ordinal != r.asof_ordinal
+                || o.survival[0].survival_probability != 1.
+                || o.survival.windows(2).any(|w| {
+                    w[1].ordinal <= w[0].ordinal
+                        || !(0. ..=w[0].survival_probability).contains(&w[1].survival_probability)
+                })
+            {
+                return Err("own-credit DVA requires Pricing measure, recovery in [0,1] and a nonincreasing survival curve from one at the as-of date".into());
+            }
+            Some(
+                o.survival
+                    .iter()
+                    .map(|x| (x.ordinal, x.survival_probability))
+                    .collect(),
+            )
+        }
+    };
+    let mut dva = 0.;
     let mut results = Vec::new();
     let mut total_prob = 0.;
     let mut cva = 0.;
@@ -153,6 +180,7 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
         let mut closeouts = Vec::new();
         let mut loss_pv = 0.;
         let mut funding_pv = 0.;
+        let mut own_pv = 0.;
         let mut keys = HashMap::new();
         let mut expiry_keys = HashMap::new();
         let mut prior: Option<&Node> = None;
@@ -425,6 +453,22 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
                     unpaid_obligation_claim: unpaid,
                     total_closeout_claim: total_claim,
                 });
+                if let (Some(curve), Some(q)) = (&survival, prior) {
+                    // Counterparty's unsecured claim on the entity if the entity defaults in
+                    // (prior, node]: negative claim less entity-posted VM and posted IM.
+                    // Nothing accrues after the counterparty's own default date.
+                    if !default_seen || is_default {
+                        let s0 = *curve
+                            .get(&q.ordinal)
+                            .ok_or("own-credit survival must cover every path node date")?;
+                        let s1 = *curve
+                            .get(&n.ordinal)
+                            .ok_or("own-credit survival must cover every path node date")?;
+                        let payable = (-total_claim - (-b.vm).max(0.) - b.posted_im).max(0.);
+                        let lgd = 1. - r.own_credit.as_ref().map_or(0., |o| o.recovery);
+                        own_pv = amount(own_pv + (s0 - s1) * lgd * n.discount_from_asof * payable)?;
+                    }
+                }
                 if is_closeout {
                     let d = path.default.as_ref().ok_or("missing closeout policy")?;
                     let mut close = closeout(total_claim, b, d, n.ordinal, &bucket)?;
@@ -586,6 +630,7 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
             .map(|c| c.amount)
             .sum();
         cva = amount(cva + path.probability * loss_pv)?;
+        dva = amount(dva + path.probability * own_pv)?;
         fva = amount(fva + path.probability * funding_pv)?;
         results.push(PathResult {
             mpor_policy: path
@@ -606,6 +651,7 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
             closeouts,
             discounted_credit_loss: loss_pv,
             discounted_funding_cost: funding_pv,
+            discounted_own_default_benefit: survival.is_some().then_some(own_pv),
             residual_vm,
             residual_received_im,
             residual_posted_im,
@@ -619,7 +665,12 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
     }
     let clean = opening_clean.ok_or("missing opening clean")?;
     let pricing = r.measure == CashflowMeasure::Pricing;
-    Ok(CsaResult{policy:p.identity.clone(),legal_mapping:r.mapping.clone(),conditional_model:r.conditional_model.clone(),crn:r.crn.clone(),clean_value:clean,cva:pricing.then_some(cva),fva:pricing.then_some(fva),clean_less_cva_fva:if pricing{Some(amount(clean-cva-fva)?)}else{None},paths:results,disclosure:"Raw swaps/options repriced natively at every scenario/date; supplied legal mapping controls aggregation. Signed cash VM, segregated static IM and complete return/default tails remain separate from clean value. Collateral interest settles in cash on opening interval balances; funding uses supplied signed spreads and endpoint discounts. Counterparty-only closeout; own DVA omitted. Physical paths report modeled loss/funding cash, not risk-neutral CVA. Calendar-day lag is explicit; no legal/calibration or business-day inference. European expiry uses an explicit single-state handoff: collateralized cash remains until settlement, physical rights are replaced once by the mapped raw underlying swap. Segregated IM is excluded from unsecured exposure until the reviewed default waterfall applies it. Reviewed MPOR policy captures native signed due cash and European rights, separating unpaid claims from remaining replacement value and settled cash exactly once; complete event coverage and measure-specific fixing paths are mandatory.".into()})
+    let own_note = if survival.is_some() {
+        "Own-credit DVA memo: reviewed entity survival at every node date times supplied loss given default times discounted counterparty unsecured claim (negative claim less entity-posted VM and IM), summed until the counterparty default date. Independent of exposure paths; no first-to-default joint law, funding-benefit netting, posting or capital recognition. ".to_string()
+    } else {
+        String::new()
+    };
+    Ok(CsaResult{policy:p.identity.clone(),legal_mapping:r.mapping.clone(),conditional_model:r.conditional_model.clone(),crn:r.crn.clone(),clean_value:clean,cva:pricing.then_some(cva),fva:pricing.then_some(fva),clean_less_cva_fva:if pricing{Some(amount(clean-cva-fva)?)}else{None},own_credit_policy:r.own_credit.as_ref().map(|o|o.identity.clone()),dva:survival.is_some().then_some(dva),clean_less_cva_fva_plus_dva:if survival.is_some(){Some(amount(clean-cva-fva+dva)?)}else{None},paths:results,disclosure:own_note+"Raw swaps/options repriced natively at every scenario/date; supplied legal mapping controls aggregation. Signed cash VM, segregated static IM and complete return/default tails remain separate from clean value. Collateral interest settles in cash on opening interval balances; funding uses supplied signed spreads and endpoint discounts. Counterparty-only closeout; own DVA omitted. Physical paths report modeled loss/funding cash, not risk-neutral CVA. Calendar-day lag is explicit; no legal/calibration or business-day inference. European expiry uses an explicit single-state handoff: collateralized cash remains until settlement, physical rights are replaced once by the mapped raw underlying swap. Segregated IM is excluded from unsecured exposure until the reviewed default waterfall applies it. Reviewed MPOR policy captures native signed due cash and European rights, separating unpaid claims from remaining replacement value and settled cash exactly once; complete event coverage and measure-specific fixing paths are mandatory."})
 }
 fn closeout(
     v: f64,

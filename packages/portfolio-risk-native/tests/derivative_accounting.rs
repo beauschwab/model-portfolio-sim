@@ -220,6 +220,7 @@ fn csa() -> CsaRequest {
             nodes: vec![node(1, true), node(3, true), node(11, true), node(12, true)],
             default: None,
         }],
+        own_credit: None,
     }
 }
 fn physical_path(mapped: &str, start: i32, end: i32, rate: f64) -> PhysicalIndexPath {

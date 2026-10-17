@@ -98,6 +98,25 @@ pub struct CsaRequest {
     pub policy: Policy,
     pub mapping: Vec<Mapping>,
     pub paths: Vec<Path>,
+    /// Explicitly selected own-credit DVA memo (Pricing measure only). Absent keeps the
+    /// historical request and result bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub own_credit: Option<OwnCredit>,
+}
+/// Reviewed own-default survival curve and recovery for a debit valuation adjustment memo.
+/// Survival is supplied at every path node date; nothing is interpolated or inferred.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OwnCredit {
+    pub identity: Identity,
+    pub recovery: f64,
+    pub survival: Vec<SurvivalPoint>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SurvivalPoint {
+    pub ordinal: i32,
+    pub survival_probability: f64,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct Movement {
@@ -167,6 +186,8 @@ pub struct PathResult {
     pub closeouts: Vec<Closeout>,
     pub discounted_credit_loss: f64,
     pub discounted_funding_cost: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discounted_own_default_benefit: Option<f64>,
     pub residual_vm: f64,
     pub residual_received_im: f64,
     pub residual_posted_im: f64,
@@ -184,6 +205,12 @@ pub struct CsaResult {
     pub cva: Option<f64>,
     pub fva: Option<f64>,
     pub clean_less_cva_fva: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub own_credit_policy: Option<Identity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dva: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clean_less_cva_fva_plus_dva: Option<f64>,
     pub paths: Vec<PathResult>,
     pub disclosure: String,
 }

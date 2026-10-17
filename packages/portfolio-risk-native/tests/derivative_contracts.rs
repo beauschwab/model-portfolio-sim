@@ -218,6 +218,7 @@ fn csa() -> CsaRequest {
             nodes: vec![node(1, true), node(3, true), node(11, true), node(12, true)],
             default: None,
         }],
+        own_credit: None,
     }
 }
 #[test]
@@ -1191,4 +1192,145 @@ fn mpor_v2_json_envelope_native_dispatch_hand_result() {
     close(result.cva.unwrap(), 0.3);
     close(result.paths[0].closeouts[0].unpaid_obligation_claim, 0.5);
     close(result.paths[0].closeouts[0].entity_cash, 0.2);
+}
+
+#[test]
+fn option_scope_is_european_only_and_bermudan_or_american_requests_fail() {
+    use portfolio_risk_native::derivative_contract::{
+        evaluate as evaluate_derivative, DerivativeRequest,
+    };
+    // Issue #20 admitted option scope: one European expiry. Bermudan and American
+    // structures have no schema; any attempt to express them fails before valuation.
+    let envelope: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../examples/models/derivative-option-1.json"
+    ))
+    .unwrap();
+    let base = envelope["request"].clone();
+    let decode = |v: serde_json::Value| serde_json::from_value::<DerivativeRequest>(v);
+    let request = decode(base.clone()).unwrap();
+    assert!(evaluate_derivative(&request).is_ok());
+    for kind in ["bermudan_swaption", "american_swaption", "callable_swap"] {
+        let mut v = base.clone();
+        v["operation"]["kind"] = kind.into();
+        assert!(decode(v).is_err(), "{kind} must not be admitted");
+    }
+    let expiry = base["operation"]["request"]["expiry_ordinal"]
+        .as_i64()
+        .unwrap();
+    for (field, value) in [
+        (
+            "exercise_ordinals",
+            serde_json::json!([expiry - 30, expiry]),
+        ),
+        ("exercise_style", serde_json::json!("bermudan")),
+        ("exercise_style", serde_json::json!("american")),
+        (
+            "exercise_window_end_ordinal",
+            serde_json::json!(expiry + 30),
+        ),
+    ] {
+        let mut v = base.clone();
+        v["operation"]["request"][field] = value;
+        assert!(decode(v).is_err(), "{field} must not be admitted");
+    }
+}
+
+fn own_credit(points: &[(u32, f64)], recovery: f64) -> Option<OwnCredit> {
+    Some(OwnCredit {
+        identity: id("own-credit"),
+        recovery,
+        survival: points
+            .iter()
+            .map(|&(d, s)| SurvivalPoint {
+                ordinal: day(d),
+                survival_probability: s,
+            })
+            .collect(),
+    })
+}
+
+#[test]
+fn own_credit_dva_memo_is_opt_in_and_reconciles_to_uncollateralized_payables() {
+    let mut r = csa();
+    // Uncollateralized receiver swap: the entity owes the counterparty, so DVA is positive.
+    r.policy.post_threshold = 1e9;
+    r.policy.receive_threshold = 1e9;
+    for n in &mut r.paths[0].nodes {
+        let Trade::Swap { request } = &mut n.trades[0] else {
+            unreachable!()
+        };
+        **request = swap(n.ordinal, day(1), day(11), 0.1, Side::Receiver, "p");
+    }
+    let plain = evaluate(&r).unwrap();
+    let bytes = serde_json::to_value(&plain).unwrap();
+    for key in ["dva", "own_credit_policy", "clean_less_cva_fva_plus_dva"] {
+        assert!(
+            bytes.get(key).is_none(),
+            "{key} must be absent without own credit"
+        );
+    }
+    assert!(bytes["paths"][0]
+        .get("discounted_own_default_benefit")
+        .is_none());
+    assert!(!plain.disclosure.contains("Own-credit DVA memo"));
+
+    r.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    let with = evaluate(&r).unwrap();
+    // Economic clean value, CVA and FVA are untouched by the memo.
+    close(with.clean_value, plain.clean_value);
+    close(with.cva.unwrap(), plain.cva.unwrap());
+    close(with.fva.unwrap(), plain.fva.unwrap());
+    let survival = [1., 0.99, 0.95, 0.94];
+    let exposures = &with.paths[0].exposures;
+    assert_eq!(exposures.len(), 4);
+    let expected: f64 = (1..4)
+        .map(|k| {
+            let e = &exposures[k];
+            let payable = (-e.total_closeout_claim - (-e.vm).max(0.) - e.posted_im).max(0.);
+            (survival[k - 1] - survival[k]) * 0.6 * payable
+        })
+        .sum();
+    assert!(expected > 0.);
+    close(with.dva.unwrap(), expected);
+    close(
+        with.paths[0].discounted_own_default_benefit.unwrap(),
+        expected,
+    );
+    close(
+        with.clean_less_cva_fva_plus_dva.unwrap(),
+        with.clean_value - with.cva.unwrap() - with.fva.unwrap() + expected,
+    );
+    assert!(with.disclosure.starts_with("Own-credit DVA memo"));
+
+    // A payer swap that the entity never owes has zero DVA.
+    let mut payer = csa();
+    payer.policy.post_threshold = 1e9;
+    payer.policy.receive_threshold = 1e9;
+    payer.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    let payer = evaluate(&payer).unwrap();
+    assert!(payer.paths[0]
+        .exposures
+        .iter()
+        .all(|e| e.total_closeout_claim >= 0.));
+    close(payer.dva.unwrap(), 0.);
+}
+
+#[test]
+fn own_credit_dva_refuses_physical_measure_gaps_and_increasing_survival() {
+    let bad = [
+        own_credit(&[(1, 1.), (3, 0.99), (12, 0.94)], 0.4),
+        own_credit(&[(1, 1.), (3, 0.99), (11, 0.995), (12, 0.94)], 0.4),
+        own_credit(&[(1, 0.99), (3, 0.98), (11, 0.95), (12, 0.94)], 0.4),
+        own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 1.2),
+        own_credit(&[(3, 1.), (11, 0.95), (12, 0.94)], 0.4),
+    ];
+    for own in bad {
+        let mut r = csa();
+        r.own_credit = own;
+        assert!(evaluate(&r).is_err());
+    }
+    let mut r = csa();
+    r.measure = CashflowMeasure::Physical;
+    r.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    assert!(evaluate(&r).is_err());
 }
