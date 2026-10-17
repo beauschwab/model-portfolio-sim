@@ -115,14 +115,18 @@ assessments may carry `effective_ordinal`. Events are globally ordered by
   designated proportions per instrument over relationships cannot exceed 1.
 - `inception_ordinal` is a path node at or after the opening date, or an
   earlier date with a reviewed `opening` block, and in both cases an
-  accrual-free boundary: a `start_ordinal` of some fixed and some floating
-  period of the instrument and (FVH) of the item, or (CFH) of the exposure.
+  accrual-free date: it lies strictly inside no period of either instrument
+  leg (or of any jointly designated swap) nor of the hedged item/exposure,
+  precedes the legs' last period end, and at least one item/exposure period
+  starts at or after it. A forward-starting instrument or exposure is
+  accrual-free before its first period, so a forecast issuance can be hedged
+  from designation until the debt is issued.
   Item and exposure periods may start before the opening date (within the
   explicit 36,600-day domain); hedged payments before the opening need no node.
-- `assess` requires an accrual-free node: `end_ordinal` of some fixed and
-  floating period of the instrument and of the item/exposure, with
-  `after_scheduled_payments` timing, after inception and before the
-  instrument's final payment date. Other events can occur on any node at or
+- `assess` (and `rate_election`) requires an accrual-free node in the same
+  sense for every instrument leg and the item/exposure, with
+  `after_scheduled_payments` timing, after inception and before the last
+  component's final payment date. Other events can occur on any node at or
   after inception. Events on discontinued relationships reject except
   `forecast_status` for CFH frozen OCI.
 - Every item payment date and principal date after a node must have an exact

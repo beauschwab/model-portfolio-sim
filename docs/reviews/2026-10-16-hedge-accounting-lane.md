@@ -117,6 +117,11 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
 - All are additive and explicitly selected; results without elections are
   byte-identical (election-only fields are omitted). The dual-hedge election
   still refuses; nonfinancial components are out of scope.
+- Forward-starting hedges (2026-10-17): accrual-free dates generalized to any
+  date strictly inside no period, so a forecast issuance hedged by a forward
+  swap is designated and assessed before the first period and released over
+  the issued coupons after termination at issuance (hand values on the shared
+  fixture; dates inside a period still reject).
 - Jointly designated swaps (2026-10-17): `additional_instrument_position_ids`
   combine several mapped swaps into one hedging instrument (hand values: two
   identical swaps at half proportion each reproduce the single-swap ratio, OCI
@@ -149,8 +154,8 @@ Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
 | Gate | Command | Result |
 |---|---|---|
 | Native election tests | `cargo test --release ... --test hedge_asu_2025_09 --test hedge_compound_option --test hedge_seasoned` | 4 + 3 + 3 passed |
-| Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 8 + 4 + 19 passed; strict Clippy and `cargo fmt --check` clean |
-| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 114 passed (23 + 16 + 24 + 28 + 23) with the rebuilt release binary; the treasury suite now feeds the seasoned and compound variants through `hedge-treasury-1` with independent replay |
+| Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 9 + 4 + 19 passed; strict Clippy and `cargo fmt --check` clean |
+| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_compound_option.py tests/test_hedge_seasoned.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 115 passed (23 + 16 + 24 + 29 + 23) with the rebuilt release binary; the treasury suite now feeds the seasoned and compound variants through `hedge-treasury-1` with independent replay |
 | API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
 | Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
 | Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |

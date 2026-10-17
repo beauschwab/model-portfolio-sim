@@ -16,6 +16,11 @@ reclassification, frozen OCI release, basis amortization/derecognition and one
 ordered journal. See [the contract](hedge-accounting.md). The rule matrix is
 `asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 dual-hedge election,
 net investment, standalone options and defaulted paths refuse explicitly.
+Accrual-free dates are now any date strictly inside no period of the instrument
+legs and hedged item/exposure, so forward-starting instruments and forecast
+issuances are designated and assessed before their first period (native and
+engine case: forecast debt issuance hedged by a forward swap terminated at issuance,
+with OCI released over the issued coupons).
 Jointly designated swaps (`additional_instrument_position_ids`, 815-20-25-45) form
 one hedging instrument with per-swap proportion accounting and mark re-ownership
 (native and engine hand-value cases with refusals).

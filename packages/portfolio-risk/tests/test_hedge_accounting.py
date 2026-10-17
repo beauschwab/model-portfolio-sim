@@ -301,3 +301,49 @@ def test_jointly_designated_swaps_form_one_hedging_instrument():
         elif kind == 'unknown': bad['relationships'][1]['additional_instrument_position_ids'] = ['swap-other']
         else: bad['derivative']['policy']['trades'][2]['coupon_recognition'] = 'contractual_income_at_due_with_mark_offset'
         with pytest.raises(ValueError): run(bad)
+
+
+def forecast_issuance_variant():
+    """Hedge of forecast fixed-rate debt issued 1 March with a forward-starting swap designated 1 January and terminated at issuance."""
+    v = raw(); csa = v['derivative']['derivative']['operation']['request']
+    for n in csa['paths'][0]['nodes']:
+        fwd = deepcopy(n['trades'][1]); r = fwd['request']
+        r.update(position_id='swap-fwd', contract=dict(id='swap-fwd-contract', revision='r1'), fixed_rate=.06,
+                 fixed_periods=r['fixed_periods'][2:], floating_periods=r['floating_periods'][2:])
+        n['trades'].append(fwd)
+    m = deepcopy(csa['mapping'][1]); m.update(position_id='swap-fwd', contract=dict(id='swap-fwd-contract', revision='r1')); csa['mapping'].append(m)
+    review = deepcopy(v['derivative']['policy']['trades'][1]); review['position_id'] = 'swap-fwd'; v['derivative']['policy']['trades'].append(review)
+    v['derivative']['opening']['trades'].append(dict(position_id='swap-fwd', clean_value=0.))
+    for p in [p for p in v['derivative']['physical_index_paths'] if p['position_id'] == 'swap-cfh' and p['period_id'] == 'l3']:
+        q = deepcopy(p); q['position_id'] = 'swap-fwd'; v['derivative']['physical_index_paths'].append(q)
+    exposure = deepcopy(v['forecast_exposures'][0]); exposure.update(exposure_id='issue-1', periods=exposure['periods'][2:]); v['forecast_exposures'].append(exposure)
+    hyp = [dict(ordinal=n['ordinal'], request=dict(deepcopy(n['trades'][2]['request']), position_id='hypothetical')) for n in csa['paths'][0]['nodes']]
+    v['relationships'].append(dict(deepcopy(v['relationships'][1]), relationship_id='cfh-fwd', hedging_instrument_position_id='swap-fwd', forecast_exposure_id='issue-1',
+                                   inception_ordinal=JAN1, matched_critical_terms_evidence=None, hypothetical=dict(evidence=dict(id='fwd-evidence', revision='r1'), nodes=hyp)))
+    v['events'] = [event('assess', 'cfh-fwd', MAR1, 0), event('discontinue', 'cfh-fwd', MAR1, 1, reason='instrument_terminated')]
+    return v
+
+
+def forward_value(t):
+    """Forward-starting payer swap at 6% on period 3 (projected 6% before February, then 4.5%)."""
+    r = curve(t)
+    return sum((floating(i, t) - .06) * 100. * (e - s) / 360. * df(r, e - t) for i, (s, e) in enumerate(PERIODS) if i >= 2 and e > t)
+
+
+def test_forward_starting_hedge_of_forecast_issuance_is_assessed_and_released():
+    v = forecast_issuance_variant(); result = run(v); assert verify(v, result)['verified']
+    assert [l['kind'] for l in result['lifecycle']] == ['inception', 'inception', 'inception', 'assessment', 'discontinuation']
+    a = result['assessments'][0]; assert a['relationship_id'] == 'cfh-fwd' and a['ordinal'] == MAR1 and a['qualified']; near(a['ratio'], 1.)
+    near(a['cumulative_instrument_change'], forward_value(MAR1) - forward_value(JAN1)); assert abs(forward_value(JAN1)) < 1e-12
+    oci = forward_value(MAR1) - forward_value(JAN1)
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'discontinuation'); near(record['frozen_oci'], oci); assert record['status_after'] == 'discontinued'
+    releases = [i for i in result['intents'] if i['event_id'].startswith('frozen_oci_release') and i['relationship_id'] == 'cfh-fwd']
+    assert [i['ordinal'] for i in releases] == [APR1]
+    near(releases[0]['postings'][0]['debit_amount'], oci)
+    near(result['closing'][2]['oci_recognized'], oci); near(result['closing'][2]['oci_closing'], 0.)
+    later = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == 'swap-fwd' and i['ordinal'] > MAR1]
+    assert later and all(p['account'] != 'cash_flow_hedge_oci' for i in later for p in i['postings'])
+    inside = deepcopy(v); inside['relationships'][2]['inception_ordinal'] = MAR1 + 3
+    with pytest.raises(ValueError): run(inside)
+    mid = deepcopy(v); mid['events'][0] = event('assess', 'cfh-fwd', MAR1 + 3, 0)
+    with pytest.raises(ValueError): run(mid)

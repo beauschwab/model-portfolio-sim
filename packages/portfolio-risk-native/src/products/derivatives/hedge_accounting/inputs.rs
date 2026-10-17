@@ -208,17 +208,39 @@ fn exposure_index(r: &HedgeAccountingRequest, exposure_id: &str) -> Result<usize
         .position(|x| x.exposure_id == exposure_id)
         .ok_or_else(|| "unknown forecast exposure".into())
 }
+/// A date is accrual-free for a set of periods when it lies strictly inside none of them: a
+/// period start or end, or any date before the first period (forward-starting) or after the last.
+fn accrual_free<I: IntoIterator<Item = (i32, i32)>>(periods: I, t: i32) -> bool {
+    !periods.into_iter().any(|(start, end)| start < t && t < end)
+}
+fn period_bounds(periods: &[Period]) -> impl Iterator<Item = (i32, i32)> + '_ {
+    periods.iter().map(|q| (q.start_ordinal, q.end_ordinal))
+}
+fn fixed_bounds(
+    periods: &[crate::products::derivatives::contract::swaps::FixedPeriod],
+) -> impl Iterator<Item = (i32, i32)> + '_ {
+    periods.iter().map(|q| (q.start_ordinal, q.end_ordinal))
+}
+fn contract_bounds(
+    periods: &[crate::products::term::contracts::indexed::ContractPeriod],
+) -> impl Iterator<Item = (i32, i32)> + '_ {
+    periods.iter().map(|q| (q.start_ordinal, q.end_ordinal))
+}
 fn hedged_periods(
     ctx: &Ctx<'_>,
     exposure: &ForecastExposure,
     inception: i32,
 ) -> Result<Vec<usize>, String> {
-    if !exposure
-        .periods
-        .iter()
-        .any(|q| q.start_ordinal == inception)
+    if !accrual_free(period_bounds(&exposure.periods), inception)
+        || !exposure
+            .periods
+            .iter()
+            .any(|q| q.start_ordinal >= inception)
     {
-        return Err("inception must be an accrual-free start of a forecast exposure period".into());
+        return Err(
+            "inception must be an accrual-free date at or before a forecast exposure period start"
+                .into(),
+        );
     }
     let hedged = exposure
         .periods
@@ -250,13 +272,14 @@ fn assessment_node(
     ordinal: i32,
 ) -> Result<(), String> {
     let node = &ctx.path.nodes[ctx.node_index[&ordinal]];
-    let ends = |periods: &[Period]| periods.iter().any(|q| q.end_ordinal == ordinal);
     let boundary = match cr.item {
-        Some(i) => ends(&ctx.r.hedged_items[i].periods),
-        None => cr
-            .members
-            .iter()
-            .all(|m| ends(&ctx.r.forecast_exposures[m.exposure].periods)),
+        Some(i) => accrual_free(period_bounds(&ctx.r.hedged_items[i].periods), ordinal),
+        None => cr.members.iter().all(|m| {
+            accrual_free(
+                period_bounds(&ctx.r.forecast_exposures[m.exposure].periods),
+                ordinal,
+            )
+        }),
     };
     let final_payment = swaps
         .iter()
@@ -269,11 +292,8 @@ fn assessment_node(
         .max()
         .unwrap_or(ordinal);
     let accrual_free = swaps.iter().all(|swap| {
-        swap.fixed_periods.iter().any(|q| q.end_ordinal == ordinal)
-            && swap
-                .floating_periods
-                .iter()
-                .any(|q| q.end_ordinal == ordinal)
+        accrual_free(fixed_bounds(&swap.fixed_periods), ordinal)
+            && accrual_free(contract_bounds(&swap.floating_periods), ordinal)
     });
     if ordinal <= rel.inception_ordinal
         || ordinal >= final_payment
@@ -669,14 +689,21 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             components.push(extra);
         }
         for s in &components {
-            if !s.fixed_periods.iter().any(|q| q.start_ordinal == inception)
-                || !s
-                    .floating_periods
-                    .iter()
-                    .any(|q| q.start_ordinal == inception)
+            // Forward-starting instruments are accrual-free before their first period; a date
+            // inside an accrual period rejects, as does one after the legs have ended.
+            let last_end = s
+                .fixed_periods
+                .iter()
+                .map(|q| q.end_ordinal)
+                .chain(s.floating_periods.iter().map(|q| q.end_ordinal))
+                .max()
+                .unwrap_or(inception);
+            if !accrual_free(fixed_bounds(&s.fixed_periods), inception)
+                || !accrual_free(contract_bounds(&s.floating_periods), inception)
+                || inception >= last_end
             {
                 return Err(
-                    "inception must be an accrual-free start of both instrument legs".into(),
+                    "inception must be an accrual-free date before the instrument legs end".into(),
                 );
             }
         }
@@ -734,9 +761,11 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if *total > item.notional + 1e-9 {
                     return Err("hedged notionals on one item exceed the item".into());
                 }
-                if !item.periods.iter().any(|q| q.start_ordinal == inception) {
+                if !accrual_free(period_bounds(&item.periods), inception)
+                    || !item.periods.iter().any(|q| q.start_ordinal >= inception)
+                {
                     return Err(
-                        "inception must be an accrual-free start of a hedged item period".into(),
+                        "inception must be an accrual-free date at or before a hedged item period start".into(),
                     );
                 }
                 if let Some(end) = rel.hedged_term_end_ordinal {

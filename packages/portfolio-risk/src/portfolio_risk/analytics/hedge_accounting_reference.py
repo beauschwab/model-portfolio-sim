@@ -111,6 +111,11 @@ def _periods(periods, asof, label):
         ids.add(p['period_id']); prior = p['end_ordinal']
 
 
+def _accrual_free(periods, t):
+    """True when t lies strictly inside no period (starts, ends and forward dates are accrual-free)."""
+    return not any(p['start_ordinal'] < t < p['end_ordinal'] for p in periods)
+
+
 def _same_periods(contract, exposure):
     return len(contract) == len(exposure) and all(
         c['start_ordinal'] == e['start_ordinal'] and c['end_ordinal'] == e['end_ordinal'] and c['payment_ordinal'] == e['payment_ordinal']
@@ -205,7 +210,8 @@ def _admit(raw):
             proportion[extra_id] = proportion.get(extra_id, 0.) + p; _require(proportion[extra_id] <= 1. + 1e-12, 'additional instrument over-designated')
             components.append(extra)
         for s in components:
-            _require(any(q['start_ordinal'] == inception for q in s['fixed_periods']) and any(q['start_ordinal'] == inception for q in s['floating_periods']), 'inception boundary')
+            last_end = max(q['end_ordinal'] for q in s['fixed_periods'] + s['floating_periods'])
+            _require(_accrual_free(s['fixed_periods'], inception) and _accrual_free(s['floating_periods'], inception) and inception < last_end, 'inception boundary')
         _require(rel['hedged_risk'] == 'benchmark_interest_rate', 'hedged risk')
         pred = rel['predecessor_relationship_id']
         if pred is not None:
@@ -214,7 +220,7 @@ def _admit(raw):
         last = path['nodes'][-1]['ordinal']
 
         def hedged_of(x):
-            _require(any(q['start_ordinal'] == inception for q in x['periods']), 'exposure inception boundary')
+            _require(_accrual_free(x['periods'], inception) and any(q['start_ordinal'] >= inception for q in x['periods']), 'exposure inception boundary')
             hedged = [i for i, q in enumerate(x['periods']) if q['start_ordinal'] >= inception]; _require(hedged, 'hedged periods')
             first = path['nodes'][0]['ordinal']
             for i in hedged: _require(not first <= x['periods'][i]['payment_ordinal'] <= last or x['periods'][i]['payment_ordinal'] in nodes, 'hedged period node')
@@ -242,7 +248,7 @@ def _admit(raw):
             _require(0. < hedged <= item['notional'] + 1e-12, 'hedged notional')
             hedged_total[item['item_id']] = hedged_total.get(item['item_id'], 0.) + hedged
             _require(hedged_total[item['item_id']] <= item['notional'] + 1e-9, 'item over-hedged')
-            _require(any(q['start_ordinal'] == inception for q in item['periods']), 'item inception boundary')
+            _require(_accrual_free(item['periods'], inception) and any(q['start_ordinal'] >= inception for q in item['periods']), 'item inception boundary')
             end = rel.get('hedged_term_end_ordinal')
             _require(end is None or inception < end < item['principal_ordinal'] and any(q['end_ordinal'] == end for q in item['periods']), 'partial-term end')
             entry.update(item=item, dir=1. if item['direction'] == 'asset' else -1.)
@@ -304,10 +310,10 @@ def _admit(raw):
 
         def assessment_node():
             final = max(q['payment_ordinal'] for s in swaps for q in s['fixed_periods'] + s['floating_periods'])
-            ends = lambda periods: any(q['end_ordinal'] == ev['ordinal'] for q in periods)
-            boundary = ends(c['item']['periods']) if c['item'] else all(ends(m['exposure']['periods']) for m in c['members'])
+            free = lambda periods: _accrual_free(periods, ev['ordinal'])
+            boundary = free(c['item']['periods']) if c['item'] else all(free(m['exposure']['periods']) for m in c['members'])
             _require(rel['inception_ordinal'] < ev['ordinal'] < final and path['nodes'][nodes[ev['ordinal']]]['payment_timing'] == 'after_scheduled_payments'
-                     and all(ends(s['fixed_periods']) and ends(s['floating_periods']) for s in swaps) and boundary, 'assessment date')
+                     and all(free(s['fixed_periods']) and free(s['floating_periods']) for s in swaps) and boundary, 'assessment date')
 
         if ev['kind'] == 'assess':
             _require(all(v is None for v in extra.values()), 'assessment fields')

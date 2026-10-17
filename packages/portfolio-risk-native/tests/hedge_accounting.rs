@@ -932,3 +932,172 @@ fn jointly_designated_swaps_form_one_hedging_instrument() {
         assert!(outcome.is_err(), "{label} must reject");
     }
 }
+
+/// Forward-starting payer swap at 6% on period 3 (projected 6% before February, then 4.5%).
+fn forward_value(t: i32) -> f64 {
+    let r = curve_rate(t);
+    periods()
+        .iter()
+        .enumerate()
+        .filter(|(i, (_, e))| *i >= 2 && *e > t)
+        .map(|(i, (s, e))| {
+            (floating_rate(i, t) - 0.06) * 100. * f64::from(e - s) / 360. * df(r, e - t)
+        })
+        .sum()
+}
+/// Hedge of forecast fixed-rate debt issued 1 March with a forward-starting swap designated
+/// 1 January and terminated at issuance.
+fn forecast_issuance_variant() -> Value {
+    let mut v = raw();
+    let csa = &mut v["derivative"]["derivative"]["operation"]["request"];
+    for n in csa["paths"][0]["nodes"].as_array_mut().unwrap() {
+        let mut fwd = n["trades"][1].clone();
+        let r = &mut fwd["request"];
+        r["position_id"] = json!("swap-fwd");
+        r["contract"] = json!({"id": "swap-fwd-contract", "revision": "r1"});
+        r["fixed_rate"] = json!(0.06);
+        let fixed = r["fixed_periods"].as_array().unwrap()[2..].to_vec();
+        let floating = r["floating_periods"].as_array().unwrap()[2..].to_vec();
+        r["fixed_periods"] = Value::Array(fixed);
+        r["floating_periods"] = Value::Array(floating);
+        n["trades"].as_array_mut().unwrap().push(fwd);
+    }
+    let mut m = csa["mapping"][1].clone();
+    m["position_id"] = json!("swap-fwd");
+    m["contract"] = json!({"id": "swap-fwd-contract", "revision": "r1"});
+    csa["mapping"].as_array_mut().unwrap().push(m);
+    let mut review = v["derivative"]["policy"]["trades"][1].clone();
+    review["position_id"] = json!("swap-fwd");
+    v["derivative"]["policy"]["trades"]
+        .as_array_mut()
+        .unwrap()
+        .push(review);
+    v["derivative"]["opening"]["trades"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"position_id": "swap-fwd", "clean_value": 0.}));
+    let extra: Vec<Value> = v["derivative"]["physical_index_paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["position_id"] == json!("swap-cfh") && p["period_id"] == json!("l3"))
+        .map(|p| {
+            let mut q = p.clone();
+            q["position_id"] = json!("swap-fwd");
+            q
+        })
+        .collect();
+    v["derivative"]["physical_index_paths"]
+        .as_array_mut()
+        .unwrap()
+        .extend(extra);
+    let mut exposure = v["forecast_exposures"][0].clone();
+    exposure["exposure_id"] = json!("issue-1");
+    let periods = exposure["periods"].as_array().unwrap()[2..].to_vec();
+    exposure["periods"] = Value::Array(periods);
+    v["forecast_exposures"]
+        .as_array_mut()
+        .unwrap()
+        .push(exposure);
+    let hyp: Vec<Value> = v["derivative"]["derivative"]["operation"]["request"]["paths"][0]
+        ["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| {
+            let mut req = n["trades"][2]["request"].clone();
+            req["position_id"] = json!("hypothetical");
+            json!({"ordinal": n["ordinal"], "request": req})
+        })
+        .collect();
+    let mut rel = v["relationships"][1].clone();
+    rel["relationship_id"] = json!("cfh-fwd");
+    rel["hedging_instrument_position_id"] = json!("swap-fwd");
+    rel["forecast_exposure_id"] = json!("issue-1");
+    rel["inception_ordinal"] = json!(day(1, 1));
+    rel["matched_critical_terms_evidence"] = Value::Null;
+    rel["hypothetical"] =
+        json!({"evidence": {"id": "fwd-evidence", "revision": "r1"}, "nodes": hyp});
+    v["relationships"].as_array_mut().unwrap().push(rel);
+    v["events"] = json!([
+        {"event_id": "assess-fwd", "relationship_id": "cfh-fwd", "ordinal": day(3, 1), "sequence": 0, "kind": "assess", "review": {"id": "review", "revision": "r1"}},
+        {"event_id": "issued", "relationship_id": "cfh-fwd", "ordinal": day(3, 1), "sequence": 1, "kind": "discontinue", "review": {"id": "review", "revision": "r1"}, "reason": "instrument_terminated"}
+    ]);
+    v
+}
+
+#[test]
+fn forward_starting_hedge_of_forecast_issuance_is_assessed_and_released() {
+    let v = forecast_issuance_variant();
+    let result = run(&v).unwrap();
+    let kinds: Vec<&str> = result.lifecycle.iter().map(|l| l.kind.as_str()).collect();
+    assert_eq!(
+        kinds,
+        [
+            "inception",
+            "inception",
+            "inception",
+            "assessment",
+            "discontinuation"
+        ]
+    );
+    let a = &result.assessments[0];
+    assert_eq!(
+        (a.relationship_id.as_str(), a.ordinal),
+        ("cfh-fwd", day(3, 1))
+    );
+    assert!(a.qualified);
+    close(a.ratio.unwrap(), 1.);
+    close(
+        a.cumulative_instrument_change,
+        forward_value(day(3, 1)) - forward_value(day(1, 1)),
+    );
+    let oci = forward_value(day(3, 1)) - forward_value(day(1, 1));
+    let record = result
+        .lifecycle
+        .iter()
+        .find(|l| l.kind == "discontinuation")
+        .unwrap();
+    close(record.frozen_oci, oci);
+    assert_eq!(record.status_after, Status::Discontinued);
+    let releases: Vec<&Intent> = result
+        .intents
+        .iter()
+        .filter(|i| {
+            i.event_id.starts_with("frozen_oci_release")
+                && i.relationship_id.as_deref() == Some("cfh-fwd")
+        })
+        .collect();
+    assert_eq!(
+        releases.iter().map(|i| i.ordinal).collect::<Vec<_>>(),
+        [day(4, 1)]
+    );
+    close(releases[0].postings[0].debit_amount, oci);
+    close(
+        releases
+            .iter()
+            .map(|i| i.postings[0].debit_amount)
+            .sum::<f64>(),
+        oci,
+    );
+    close(result.closing[2].oci_recognized, oci);
+    close(result.closing[2].oci_closing, 0.);
+    let later = result.intents.iter().filter(|i| {
+        i.event_id.starts_with("clean_mark")
+            && i.mapped_position_id.as_deref() == Some("swap-fwd")
+            && i.ordinal > day(3, 1)
+    });
+    assert!(
+        later.clone().count() > 0
+            && later.clone().all(|i| i
+                .postings
+                .iter()
+                .all(|p| p.account != Account::CashFlowHedgeOci))
+    );
+    let mut inside = v.clone();
+    inside["relationships"][2]["inception_ordinal"] = json!(day(3, 4));
+    assert!(run(&inside).is_err());
+    let mut mid = v.clone();
+    mid["events"][0]["ordinal"] = json!(day(3, 4));
+    assert!(run(&mid).is_err());
+}
