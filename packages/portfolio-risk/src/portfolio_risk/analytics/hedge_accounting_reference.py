@@ -171,10 +171,11 @@ def _admit(raw):
                 trade = next((t for t in node['trades'] if _position(t) == option), None)
                 _require(trade is not None and trade['kind'] in ('european_swaption', 'expired_european'), 'written option on every node')
                 if trade['kind'] == 'expired_european':
-                    _require(trade['delivered_underlying'] is None and node['ordinal'] >= trade['terminal']['expiry_ordinal'], 'cash-settled expired written option')
+                    _require(node['ordinal'] >= trade['terminal']['expiry_ordinal'], 'expired written option after expiry')
+                    u = trade['delivered_underlying']
+                    _require(u is None or _near(u['notional'], swap['notional']) and reviews[option]['delivery_review'] is not None, 'delivered written option terms')
                 o = trade.get('request', trade.get('terminal'))
-                _require(o['side'] == 'short' and o['settlement'] == 'collateralized_cash_price'
-                         and all(_near(s['underlying']['notional'], swap['notional']) for s in o['states']), 'written option terms')
+                _require(o['side'] == 'short' and all(_near(s['underlying']['notional'], swap['notional']) for s in o['states']), 'written option terms')
         opening = rel.get('opening'); seasoned = inception < asof
         _require(seasoned == (opening is not None), 'opening block exactly for relationships designated before the opening date')
         if opening is not None:

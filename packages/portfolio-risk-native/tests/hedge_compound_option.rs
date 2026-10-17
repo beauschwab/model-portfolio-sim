@@ -369,3 +369,111 @@ fn combination_refusals_without_fallback() {
     }
     hedge::validate_request(&serde_json::from_value(compound_variant()).unwrap()).unwrap();
 }
+
+/// The written option settles by physical delivery: the entity receives fixed `K` on the
+/// delivered swap, which continues under the option's mapped position.
+fn physical_variant() -> Value {
+    let mut v = compound_variant();
+    let nodes = v["derivative"]["derivative"]["operation"]["request"]["paths"][0]["nodes"]
+        .as_array_mut()
+        .unwrap();
+    for n in nodes.iter_mut() {
+        let swap = n["trades"][1]["request"].clone();
+        let t = &mut n["trades"][2];
+        if t["kind"] == json!("european_swaption") {
+            t["request"]["settlement"] = json!("physical_delivery");
+        } else {
+            t["terminal"]["settlement"] = json!("physical_delivery");
+            let mut u = swap.clone();
+            u["position_id"] = json!("opt-under");
+            u["fixed_rate"] = json!(STRIKE);
+            u["side"] = json!("receiver");
+            u["fixed_periods"] = json!([swap["fixed_periods"][2]]);
+            u["floating_periods"] = json!([swap["floating_periods"][2]]);
+            t["delivered_underlying"] = u;
+        }
+    }
+    v["derivative"]["policy"]["trades"][2]["delivery_review"] = ident("delivery-accounting");
+    let mut path = v["derivative"]["physical_index_paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["position_id"] == json!("swap-cfh") && p["period_id"] == json!("l3"))
+        .unwrap()
+        .clone();
+    path["position_id"] = json!("opt-cfh");
+    v["derivative"]["physical_index_paths"]
+        .as_array_mut()
+        .unwrap()
+        .push(path);
+    v
+}
+
+#[test]
+fn physically_delivered_written_option_continues_as_the_delivered_swap() {
+    let v = physical_variant();
+    let k = cfh_fixed(&v);
+    let result = run(&v).unwrap();
+    let o1 = option_value(day(2, 1));
+    let x = (0.045 - STRIKE) * 100. * TAU3;
+    let a = &result.assessments[2];
+    // After delivery the option position carries the delivered swap, so the cumulative
+    // change at 1 March is the swap change plus the delivered value less the inception value.
+    close(
+        a.cumulative_instrument_change,
+        swap_value(day(3, 1), k) - x * df(0.04, 31) - o1,
+    );
+    assert!(a.qualified);
+    let mar1 = result
+        .daily
+        .iter()
+        .find(|d| d.ordinal == day(3, 1))
+        .unwrap();
+    close(
+        mar1.relationships[1].instrument_designated_value,
+        swap_value(day(3, 1), k) - x * df(0.04, 31),
+    );
+    let s2 = (0.04 - k) * 100. * TAU2;
+    let s3 = (0.045 - k) * 100. * TAU3;
+    let closing = &result.closing[1];
+    close(closing.oci_recognized, s2 + s3 - x - o1);
+    close(closing.oci_reclassified, s2 + s3);
+    close(closing.oci_closing, -x - o1);
+    let delivered: Vec<_> = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("physical_delivery"))
+        .collect();
+    assert!(!delivered.is_empty());
+    assert!(delivered.iter().all(|i| i
+        .postings
+        .iter()
+        .all(|p| p.account != Account::MarkGainLoss && p.account != Account::CashFlowHedgeOci)));
+    let later: Vec<_> = result
+        .intents
+        .iter()
+        .filter(|i| {
+            i.event_id.starts_with("clean_mark")
+                && i.mapped_position_id.as_deref() == Some("opt-cfh")
+                && i.ordinal > day(3, 1)
+        })
+        .collect();
+    assert!(!later.is_empty());
+    assert!(later.iter().all(|i| i
+        .postings
+        .iter()
+        .all(|p| p.account != Account::MarkGainLoss)));
+    let mut bad = physical_variant();
+    for n in bad["derivative"]["derivative"]["operation"]["request"]["paths"][0]["nodes"]
+        .as_array_mut()
+        .unwrap()
+    {
+        if n["trades"][2]["kind"] == json!("expired_european") {
+            n["trades"][2]["delivered_underlying"]["notional"] = json!(50.);
+        }
+    }
+    assert!(run(&bad).is_err());
+    let mut unreviewed = physical_variant();
+    unreviewed["derivative"]["policy"]["trades"][2]["delivery_review"] = Value::Null;
+    assert!(run(&unreviewed).is_err());
+}

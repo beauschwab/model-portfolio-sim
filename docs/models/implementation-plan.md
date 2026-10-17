@@ -47,8 +47,9 @@ required. Evidence: two native tests (hand values with the option's cash expiry
 inside the hedge window, nine refusals) and 15 engine checks with independent
 replay and tamper refusals. Tenor/timing changes, forecast-issuance
 documentation updates, replacement-debt designation, qualitative similarity,
-physically delivered or pre-inception-expiring written options and optioned
-hedged items/hypotheticals remain open.
+pre-inception-expiring written options and optioned hedged items/hypotheticals
+remain open; physically delivered written options continue as the delivered
+swap under the same mapped position (native and engine hand-value cases).
 
 Evidence (worktree `claude/hedge-accounting-35`, Windows, rebuilt release binary):
 six native hand/lifecycle/refusal/protocol tests plus the unchanged 45 derivative

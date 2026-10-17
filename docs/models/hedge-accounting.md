@@ -292,22 +292,24 @@ non-documented rate or fixed-rate replacement is recorded by the existing
 
 **Swap plus written option (815-20-25-88).** A relationship may name
 `written_option_position_id`: a mapped European swaption that is `short`
-(written), `collateralized_cash_price` settled, whose terminal-state
-underlying notional equals the swap notional, present on every path node as a
-live `european_swaption` or, from expiry, a cash-settled `expired_european`
-(physical delivery transfers the underlying and rejects). The option carries
+(written) whose terminal-state underlying notional equals the swap notional,
+present on every path node as a live `european_swaption` or, from expiry, an
+`expired_european`. Cash settlement settles carrying at expiry; physical
+delivery (with the option's reviewed `delivery_review`) continues as the
+delivered swap under the same mapped position, whose notional must also match,
+so its later marks and coupons stay in the combination. The option carries
 the raw `undesignated_economic_hedge` review and, for cash-flow hedges,
-`settle_derivative_carrying`, so its expiry cash settles carrying without
-earnings. The combination is one instrument: the designated clean value and
+`settle_derivative_carrying`, so expiry cash and delivered coupons settle
+carrying without earnings. The combination is one instrument: the designated clean value and
 cumulative change `D_t` sum the swap and the option, cash-flow mark
 re-ownership covers both positions' `clean_mark` intents, and designated
 proportions are tracked on the option as on the swap. The hypothetical
 derivative method is required (matched critical terms cannot describe a
 combination); the hypothetical still mirrors the forecast exposure's
 contractual terms, so a written option without a corresponding feature in the
-exposure is measured as dollar-offset mismatch, not excluded. Written options
-with physical delivery, options expiring before inception, caps/floors as
-separate contracts and optioned hedged items/hypotheticals remain open.
+exposure is measured as dollar-offset mismatch, not excluded. Options expiring
+before inception, caps/floors as separate contracts and optioned hedged
+items/hypotheticals remain open.
 
 **Refused elections.** `dual_hedge_basis` rejects; other option instruments
 still require their own lane. Nonfinancial price components (Issue 3) are

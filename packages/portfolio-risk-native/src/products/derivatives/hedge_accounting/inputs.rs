@@ -504,23 +504,38 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     Some(Trade::EuropeanSwaption { request }) => request,
                     Some(Trade::ExpiredEuropean {
                         terminal,
-                        delivered_underlying: None,
+                        delivered_underlying,
                         ..
-                    }) if node.ordinal >= terminal.expiry_ordinal => terminal,
-                    Some(Trade::ExpiredEuropean { .. }) => {
-                        return Err("physically delivered written options transfer the underlying and require their own reviewed lane".into())
+                    }) if node.ordinal >= terminal.expiry_ordinal => {
+                        // A physically delivered written option continues as the delivered swap
+                        // under the same mapped position; its notional must still match.
+                        if let Some(u) = delivered_underlying {
+                            if !near(u.notional, swap.notional) {
+                                return Err(
+                                    "delivered underlying notional must match the swap".into()
+                                );
+                            }
+                            if option_review.delivery_review.is_none() {
+                                return Err("physical delivery of the written option requires its reviewed delivery recognition".into());
+                            }
+                        }
+                        terminal
                     }
-                    _ => return Err("written option must be a mapped European swaption on every path node".into()),
+                    _ => {
+                        return Err(
+                            "written option must be a mapped European swaption on every path node"
+                                .into(),
+                        )
+                    }
                 };
-                if terminal.side != crate::products::derivatives::contract::options::OptionSide::Short
-                    || terminal.settlement
-                        != crate::products::derivatives::contract::options::Settlement::CollateralizedCashPrice
+                if terminal.side
+                    != crate::products::derivatives::contract::options::OptionSide::Short
                     || terminal
                         .states
                         .iter()
                         .any(|s| !near(s.underlying.notional, swap.notional))
                 {
-                    return Err("815-20-25-88 requires a written (short) cash-settled option whose notional matches the swap".into());
+                    return Err("815-20-25-88 requires a written (short) option whose notional matches the swap".into());
                 }
                 seen = true;
             }

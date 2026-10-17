@@ -166,3 +166,43 @@ def test_combination_refusals_without_fallback(kind):
     elif kind == 'over': v['relationships'][0]['written_option_position_id'] = 'opt-cfh'
     else: v['derivative']['policy']['trades'][2]['coupon_recognition'] = 'contractual_income_at_due_with_mark_offset'
     with pytest.raises(ValueError): run(v)
+
+
+def physical_variant():
+    """The written option settles by physical delivery: the entity receives fixed K on the delivered swap."""
+    v = compound_variant()
+    for n in nodes(v):
+        t = n['trades'][2]
+        if t['kind'] == 'european_swaption': t['request']['settlement'] = 'physical_delivery'
+        else:
+            t['terminal']['settlement'] = 'physical_delivery'
+            swap = n['trades'][1]['request']; u = deepcopy(swap)
+            u.update(position_id='opt-under', fixed_rate=STRIKE, side='receiver', fixed_periods=[deepcopy(swap['fixed_periods'][2])], floating_periods=[deepcopy(swap['floating_periods'][2])])
+            t['delivered_underlying'] = u
+    v['derivative']['policy']['trades'][2]['delivery_review'] = ident('delivery-accounting')
+    path = deepcopy(next(p for p in v['derivative']['physical_index_paths'] if p['position_id'] == 'swap-cfh' and p['period_id'] == 'l3'))
+    path['position_id'] = 'opt-cfh'; v['derivative']['physical_index_paths'].append(path)
+    return v
+
+
+def test_physically_delivered_written_option_continues_as_the_delivered_swap():
+    v = physical_variant(); k = cfh_fixed(v)
+    result = run(v); assert verify(v, result)['verified']
+    o1 = option_value(FEB1); x = (.045 - STRIKE) * 100. * TAU3
+    a = result['assessments'][2]; near(a['cumulative_instrument_change'], swap_value(MAR1, k) - x * df(.04, 31) - o1); assert a['qualified']
+    mar1 = next(d for d in result['daily'] if d['ordinal'] == MAR1)['relationships'][1]
+    near(mar1['instrument_designated_value'], swap_value(MAR1, k) - x * df(.04, 31))
+    s2, s3 = (.04 - k) * 100. * TAU2, (.045 - k) * 100. * TAU3
+    closing = result['closing'][1]
+    near(closing['oci_recognized'], s2 + s3 - x - o1); near(closing['oci_reclassified'], s2 + s3); near(closing['oci_closing'], -x - o1)
+    delivered = [i for i in result['intents'] if i['event_id'].startswith('physical_delivery')]
+    assert delivered and all(p['account'] not in ('mark_gain_loss', 'cash_flow_hedge_oci') for i in delivered for p in i['postings'])
+    later = [i for i in result['intents'] if i['event_id'].startswith('clean_mark') and i['mapped_position_id'] == 'opt-cfh' and i['ordinal'] > MAR1]
+    assert later and all(p['account'] != 'mark_gain_loss' for i in later for p in i['postings'])
+    bad = physical_variant()
+    for n in nodes(bad):
+        t = n['trades'][2]
+        if t['kind'] == 'expired_european': t['delivered_underlying']['notional'] = 50.
+    with pytest.raises(ValueError): run(bad)
+    unreviewed = physical_variant(); unreviewed['derivative']['policy']['trades'][2]['delivery_review'] = None
+    with pytest.raises(ValueError): run(unreviewed)
