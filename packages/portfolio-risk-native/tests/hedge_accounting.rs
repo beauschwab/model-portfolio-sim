@@ -519,7 +519,7 @@ fn explicit_refusals_without_fallback() {
         (
             "ASU 2025-09 elections",
             Box::new(|v| {
-                v["policy"]["adoption"]["asu_2025_09"]["elections"]["similar_risk_grouping"] =
+                v["policy"]["adoption"]["asu_2025_09"]["elections"]["dual_hedge_basis"] =
                     json!(true)
             }),
         ),

@@ -166,7 +166,7 @@ def test_independent_replay_rejects_tampered_results(accepted, target):
 def test_native_refusals_without_fallback(kind):
     request = raw()
     if kind == 'rule': request['policy']['rule_version'] = 'asc815-2024'
-    elif kind == 'election': request['policy']['adoption']['asu_2025_09']['elections']['selectable_rate_debt'] = True
+    elif kind == 'election': request['policy']['adoption']['asu_2025_09']['elections']['swap_written_option_exception'] = True
     elif kind == 'inception': request['events'][0]['ordinal'] = JAN1
     elif kind == 'accrual': request['events'][0]['ordinal'] = FEB1 + 3
     elif kind == 'proportion': request['relationships'][0]['designated_proportion'] = 1.5

@@ -19,7 +19,9 @@ ACCOUNTS = ('cash', 'derivative_asset', 'derivative_liability', 'unpaid_receivab
             'hedged_item_basis_gain_loss', 'hedged_item_basis_amortization', 'hedged_item_basis_derecognition',
             'hedged_forecast_reclassification')
 FLAGS = dict(accounting_standard_approval=False, empirical_validation=False, persisted_journal_verified=False,
-             saved_book_adoption=False, portfolio_layer_supported=False, net_investment_supported=False)
+             saved_book_adoption=False, portfolio_layer_supported=False, net_investment_supported=False,
+             asu_2025_09_similar_risk_supported=True, asu_2025_09_selectable_rate_supported=True)
+SIMILAR_METHODS = ('instrument_highly_effective_each_risk', 'hedged_risks_similar_to_each_other')
 
 
 def _require(condition, message):
@@ -112,9 +114,14 @@ def _admit(raw):
     _require(raw['schema'] == SCHEMA and raw['model_version'] == SCHEMA, 'explicit hedge-accounting-1 selection required')
     policy = raw['policy']
     _require(policy['rule_version'] == RULE, 'unsupported rule matrix')
-    adoption = policy['adoption']; asu = adoption['asu_2025_09']
-    _require(adoption['asu_2022_01_portfolio_layer'] is False and not any(asu['elections'].values()), 'unimplemented election')
+    adoption = policy['adoption']; asu = adoption['asu_2025_09']; elections = asu['elections']
+    _require(adoption['asu_2022_01_portfolio_layer'] is False and elections['swap_written_option_exception'] is False
+             and elections['dual_hedge_basis'] is False, 'unimplemented election')
     _require((asu['adopted'] is True) == (asu['adoption_ordinal'] is not None), 'adoption date selection')
+
+    def elected(flag, inception, label):
+        # Prospective application (815-20-65-7): only relationships designated at or after adoption.
+        _require(asu['adopted'] is True and flag is True and inception >= asu['adoption_ordinal'], label + ' requires the adopted election')
     band = policy['assessment']
     _require(band['method'] == 'cumulative_dollar_offset' and 0. < band['lower_bound'] < band['upper_bound'], 'assessment band')
     d = raw['derivative']
@@ -134,6 +141,11 @@ def _admit(raw):
     for x in raw['forecast_exposures']:
         _require(x['direction'] in ('receipt', 'payment') and x['exposure_id'] not in exposures and 0. < _money(x['notional']), 'forecast exposure')
         _periods(x['periods'], asof, 'forecast exposure'); exposures[x['exposure_id']] = x
+        cyr = x.get('choose_your_rate')
+        if cyr is not None:
+            options = cyr['documented_index_ids']
+            _require(2 <= len(options) <= 16 and len(set(options)) == len(options) and x['index_id'] in options
+                     and x['direction'] == 'payment' and cyr['debt_classification'] == 'liability', 'choose-your-rate exposure')
     _require(1 <= len(raw['relationships']) <= 64 and len(raw['events']) <= 1024, 'cardinality')
     reviews = {t['position_id']: t for t in d['policy']['trades']}
     compiled = {}; proportion = {}; hedged_total = {}; work = 0
@@ -150,9 +162,33 @@ def _admit(raw):
         pred = rel['predecessor_relationship_id']
         if pred is not None:
             _require(pred in compiled and raw['relationships'][compiled[pred]['index']]['hedging_instrument_position_id'] == inst, 'predecessor')
-        entry = dict(index=index, item=None, exposure=None, dir=1., hedged_periods=[], hyp={}, matched=False)
+        entry = dict(index=index, item=None, dir=1., members=[], matched=False, similar=None, cyr=False)
+        last = path['nodes'][-1]['ordinal']
+
+        def hedged_of(x):
+            _require(any(q['start_ordinal'] == inception for q in x['periods']), 'exposure inception boundary')
+            hedged = [i for i, q in enumerate(x['periods']) if q['start_ordinal'] >= inception]; _require(hedged, 'hedged periods')
+            for i in hedged: _require(x['periods'][i]['payment_ordinal'] > last or x['periods'][i]['payment_ordinal'] in nodes, 'hedged period node')
+            return hedged
+
+        def hyp_nodes(h, x, index_id):
+            nonlocal work
+            side = 'payer' if x['direction'] == 'payment' else 'receiver'
+            hyp = {}
+            for hn in h['nodes']:
+                q = hn['request']; o = hn['ordinal']
+                _require(o in nodes and o >= inception and o not in hyp and q['asof_ordinal'] == o and q['payment_timing'] == 'after_scheduled_payments'
+                         and path['nodes'][nodes[o]]['payment_timing'] == 'after_scheduled_payments' and q['scenario_id'] == path['path_id']
+                         and q['currency'] == raw['currency'] and q['monetary_unit'] == raw['monetary_unit'] and _near(q['notional'], x['notional'])
+                         and q['side'] == side and _same_periods(q['floating_periods'], x['periods'])
+                         and all(f['coupon']['kind'] == 'indexed' and f['coupon']['index']['index_id'] == index_id for f in q['floating_periods']), 'hypothetical mirror')
+                hyp[o] = q; work += len(q['fixed_periods']) + sum(1 + len(f['coupon']['observations']) for f in q['floating_periods'])
+            _require(all(n['ordinal'] in hyp for n in path['nodes'][nodes[inception]:]), 'hypothetical coverage')
+            return hyp
+
         if rel['designation'] == 'fair_value_hedge':
-            _require(rel['forecast_exposure_id'] is None and rel['hypothetical'] is None and rel['matched_critical_terms_evidence'] is None, 'FVH inputs')
+            _require(rel['forecast_exposure_id'] is None and rel['hypothetical'] is None and rel['matched_critical_terms_evidence'] is None
+                     and rel.get('group') is None and rel.get('rate_hypotheticals') is None, 'FVH inputs')
             item = items[rel['hedged_item_id']]; hedged = rel['hedged_notional']; _money(rel['benchmark_rate'])
             _require(0. < hedged <= item['notional'] + 1e-12, 'hedged notional')
             hedged_total[item['item_id']] = hedged_total.get(item['item_id'], 0.) + hedged
@@ -162,31 +198,40 @@ def _admit(raw):
         else:
             _require(rel['designation'] == 'cash_flow_hedge' and rel['hedged_item_id'] is None and rel['hedged_notional'] is None and rel['benchmark_rate'] is None, 'CFH inputs')
             _require(reviews[inst]['coupon_recognition'] == 'settle_derivative_carrying', 'CFH coupon policy')
-            x = exposures[rel['forecast_exposure_id']]
-            _require(any(q['start_ordinal'] == inception for q in x['periods']), 'exposure inception boundary')
-            hedged = [i for i, q in enumerate(x['periods']) if q['start_ordinal'] >= inception]; _require(hedged, 'hedged periods')
-            last = path['nodes'][-1]['ordinal']
-            for i in hedged: _require(x['periods'][i]['payment_ordinal'] > last or x['periods'][i]['payment_ordinal'] in nodes, 'hedged period node')
-            side = 'payer' if x['direction'] == 'payment' else 'receiver'
-            index_ok = lambda ps: all(q['coupon']['kind'] == 'indexed' and q['coupon']['index']['index_id'] == x['index_id'] for q in ps)
-            if rel['hypothetical'] is not None:
-                _require(rel['matched_critical_terms_evidence'] is None, 'hypothetical or matched')
-                hyp = {}
-                for hn in rel['hypothetical']['nodes']:
-                    q = hn['request']; o = hn['ordinal']
-                    _require(o in nodes and o >= inception and o not in hyp and q['asof_ordinal'] == o and q['payment_timing'] == 'after_scheduled_payments'
-                             and path['nodes'][nodes[o]]['payment_timing'] == 'after_scheduled_payments' and q['scenario_id'] == path['path_id']
-                             and q['currency'] == raw['currency'] and q['monetary_unit'] == raw['monetary_unit'] and _near(q['notional'], x['notional'])
-                             and q['side'] == side and _same_periods(q['floating_periods'], x['periods']) and index_ok(q['floating_periods']), 'hypothetical mirror')
-                    hyp[o] = q; work += len(q['fixed_periods']) + sum(1 + len(f['coupon']['observations']) for f in q['floating_periods'])
-                _require(all(n['ordinal'] in hyp for n in path['nodes'][nodes[inception]:]), 'hypothetical coverage')
-                entry.update(hyp=hyp)
+            group = rel.get('group')
+            if group is not None:
+                # ASU 2025-09 Issue 1: a documented similar-risk group with one hypothetical per member.
+                elected(elections['similar_risk_grouping'], inception, 'similar-risk grouping')
+                _require(rel['forecast_exposure_id'] is None and rel['hypothetical'] is None and rel['matched_critical_terms_evidence'] is None
+                         and rel.get('rate_hypotheticals') is None and group['similar_risk_method'] in SIMILAR_METHODS, 'group inputs')
+                ids_ = group['member_exposure_ids']
+                _require(2 <= len(ids_) <= 16 and len(set(ids_)) == len(ids_) and [h['exposure_id'] for h in group['hypotheticals']] == ids_, 'group members')
+                for xid, mh in zip(ids_, group['hypotheticals']):
+                    x = exposures[xid]; _require(x.get('choose_your_rate') is None, 'group member cannot be choose-your-rate')
+                    entry['members'].append(dict(exposure=x, hedged_periods=hedged_of(x), hyps={x['index_id']: (hyp_nodes(mh['hypothetical'], x, x['index_id']), mh['hypothetical']['evidence'])}))
+                entry.update(similar=group['similar_risk_method'])
             else:
-                _require(rel['matched_critical_terms_evidence'] is not None, 'hypothetical or matched')
-                _require(_near(p * swap['notional'], x['notional']) and swap['side'] == side and _same_periods(swap['floating_periods'], x['periods'])
-                         and index_ok(swap['floating_periods']), 'matched critical terms')
-                entry.update(matched=True)
-            entry.update(exposure=x, hedged_periods=hedged)
+                x = exposures[rel['forecast_exposure_id']]; hedged = hedged_of(x)
+                side = 'payer' if x['direction'] == 'payment' else 'receiver'
+                hyps = {}
+                if rel['hypothetical'] is not None:
+                    _require(rel['matched_critical_terms_evidence'] is None, 'hypothetical or matched')
+                    hyps[x['index_id']] = (hyp_nodes(rel['hypothetical'], x, x['index_id']), rel['hypothetical']['evidence'])
+                else:
+                    _require(rel['matched_critical_terms_evidence'] is not None, 'hypothetical or matched')
+                    _require(_near(p * swap['notional'], x['notional']) and swap['side'] == side and _same_periods(swap['floating_periods'], x['periods'])
+                             and all(q['coupon']['kind'] == 'indexed' and q['coupon']['index']['index_id'] == x['index_id'] for q in swap['floating_periods']), 'matched critical terms')
+                    entry.update(matched=True)
+                cyr = x.get('choose_your_rate'); rate_hyps = rel.get('rate_hypotheticals')
+                if cyr is not None or rate_hyps is not None:
+                    # ASU 2025-09 Issue 2: one hypothetical per documented alternative, terms as of inception.
+                    _require(cyr is not None and rate_hyps is not None and not entry['matched'], 'choose-your-rate inputs')
+                    elected(elections['selectable_rate_debt'], inception, 'choose-your-rate debt')
+                    expected = [i for i in cyr['documented_index_ids'] if i != x['index_id']]
+                    _require(sorted(h['index_id'] for h in rate_hyps) == sorted(expected), 'rate hypotheticals per documented alternative')
+                    for rh in rate_hyps: hyps[rh['index_id']] = (hyp_nodes(rh['hypothetical'], x, rh['index_id']), rh['hypothetical']['evidence'])
+                    entry.update(cyr=True)
+                entry['members'].append(dict(exposure=x, hedged_periods=hedged, hyps=hyps))
         compiled[rid] = entry
     _require(work <= 1_000_000, 'hypothetical work')
     prior = None; ids = set()
@@ -197,13 +242,24 @@ def _admit(raw):
         _require(ev['ordinal'] in nodes and ev['ordinal'] >= rel['inception_ordinal'], 'event node')
         swap = _swap_of(path['nodes'][0], rel['hedging_instrument_position_id'])
         extra = {k: ev.get(k) for k in ('proportion', 'reason', 'status')}
+        _require(ev.get('index_id') is None or ev['kind'] == 'rate_election', 'index on a non-election event')
+        _require(ev.get('effective_ordinal') is None or ev['kind'] == 'assess' and c['similar'] is not None, 'specific last-similar date on a non-group assessment')
+
+        def assessment_node():
+            final = max(q['payment_ordinal'] for q in swap['fixed_periods'] + swap['floating_periods'])
+            ends = lambda periods: any(q['end_ordinal'] == ev['ordinal'] for q in periods)
+            boundary = ends(c['item']['periods']) if c['item'] else all(ends(m['exposure']['periods']) for m in c['members'])
+            _require(rel['inception_ordinal'] < ev['ordinal'] < final and path['nodes'][nodes[ev['ordinal']]]['payment_timing'] == 'after_scheduled_payments'
+                     and ends(swap['fixed_periods']) and ends(swap['floating_periods']) and boundary, 'assessment date')
+
         if ev['kind'] == 'assess':
             _require(all(v is None for v in extra.values()), 'assessment fields')
-            final = max(q['payment_ordinal'] for q in swap['fixed_periods'] + swap['floating_periods'])
-            periods = (c['item'] or c['exposure'])['periods']
-            _require(rel['inception_ordinal'] < ev['ordinal'] < final and path['nodes'][nodes[ev['ordinal']]]['payment_timing'] == 'after_scheduled_payments'
-                     and any(q['end_ordinal'] == ev['ordinal'] for q in swap['fixed_periods']) and any(q['end_ordinal'] == ev['ordinal'] for q in swap['floating_periods'])
-                     and any(q['end_ordinal'] == ev['ordinal'] for q in periods), 'assessment date')
+            assessment_node()
+            eff = ev.get('effective_ordinal')
+            _require(eff is None or eff in nodes and rel['inception_ordinal'] <= eff < ev['ordinal'], 'specific last-similar date')
+        elif ev['kind'] == 'rate_election':
+            _require(c['cyr'] and all(v is None for v in extra.values()) and ev.get('index_id') in c['members'][0]['exposure']['choose_your_rate']['documented_index_ids'], 'rate election fields')
+            assessment_node()
         elif ev['kind'] == 'discontinue':
             _require(extra['reason'] in ('dedesignation', 'hedged_item_sold', 'instrument_terminated') and extra['status'] is None, 'discontinuation fields')
             _require(extra['proportion'] is None or 0. < extra['proportion'] <= 1., 'discontinued proportion')
@@ -213,10 +269,11 @@ def _admit(raw):
     return compiled, csa, path, nodes
 
 
-def _state(rel):
-    return dict(status='pending', scale=1., proportion=rel['designated_proportion'], unit=None, hyp=None, inst=None, cum_d=0., cum_e=0., basis=0.,
+def _state(rel, c):
+    return dict(status='pending', scale=1., proportion=rel['designated_proportion'], unit=None, inst=None, cum_d=0., cum_e=0., basis=0.,
                 frozen_basis=[], oci=0., frozen_oci=[], basis_adjustments=0., basis_amortized=0., basis_derecognized=0., oci_recognized=0.,
-                oci_reclassified=0., last_clean=None, last_hyp=None)
+                oci_reclassified=0., last_clean=None, last_hyp=None, last_assessed=rel['inception_ordinal'], oci_at={}, reclass_log=[],
+                members=[dict(selected=m['exposure']['index_id'], hyp=None, cum_e=0., last_hyp=None) for m in c['members']])
 
 
 class _Journal:
@@ -257,6 +314,14 @@ def _record(t, rel, st, **fields):
     base.update(fields); return base
 
 
+def _in_band(band, ratio):
+    return ratio is not None and band['lower_bound'] <= ratio <= band['upper_bound']
+
+
+def _ratio(d, e):
+    return None if e == 0. else d / e
+
+
 def replay(raw, check=lambda: False):
     check()
     raw = _typed(raw)
@@ -267,7 +332,7 @@ def replay(raw, check=lambda: False):
     _require(len(derivative['daily']) == len(path['nodes']), 'derivative daily coverage')
     journal = _Journal(raw, path['path_id'])
     band = raw['policy']['assessment']; hedge_policy = raw['policy']['identity']
-    rels = raw['relationships']; states = [_state(r) for r in rels]; comp = [compiled[r['relationship_id']] for r in rels]
+    rels = raw['relationships']; comp = [compiled[r['relationship_id']] for r in rels]; states = [_state(r, c) for r, c in zip(rels, comp)]
     lifecycle = []; assessments = []; daily = []
     cursor = 0; event_cursor = 0; intents = derivative['intents']
 
@@ -279,7 +344,39 @@ def replay(raw, check=lambda: False):
     def two(account_a, value, owner, rid, account_b):
         return [_posting(account_a, value, owner, None, rid), _posting(account_b, -value, owner, None, rid)]
 
-    def discontinue(i, t, q, reason, review, record):
+    def release_frozen(i, t, sources):
+        """Release frozen OCI entries due at or before t per member; the last entry clears exactly."""
+        rel, st, c = rels[i], states[i], comp[i]; total = 0.
+        for tranche in st['frozen_oci']:
+            last = max(e['pay'] for e in tranche['entries']); per_member = [0.] * len(c['members']); final = None
+            for e in tranche['entries']:
+                if not e['released'] and e['pay'] <= t:
+                    per_member[e['member']] = _money(per_member[e['member']] + tranche['amount'] * e['weight']); e['released'] = True
+                    if e['pay'] == last: final = e['member']
+            if final is not None:
+                per_member[final] = _money(tranche['amount'] - tranche['released'] - math.fsum(v for j, v in enumerate(per_member) if j != final))
+            for m, release in enumerate(per_member):
+                if release == 0.: continue
+                x = c['members'][m]['exposure']
+                journal.emit('frozen_oci_release', t, 'financial', rel['hedging_instrument_position_id'], x['exposure_id'], None, rel['relationship_id'],
+                             hedge_policy, sources(m), two('cash_flow_hedge_oci', release, x['exposure_id'], rel['relationship_id'], 'hedged_forecast_reclassification'))
+                tranche['released'] = _money(tranche['released'] + release); st['oci_reclassified'] = _money(st['oci_reclassified'] + release)
+                total = _money(total + release)
+        return total
+
+    def catch_up(i, t, kind, effective, review):
+        """Instrument changes recognized in OCI after the effective node return to earnings."""
+        rel, st = rels[i], states[i]; _require(effective in st['oci_at'], 'effective date outside the retained OCI history')
+        g = _money(st['oci_recognized'] - st['oci_at'][effective]); inst = rel['hedging_instrument_position_id']
+        if g != 0.:
+            journal.emit(kind, t, 'financial', inst, inst, None, rel['relationship_id'], hedge_policy,
+                         [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(review)],
+                         two('cash_flow_hedge_oci', g, inst, rel['relationship_id'], 'mark_gain_loss'))
+            st['oci'] = _money(st['oci'] - g); st['oci_recognized'] = _money(st['oci_recognized'] - g)
+        return g
+
+    def discontinue(i, t, q, reason, review, record, cutoff=None):
+        cutoff = t if cutoff is None else cutoff
         rel, st, c = rels[i], states[i], comp[i]
         _require(st['status'] == 'qualified', 'discontinuation requires a qualified relationship')
         sources = [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(review)]
@@ -293,17 +390,19 @@ def replay(raw, check=lambda: False):
             elif frozen != 0.:
                 st['frozen_basis'].append(dict(amount=frozen, start=t, amortized=0.)); record['frozen_basis'] = frozen
         else:
-            x = c['exposure']; frozen = _money(q * st['oci']); st['oci'] = _money(st['oci'] - frozen)
-            remaining = [(x['periods'][k]['payment_ordinal'], _tau(x['periods'][k]['start_ordinal'], x['periods'][k]['end_ordinal'], x['periods'][k]['day_count']))
-                         for k in c['hedged_periods'] if x['periods'][k]['payment_ordinal'] > t]
-            total = math.fsum(w for _, w in remaining)
+            frozen = _money(q * st['oci']); st['oci'] = _money(st['oci'] - frozen)
+            remaining = [(x['periods'][k]['payment_ordinal'], m, x['notional'] * _tau(x['periods'][k]['start_ordinal'], x['periods'][k]['end_ordinal'], x['periods'][k]['day_count']))
+                         for m, member in enumerate(c['members']) for x in [member['exposure']] for k in member['hedged_periods'] if x['periods'][k]['payment_ordinal'] > cutoff]
+            total = math.fsum(w for _, _, w in remaining)
             if not remaining or total <= 0.:
                 if frozen != 0.:
+                    x = c['members'][0]['exposure']
                     journal.emit('frozen_oci_release', t, 'financial', inst, x['exposure_id'], None, rid, hedge_policy, sources,
                                  two('cash_flow_hedge_oci', frozen, x['exposure_id'], rid, 'hedged_forecast_reclassification'))
                     st['oci_reclassified'] = _money(st['oci_reclassified'] + frozen); record['released_oci'] = frozen
             elif frozen != 0.:
-                st['frozen_oci'].append(dict(amount=frozen, released=0., weights=[(pay, w / total) for pay, w in remaining])); record['frozen_oci'] = frozen
+                st['frozen_oci'].append(dict(amount=frozen, released=0., entries=[dict(pay=pay, member=m, weight=w / total, released=False) for pay, m, w in remaining]))
+                record['frozen_oci'] = frozen
         st['scale'] *= 1. - q; st['proportion'] = _money(rel['designated_proportion'] * st['scale'])
         if q >= 1.: st['scale'] = 0.; st['proportion'] = 0.; st['status'] = 'discontinued'
         record.update(reason=reason, status_after=st['status'], proportion_after=st['proportion'])
@@ -329,6 +428,7 @@ def replay(raw, check=lambda: False):
                     postings.append(_posting(p['account'], p['debit_amount'], p['position_id'], p['bucket']))
             journal.emit(di['event_id'].split(':')[0], t, di['ledger'], di['mapped_position_id'], di['contract_position_id'], di['bucket'], relationship,
                          di['policy'], di['sources'], postings)
+        for st in states: st['oci_at'][t] = st['oci_recognized']
         for i, rel in enumerate(rels):
             st, c = states[i], comp[i]; inst = rel['hedging_instrument_position_id']; rid = rel['relationship_id']
             base = lambda extra: [deepcopy(hedge_policy), deepcopy(rel['documentation'])] + [deepcopy(e) for e in extra]
@@ -361,33 +461,31 @@ def replay(raw, check=lambda: False):
                                      two('hedged_item_basis_adjustment', -c['dir'] * delta, item['item_id'], rid, 'hedged_item_basis_amortization'))
                         tranche['amortized'] = target; st['basis_amortized'] = _money(st['basis_amortized'] + delta)
             else:
-                x = c['exposure']
                 if t >= rel['inception_ordinal']:
-                    if c['matched']:
-                        physical = math.fsum(r['physical_amount'] for r in derivative['cash_rights'] if r['position_id'] == inst and r['payment_ordinal'] == t)
-                        h, settlement, evidence = instrument_value(k, inst), _money(rel['designated_proportion'] * physical), rel['matched_critical_terms_evidence']
-                    else:
-                        h, settlement = _hypothetical(c['hyp'][t], t); evidence = rel['hypothetical']['evidence']
-                        if t == rel['inception_ordinal']: _require(_near(h, 0.), 'hypothetical must be at market at inception')
-                    if st['status'] == 'qualified':
-                        st['cum_e'] = _money(st['cum_e'] + st['scale'] * (h - st['hyp']))
-                        if any(x['periods'][q]['payment_ordinal'] == t for q in c['hedged_periods']):
-                            reclass = _money(st['scale'] * settlement)
-                            if reclass != 0.:
-                                journal.emit('cash_flow_hedge_reclassification', t, 'financial', inst, x['exposure_id'], None, rid, hedge_policy,
-                                             base([x['source'], x['probability_evidence'], evidence]),
-                                             two('cash_flow_hedge_oci', reclass, x['exposure_id'], rid, 'hedged_forecast_reclassification'))
-                                st['oci'] = _money(st['oci'] - reclass); st['oci_reclassified'] = _money(st['oci_reclassified'] + reclass)
-                    st['hyp'] = h; st['last_hyp'] = _money(st['scale'] * h)
-                for tranche in st['frozen_oci']:
-                    last = max(pay for pay, _ in tranche['weights']); release = 0.
-                    for pay, w in tranche['weights']:
-                        if pay == t: release = _money(tranche['amount'] - tranche['released']) if last == t else _money(tranche['amount'] * w)
-                    if release != 0.:
-                        journal.emit('frozen_oci_release', t, 'financial', inst, x['exposure_id'], None, rid, hedge_policy,
-                                     base([x['source'], x['probability_evidence']]),
-                                     two('cash_flow_hedge_oci', release, x['exposure_id'], rid, 'hedged_forecast_reclassification'))
-                        tranche['released'] = _money(tranche['released'] + release); st['oci_reclassified'] = _money(st['oci_reclassified'] + release)
+                    total_hyp = 0.
+                    for m, member in enumerate(c['members']):
+                        x = member['exposure']; ms = st['members'][m]
+                        if c['matched']:
+                            physical = math.fsum(r['physical_amount'] for r in derivative['cash_rights'] if r['position_id'] == inst and r['payment_ordinal'] == t)
+                            h, settlement, evidence = instrument_value(k, inst), _money(rel['designated_proportion'] * physical), rel['matched_critical_terms_evidence']
+                        else:
+                            nodes_, evidence = member['hyps'][ms['selected']]; h, settlement = _hypothetical(nodes_[t], t)
+                            if t == rel['inception_ordinal']:
+                                # Every documented hypothetical has terms as of inception (815-30-35-37M): at market there.
+                                for alt_nodes, _ in member['hyps'].values(): _require(_near(_hypothetical(alt_nodes[t], t)[0], 0.), 'hypothetical must be at market at inception')
+                        if st['status'] == 'qualified':
+                            delta = _money(st['scale'] * (h - ms['hyp'])); ms['cum_e'] = _money(ms['cum_e'] + delta); st['cum_e'] = _money(st['cum_e'] + delta)
+                            if any(x['periods'][q]['payment_ordinal'] == t for q in member['hedged_periods']):
+                                reclass = _money(st['scale'] * settlement)
+                                if reclass != 0.:
+                                    journal.emit('cash_flow_hedge_reclassification', t, 'financial', inst, x['exposure_id'], None, rid, hedge_policy,
+                                                 base([x['source'], x['probability_evidence'], evidence]),
+                                                 two('cash_flow_hedge_oci', reclass, x['exposure_id'], rid, 'hedged_forecast_reclassification'))
+                                    st['oci'] = _money(st['oci'] - reclass); st['oci_reclassified'] = _money(st['oci_reclassified'] + reclass)
+                                    st['reclass_log'].append((t, m, reclass))
+                        ms['hyp'] = h; ms['last_hyp'] = _money(st['scale'] * h); total_hyp = _money(total_hyp + ms['last_hyp'])
+                    st['last_hyp'] = total_hyp
+                release_frozen(i, t, lambda m: base([c['members'][m]['exposure']['source'], c['members'][m]['exposure']['probability_evidence']]))
         for i, rel in enumerate(rels):
             if rel['inception_ordinal'] != t: continue
             if rel['predecessor_relationship_id'] is not None:
@@ -401,17 +499,71 @@ def replay(raw, check=lambda: False):
             ev = raw['events'][event_cursor]; event_cursor += 1
             i = compiled[ev['relationship_id']]['index']; rel = rels[i]; st = states[i]; c = comp[i]
             record = _record(t, rel, st, sequence=ev['sequence'], event_id=ev['event_id'], review=deepcopy(ev['review']))
+            inst = rel['hedging_instrument_position_id']; rid = rel['relationship_id']
             if ev['kind'] == 'assess':
                 record['kind'] = 'assessment'
                 _require(st['status'] == 'qualified', 'assessment on a relationship that is not qualified')
                 d, e = st['cum_d'], st['cum_e']; _require(not (d == 0. and e == 0.), 'nothing to assess')
-                ratio = None if e == 0. else d / e
-                qualified = ratio is not None and band['lower_bound'] <= ratio <= band['upper_bound']
-                assessments.append(dict(event_id=ev['event_id'], relationship_id=rel['relationship_id'], ordinal=t, method=band['method'],
-                                        lower_bound=band['lower_bound'], upper_bound=band['upper_bound'], cumulative_instrument_change=d,
-                                        cumulative_hedged_change=e, ratio=ratio, qualified=qualified))
-                if qualified: record['reason'] = 'qualified'
-                else: discontinue(i, t, 1., 'failed_assessment', ev['review'], record)
+                ratio = _ratio(d, e); qualified = _in_band(band, ratio)
+                assessment = dict(event_id=ev['event_id'], relationship_id=rid, ordinal=t, method=band['method'], lower_bound=band['lower_bound'],
+                                  upper_bound=band['upper_bound'], cumulative_instrument_change=d, cumulative_hedged_change=e, ratio=ratio, qualified=qualified)
+                if c['cyr']: assessment['index_id'] = st['members'][0]['selected']
+                similar = True
+                if c['similar'] is not None:
+                    notionals = [m['exposure']['notional'] for m in c['members']]; group_notional = math.fsum(notionals)
+                    changes = [ms['cum_e'] for ms in st['members']]; units = [ch / n for ch, n in zip(changes, notionals)]
+                    members = []
+                    for m, member in enumerate(c['members']):
+                        if c['similar'] == 'instrument_highly_effective_each_risk':
+                            member_ratio = _ratio(_money(d * notionals[m] / group_notional), changes[m]); ok = _in_band(band, member_ratio)
+                        else:
+                            ok = all(_in_band(band, _ratio(units[m], units[j])) for j in range(len(units)) if j != m); member_ratio = _ratio(units[m], units[0])
+                        members.append(dict(exposure_id=member['exposure']['exposure_id'], notional=notionals[m], cumulative_hedged_change=changes[m],
+                                            ratio=member_ratio, similar=ok))
+                    similar = all(x['similar'] for x in members)
+                    assessment['similar_risk'] = dict(method=c['similar'], similar=similar, members=members)
+                assessments.append(assessment)
+                if not similar:
+                    # 815-20-55-23D: dedesignate as of the last date all risks were assessed similar (or the specific date).
+                    effective = ev.get('effective_ordinal'); effective = st['last_assessed'] if effective is None else effective
+                    _require(effective >= st['last_assessed'], 'specific last-similar date before the last similar assessment')
+                    g = catch_up(i, t, 'similar_risk_earnings_catch_up', effective, ev['review'])
+                    reverse = [x for x in st['reclass_log'] if x[0] > effective]; st['reclass_log'] = [x for x in st['reclass_log'] if x[0] <= effective]
+                    reversed_ = 0.
+                    if reverse:
+                        per_member = [0.] * len(c['members'])
+                        for _, m, amt in reverse: per_member[m] = _money(per_member[m] + amt)
+                        postings = []
+                        for m, amt in enumerate(per_member):
+                            x = c['members'][m]['exposure']
+                            postings += two('cash_flow_hedge_oci', -amt, x['exposure_id'], rid, 'hedged_forecast_reclassification'); reversed_ = _money(reversed_ + amt)
+                        journal.emit('similar_risk_reclassification_reversal', t, 'financial', inst, inst, None, rid, hedge_policy,
+                                     [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(ev['review'])], postings)
+                        st['oci'] = _money(st['oci'] + reversed_); st['oci_reclassified'] = _money(st['oci_reclassified'] - reversed_)
+                    discontinue(i, t, 1., 'similar_risk_failed', ev['review'], record, cutoff=effective)
+                    released = release_frozen(i, t, lambda m: [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(ev['review'])])
+                    record.update(effective_ordinal=effective, earnings_catch_up=g, reversed_reclassification=reversed_, released_oci=_money(record['released_oci'] + released))
+                elif not qualified: discontinue(i, t, 1., 'failed_assessment', ev['review'], record)
+                else: record['reason'] = 'qualified'; st['last_assessed'] = t
+            elif ev['kind'] == 'rate_election':
+                # 815-30-35-37L/M: final retrospective assessment on the prior rate, then the new hypothetical governs.
+                record['kind'] = 'rate_election'
+                _require(st['status'] == 'qualified', 'rate election requires a qualified relationship')
+                ms = st['members'][0]; prior_index = ms['selected']; new_index = ev['index_id']
+                _require(new_index != prior_index, 'rate election must change the selected index')
+                d, e = st['cum_d'], st['cum_e']; _require(not (d == 0. and e == 0.), 'nothing to assess')
+                ratio = _ratio(d, e); qualified = _in_band(band, ratio)
+                assessments.append(dict(event_id=ev['event_id'], relationship_id=rid, ordinal=t, method=band['method'], lower_bound=band['lower_bound'],
+                                        upper_bound=band['upper_bound'], cumulative_instrument_change=d, cumulative_hedged_change=e, ratio=ratio,
+                                        qualified=qualified, index_id=prior_index))
+                if not qualified:
+                    effective = st['last_assessed']; g = catch_up(i, t, 'rate_election_earnings_catch_up', effective, ev['review'])
+                    record.update(effective_ordinal=effective, earnings_catch_up=g, reason='ineffective_period_in_earnings')
+                else: record['reason'] = 'qualified'
+                nodes_, _ = c['members'][0]['hyps'][new_index]; h, _ = _hypothetical(nodes_[t], t); scaled = _money(st['scale'] * h)
+                ms.update(selected=new_index, hyp=h, cum_e=scaled, last_hyp=scaled)
+                st['cum_e'] = math.fsum(x['cum_e'] for x in st['members']); st['last_hyp'] = scaled; st['last_assessed'] = t
+                record['index_id'] = new_index
             elif ev['kind'] == 'discontinue':
                 record['kind'] = 'discontinuation'
                 discontinue(i, t, ev.get('proportion') or 1., ev['reason'], ev['review'], record)
@@ -422,9 +574,10 @@ def replay(raw, check=lambda: False):
                     if st['status'] == 'qualified': discontinue(i, t, 1., 'forecast_no_longer_probable', ev['review'], record)
                     else: record['reason'] = 'forecast_no_longer_probable'
                 else:
-                    x = c['exposure']; release = st['oci']
+                    x = c['members'][0]['exposure']; release = st['oci']
                     for tranche in st['frozen_oci']:
                         release = _money(release + tranche['amount'] - tranche['released']); tranche['released'] = tranche['amount']
+                        for e in tranche['entries']: e['released'] = True
                     st['oci'] = 0.
                     if release != 0.:
                         journal.emit('forecast_not_occurring_release', t, 'financial', rel['hedging_instrument_position_id'], x['exposure_id'], None,
@@ -446,23 +599,30 @@ def replay(raw, check=lambda: False):
         for i, rel in enumerate(rels):
             st = states[i]
             value = _money(st['proportion'] * instrument_value(k, rel['hedging_instrument_position_id'])) if t >= rel['inception_ordinal'] else 0.
-            rows.append(dict(relationship_id=rel['relationship_id'], status=st['status'], designated_proportion=st['proportion'],
-                             instrument_designated_value=value, hedged_item_clean_value=st['last_clean'], hypothetical_value=st['last_hyp'],
-                             cumulative_instrument_change=st['cum_d'], cumulative_hedged_change=st['cum_e'], basis_adjustment_balance=st['basis'],
-                             frozen_basis_balance=math.fsum(x['amount'] - x['amortized'] for x in st['frozen_basis']), oci_balance=st['oci'],
-                             frozen_oci_balance=math.fsum(x['amount'] - x['released'] for x in st['frozen_oci'])))
+            row = dict(relationship_id=rel['relationship_id'], status=st['status'], designated_proportion=st['proportion'],
+                       instrument_designated_value=value, hedged_item_clean_value=st['last_clean'], hypothetical_value=st['last_hyp'],
+                       cumulative_instrument_change=st['cum_d'], cumulative_hedged_change=st['cum_e'], basis_adjustment_balance=st['basis'],
+                       frozen_basis_balance=math.fsum(x['amount'] - x['amortized'] for x in st['frozen_basis']), oci_balance=st['oci'],
+                       frozen_oci_balance=math.fsum(x['amount'] - x['released'] for x in st['frozen_oci']))
+            c = comp[i]
+            if c['similar'] is not None or c['cyr']:
+                row['members'] = [dict(exposure_id=m['exposure']['exposure_id'], index_id=ms['selected'], hypothetical_value=0. if ms['last_hyp'] is None else ms['last_hyp'],
+                                       cumulative_hedged_change=ms['cum_e']) for m, ms in zip(c['members'], st['members'])]
+            rows.append(row)
         daily.append(dict(ordinal=t, relationships=rows, financial_trial_balance=journal.balances(journal.gl), custody_trial_balance=journal.balances(journal.memo)))
     _require(cursor == len(intents) and event_cursor == len(raw['events']), 'intents or events beyond the tail')
     last = path['nodes'][-1]['ordinal']; relationships = []; closing = []
     for i, rel in enumerate(rels):
         st, c = states[i], comp[i]
-        pending = [c['exposure']['periods'][q]['period_id'] for q in c['hedged_periods'] if c['exposure']['periods'][q]['payment_ordinal'] > last] if c['exposure'] else []
+        pending = [m['exposure']['periods'][q]['period_id'] for m in c['members'] for q in m['hedged_periods'] if m['exposure']['periods'][q]['payment_ordinal'] > last]
         frozen_basis = math.fsum(x['amount'] - x['amortized'] for x in st['frozen_basis']); frozen_oci = math.fsum(x['amount'] - x['released'] for x in st['frozen_oci'])
         relationships.append(dict(relationship_id=rel['relationship_id'], predecessor_relationship_id=rel['predecessor_relationship_id'], designation=rel['designation'],
                                   hedging_instrument_position_id=rel['hedging_instrument_position_id'], hedged_item_id=rel['hedged_item_id'],
                                   forecast_exposure_id=rel['forecast_exposure_id'], inception_ordinal=rel['inception_ordinal'], status=st['status'],
                                   designated_proportion=st['proportion'], basis_adjustment_balance=st['basis'], frozen_basis_balance=frozen_basis,
                                   oci_balance=st['oci'], frozen_oci_balance=frozen_oci, pending_reclassification_periods=pending))
+        if c['similar'] is not None: relationships[-1]['member_exposure_ids'] = [m['exposure']['exposure_id'] for m in c['members']]
+        if c['cyr']: relationships[-1]['selected_index_id'] = st['members'][0]['selected']
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))

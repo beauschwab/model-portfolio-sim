@@ -68,8 +68,8 @@ Run log (2026-10-16, rebuilt release binary, worktree `.data` demo workspace):
 
 ## Not established
 
-Accounting-standard approval, observed effectiveness, ASU 2025-09 and portfolio
-layer lanes, net investment and option instruments, counterparty default paths,
+Accounting-standard approval, observed effectiveness, the remaining ASU 2025-09
+elections (swap/written option, dual hedge) and portfolio layer lanes, net investment and option instruments, counterparty default paths,
 seasoned openings, saved-book and shared daily journal adoption, treasury/
 capital/AOCI feeds, PostgreSQL/S3 parity and complete 60,000-position
 acceptance remain open under #35, #20 and #25. Nothing here deploys artifacts or
@@ -91,3 +91,39 @@ the instrument (supplied hypothetical) so closing AOCI is nonzero.
 - Browser: `model analysis stores and restores hedge-treasury-1` 1 passed (10.2 s) against durable servers; a first run exposed the same integer-category echo issue in the treasury reference, fixed by typing the bridge policy fields.
 - Reviewed AOCI treatment added to the bridge policy (`aoci_eligibility`: deferred-tax rate, opt-out, phase-in) and required on the hedge route; historical bridge audits are byte-identical because the extended disclosure appears only under that policy. Treasury-bridge, credit-bridge and interest-basis engine suites rerun green with the rebuilt binary (see run log).
 - With the ledger-native and decision-native artifacts built in the worktree (the decision runtime under a short `CARGO_TARGET_DIR` because HiGHS exceeds the Windows path limit under `.claude/worktrees/`), the treasury-bridge, credit-bridge, interest-basis, commercial-treasury, mortgage-closing-capital, saved-derivative-mixed and joint-deposit-derivative engine suites pass: 114 passed. This covers the strict audit-key references of the other routes and the derivative verifier normalization.
+
+## ASU 2025-09 elections (same day, later lane)
+
+Scope: #35 stage 4 elections from the issued ASU 2025-09 text (FASB, November
+2025; effective for public entities in fiscal years beginning after 15 December
+2026, early adoption permitted, prospective under 815-20-65-7).
+
+- Similar-risk groups: `group` relationships with per-member hypotheticals,
+  55-23A(a) pro-rata instrument ratios or 55-23A(b) pairwise per-unit ratios
+  under the reviewed band, similarity at every assessment, and 55-23D
+  dedesignation as of the last similar date (or a supplied specific date) with
+  the instrument changes after that date returned to earnings, later
+  reclassifications reversed and the retained OCI released pro rata.
+- Choose-your-rate debt: `choose_your_rate` exposures (liability interest,
+  documented options), `rate_hypotheticals` with terms as of inception, and
+  `rate_election` events with the final retrospective assessment on the prior
+  rate, ineffective-period earnings recognition and the new hypothetical
+  governing subsequent assessment and reclassification.
+- Both are additive and explicitly selected; results without elections are
+  byte-identical (election-only fields are omitted). Swap/written-option and
+  dual-hedge elections still refuse; nonfinancial components are out of scope.
+
+| Gate | Command | Result |
+|---|---|---|
+| Native election tests | `cargo test --release ... --test hedge_asu_2025_09` | 4 passed |
+| Native hedge regression | `cargo test --release ... --test hedge_accounting --test hedge_treasury --test derivative_accounting` | 6 + 3 + 19 passed; strict Clippy and `cargo fmt --check` clean |
+| Engine | `uv run ... pytest tests/test_hedge_asu_2025_09.py tests/test_hedge_accounting.py tests/test_hedge_treasury.py -q` | 71 passed (24 + 26 + 21) with the rebuilt release binary |
+| API | `uv run --project apps/api --extra dev python -m pytest tests/test_hedge_accounting_jobs.py tests/test_hedge_treasury_jobs.py -q` | 15 passed |
+| Contracts | architecture, native ABI, HTTP and MCP checks | verified (MCP references regenerated) |
+| Browser | not rerun: the Model Lab page and the stored example are unchanged by this lane | - |
+
+Not established: tenor/timing changes of hedged payments, forecast-issuance
+documentation updates (35-37H), replacement-debt designation (35-37K),
+qualitative similarity (55-23B/C), the compound written-option exception
+(815-20-25-88), transition-date method changes for existing hedges, and any
+accounting-standard approval.

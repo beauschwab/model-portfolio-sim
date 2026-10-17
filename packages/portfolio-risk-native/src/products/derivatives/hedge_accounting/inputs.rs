@@ -12,15 +12,34 @@ use crate::products::term::contracts::indexed::Coupon;
 use portfolio_model_core::cashflow::validate_ordinal;
 use std::collections::{BTreeMap, HashSet};
 
+/// Where a member's hypothetical derivative for one index lives in the raw relationship.
+#[derive(Clone, Copy)]
+pub(super) enum HypSource {
+    Base,
+    Rate(usize),
+    Group(usize),
+}
+pub(super) struct HypRef {
+    pub source: HypSource,
+    /// Node ordinal -> index in that hypothetical's `nodes`.
+    pub nodes: BTreeMap<i32, usize>,
+}
+/// One hedged forecast exposure of a cash-flow relationship (a group has several).
+pub(super) struct CompiledMember {
+    pub exposure: usize,
+    /// Exposure periods starting at or after inception, in order.
+    pub hedged_periods: Vec<usize>,
+    /// Hypothetical per documented index; empty when matched critical terms are elected.
+    pub hypotheticals: BTreeMap<String, HypRef>,
+}
 pub(super) struct CompiledRelationship {
     pub item: Option<usize>,
-    pub exposure: Option<usize>,
     pub direction_sign: f64,
-    /// CFH exposure periods starting at or after inception, in order.
-    pub hedged_periods: Vec<usize>,
-    /// Hypothetical node ordinal -> index in `relationship.hypothetical.nodes`.
-    pub hypothetical: BTreeMap<i32, usize>,
+    pub members: Vec<CompiledMember>,
+    pub matched: bool,
     pub predecessor: Option<usize>,
+    pub similar_risk: Option<SimilarRiskMethod>,
+    pub choose_your_rate: bool,
 }
 pub(super) struct Compiled {
     pub relationships: Vec<CompiledRelationship>,
@@ -119,6 +138,139 @@ fn side_for(direction: ExposureDirection) -> Side {
     }
 }
 
+struct Ctx<'a> {
+    r: &'a HedgeAccountingRequest,
+    path: &'a crate::products::derivatives::contract::csa::Path,
+    node_index: &'a BTreeMap<i32, usize>,
+}
+/// Admit one supplied hypothetical mirroring `exposure` on `index_id` from `inception` to the tail.
+#[allow(clippy::too_many_arguments)]
+fn hypothetical_nodes(
+    ctx: &Ctx<'_>,
+    h: &Hypothetical,
+    exposure: &ForecastExposure,
+    index_id: &str,
+    inception: i32,
+    bytes: &mut usize,
+    work: &mut usize,
+) -> Result<BTreeMap<i32, usize>, String> {
+    identity(&h.evidence, bytes)?;
+    let mut map = BTreeMap::new();
+    for (i, hn) in h.nodes.iter().enumerate() {
+        let ni = *ctx
+            .node_index
+            .get(&hn.ordinal)
+            .ok_or("hypothetical node is not a derivative path node")?;
+        let node = &ctx.path.nodes[ni];
+        let q = &hn.request;
+        if map.insert(hn.ordinal, i).is_some() {
+            return Err("duplicate hypothetical node".into());
+        }
+        if hn.ordinal < inception
+            || q.asof_ordinal != hn.ordinal
+            || q.payment_timing != PaymentTiming::AfterScheduledPayments
+            || node.payment_timing != PaymentTiming::AfterScheduledPayments
+            || q.scenario_id != ctx.path.path_id
+            || q.currency != ctx.r.currency
+            || q.monetary_unit != ctx.r.monetary_unit
+            || !near(q.notional, exposure.notional)
+            || q.side != side_for(exposure.direction)
+            || !same_periods(&q.floating_periods, &exposure.periods)
+            || !index_matches(&q.floating_periods, index_id)
+        {
+            return Err(
+                "hypothetical derivative must mirror the forecast exposure at each after-payment node"
+                    .into(),
+            );
+        }
+        *work = work.saturating_add(swap_work(q));
+    }
+    for n in &ctx.path.nodes[ctx.node_index[&inception]..] {
+        if !map.contains_key(&n.ordinal) {
+            return Err(
+                "hypothetical derivative must cover every node from inception to the tail".into(),
+            );
+        }
+    }
+    Ok(map)
+}
+fn exposure_index(r: &HedgeAccountingRequest, exposure_id: &str) -> Result<usize, String> {
+    r.forecast_exposures
+        .iter()
+        .position(|x| x.exposure_id == exposure_id)
+        .ok_or_else(|| "unknown forecast exposure".into())
+}
+fn hedged_periods(
+    ctx: &Ctx<'_>,
+    exposure: &ForecastExposure,
+    inception: i32,
+) -> Result<Vec<usize>, String> {
+    if !exposure
+        .periods
+        .iter()
+        .any(|q| q.start_ordinal == inception)
+    {
+        return Err("inception must be an accrual-free start of a forecast exposure period".into());
+    }
+    let hedged = exposure
+        .periods
+        .iter()
+        .enumerate()
+        .filter(|(_, q)| q.start_ordinal >= inception)
+        .map(|(i, _)| i)
+        .collect::<Vec<_>>();
+    if hedged.is_empty() {
+        return Err("no forecast exposure period starts at or after inception".into());
+    }
+    let last = ctx.path.nodes[ctx.path.nodes.len() - 1].ordinal;
+    for &k in &hedged {
+        let pay = exposure.periods[k].payment_ordinal;
+        if pay <= last && !ctx.node_index.contains_key(&pay) {
+            return Err("hedged forecast period payment date is not a derivative path node".into());
+        }
+    }
+    Ok(hedged)
+}
+/// An accrual-free after-payment node after inception and before the instrument's final settlement,
+/// at a period end of both instrument legs and of the hedged item/exposure(s).
+fn assessment_node(
+    ctx: &Ctx<'_>,
+    rel: &Relationship,
+    cr: &CompiledRelationship,
+    swap: &SwapRequest,
+    ordinal: i32,
+) -> Result<(), String> {
+    let node = &ctx.path.nodes[ctx.node_index[&ordinal]];
+    let ends = |periods: &[Period]| periods.iter().any(|q| q.end_ordinal == ordinal);
+    let boundary = match cr.item {
+        Some(i) => ends(&ctx.r.hedged_items[i].periods),
+        None => cr
+            .members
+            .iter()
+            .all(|m| ends(&ctx.r.forecast_exposures[m.exposure].periods)),
+    };
+    let final_payment = swap
+        .fixed_periods
+        .iter()
+        .map(|q| q.payment_ordinal)
+        .chain(swap.floating_periods.iter().map(|q| q.payment_ordinal))
+        .max()
+        .unwrap_or(ordinal);
+    if ordinal <= rel.inception_ordinal
+        || ordinal >= final_payment
+        || node.payment_timing != PaymentTiming::AfterScheduledPayments
+        || !swap.fixed_periods.iter().any(|q| q.end_ordinal == ordinal)
+        || !swap
+            .floating_periods
+            .iter()
+            .any(|q| q.end_ordinal == ordinal)
+        || !boundary
+    {
+        return Err("assessment requires an accrual-free after-payment node after inception and before the final instrument settlement".into());
+    }
+    Ok(())
+}
+
 pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     let mut bytes = 0usize;
     if r.schema != SCHEMA || r.model_version != MODEL_VERSION {
@@ -159,6 +311,11 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             return Err("duplicate derivative path node".into());
         }
     }
+    let ctx = Ctx {
+        r,
+        path,
+        node_index: &node_index,
+    };
     let a = &r.policy.adoption;
     let e = &a.asu_2025_09.elections;
     if a.asu_2022_01_portfolio_layer {
@@ -166,22 +323,31 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             "ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into(),
         );
     }
-    if e.similar_risk_grouping
-        || e.selectable_rate_debt
-        || e.swap_written_option_exception
-        || e.dual_hedge_basis
-    {
-        return Err("ASU 2025-09 elections are not implemented; explicit refusal".into());
+    if e.swap_written_option_exception || e.dual_hedge_basis {
+        return Err("ASU 2025-09 swap/written-option and dual-hedge elections are not implemented; explicit refusal".into());
     }
-    match (a.asu_2025_09.adopted, a.asu_2025_09.adoption_ordinal) {
-        (true, Some(o)) => validate_ordinal(o)?,
-        (false, None) => {}
+    let adoption = match (a.asu_2025_09.adopted, a.asu_2025_09.adoption_ordinal) {
+        (true, Some(o)) => {
+            validate_ordinal(o)?;
+            Some(o)
+        }
+        (false, None) => None,
         _ => {
             return Err(
                 "ASU 2025-09 adoption requires exactly one adoption date when adopted".into(),
             )
         }
-    }
+    };
+    // Prospective application (815-20-65-7): an election applies to relationships designated at
+    // or after the adoption date; existing hedges are not migrated by this lane.
+    let elected = |flag: bool, inception: i32, label: &str| -> Result<(), String> {
+        match adoption {
+            Some(o) if flag && inception >= o => Ok(()),
+            _ => Err(format!(
+                "{label} requires the adopted ASU 2025-09 election and a relationship designated at or after the adoption date"
+            )),
+        }
+    };
     let s = &r.policy.assessment;
     if !s.lower_bound.is_finite()
         || !s.upper_bound.is_finite()
@@ -221,6 +387,25 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             return Err("forecast exposure notional must be finite and positive".into());
         }
         periods(&x.periods, asof, &mut bytes, "forecast exposure")?;
+        if let Some(cyr) = &x.choose_your_rate {
+            identity(&cyr.evidence, &mut bytes)?;
+            let mut options = HashSet::new();
+            for id in &cyr.documented_index_ids {
+                text(id, &mut bytes)?;
+                if !options.insert(id.as_str()) {
+                    return Err("choose-your-rate options must be unique".into());
+                }
+            }
+            // 815-30-35-37B: a liability whose interest varies with a contractually specified rate
+            // among documented index options; assets and analogies are excluded.
+            if options.len() < 2
+                || options.len() > MAX_RATE_OPTIONS
+                || !options.contains(x.index_id.as_str())
+                || x.direction != ExposureDirection::Payment
+            {
+                return Err("choose-your-rate exposures require 2..=16 documented index options including the initial index on liability interest payments".into());
+            }
+        }
         if !exposure_ids.insert(x.exposure_id.as_str()) {
             return Err("duplicate forecast exposure identity".into());
         }
@@ -234,7 +419,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     let mut proportion_by_instrument: BTreeMap<&str, f64> = BTreeMap::new();
     let mut notional_by_item: BTreeMap<&str, f64> = BTreeMap::new();
     let mut work = 0usize;
-    let mut compiled = Vec::new();
+    let mut compiled: Vec<CompiledRelationship> = Vec::new();
     for (index, rel) in r.relationships.iter().enumerate() {
         text(&rel.relationship_id, &mut bytes)?;
         identity(&rel.risk_management_objective, &mut bytes)?;
@@ -265,25 +450,23 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             );
         }
         let inception = rel.inception_ordinal;
-        let node = *node_index
-            .get(&inception)
-            .ok_or("inception date is not a derivative path node")?;
+        if !node_index.contains_key(&inception) {
+            return Err("inception date is not a derivative path node".into());
+        }
         if inception < asof {
             return Err("seasoned relationships before the opening date require retained opening balances; rejected".into());
         }
-        let boundary = |periods: &[crate::products::term::contracts::indexed::ContractPeriod],
-                        date: i32| {
-            periods.iter().any(|q| q.start_ordinal == date)
-        };
         if !swap
             .fixed_periods
             .iter()
             .any(|q| q.start_ordinal == inception)
-            || !boundary(&swap.floating_periods, inception)
+            || !swap
+                .floating_periods
+                .iter()
+                .any(|q| q.start_ordinal == inception)
         {
             return Err("inception must be an accrual-free start of both instrument legs".into());
         }
-        let _ = node;
         let predecessor = match &rel.predecessor_relationship_id {
             None => None,
             Some(id) => {
@@ -306,8 +489,10 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if rel.forecast_exposure_id.is_some()
                     || rel.hypothetical.is_some()
                     || rel.matched_critical_terms_evidence.is_some()
+                    || rel.group.is_some()
+                    || rel.rate_hypotheticals.is_some()
                 {
-                    return Err("fair-value relationships cannot carry forecast exposure or hypothetical inputs".into());
+                    return Err("fair-value relationships cannot carry forecast exposure, hypothetical, group or rate-option inputs".into());
                 }
                 let item_id = rel
                     .hedged_item_id
@@ -343,15 +528,16 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 }
                 CompiledRelationship {
                     item: Some(item_index),
-                    exposure: None,
                     direction_sign: if item.direction == ItemDirection::Asset {
                         1.
                     } else {
                         -1.
                     },
-                    hedged_periods: Vec::new(),
-                    hypothetical: BTreeMap::new(),
+                    members: Vec::new(),
+                    matched: false,
                     predecessor,
+                    similar_risk: None,
+                    choose_your_rate: false,
                 }
             }
             Designation::CashFlowHedge => {
@@ -364,79 +550,94 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if review.coupon_recognition != CouponRecognition::SettleDerivativeCarrying {
                     return Err("cash-flow hedge instruments require settle_derivative_carrying coupon recognition".into());
                 }
+                if let Some(group) = &rel.group {
+                    // ASU 2025-09 Issue 1: a group of individual forecast transactions with a
+                    // documented similar-risk method, one hypothetical per member.
+                    elected(e.similar_risk_grouping, inception, "similar-risk grouping")?;
+                    if rel.forecast_exposure_id.is_some()
+                        || rel.hypothetical.is_some()
+                        || rel.matched_critical_terms_evidence.is_some()
+                        || rel.rate_hypotheticals.is_some()
+                    {
+                        return Err("group relationships carry member exposures and member hypotheticals only".into());
+                    }
+                    let n = group.member_exposure_ids.len();
+                    if !(2..=MAX_GROUP_MEMBERS).contains(&n) || group.hypotheticals.len() != n {
+                        return Err(format!("similar-risk groups require 2..={MAX_GROUP_MEMBERS} members with exactly one hypothetical each"));
+                    }
+                    let mut seen = HashSet::new();
+                    let mut members = Vec::with_capacity(n);
+                    for (m, exposure_id) in group.member_exposure_ids.iter().enumerate() {
+                        let xi = exposure_index(r, exposure_id)?;
+                        let exposure = &r.forecast_exposures[xi];
+                        if !seen.insert(exposure_id.as_str())
+                            || group.hypotheticals[m].exposure_id != *exposure_id
+                            || exposure.choose_your_rate.is_some()
+                        {
+                            return Err("group members must be unique non-choose-your-rate exposures listed in hypothetical order".into());
+                        }
+                        let hedged = hedged_periods(&ctx, exposure, inception)?;
+                        let nodes = hypothetical_nodes(
+                            &ctx,
+                            &group.hypotheticals[m].hypothetical,
+                            exposure,
+                            &exposure.index_id,
+                            inception,
+                            &mut bytes,
+                            &mut work,
+                        )?;
+                        let mut hyps = BTreeMap::new();
+                        hyps.insert(
+                            exposure.index_id.clone(),
+                            HypRef {
+                                source: HypSource::Group(m),
+                                nodes,
+                            },
+                        );
+                        members.push(CompiledMember {
+                            exposure: xi,
+                            hedged_periods: hedged,
+                            hypotheticals: hyps,
+                        });
+                    }
+                    compiled.push(CompiledRelationship {
+                        item: None,
+                        direction_sign: 1.,
+                        members,
+                        matched: false,
+                        predecessor,
+                        similar_risk: Some(group.similar_risk_method),
+                        choose_your_rate: false,
+                    });
+                    continue;
+                }
                 let exposure_id = rel
                     .forecast_exposure_id
                     .as_deref()
                     .ok_or("cash-flow hedge requires a forecast exposure")?;
-                let exposure_index = r
-                    .forecast_exposures
-                    .iter()
-                    .position(|x| x.exposure_id == exposure_id)
-                    .ok_or("unknown forecast exposure")?;
-                let exposure = &r.forecast_exposures[exposure_index];
-                if !exposure
-                    .periods
-                    .iter()
-                    .any(|q| q.start_ordinal == inception)
-                {
-                    return Err(
-                        "inception must be an accrual-free start of a forecast exposure period"
-                            .into(),
-                    );
-                }
-                let hedged_periods = exposure
-                    .periods
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, q)| q.start_ordinal >= inception)
-                    .map(|(i, _)| i)
-                    .collect::<Vec<_>>();
-                if hedged_periods.is_empty() {
-                    return Err("no forecast exposure period starts at or after inception".into());
-                }
-                let last = path.nodes[path.nodes.len() - 1].ordinal;
-                for &k in &hedged_periods {
-                    let pay = exposure.periods[k].payment_ordinal;
-                    if pay <= last && !node_index.contains_key(&pay) {
-                        return Err(
-                            "hedged forecast period payment date is not a derivative path node"
-                                .into(),
-                        );
-                    }
-                }
-                let hypothetical = match (&rel.hypothetical, &rel.matched_critical_terms_evidence) {
+                let xi = exposure_index(r, exposure_id)?;
+                let exposure = &r.forecast_exposures[xi];
+                let hedged = hedged_periods(&ctx, exposure, inception)?;
+                let mut hyps = BTreeMap::new();
+                let matched = match (&rel.hypothetical, &rel.matched_critical_terms_evidence) {
                     (Some(h), None) => {
-                        identity(&h.evidence, &mut bytes)?;
-                        let mut map = BTreeMap::new();
-                        for (i, hn) in h.nodes.iter().enumerate() {
-                            let ni = *node_index.get(&hn.ordinal).ok_or("hypothetical node is not a derivative path node")?;
-                            let node = &path.nodes[ni];
-                            let q = &hn.request;
-                            if map.insert(hn.ordinal, i).is_some() {
-                                return Err("duplicate hypothetical node".into());
-                            }
-                            if hn.ordinal < inception
-                                || q.asof_ordinal != hn.ordinal
-                                || q.payment_timing != PaymentTiming::AfterScheduledPayments
-                                || node.payment_timing != PaymentTiming::AfterScheduledPayments
-                                || q.scenario_id != path.path_id
-                                || q.currency != r.currency
-                                || q.monetary_unit != r.monetary_unit
-                                || !near(q.notional, exposure.notional)
-                                || q.side != side_for(exposure.direction)
-                                || !same_periods(&q.floating_periods, &exposure.periods)
-                                || !index_matches(&q.floating_periods, &exposure.index_id)
-                            {
-                                return Err("hypothetical derivative must mirror the forecast exposure at each after-payment node".into());
-                            }
-                            work = work.saturating_add(swap_work(q));
-                        }
-                        for n in &path.nodes[node_index[&inception]..] {
-                            if !map.contains_key(&n.ordinal) {
-                                return Err("hypothetical derivative must cover every node from inception to the tail".into());
-                            }
-                        }
-                        map
+                        let nodes = hypothetical_nodes(
+                            &ctx,
+                            h,
+                            exposure,
+                            &exposure.index_id,
+                            inception,
+                            &mut bytes,
+                            &mut work,
+                        )?;
+                        hyps.insert(
+                            exposure.index_id.clone(),
+                            HypRef {
+                                source: HypSource::Base,
+                                nodes,
+                            },
+                        );
+                        false
                     }
                     (None, Some(evidence)) => {
                         identity(evidence, &mut bytes)?;
@@ -447,17 +648,72 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         {
                             return Err("matched critical terms require identical designated notional, side, index and floating periods".into());
                         }
-                        BTreeMap::new()
+                        true
                     }
                     _ => return Err("cash-flow hedge requires exactly one of a hypothetical derivative or matched critical terms evidence".into()),
                 };
+                let choose_your_rate = match (&exposure.choose_your_rate, &rel.rate_hypotheticals)
+                {
+                    (None, None) => false,
+                    (Some(cyr), Some(rate_hyps)) => {
+                        // ASU 2025-09 Issue 2: one hypothetical per documented alternative rate with
+                        // terms as of inception (815-30-35-37M); the hypothetical method is required.
+                        elected(e.selectable_rate_debt, inception, "choose-your-rate debt")?;
+                        if matched {
+                            return Err("choose-your-rate relationships require the hypothetical derivative method".into());
+                        }
+                        let expected = cyr
+                            .documented_index_ids
+                            .iter()
+                            .filter(|id| **id != exposure.index_id)
+                            .collect::<Vec<_>>();
+                        if rate_hyps.len() != expected.len() {
+                            return Err("choose-your-rate relationships require exactly one hypothetical per documented alternative index".into());
+                        }
+                        for rh in rate_hyps {
+                            text(&rh.index_id, &mut bytes)?;
+                            if !expected.contains(&&rh.index_id) || hyps.contains_key(&rh.index_id) {
+                                return Err("rate hypothetical index must be a documented alternative listed once".into());
+                            }
+                            let position = rate_hyps
+                                .iter()
+                                .position(|x| x.index_id == rh.index_id)
+                                .unwrap_or(0);
+                            let nodes = hypothetical_nodes(
+                                &ctx,
+                                &rh.hypothetical,
+                                exposure,
+                                &rh.index_id,
+                                inception,
+                                &mut bytes,
+                                &mut work,
+                            )?;
+                            hyps.insert(
+                                rh.index_id.clone(),
+                                HypRef {
+                                    source: HypSource::Rate(position),
+                                    nodes,
+                                },
+                            );
+                        }
+                        true
+                    }
+                    _ => {
+                        return Err("choose-your-rate exposures and rate hypotheticals must be supplied together".into())
+                    }
+                };
                 CompiledRelationship {
                     item: None,
-                    exposure: Some(exposure_index),
                     direction_sign: 1.,
-                    hedged_periods,
-                    hypothetical,
+                    members: vec![CompiledMember {
+                        exposure: xi,
+                        hedged_periods: hedged,
+                        hypotheticals: hyps,
+                    }],
+                    matched,
                     predecessor,
+                    similar_risk: None,
+                    choose_your_rate,
                 }
             }
         };
@@ -485,51 +741,35 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             .get(ev.relationship_id.as_str())
             .ok_or("event names an unknown relationship")?;
         let rel = &r.relationships[index];
-        let ni = *node_index
-            .get(&ev.ordinal)
-            .ok_or("event date is not a derivative path node")?;
+        let cr = &compiled[index];
+        if !node_index.contains_key(&ev.ordinal) {
+            return Err("event date is not a derivative path node".into());
+        }
         if ev.ordinal < rel.inception_ordinal {
             return Err("event precedes relationship inception".into());
         }
         let swap = opening_swap(c, &rel.hedging_instrument_position_id)?;
+        if ev.kind != EventKind::RateElection && ev.index_id.is_some() {
+            return Err("only rate elections carry an index".into());
+        }
+        if ev.effective_ordinal.is_some()
+            && (ev.kind != EventKind::Assess || cr.similar_risk.is_none())
+        {
+            return Err("only group assessments carry a specific last-similar date".into());
+        }
         match ev.kind {
             EventKind::Assess => {
                 if ev.proportion.is_some() || ev.reason.is_some() || ev.status.is_some() {
                     return Err("assessment events carry no proportion/reason/status".into());
                 }
-                let node = &path.nodes[ni];
-                let boundary = match (compiled[index].item, compiled[index].exposure) {
-                    (Some(i), _) => r.hedged_items[i]
-                        .periods
-                        .iter()
-                        .any(|q| q.end_ordinal == ev.ordinal),
-                    (_, Some(x)) => r.forecast_exposures[x]
-                        .periods
-                        .iter()
-                        .any(|q| q.end_ordinal == ev.ordinal),
-                    _ => false,
-                };
-                let final_payment = swap
-                    .fixed_periods
-                    .iter()
-                    .map(|q| q.payment_ordinal)
-                    .chain(swap.floating_periods.iter().map(|q| q.payment_ordinal))
-                    .max()
-                    .unwrap_or(ev.ordinal);
-                if ev.ordinal <= rel.inception_ordinal
-                    || ev.ordinal >= final_payment
-                    || node.payment_timing != PaymentTiming::AfterScheduledPayments
-                    || !swap
-                        .fixed_periods
-                        .iter()
-                        .any(|q| q.end_ordinal == ev.ordinal)
-                    || !swap
-                        .floating_periods
-                        .iter()
-                        .any(|q| q.end_ordinal == ev.ordinal)
-                    || !boundary
-                {
-                    return Err("assessment requires an accrual-free after-payment node after inception and before the final instrument settlement".into());
+                assessment_node(&ctx, rel, cr, swap, ev.ordinal)?;
+                if let Some(eff) = ev.effective_ordinal {
+                    if !node_index.contains_key(&eff)
+                        || eff < rel.inception_ordinal
+                        || eff >= ev.ordinal
+                    {
+                        return Err("the specific last-similar date must be a path node from inception before the assessment".into());
+                    }
                 }
             }
             EventKind::Discontinue => {
@@ -550,6 +790,31 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 {
                     return Err("forecast status events apply to cash-flow hedges only and carry only a status".into());
                 }
+            }
+            EventKind::RateElection => {
+                let index_id = ev
+                    .index_id
+                    .as_deref()
+                    .ok_or("rate election requires the newly selected index")?;
+                if !cr.choose_your_rate
+                    || ev.proportion.is_some()
+                    || ev.reason.is_some()
+                    || ev.status.is_some()
+                {
+                    return Err("rate elections apply to choose-your-rate relationships and carry only an index".into());
+                }
+                let exposure = &r.forecast_exposures[cr.members[0].exposure];
+                if !exposure
+                    .choose_your_rate
+                    .as_ref()
+                    .is_some_and(|c| c.documented_index_ids.iter().any(|x| x == index_id))
+                {
+                    return Err("rate election must select a documented index option".into());
+                }
+                // The newly selected rate begins accruing at an exposure period start that is also
+                // an accrual-free instrument boundary, so the final retrospective assessment on the
+                // prior rate measures clean values (815-30-35-37L).
+                assessment_node(&ctx, rel, cr, swap, ev.ordinal)?;
             }
         }
     }

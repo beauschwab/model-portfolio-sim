@@ -25,7 +25,7 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
 | ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
-| ASU 2025-09 | Adoption identity and date are retained. Every election (`similar_risk_grouping`, `selectable_rate_debt`, `swap_written_option_exception`, `dual_hedge_basis`) must be `false`; `true` rejects as unimplemented. |
+| ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). Both apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `swap_written_option_exception` (815-20-25-88) and `dual_hedge_basis` reject as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
 | Net investment, nonfinancial components, options as instruments, counterparty default | Rejected explicitly. |
 
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
@@ -94,9 +94,11 @@ A `cash_flow_hedge` relationship names `forecast_exposure_id` instead of
 
 Events are `assess`, `discontinue` (`reason` in `dedesignation`,
 `hedged_item_sold`, `instrument_terminated`; optional `proportion` in (0,1]
-of the remaining designated proportion, default 1) and `forecast_status`
-(`status` in `no_longer_probable`, `probable_not_to_occur`; CFH only). Events
-are globally ordered by `(ordinal, sequence)` with unique ids and reviews.
+of the remaining designated proportion, default 1), `forecast_status`
+(`status` in `no_longer_probable`, `probable_not_to_occur`; CFH only) and,
+under the ASU 2025-09 election, `rate_election` (`index_id`). Group
+assessments may carry `effective_ordinal`. Events are globally ordered by
+`(ordinal, sequence)` with unique ids and reviews.
 
 ## Admission
 
@@ -214,6 +216,81 @@ reclassification/frozen release); then that node's events in sequence order;
 then the daily closing. Relationships become active at the end of their
 inception node, so inception-node marks stay in earnings.
 
+## ASU 2025-09 elections
+
+Both elections are additive request fields admitted only when
+`policy.adoption.asu_2025_09.adopted` is `true`, the election flag is `true`
+and the relationship's `inception_ordinal` is at or after `adoption_ordinal`
+(prospective application, 815-20-65-7). Elections that no relationship uses
+leave the result unchanged. The elections are limited to the cash-flow hedge
+of interest-rate risk already in scope; the hypothetical derivative method is
+required for both.
+
+**Similar-risk groups (815-20-55-23A through 55-23D).** A cash-flow
+relationship carries `group` instead of `forecast_exposure_id`:
+`member_exposure_ids` (2 to 16 distinct exposures, none choose-your-rate),
+`similar_risk_method` and `hypotheticals` (one `{exposure_id, hypothetical}`
+per member, in member order, each mirroring its member exposure on that
+member's `index_id` from inception to the tail and at market at inception).
+The group's cumulative hedged change is the sum of member hypothetical changes;
+reclassification posts per member at that member's payment dates by the
+member's hypothetical settlement. Similarity is assessed at every `assess`
+event (815-20-55-23) in addition to the relationship's dollar offset:
+
+- `instrument_highly_effective_each_risk` (55-23A(a)): for member `j`,
+  `ratio_j = (D_t * N_j / sum N) / E_t,j`, the instrument's cumulative change
+  pro rata by member notional over the member's cumulative hypothetical
+  change, must lie within the reviewed band.
+- `hedged_risks_similar_to_each_other` (55-23A(b)): with per-unit changes
+  `u_j = E_t,j / N_j`, every pair `u_j / u_k` must lie within the same band;
+  the reported member ratio is `u_j / u_1`.
+
+A zero member change makes that member not similar. When a group is not
+similar the relationship is dedesignated as of the last date all hedged risks
+were assessed similar (the previous qualified assessment, or inception) unless
+the event supplies a specific `effective_ordinal` between those dates
+(55-23D): instrument changes recognized in OCI after that date return to
+earnings (`similar_risk_earnings_catch_up`, OCI against `mark_gain_loss`),
+hedged-period reclassifications after that date are reversed
+(`similar_risk_reclassification_reversal`), the OCI through that date is
+frozen over the member periods paying after it (weights `N_j tau`), and the
+entries already due are released at the event. OCI through the effective date
+therefore remains until the forecast transactions affect earnings. The
+lifecycle record reports `effective_ordinal`, `earnings_catch_up` and
+`reversed_reclassification`; the assessment reports `similar_risk` with the
+method, verdict and member rows. Similarity failure takes precedence over a
+failed overall dollar offset. Qualitative similarity (55-23B/C) remains a
+reviewer assertion outside the engine.
+
+**Choose-your-rate debt (815-30-35-37B(b), 37I through 37M).** A forecast
+exposure of liability interest payments (`direction = payment`) carries
+`choose_your_rate = {evidence, documented_index_ids, debt_classification:
+"liability"}` listing 2 to 16 documented index options including its initial
+`index_id`. The relationship supplies `hypothetical` for the initial index and
+`rate_hypotheticals` with exactly one hypothetical per documented alternative,
+each with terms as of inception (at market at the inception node, 35-37M) and
+covering every node from inception to the tail on that index. A
+`rate_election` event at an accrual-free assessment node selects a documented
+index different from the current one (35-37I): the engine performs the final
+retrospective dollar-offset assessment on the previously selected rate (35-37L;
+recorded with `index_id` of the prior rate); if it fails, the instrument
+changes recognized in OCI since the last assessment return to earnings
+(`rate_election_earnings_catch_up`) and the relationship continues under the
+reviewed expectation in the event's review; then the hypothetical for the new
+index governs with cumulative change `E_t = s * H_new,t` (its inception value is
+zero) and later reclassifications use its settlements. Assessments report the
+rate measured in `index_id`; daily rows and the closing report the selected
+index. Changes to the number or timing of payments (tenor changes), the
+forecast-issuance documentation update of 35-37H and replacement debt
+designation are not modeled: periods are fixed per exposure, and a probable
+non-documented rate or fixed-rate replacement is recorded by the existing
+`probable_not_to_occur` status (37E/37K). Assets and analogies reject (37B).
+
+**Refused elections.** `swap_written_option_exception` (compound swap plus
+written option, 815-20-25-88) and `dual_hedge_basis` reject; option
+instruments still require their own lane. Nonfinancial price components
+(Issue 3) are outside the interest-rate scope of this owner.
+
 ## Output
 
 `HedgeAccountingResult` retains `schema`, `model_version`, `run`, entity,
@@ -228,7 +305,12 @@ balance), `intents` (the single ordered journal), `closing` roll-forwards and
 explicit flags: `accounting_standard_approval=false`,
 `empirical_validation=false`, `persisted_journal_verified=false`,
 `saved_book_adoption=false`, `portfolio_layer_supported=false`,
-`net_investment_supported=false`.
+`net_investment_supported=false`, `asu_2025_09_similar_risk_supported=true`,
+`asu_2025_09_selectable_rate_supported=true`. Election-only fields
+(`similar_risk`, assessment and lifecycle `index_id`, `effective_ordinal`,
+`earnings_catch_up`, `reversed_reclassification`, daily `members`,
+`member_exposure_ids`, `selected_index_id`) appear only for relationships
+that use an election, so results without elections are unchanged.
 
 Journal accounts are the derivative owner's accounts plus
 `cash_flow_hedge_oci`, `hedged_item_basis_adjustment`,
@@ -251,11 +333,13 @@ no native callbacks. A receipt is returned only when the whole result passes.
 ## Scope statement
 
 This lane admits single-currency fixed/floating swaps against fixed-rate
-assets/liabilities and forecast index-linked interest. It does not establish
+assets/liabilities and forecast index-linked interest, with the ASU 2025-09
+similar-risk group and choose-your-rate elections above. It does not establish
 accounting-standard compliance, observed effectiveness, portfolio-layer,
-net-investment, option or nonfinancial coverage, saved-book or shared daily
-journal adoption, treasury/capital feeds or complete-scale acceptance. Those
-remain open under issue #35 and are listed in `implementation-plan.md`.
+net-investment, option (including the swap/written-option exception) or
+nonfinancial coverage, saved-book or shared daily journal adoption, or
+complete-scale acceptance. Those remain open under issue #35 and are listed in
+`implementation-plan.md`.
 
 ## Closing capital feed (`hedge-treasury-1`)
 

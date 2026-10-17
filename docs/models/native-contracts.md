@@ -386,8 +386,10 @@ owner's marks under the selected designation, values the hedged item's benchmark
 component and any supplied hypothetical natively, assesses cumulative dollar
 offset at accrual-free dates under reviewed bounds, and emits one ordered journal
 with basis, OCI, reclassification, amortization and derecognition entries. The
-rule matrix is `asc815-asu2017-12`; ASU 2022-01 layers, ASU 2025-09 elections,
-net investment, options and defaulted paths reject. Independent raw-source and
+rule matrix is `asc815-asu2017-12`; with an explicit adopted ASU 2025-09 policy the
+similar-risk group and choose-your-rate elections apply prospectively; ASU
+2022-01 layers, the swap/written-option and dual-hedge elections, net
+investment, options and defaulted paths reject. Independent raw-source and
 persisted replay gate the durable `/models/runs` route; accounting-standard
 approval, saved-book/shared-journal adoption and capital feeds remain false.
 See [the detailed contract](hedge-accounting.md).

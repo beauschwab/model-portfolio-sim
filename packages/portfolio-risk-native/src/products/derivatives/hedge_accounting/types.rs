@@ -17,6 +17,8 @@ pub const MAX_PERIODS: usize = 4096;
 pub const MAX_INPUT: usize = 32 << 20;
 pub const MAX_OUTPUT: usize = 32 << 20;
 pub const MAX_WORK: usize = 1_000_000;
+pub const MAX_GROUP_MEMBERS: usize = 16;
+pub const MAX_RATE_OPTIONS: usize = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -67,6 +69,22 @@ pub enum EventKind {
     Assess,
     Discontinue,
     ForecastStatus,
+    /// ASU 2025-09 choose-your-rate election (815-30-35-37I through 35-37M).
+    RateElection,
+}
+/// ASU 2025-09 similar-risk assessment method (815-20-55-23A).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimilarRiskMethod {
+    /// 55-23A(a): the instrument, pro rata by member notional, is highly effective against each member.
+    InstrumentHighlyEffectiveEachRisk,
+    /// 55-23A(b): each member's per-unit hedged change is within the band of every other member's.
+    HedgedRisksSimilarToEachOther,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DebtClassification {
+    Liability,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -150,6 +168,14 @@ pub struct HedgedItem {
     pub periods: Vec<Period>,
     pub principal_ordinal: i32,
 }
+/// Documented choose-your-rate options (815-30-35-37D/37J); `index_id` is the initial selection.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChooseYourRate {
+    pub evidence: Identity,
+    pub documented_index_ids: Vec<String>,
+    pub debt_classification: DebtClassification,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ForecastExposure {
@@ -160,6 +186,8 @@ pub struct ForecastExposure {
     pub notional: f64,
     pub index_id: String,
     pub periods: Vec<Period>,
+    #[serde(default)]
+    pub choose_your_rate: Option<ChooseYourRate>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -172,6 +200,27 @@ pub struct HypotheticalNode {
 pub struct Hypothetical {
     pub evidence: Identity,
     pub nodes: Vec<HypotheticalNode>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemberHypothetical {
+    pub exposure_id: String,
+    pub hypothetical: Hypothetical,
+}
+/// ASU 2025-09 group of individual forecast exposures with similar risk (815-20-55-23A).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GroupDesignation {
+    pub member_exposure_ids: Vec<String>,
+    pub similar_risk_method: SimilarRiskMethod,
+    pub hypotheticals: Vec<MemberHypothetical>,
+}
+/// Hypothetical derivative for one documented alternative rate, with terms as of inception (35-37M).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RateHypothetical {
+    pub index_id: String,
+    pub hypothetical: Hypothetical,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -191,6 +240,10 @@ pub struct Relationship {
     pub documentation: Identity,
     pub hypothetical: Option<Hypothetical>,
     pub matched_critical_terms_evidence: Option<Identity>,
+    #[serde(default)]
+    pub group: Option<GroupDesignation>,
+    #[serde(default)]
+    pub rate_hypotheticals: Option<Vec<RateHypothetical>>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -207,6 +260,12 @@ pub struct Event {
     pub reason: Option<DiscontinueReason>,
     #[serde(default)]
     pub status: Option<ForecastStatus>,
+    /// `rate_election`: the newly selected documented index.
+    #[serde(default)]
+    pub index_id: Option<String>,
+    /// Group `assess`: the specific last-similar date when determined (815-20-55-23D).
+    #[serde(default)]
+    pub effective_ordinal: Option<i32>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -304,6 +363,22 @@ pub struct Intent {
     pub postings: Vec<Posting>,
 }
 #[derive(Debug, Clone, Serialize)]
+pub struct MemberAssessment {
+    pub exposure_id: String,
+    pub notional: f64,
+    pub cumulative_hedged_change: f64,
+    /// 55-23A(a): pro-rata instrument change over the member change; 55-23A(b): the member's
+    /// per-unit change over the first member's per-unit change.
+    pub ratio: Option<f64>,
+    pub similar: bool,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct SimilarRiskAssessment {
+    pub method: SimilarRiskMethod,
+    pub similar: bool,
+    pub members: Vec<MemberAssessment>,
+}
+#[derive(Debug, Clone, Serialize)]
 pub struct Assessment {
     pub event_id: String,
     pub relationship_id: String,
@@ -315,6 +390,11 @@ pub struct Assessment {
     pub cumulative_hedged_change: f64,
     pub ratio: Option<f64>,
     pub qualified: bool,
+    /// Choose-your-rate: the contractually specified rate this assessment measured.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub similar_risk: Option<SimilarRiskAssessment>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct LifecycleRecord {
@@ -333,6 +413,23 @@ pub struct LifecycleRecord {
     pub frozen_oci: f64,
     pub released_oci: f64,
     pub derecognized_basis: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_ordinal: Option<i32>,
+    /// Instrument changes after the effective date moved from OCI back to earnings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub earnings_catch_up: Option<f64>,
+    /// Hedged-period reclassifications after the effective date reversed before freezing OCI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reversed_reclassification: Option<f64>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyMember {
+    pub exposure_id: String,
+    pub index_id: String,
+    pub hypothetical_value: f64,
+    pub cumulative_hedged_change: f64,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct DailyRelationship {
@@ -348,6 +445,8 @@ pub struct DailyRelationship {
     pub frozen_basis_balance: f64,
     pub oci_balance: f64,
     pub frozen_oci_balance: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub members: Option<Vec<DailyMember>>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct Balance {
@@ -388,6 +487,10 @@ pub struct RelationshipClosing {
     pub oci_balance: f64,
     pub frozen_oci_balance: f64,
     pub pending_reclassification_periods: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member_exposure_ids: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected_index_id: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct HedgeAccountingResult {
@@ -412,5 +515,7 @@ pub struct HedgeAccountingResult {
     pub saved_book_adoption: bool,
     pub portfolio_layer_supported: bool,
     pub net_investment_supported: bool,
+    pub asu_2025_09_similar_risk_supported: bool,
+    pub asu_2025_09_selectable_rate_supported: bool,
     pub disclosure: String,
 }

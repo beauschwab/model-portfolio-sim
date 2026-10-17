@@ -1088,9 +1088,13 @@ OCI release, basis amortization/derecognition and the single ordered journal.
 Each derivative mark, coupon, collateral and closeout entry is recognized once.
 
 The implemented rule matrix is `asc815-asu2017-12` (post ASU 2017-12 recognition
-without separate ineffectiveness). ASU 2022-01 portfolio layers, every ASU
-2025-09 election, net-investment, nonfinancial, option instruments, counterparty
-default paths and seasoned opening balances reject explicitly. Assessment uses
+without separate ineffectiveness). Under an explicit adopted ASU 2025-09 policy
+the similar-risk group (815-20-55-23A through 55-23D) and choose-your-rate debt
+(815-30-35-37I through 35-37M) elections apply prospectively with per-member and
+per-option hypotheticals, dated dedesignation and rate elections. ASU 2022-01
+portfolio layers, the ASU 2025-09 swap/written-option and dual-hedge elections,
+net-investment, nonfinancial, option instruments, counterparty default paths and
+seasoned opening balances reject explicitly. Assessment uses
 clean cumulative changes at accrual-free after-payment dates before the final
 instrument settlement; matched critical terms require a zero-value instrument at
 inception. Bounds: 64 relationships, 1,024 events, 32 MiB input/output and one
