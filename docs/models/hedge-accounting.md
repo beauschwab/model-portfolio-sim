@@ -283,8 +283,19 @@ therefore remains until the forecast transactions affect earnings. The
 lifecycle record reports `effective_ordinal`, `earnings_catch_up` and
 `reversed_reclassification`; the assessment reports `similar_risk` with the
 method, verdict and member rows. Similarity failure takes precedence over a
-failed overall dollar offset. Qualitative similarity (55-23B/C) remains a
-reviewer assertion outside the engine.
+failed overall dollar offset.
+
+*Qualitative similarity (55-23C).* A group may carry the hedge-by-hedge
+`qualitative_similarity_election` (an identity). After a quantitative
+similarity assessment of that relationship has passed, a later `assess` event
+may carry `qualitative_similarity_support` (the reviewed reasonable support):
+similarity is then established qualitatively, `similar_risk.basis` is
+`qualitative`, and the quantitative member rows are still reported for
+information. Support without the election, before an initial quantitative
+pass, or on a non-group assessment refuses. If facts change, the reviewer
+omits the support and the member test applies again. The overall dollar offset
+stays quantitative; 55-23B (qualitative effectiveness) is outside this
+quantitative engine.
 
 **Choose-your-rate debt (815-30-35-37B(b), 37I through 37M).** A forecast
 exposure of liability interest payments (`direction = payment`) carries
@@ -304,11 +315,34 @@ reviewed expectation in the event's review; then the hypothetical for the new
 index governs with cumulative change `E_t = s * H_new,t` (its inception value is
 zero) and later reclassifications use its settlements. Assessments report the
 rate measured in `index_id`; daily rows and the closing report the selected
-index. Changes to the number or timing of payments (tenor changes), the
-forecast-issuance documentation update of 35-37H and replacement debt
-designation are not modeled: periods are fixed per exposure, and a probable
-non-documented rate or fixed-rate replacement is recorded by the existing
-`probable_not_to_occur` status (37E/37K). Assets and analogies reject (37B).
+index.
+
+*Tenor changes (37C, 37I).* `choose_your_rate.option_schedules` gives a
+documented alternative its own payment schedule (`{index_id, periods}`); its
+hypothetical mirrors that schedule, and after an election to it the hedged
+payments, reclassification dates, frozen-OCI weights and pending periods follow
+it without dedesignation. Period-level forecast status (delayed or a single
+period not occurring) refuses for exposures with tenor schedules, since period
+identities change with the schedule.
+
+*Forecasted issuance (37B(a), 37C through 37H).* `choose_your_rate.forecasted_issuance`
+(evidence that issuance is probable) makes the exposure a forecasted issuance.
+A `rate_election` before issuance is a change in the best estimate (lifecycle
+kind `best_estimate_change`, same final retrospective assessment and new
+hypothetical as 37F/37G). A `debt_issued` event with the first selected
+documented index, on or before the first hedged period start, updates the
+documentation without dedesignation (reason `documentation_updated`, or the
+election mechanics first if the index differs); afterwards the 37I-37M rules
+apply. Issuance not recorded by the first hedged period refuses: the reviewer
+records a forecast status instead. An undocumented index or a probable
+non-issuance is a `probable_not_to_occur` status (37E).
+
+*Replacement debt (37K).* A `debt_replacement` event after issuance names the
+documented option at which the replacement debt accrues; the hedge continues
+(the election mechanics apply if the index differs). Replacement at an
+undocumented or fixed rate refuses as an event and is recorded as
+`probable_not_to_occur`, which reclassifies OCI at once. Assets and analogies
+reject (37B).
 
 **Swap plus written option (815-20-25-88).** A relationship may name
 `written_option_position_id`: a mapped European swaption that is `short`
@@ -327,9 +361,11 @@ proportions are tracked on the option as on the swap. The hypothetical
 derivative method is required (matched critical terms cannot describe a
 combination); the hypothetical still mirrors the forecast exposure's
 contractual terms, so a written option without a corresponding feature in the
-exposure is measured as dollar-offset mismatch, not excluded. Options expiring
-before inception, caps/floors as separate contracts and optioned hedged
-items/hypotheticals remain open.
+exposure is measured as dollar-offset mismatch, not excluded. A written option
+that expired before designation is not part of the hedging instrument and
+refuses (designate the swap alone). Caps/floors as separate contracts and
+optioned hedged items/hypotheticals (for example floored loans) need option
+products the derivative owner does not yet value and remain unavailable.
 
 **Jointly designated swaps (815-20-25-45).** A relationship may name
 `additional_instrument_position_ids`: further mapped swaps, each with the raw
@@ -575,6 +611,27 @@ FTP source kinds still refuse, as do joint deposit/derivative journals. The
 receipt records `basis=complete_tail_shared_journal_closing-1`. Report-date
 capital from the shared journal and regulatory eligibility remain supplied or
 open.
+
+## Workbench
+
+The **Hedge Accounting** panel (`apps/web/src/pages/HedgeAccounting.tsx`, rail
+section Data) is the dedicated flow over the durable `hedge-accounting-1` run:
+load the reviewed example, inspect and edit the linked derivative source,
+hedged items and forecast exposures, set the assessment band and the ASU
+2025-09 / ASU 2022-01 adoption and elections, edit designations (designation,
+instrument, proportion, item or exposure, inception, benchmark) and reviewed
+events (assess, discontinue with reason, forecast status, rate election, debt
+issuance and replacement), then run. Results show the independent replay
+receipt and approval status, with tabs for relationships, lifecycle history,
+assessments, basis and OCI roll-forwards and the journal, Parquet download per
+table, request JSON download, and reopening a stored job by id. All transport
+goes through `apps/web/src/lib/api.ts`; the panel adds no financial logic.
+Browser evidence: `apps/web/tests/hedge-accounting.spec.ts` against durable
+API/worker/web servers.
+
+Durable hedge jobs run the API storage contracts on SQLite locally and on
+PostgreSQL in the CI storage job (`TEST_POSTGRES_URL`); worker loss is covered
+by reclaim tests that keep the original publication deadline.
 
 ## Closing capital feed (`hedge-treasury-1`)
 

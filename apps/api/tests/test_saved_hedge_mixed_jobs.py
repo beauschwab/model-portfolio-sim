@@ -4,6 +4,8 @@ The native model-ledger subprocess is the financial owner. The independent hedge
 references reconstruct the formal journal and the shared daily GL before and after persistence.
 """
 from copy import deepcopy
+import os
+import uuid
 import io
 from pathlib import Path
 import pytest
@@ -12,6 +14,7 @@ from app import worker, store, persistence as db, saved_derivative_jobs as candi
 from app.artifacts import Codec, Objects, PartitionedTable, ObjectReference
 from app.repository import Repository
 from app.storage_config import StorageConfig
+from test_persistence import BACKENDS
 from app.saved_derivative_transport import verify_persisted, StoredFrames
 from portfolio_risk.analytics.saved_derivative_identity import loads, encoded
 
@@ -23,9 +26,11 @@ def raw():
     return loads(FIXTURE.read_bytes())
 
 
-@pytest.fixture
-def durable(tmp_path, monkeypatch):
-    config = StorageConfig('sqlite:///' + str(tmp_path / 'worker.db'), str(tmp_path / 'objects'), 'isolated', 'hedge')
+@pytest.fixture(params=BACKENDS)
+def durable(tmp_path, monkeypatch, request):
+    # SQLite locally; the same contracts on PostgreSQL when TEST_POSTGRES_URL is set (CI storage job).
+    url = os.environ['TEST_POSTGRES_URL'] if request.param == 'postgres' else 'sqlite:///' + str(tmp_path / 'worker.db')
+    config = StorageConfig(url, str(tmp_path / 'objects'), 'isolated', 'hedge-' + uuid.uuid4().hex)
     repo = Repository(config.database_url, config.tenant, config.workspace)
     repo.migrate()
     objects = Objects(config.artifact_url, config.tenant, config.workspace)
@@ -79,8 +84,9 @@ def test_hedge_mixed_job_publishes_and_reopens(durable):
     assert receipt['formal_hedge_relationships_replayed'] is True and receipt['complete_hedge_basis_oci_tail_verified'] is True
     assert receipt['accounting_standard_approval'] is False and receipt['capital_ftp_eligible'] is False
     assert execution['model_version'] == 'saved-hedge-mixed-1'
-    reopened = Codec(Objects(str(c['objects'].root), 'isolated', 'hedge'))
-    new = Repository(c['repo'].engine.url, 'isolated', 'hedge')
+    workspace = c['repo'].identity['workspace']
+    reopened = Codec(Objects(str(c['objects'].root), 'isolated', workspace))
+    new = Repository(c['repo'].engine.url, 'isolated', workspace)
     try:
         _, again = verify_persisted(reopened, new.job(job['id'])['result'], q['specification'])
         assert again == receipt
@@ -139,3 +145,16 @@ def test_hedge_mixed_example_route():
     from app import saved_derivative_routes
     example = saved_derivative_routes.hedge_example()
     assert example['schema'] == 'saved-hedge-mixed-1' and example == raw()
+
+
+def test_hedge_mixed_job_survives_worker_loss_with_its_original_deadline(durable):
+    c = durable
+    q, job = c['start'](execute=False)
+    c['repo'].release(job['owner'])
+    assert c['repo'].acquire('replacement-worker', 300.)
+    retry = c['repo'].claim('replacement-worker')
+    assert retry['id'] == job['id'] and retry['attempt'] == 2
+    assert c['codec'].load(retry['request'])['args'][0]['publication_deadline_unix'] == q['publication_deadline_unix']
+    worker.execute(retry)
+    row = c['repo'].job(job['id'])
+    assert row['status'] == 'done', row['detail']

@@ -93,6 +93,26 @@ refusals each, eight engine mixed-process checks (independent journal replay,
 five preparation tampers, three native refusals, cancellation and binary
 mismatch, derivative-only invariance) and seven durable API checks (publish and
 reopen, four rehashed persistence tampers, overlay drift, example route).
+Hedge workbench, storage parity and restart recovery (2026-10-17): a dedicated
+Hedge Accounting panel covers policy/adoption setup, source linking,
+designations, reviewed events, run, replay receipt, history/assessment/basis and
+OCI/journal tabs, Parquet and request download, and reopen (browser test against
+durable servers). The new mixed-journal and capital-source API suites run on
+SQLite and, with `TEST_POSTGRES_URL`, PostgreSQL; hedge and mixed hedge jobs
+survive worker loss with their original deadline.
+
+Remaining ASU 2025-09 interest-rate items (2026-10-17): qualitative similarity
+after an initial quantitative pass (55-23C), tenor-changing elections with
+option payment schedules (37C/37I), forecasted choose-your-rate issuance with
+best-estimate changes and the issuance documentation update (37B(a), 37C-37H,
+with an issuance deadline), replacement debt at a documented option (37K), and
+an explicit refusal for written options expired before designation. Evidence:
+four native tests on generated fixtures (hand values for the split-March
+payments, the issued debt's alternative-rate settlement and the replacement
+rate; seventeen refusals) and 22 engine checks (independent replay of all four
+fixtures, eight tampers, seven native refusals, the expired option). Optioned
+hedged items and caps/floors remain unavailable (no option product).
+
 ASU 2022-01 portfolio layers (2026-10-17): closed portfolios of financial
 assets under the adopted method and a reviewed breach policy; bullet and
 amortizing layers with portfolio-level basis; actual breaches (observed
@@ -137,9 +157,8 @@ FTP, posted deferred tax/threshold deductions and approval remain open.
 
 Not closed by this stage: accounting-standard approval, observed effectiveness,
 the remaining ASU 2025-09 elections, net investment, options, saved-book adoption
-beyond the shared daily journal, deferred-tax/AOCI opt-out and interim capital policy (#30/#72),
-browser flow beyond the generic model-analysis page, PostgreSQL parity and the
-60,000-position joint acceptance. Local validation does not deploy or restart workers.
+beyond the shared daily journal, deferred-tax/AOCI opt-out and interim capital policy (#30/#72)
+and the 60,000-position joint acceptance. Local validation does not deploy or restart workers.
 
 ### Issue #20 acceptance mapping
 

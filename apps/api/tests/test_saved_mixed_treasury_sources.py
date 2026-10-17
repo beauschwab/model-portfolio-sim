@@ -5,6 +5,8 @@ persisted journal against the trial balance, checks the closing statements and r
 native thirteen-ratio bridge under supplied policies. No FTP or report-date capital.
 """
 from copy import deepcopy
+import os
+import uuid
 from datetime import date
 from pathlib import Path
 import pytest
@@ -13,6 +15,7 @@ from app import worker, store, persistence as db, saved_derivative_jobs as candi
 from app.artifacts import Codec, Objects
 from app.repository import Repository
 from app.storage_config import StorageConfig
+from test_persistence import BACKENDS
 from portfolio_risk.analytics.saved_derivative_identity import loads
 from test_treasury_sources import fill_ledger
 
@@ -21,9 +24,11 @@ SOURCES = {'hedge': ROOT / 'packages/portfolio-risk/tests/fixtures/saved_hedge_m
            'derivative': ROOT / 'packages/portfolio-risk/tests/fixtures/saved_derivative_mixed/base.json'}
 
 
-@pytest.fixture
-def durable(tmp_path, monkeypatch):
-    config = StorageConfig('sqlite:///' + str(tmp_path / 'worker.db'), str(tmp_path / 'objects'), 'isolated', 'capital')
+@pytest.fixture(params=BACKENDS)
+def durable(tmp_path, monkeypatch, request):
+    # SQLite locally; the same contracts on PostgreSQL when TEST_POSTGRES_URL is set (CI storage job).
+    url = os.environ['TEST_POSTGRES_URL'] if request.param == 'postgres' else 'sqlite:///' + str(tmp_path / 'worker.db')
+    config = StorageConfig(url, str(tmp_path / 'objects'), 'isolated', 'capital-' + uuid.uuid4().hex)
     repo = Repository(config.database_url, config.tenant, config.workspace)
     repo.migrate()
     codec = Codec(Objects(config.artifact_url, config.tenant, config.workspace))
