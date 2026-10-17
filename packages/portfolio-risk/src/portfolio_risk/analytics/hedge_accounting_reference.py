@@ -326,8 +326,12 @@ def _admit(raw):
             _require(c['cyr'] and all(v is None for v in extra.values()) and ev.get('index_id') in c['members'][0]['exposure']['choose_your_rate']['documented_index_ids'], 'rate election fields')
             assessment_node()
         elif ev['kind'] == 'discontinue':
-            _require(extra['reason'] in ('dedesignation', 'hedged_item_sold', 'instrument_terminated') and extra['status'] is None, 'discontinuation fields')
+            _require(extra['reason'] in ('dedesignation', 'hedged_item_sold', 'instrument_terminated', 'hedged_item_matured') and extra['status'] is None, 'discontinuation fields')
             _require(extra['proportion'] is None or 0. < extra['proportion'] <= 1., 'discontinued proportion')
+            if extra['reason'] == 'hedged_item_matured':
+                # Settlement of the item on its principal date derecognizes the remaining basis, as a sale.
+                _require(rel['designation'] == 'fair_value_hedge' and rel.get('hedged_term_end_ordinal') is None
+                         and extra['proportion'] in (None, 1.) and c['item']['principal_ordinal'] == ev['ordinal'], 'hedged item maturity')
         else:
             _require(ev['kind'] == 'forecast_status' and rel['designation'] == 'cash_flow_hedge'
                      and extra['status'] in ('no_longer_probable', 'probable_not_to_occur', 'delayed', 'period_probable_not_to_occur')
@@ -511,7 +515,7 @@ def replay(raw, check=lambda: False):
         inst = rel['hedging_instrument_position_id']; rid = rel['relationship_id']
         if rel['designation'] == 'fair_value_hedge':
             item = c['item']; frozen = _money(q * st['basis']); st['basis'] = _money(st['basis'] - frozen)
-            if reason == 'hedged_item_sold':
+            if reason in ('hedged_item_sold', 'hedged_item_matured'):
                 journal.emit('hedged_item_basis_derecognition', t, 'financial', inst, item['item_id'], None, rid, hedge_policy, sources,
                              two('hedged_item_basis_adjustment', -c['dir'] * frozen, item['item_id'], rid, 'hedged_item_basis_derecognition'))
                 st['basis_derecognized'] = _money(st['basis_derecognized'] + frozen); record['derecognized_basis'] = frozen

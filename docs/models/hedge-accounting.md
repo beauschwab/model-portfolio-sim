@@ -94,7 +94,7 @@ A `cash_flow_hedge` relationship names `forecast_exposure_id` instead of
 `matched_critical_terms_evidence`.
 
 Events are `assess`, `discontinue` (`reason` in `dedesignation`,
-`hedged_item_sold`, `instrument_terminated`; optional `proportion` in (0,1]
+`hedged_item_sold`, `instrument_terminated`, `hedged_item_matured`; optional `proportion` in (0,1]
 of the remaining designated proportion, default 1), `forecast_status`
 (`status` in `no_longer_probable`, `probable_not_to_occur`, `delayed`,
 `period_probable_not_to_occur`; CFH only) and, under the ASU 2025-09
@@ -224,7 +224,10 @@ with reason `failed_assessment`.
 
 **Discontinuation.** For fraction `q` of the remaining proportion: FVH freezes
 `q * basis_balance`; `hedged_item_sold` derecognizes it at once
-(`hedged_item_basis_derecognition`), otherwise it amortizes per node by
+(`hedged_item_basis_derecognition`), as does `hedged_item_matured`, which is
+admitted only for a whole full-term fair-value hedge on the item's
+`principal_ordinal` (the item settles, so the remaining live basis enters
+earnings with it); otherwise it amortizes per node by
 `frozen * (t - t_disc) / (principal - t_disc)` cumulatively
 (`hedged_item_basis_amortization`), fully at or after the principal date.
 CFH freezes `q * oci_balance` for pro rata release. Proportion becomes
@@ -434,9 +437,68 @@ This lane admits single-currency fixed/floating swaps against fixed-rate
 assets/liabilities and forecast index-linked interest, with the ASU 2025-09
 similar-risk group, choose-your-rate and swap/written-option elections above.
 It does not establish accounting-standard compliance, observed effectiveness,
-portfolio-layer, net-investment, standalone option or nonfinancial coverage, saved-book or shared daily journal adoption, or
-complete-scale acceptance. Those remain open under issue #35 and are listed in
+portfolio-layer, net-investment, standalone option or nonfinancial coverage, or
+complete-scale acceptance. Shared daily journal adoption is the separate
+`saved-hedge-mixed-1` route below. Those remain open under issue #35 and are listed in
 `implementation-plan.md`.
+
+## Shared daily journal (`saved-hedge-mixed-1`)
+
+`saved-hedge-mixed-1` (native `portfolio-model-ledger`, coordinator
+`workflows/mixed/derivatives/hedges.rs`) runs formal hedge owners in the
+existing dated daily Sim and its single ordered GL. The request is the
+`saved-derivative-mixed-1` shape with one extra field per run: `hedge`, every
+`hedge-accounting-1` field except `derivative`. The coordinator binds each
+overlay to the run's exact saved Physical source (an overlay carrying its own
+`derivative` rejects), requires the overlay to be byte-identical across the
+scenario runs of an owner, and requires the hedge journal's embedded derivative
+result to equal the saved source result exactly.
+
+The formal owner's single journal (re-owned derivative postings plus basis, OCI,
+reclassification, amortization and derecognition) replaces the undesignated
+derivative intents once. Hedge openings (`hedge_opening` intents) join the one
+shared opening, never a daily intent: retained basis adds to the admitted
+opening balance sheet as a signed carrying adjustment and retained OCI reduces
+the opening-equity GL. The hedged item's contractual cash stays with its own
+source owner (in the fixture, a fully dated loan on the item's coupon dates).
+
+Ledger ownership in `portfolio-ledger-native` (`owners/derivatives.rs`):
+
+| Hedge account | Shared GL | Treatment |
+|---|---|---|
+| `hedged_item_basis_adjustment` | `hedged_item_basis_adjustment` | signed stock; gross direction not fixed |
+| `cash_flow_hedge_oci` | `cash_flow_hedge_oci` | equity outside earnings; separate from the AFS `oci` GL |
+| basis gain/loss, amortization, derecognition, forecast reclassification | `pnl:hedged_item_basis`, `pnl:hedged_item_basis_amortization`, `pnl:hedged_item_basis_derecognition`, `pnl:hedged_forecast_reclassification` | earnings |
+
+Hedge postings are keyed `@hedge:[book, relationship]`, so recognition and
+release of basis and OCI net within one relationship key; derivative postings
+keep their `@derivative:` keys. Every basis and OCI key must close by the
+complete tail, as gross derivative rights and collateral already must.
+Cash-flow-hedge OCI never enters the daily research CET1 proxy; with no hedge
+owner it is zero, so every historical route is unchanged.
+
+Admission: the derivative source's structural replay bound is charged per run
+as in the derivative-only route, plus every formal hedge posting through the
+complete mixed tail (six scans per day), within the shared 8,000,000-unit cap.
+The bound is quadratic in the horizon, so the synthetic fixture
+(`scripts/make_hedge_mixed_example.py`, `examples/models/saved-hedge-mixed-1.json`)
+rebuilds the reviewed hedge example on 10-day periods (30 days) with a baseline
+and one stress run, and settles the loan with a reviewed `hedged_item_matured`
+event.
+
+Independent verification (`saved_derivative_mixed_reference`, extended for this
+schema) re-runs `hedge_accounting_reference.verify` on every native hedge result,
+rebuilds the expected mixed postings from the independent replay (intent
+alignment must be exact; no rounding-level normalization is admitted in the
+shared GL), and then replays the persisted partitions: ordered journal, opening
+anchors with OCI outside opening equity, daily gross balances, research path
+metrics with the CET1 exclusion, ledger/attribution aggregates with hedge OCI.
+The receipt `saved-hedge-mixed-verification-1` adds
+`formal_hedge_relationships_replayed` and `complete_hedge_basis_oci_tail_verified`.
+The durable `/derivatives/mixed/runs` job accepts either schema under the
+existing original-deadline, binary, lease/token and persisted-reopen fences;
+`/derivatives/hedge-mixed/example` serves the example. Accounting-standard
+approval, capital/FTP eligibility and empirical validation remain false.
 
 ## Closing capital feed (`hedge-treasury-1`)
 

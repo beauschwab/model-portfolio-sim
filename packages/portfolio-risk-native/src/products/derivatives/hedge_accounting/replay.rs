@@ -1149,7 +1149,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let item = &r.hedged_items[cr.item.ok_or("compiled item missing")?];
                         let frozen = amount(q * st.basis)?;
                         st.basis = amount(st.basis - frozen)?;
-                        if reason == "hedged_item_sold" {
+                        if reason == "hedged_item_sold" || reason == "hedged_item_matured" {
                             let dir = cr.direction_sign;
                             ledger.emit(
                                 "hedged_item_basis_derecognition",
@@ -1432,6 +1432,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         DiscontinueReason::Dedesignation => "dedesignation",
                         DiscontinueReason::HedgedItemSold => "hedged_item_sold",
                         DiscontinueReason::InstrumentTerminated => "instrument_terminated",
+                        DiscontinueReason::HedgedItemMatured => "hedged_item_matured",
                     };
                     discontinue(
                         &mut states,

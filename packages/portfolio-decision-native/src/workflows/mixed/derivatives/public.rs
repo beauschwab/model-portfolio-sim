@@ -27,9 +27,10 @@ pub fn run_started(
     let parent = portfolio_compute_control::active();
     let original = strict_json::parse_checked(bytes, MAX_BYTES, checkpoint)?;
     let envelope: Envelope = serde_json::from_value(original).map_err(|e| e.to_string())?;
-    if envelope.request.get("schema").and_then(Value::as_str) != Some("saved-derivative-mixed-1") {
-        return Err("explicit saved derivative mixed schema required".into());
-    }
+    let schema = match envelope.request.get("schema").and_then(Value::as_str) {
+        Some(s @ ("saved-derivative-mixed-1" | super::hedges::SCHEMA)) => s.to_string(),
+        _ => return Err("explicit saved derivative or hedge mixed schema required".into()),
+    };
     let control = match parent {
         Some(p) => p.child_started(envelope.execution_timeout_ms, parse_started)?,
         None => Control::from_started(envelope.execution_timeout_ms, parse_started)?,
@@ -37,7 +38,11 @@ pub fn run_started(
     scope(Some(control), || {
         checkpoint()?;
         let request = strict_json::encode(&envelope.request, MAX_BYTES)?;
-        let encoded = super::execute(&request)?;
+        let encoded = if schema == super::hedges::SCHEMA {
+            super::hedges::execute(&request)?
+        } else {
+            super::execute(&request)?
+        };
         let mut receipt: Value = serde_json::from_slice(&encoded).map_err(|e| e.to_string())?;
         let stream = receipt
             .as_object_mut()
@@ -49,7 +54,7 @@ pub fn run_started(
         };
         let header = strict_json::encode(
             &json!({"workflow": {
-                "schema": "model-ledger-preparation-1", "model_schema": "saved-derivative-mixed-1",
+                "schema": "model-ledger-preparation-1", "model_schema": schema,
                 "source_receipt": receipt, "prepared_request": envelope.request
             }}),
             MAX_BYTES,

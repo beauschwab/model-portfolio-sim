@@ -207,3 +207,30 @@ regression gate on Windows; accounting-standard approval, observed
 effectiveness and empirical holdouts, mixed saved-derivative journal/solver/
 capital adoption and complete 60,000-position acceptance remain open exactly as
 listed in `docs/models/implementation-plan.md`.
+
+## Shared daily journal (`saved-hedge-mixed-1`, 2026-10-17)
+
+Formal hedge owners run in the existing dated daily Sim through the decision
+`portfolio-model-ledger` binary. Findings while building it:
+
+- The derivative source's structural replay bound (quadratic in the horizon)
+  is about 5.7 million work units per run for the 92-day example, and the
+  ledger requires at least one stress scenario besides baseline, so the
+  92-day example cannot run twice within the 8-million joined cap. The fixture
+  rebuilds the same hedge program on 10-day periods (30 days).
+- Keying OCI by relationship and position left recognition (under the swap)
+  and reclassification (under the forecast exposure) unnetted per key; hedge
+  postings are now keyed per relationship.
+- The fair-value basis does not reach zero at the loan's maturity without an
+  explicit settlement event; the new reviewed `hedged_item_matured` reason
+  derecognizes it on the principal date.
+- Decision-crate builds fail on this machine inside the worktree because
+  MSBuild exceeds the 260-character path limit; they ran with a short
+  `CARGO_TARGET_DIR` and the binaries were copied back to the expected path.
+
+| Gate | Command | Result |
+|---|---|---|
+| Native coordinator | decision `cargo test --release --lib hedges` | 2 passed |
+| Native hedge suites | `cargo test --release ... --test hedge_accounting ...` | see run log below |
+| Engine | `pytest tests/test_saved_hedge_mixed_process.py tests/test_saved_derivative_mixed_process.py` plus the maturity case | 15 passed |
+| API | `pytest tests/test_saved_hedge_mixed_jobs.py tests/test_saved_derivative_mixed_jobs.py` | 43 passed |

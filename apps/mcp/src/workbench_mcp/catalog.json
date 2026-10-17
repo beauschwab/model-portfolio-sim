@@ -670,6 +670,19 @@
       "path": "/derivatives/deposit-portfolio/example",
       "permission": "read"
     },
+    "get_derivatives_hedge_mixed_example": {
+      "description": "Hedge Example [GET /derivatives/hedge-mixed/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/derivatives/hedge-mixed/example",
+      "permission": "read"
+    },
     "get_derivatives_mixed_example": {
       "description": "Example [GET /derivatives/mixed/example; permission=read].",
       "inputSchema": {

@@ -80,6 +80,19 @@ journal and roll-forwards. Both oracles now treat rounding-level intents as zero
 events; the previous derivative verifier dropped native floating-noise marks for
 exactly offsetting legs, so at-market fixtures use a par rate with distinct legs.
 
+`saved-hedge-mixed-1` (2026-10-17) adopts formal hedge journals in the shared
+daily Sim and its single GL: overlays bound to the exact saved Physical source,
+the formal journal posted once in place of the undesignated intents, hedge
+openings in the shared opening, basis and OCI keyed per relationship and closed
+by the complete tail, OCI outside the AFS `oci` GL and the CET1 proxy. A reviewed
+`hedged_item_matured` discontinuation derecognizes the remaining basis on the
+item's principal date. Evidence: two native coordinator tests (shared-Sim
+posting and six refusals), one native and one engine maturity case with three
+refusals each, eight engine mixed-process checks (independent journal replay,
+five preparation tampers, three native refusals, cancellation and binary
+mismatch, derivative-only invariance) and seven durable API checks (publish and
+reopen, four rehashed persistence tampers, overlay drift, example route).
+
 `derivative-treasury-1` (2026-10-17) feeds the standalone reviewed derivative
 journal to the same bridge without hedge accounting: per-instrument cash, gross
 value, margin, opening-equity and earnings rows reconciled to the selected
@@ -104,8 +117,8 @@ that node reconciled to its trial balance; native and engine cases with refusals
 FTP, posted deferred tax/threshold deductions and approval remain open.
 
 Not closed by this stage: accounting-standard approval, observed effectiveness,
-the remaining ASU 2025-09 elections, portfolio layers, net investment, options, saved-book and shared
-daily journal adoption, deferred-tax/AOCI opt-out and interim capital policy (#30/#72),
+the remaining ASU 2025-09 elections, portfolio layers, net investment, options, saved-book adoption
+beyond the shared daily journal, deferred-tax/AOCI opt-out and interim capital policy (#30/#72),
 browser flow beyond the generic model-analysis page, PostgreSQL parity and the
 60,000-position joint acceptance. Local validation does not deploy or restart workers.
 
@@ -118,7 +131,7 @@ browser flow beyond the generic model-analysis page, PostgreSQL parity and the
 | Netting vs gross, collateral, closeout conservation | CSA/MPOR/default native cases; independent raw replay before and after persistence | dynamic IM, own default/DVA |
 | Missing mapping/CSA fail before publication | saved-derivative admission and `/derivatives/mixed/runs` publication fences | saved-book UI adoption |
 | Margin transfers never counted twice as trading loss | derivative accounting intents; mixed shared-journal replay; hedge lane reuses the same owner once | treasury/capital feed |
-| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
+| Dated settlements/exposure/margin to daily replay and treasury | mixed daily replay (`saved-derivative-mixed-1`); formal hedge journals in the same shared daily Sim (`saved-hedge-mixed-1`); formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | saved hedge graph/paired risk, strategy coefficients, treasury feed for the mixed saved-derivative journal, complete scale |
 
 ## Separate fee owner (local0.29.16; supported component validated)
 

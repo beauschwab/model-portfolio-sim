@@ -8,7 +8,7 @@ import hashlib,json,os,subprocess,sys,tempfile,threading,time,uuid
 from .balance_stream import _hash
 from .saved_derivative_identity import encoded,loads,probe,exact_identity
 from .saved_derivative_transport import DerivativeWriter,SCHEMAS,SCHEMA
-from .saved_derivative_mixed_reference import verify_preparation,verify_stream
+from .saved_derivative_mixed_reference import verify_preparation,verify_stream,SCHEMAS_SUPPORTED
 MAX_BYTES=32*1024*1024
 MAX_PARTS=65536
 
@@ -24,6 +24,7 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
         probe(cancelled)
         if time.monotonic()>=deadline:raise TimeoutError('derivative original process/publication deadline expired')
         return False
+    if type(raw)is not dict or raw.get('schema')not in SCHEMAS_SUPPORTED:raise ValueError('explicit saved derivative or hedge mixed schema required')
     check();binary=binary_path();sha=_hash(binary)
     if expected_binary is not None and sha!=expected_binary:raise RuntimeError('MODEL_VERSION_CHANGED: derivative binary differs')
     body=encoded(dict(request=raw,execution_timeout_ms=max(1,int(timeout*1000))))
@@ -55,7 +56,7 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
                     if header is None:
                         if set(message)!={'workflow'}:raise ValueError('first workflow header required')
                         header=message['workflow']
-                        if set(header)!={'schema','model_schema','prepared_request','source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=SCHEMA:raise ValueError('derivative workflow shape')
+                        if set(header)!={'schema','model_schema','prepared_request','source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=raw['schema']:raise ValueError('derivative workflow shape')
                         control=verify_preparation(raw,header['prepared_request'],header['source_receipt'],check)
                         (staging/'source.json').write_bytes(encoded(header));continue
                     if 'complete'in message:
@@ -102,7 +103,7 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
                 count+=1;size+=part['bytes']
         # Columnar metadata overhead is additional to native32MiB stream, explicit128MiB cap.
         if count>MAX_PARTS or size>128*1024*1024:raise ValueError('derivative retained transport capacity/count cap')
-        manifest=dict(version='saved-derivative-partitions-1',model_version=SCHEMA,backend='rust',binary_sha256=sha,partition_rows=partition_rows,
+        manifest=dict(version='saved-derivative-partitions-1',model_version=raw['schema'],backend='rust',binary_sha256=sha,partition_rows=partition_rows,
             validation=receipt,input=descriptors[0],modeled_source=descriptors[1],producer_completion=descriptors[2],tables=tables)
         (staging/'stderr.log').unlink()
         (staging/'manifest.json').write_bytes(encoded(manifest))

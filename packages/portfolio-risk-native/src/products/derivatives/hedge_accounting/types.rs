@@ -92,6 +92,9 @@ pub enum DiscontinueReason {
     Dedesignation,
     HedgedItemSold,
     InstrumentTerminated,
+    /// The hedged item is settled at its principal date: the remaining live basis is
+    /// derecognized into earnings with the item, exactly as on a sale (fair-value hedges only).
+    HedgedItemMatured,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

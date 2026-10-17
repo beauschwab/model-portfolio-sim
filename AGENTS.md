@@ -1123,3 +1123,10 @@ deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.
 to the same bridge with no hedge accounting: per-instrument rows reconciled to
 the selected reporting node, an optional AOCI policy block and the same interim
 selection and refusals. Mixed saved-derivative treasury feeds remain open.
+`saved-hedge-mixed-1` runs formal hedge owners in the shared dated daily Sim:
+overlays bound to the exact saved Physical source, the formal journal posted
+once in place of the undesignated intents, basis a signed stock and
+cash-flow-hedge OCI equity outside earnings, the AFS `oci` GL and the CET1
+proxy, keyed per relationship and closed by the complete tail. The reviewed
+`hedged_item_matured` reason derecognizes basis on the principal date.
+Rebuild product and decision/ledger binaries and restart workers before use.

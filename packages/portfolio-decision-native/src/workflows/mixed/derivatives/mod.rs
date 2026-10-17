@@ -704,6 +704,7 @@ mod tests {
         assert!(scope(Some(control), || execute(&bytes)).is_err());
     }
 }
+pub mod hedges;
 #[path = "public.rs"]
 pub mod public;
 

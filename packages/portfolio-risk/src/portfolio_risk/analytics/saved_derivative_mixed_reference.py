@@ -27,7 +27,18 @@ GL = {
     'posted_collateral_return_loss_expense': 'pnl:derivative_collateral_return_loss',
     'memo_custodian_asset': 'memo:derivative_custodian_asset',
     'memo_custodian_obligation': 'memo:derivative_custodian_obligation',
+    # Formal hedge accounts (saved-hedge-mixed-1 only); absent from every derivative-only journal.
+    'cash_flow_hedge_oci': 'cash_flow_hedge_oci',
+    'hedged_item_basis_adjustment': 'hedged_item_basis_adjustment',
+    'hedged_item_basis_gain_loss': 'pnl:hedged_item_basis',
+    'hedged_item_basis_amortization': 'pnl:hedged_item_basis_amortization',
+    'hedged_item_basis_derecognition': 'pnl:hedged_item_basis_derecognition',
+    'hedged_forecast_reclassification': 'pnl:hedged_forecast_reclassification',
 }
+HEDGE_CODES = {'cash_flow_hedge_oci', 'hedged_item_basis_adjustment', 'hedged_item_basis_gain_loss',
+               'hedged_item_basis_amortization', 'hedged_item_basis_derecognition', 'hedged_forecast_reclassification'}
+HEDGE_OCI = 'cash_flow_hedge_oci'
+SCHEMAS_SUPPORTED = ('saved-derivative-mixed-1', 'saved-hedge-mixed-1')
 LIABILITIES = {'derivative_liability', 'derivative_unpaid_payable',
                 'derivative_received_vm_liability', 'funding_principal',
                 'dated_interest_payable', 'dated_deferred_income'}
@@ -46,9 +57,18 @@ def instrument(key, position=None, bucket=None):
     return '@derivative:' + json.dumps([key, position, bucket], separators=(',', ':'), ensure_ascii=False)
 
 
-def posting(key, code, value, position=None, bucket=None):
+def hedge_instrument(key, relationship):
+    require(type(relationship) is str, 'hedge posting requires its relationship')
+    return '@hedge:' + json.dumps([key, relationship], separators=(',', ':'), ensure_ascii=False)
+
+
+def posting(key, code, value, position=None, bucket=None, relationship=None):
     gl = GL[code]
-    return (gl, '' if code in {'cash', 'opening_equity'} else instrument(key, position, bucket), value)
+    if code in {'cash', 'opening_equity'}:
+        return (gl, '', value)
+    if code in HEDGE_CODES:
+        return (gl, hedge_instrument(key, relationship), value)
+    return (gl, instrument(key, position, bucket), value)
 
 
 def opening_lines(saved, source):
@@ -76,6 +96,52 @@ def opening_lines(saved, source):
     return lines
 
 
+OPENING_PREFIX = 'hedge_opening:'
+
+
+def key_of(saved):
+    return book_key(saved['book'])
+
+
+def hedge_opening_lines(key, hedge):
+    """Retained seasoned basis/OCI postings join the single shared opening, in original order."""
+    lines = []
+    for intent in hedge['intents']:
+        if intent['event_id'].startswith(OPENING_PREFIX):
+            require(intent['ledger'] == 'financial', 'hedge opening ledger')
+            for p in intent['postings']:
+                lines.append(posting(key, p['account'], p['debit_amount'], p['position_id'], p['bucket'], p.get('relationship_id')))
+    return lines
+
+
+def hedge_sources(raw, receipt, check):
+    """Independent hedge journals for every run, bound to the run's exact saved Physical source.
+
+    The native results are verified against the independent replay; the expected mixed postings
+    are built from the independent replay, which must align intent by intent with the native
+    journal (no rounding-level normalization is admitted in the shared GL).
+    """
+    from .hedge_accounting_reference import replay as hedge_replay, verify as hedge_verify
+    flat = [(o, r) for o in raw['owners'] for r in o['runs']]
+    natives = receipt['native_hedges']
+    require(type(natives) is list and len(natives) == len(flat), 'native hedge source cardinality')
+    out = []
+    for owner in raw['owners']:
+        reference = owner['runs'][0]['hedge']
+        for run in owner['runs']:
+            exact(run['hedge'], reference)
+    for (owner, run), native in zip(flat, natives):
+        probe(check)
+        overlay = run['hedge']
+        require(type(overlay) is dict and 'derivative' not in overlay, 'hedge overlay is bound to the saved source')
+        request = dict(deepcopy(overlay), derivative=deepcopy(run['saved']['physical']))
+        hedge_verify(request, native, check)
+        expected = hedge_replay(request, check)
+        require(len(expected['intents']) == len(native['intents']), 'shared GL requires noise-free hedge intent alignment')
+        out.append(expected)
+    return out
+
+
 def match_rows(actual, expected, label):
     require(len(actual) == len(expected), label + ' row count')
     for got, want in zip(actual, expected):
@@ -95,7 +161,7 @@ def classified(balances, scenario, account, funding_positions):
         require(not gl.startswith('memo:'), 'custody entered financial GL')
         if gl in ('cash', 'restricted_cash'):
             totals[gl] += value
-        if gl.startswith('pnl:') or gl in {'opening_equity', 'oci'}:
+        if gl.startswith('pnl:') or gl in {'opening_equity', 'oci', HEDGE_OCI}:
             totals['equity'] -= value
         elif gl in LIABILITIES or (gl == 'book_adjustment' and
                 (s, a, _) in funding_positions):
@@ -173,13 +239,17 @@ def dated_work(raw):
 
 def verify_preparation(raw,prepared,receipt,check=lambda:False):
     probe(check)
-    require(type(raw)is dict and set(raw)=={'schema','dated','owners'} and raw['schema']=='saved-derivative-mixed-1','explicit raw mixed schema')
+    require(type(raw)is dict and set(raw)=={'schema','dated','owners'} and raw['schema']in SCHEMAS_SUPPORTED,'explicit raw mixed schema')
+    hedged=raw['schema']=='saved-hedge-mixed-1'
     require(len(encoded(raw))<=32*1024*1024,'raw byte cap')
     exact(prepared,raw)
     envelope=receipt
-    require(set(receipt)=={'schema','original_request','native_sources','joined_work_units','owner_capacity_bytes','empirical_validation','capital_ftp_eligible'},'source receipt fields')
+    fields={'schema','original_request','native_sources','joined_work_units','owner_capacity_bytes','empirical_validation','capital_ftp_eligible'}
+    if hedged:fields|={'native_hedges','accounting_standard_approval'}
+    require(set(receipt)==fields,'source receipt fields')
     exact(receipt['original_request'],raw)
     require(receipt['schema']==raw['schema']and receipt['empirical_validation']is False and receipt['capital_ftp_eligible']is False,'source permission/type')
+    require(not hedged or receipt['accounting_standard_approval']is False,'hedge approval permission')
     require(type(receipt['joined_work_units'])is int and 0<receipt['joined_work_units']<=8000000 and type(receipt['owner_capacity_bytes'])is int and 0<receipt['owner_capacity_bytes']<=128*1024*1024,'native bounded admission')
     require(type(raw['owners'])is list and 0<len(raw['owners'])<=64 and len(receipt['native_sources'])<=64,'source cardinality')
     dated, spec = raw['dated'], deepcopy(raw['dated']['specification'])
@@ -200,8 +270,15 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False):
     source_count=sum(len(o['runs'])for o in raw['owners'])
     work=dated_work(raw)
     preflight_work=standalone_upper(raw['owners'],spec['horizon_days']+1,work,check)
+    hedges=[]
+    if hedged:
+        hedges=hedge_sources(raw,receipt,check)
+        # Formal postings are reserved through the complete mixed tail, as the native coordinator does.
+        preflight_work+=sum(sum(len(i['postings'])for i in h['intents'])for h in hedges)*(spec['horizon_days']+1)*6
     expected_financial, expected_custody, expected_opening = [], [], []
     opening_stocks = defaultdict(list)
+    expected_opening_keys = []
+    hedge_open_oci = defaultdict(float)
     book_seen, netting_seen = set(), set()
     flat = [(o, r) for o in raw['owners'] for r in o['runs']]
     require(len(flat) == len(envelope['native_sources']), 'source ownership cardinality')
@@ -226,6 +303,8 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False):
         verify_saved(saved, {'original_request': saved, 'result': native},check)
         # Reconstruct from the raw financial contracts again for expected mixed postings.
         expected = checked_derive(saved['physical'],check)
+        hedge = hedges[len(expected_opening_keys)] if hedged else None
+        expected_opening_keys.append(None)
         for field in ('run','measure','basis','entity','currency','monetary_unit','policy','opening'):
             exact(native['source'][field],expected[field])
         for field in ('policy','conditional_model','crn','legal_mapping'):
@@ -233,8 +312,11 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False):
         for actual_path,expected_path in zip(native['source']['native']['paths'],expected['native']['paths']):
             for field in ('path_id','probability','source','closing_legal_review','mpor_policy','replacement_value_policy'):
                 exact(actual_path[field],expected_path[field])
-        source_opening=len(opening_lines(saved,expected));source_lines=sum(len(i['postings'])for i in expected['intents'])
-        daily_lines=sum(len(d['financial_trial_balance'])+len(d['custody_trial_balance'])for d in expected['daily'])
+        journal=hedge if hedged else expected
+        extra=hedge_opening_lines(key_of(saved),hedge)if hedged else []
+        intents=[i for i in journal['intents']if not i['event_id'].startswith(OPENING_PREFIX)]
+        source_opening=len(opening_lines(saved,expected))+len(extra);source_lines=sum(len(i['postings'])for i in intents)
+        daily_lines=sum(len(d['financial_trial_balance'])+len(d['custody_trial_balance'])for d in journal['daily'])
         work+=250000+source_opening+source_lines+daily_lines+6*(source_opening+source_lines)*(spec['horizon_days']+1)
         require(work<=8000000,'complete source replay work')
         key = book_key(saved['book'])
@@ -242,18 +324,19 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False):
         require(a.entity == expected['entity'] and a.currency == expected['currency'] and
                 asof == expected['opening']['ordinal'], 'native owner headers/date differ')
         exact(float(a.cash), float(expected['opening']['cash']))
-        for gl, identifier, value in opening_lines(saved, expected):
+        for gl, identifier, value in opening_lines(saved, expected)+extra:
             stock = gl not in {'cash', 'opening_equity'} and not gl.startswith('memo:')
+            if gl==HEDGE_OCI:hedge_open_oci[scenario,account]+=-float(value)
             expected_opening.append(dict(scenario=scenario, account=account, book_key=key,
                 ordinal=asof, gl_account=gl, instrument_id=identifier, debit_amount=float(value),
                 posted_in_shared_opening=stock, custody_memo=gl.startswith('memo:')))
             if stock and value:
                 opening_stocks[scenario, account].append((gl, identifier, float(value)))
-        for index, intent in enumerate(expected['intents']):
+        for index, intent in enumerate(intents):
             rows = expected_custody if intent['ledger'] == 'custody_memo' else expected_financial
             for posting_index, p in enumerate(intent['postings']):
                 gl, identifier, value = posting(key, p['account'], p['debit_amount'],
-                    p['position_id'], p['bucket'])
+                    p['position_id'], p['bucket'], p.get('relationship_id'))
                 rows.append(dict(scenario=scenario, account=account, book_key=key,
                     source_event_id=intent['event_id'], source_intent_index=index,
                     source_posting_index=posting_index, ordinal=intent['ordinal'], day=intent['ordinal']-asof,
@@ -265,7 +348,8 @@ def verify_preparation(raw,prepared,receipt,check=lambda:False):
     expected_opening.sort(key=lambda r: order[r['scenario']])
     probe(check)
     data=dict(spec=spec,accounts=accounts,funding_positions=funding_positions,scenarios=scenarios,
-        expected_financial=expected_financial,expected_custody=expected_custody,expected_opening=expected_opening,opening_stocks=dict(opening_stocks),asof=asof)
+        expected_financial=expected_financial,expected_custody=expected_custody,expected_opening=expected_opening,opening_stocks=dict(opening_stocks),asof=asof,
+        hedge_open_oci=dict(hedge_open_oci),hedged=hedged)
     require(work==receipt['joined_work_units'],'independent source/daily work count differs')
     require(work<=preflight_work,'observed full source/daily work exceeds raw structural reservation')
     # Data is private verified expected economics; callers receive no mutable authority.
@@ -323,7 +407,8 @@ def verify_stream(raw,control,facade,check=lambda:False):
         for account,a in accounts.items():
             got=opening.pop((scenario,account),[])
             require(len({r['transaction_id']for r in got})==1 and all(r['day']==0 for r in got),'single opening transaction')
-            want=[('cash','',float(a.cash)),('opening_equity','',-float(a.equity))]
+            # Retained cash-flow-hedge OCI is equity outside the opening equity GL.
+            want=[('cash','',float(a.cash)),('opening_equity','',-(float(a.equity)-data['hedge_open_oci'].get((scenario,account),0.)))]
             for p in spec['positions']:
                 if p.account!=account:continue
                 sign=1. if p.kind in {'loan','security','reverse_repo'}else -1.
@@ -365,6 +450,13 @@ def verify_stream(raw,control,facade,check=lambda:False):
     require(hashlib.sha256(repr(control._data).encode()).hexdigest()==control._digest,'source control mutated during stream')
     require(exact_identity(facade.completion,{'complete':True,'protocol':3}),'completion changed during replay')
     probe(check)
+    if data['hedged']:
+        return dict(schema='saved-hedge-mixed-verification-1',verified=True,native_derivative_source_recomputed=True,
+            formal_hedge_relationships_replayed=True,ordered_mixed_journal_recomputed=True,single_daily_gl_verified=True,
+            complete_gross_rights_verified=True,complete_hedge_basis_oci_tail_verified=True,
+            native_source_count=sum(len(o['runs'])for o in raw['owners']),
+            shared_journal_lines=count,daily_account_rows=path_count,dated=dated_receipt,
+            empirical_validation=False,accounting_standard_approval=False,capital_ftp_eligible=False,saved_pricing_graph_adoption=False)
     return dict(schema='saved-derivative-mixed-verification-1',verified=True,native_derivative_source_recomputed=True,
         ordered_mixed_journal_recomputed=True,single_daily_gl_verified=True,complete_gross_rights_verified=True,
         native_source_count=len(raw['owners'][0]['runs'])if len(raw['owners'])==1 else sum(len(o['runs'])for o in raw['owners']),
@@ -392,7 +484,9 @@ def metrics(state,data,scenario,day,account):
         else:asf+=principal*p.asf_weight;outflow+=principal*p.lcr_outflow_weight
         if p.classification=='htm':htm+=carrying
     hqla+=min(l2,hqla*.4/(1.-.4));outflow=max(outflow-min(inflow,.75*outflow),0.)
-    cet1=stock['equity']-a.capital_deductions;exposure=max(stock['assets'],0.)+undrawn
+    # Cash-flow-hedge OCI never enters the research CET1 proxy.
+    hedge_oci=-sum(v for (s,x,gl,_),v in state.items()if (s,x,gl)==(scenario,account,HEDGE_OCI))
+    cet1=stock['equity']-a.capital_deductions-hedge_oci;exposure=max(stock['assets'],0.)+undrawn
     ratio=lambda x,d:x/d if d>0. else None
     values=dict(aoci=0.,cash_floor=a.cash_floor,cet1=cet1,rwa=rwa,cet1_ratio=ratio(cet1,rwa),leverage_ratio=ratio(cet1,exposure),
         usable_collateral=collateral,undrawn=undrawn,hqla_proxy=hqla,lcr_proxy=ratio(hqla,outflow),nsfr_proxy=ratio(asf,rsf))
@@ -423,7 +517,7 @@ def verify_secondary_reports(facade,data,check):
                     key=r['account'],r['event'];values=events.setdefault(key,[0.,0.,0.]);money=r['debit']-r['credit']
                     if r['gl_account']=='cash':values[0]+=money
                     elif r['gl_account'].startswith('pnl:'):values[1]-=money
-                    elif r['gl_account']=='oci':values[2]-=money
+                    elif r['gl_account']in('oci',HEDGE_OCI):values[2]-=money
                 r=next(journal,None)
             for (account,event),v in events.items():
                 if any(x!=0. for x in v):ledger.append(dict(scenario=scenario,day=day,account=account,event=event,cash=v[0],earnings=v[1],aoci=v[2],memo_amount=0.))

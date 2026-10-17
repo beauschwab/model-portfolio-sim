@@ -1073,6 +1073,17 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         return Err("discontinued proportion must lie in (0, 1]".into());
                     }
                 }
+                if ev.reason == Some(DiscontinueReason::HedgedItemMatured) {
+                    let matured = rel.designation == Designation::FairValueHedge
+                        && rel.hedged_term_end_ordinal.is_none()
+                        && ev.proportion.is_none_or(|q| q == 1.)
+                        && cr
+                            .item
+                            .is_some_and(|k| r.hedged_items[k].principal_ordinal == ev.ordinal);
+                    if !matured {
+                        return Err("hedged item maturity applies to a whole full-term fair-value hedge on the item's principal date".into());
+                    }
+                }
             }
             EventKind::ForecastStatus => {
                 if rel.designation != Designation::CashFlowHedge
