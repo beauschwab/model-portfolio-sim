@@ -124,3 +124,40 @@ def test_derivative_only_schema_is_unchanged_by_the_hedge_accounts(tmp_path, mon
     assert m['model_version'] == 'saved-derivative-mixed-1'
     assert m['validation']['schema'] == 'saved-derivative-mixed-verification-1'
     assert not any(gl.startswith(('cash_flow_hedge', 'hedged_', 'pnl:hedged')) for gl in journal(manifest)['gl_account'].to_list())
+
+
+def test_designation_changes_presentation_not_economics(tmp_path, monkeypatch):
+    """#35 critical matrix: the same saved source under economic and FVH/CFH designation keeps
+    identical daily cash, derivative carrying and collateral, and complete-tail equity; only the
+    split between earnings, OCI and hedged-item basis moves under the reviewed rules."""
+    forbid_callbacks(monkeypatch)
+    designated = raw()
+    economic = deepcopy(designated)
+    economic['schema'] = 'saved-derivative-mixed-1'
+    for owner in economic['owners']:
+        for run in owner['runs']:
+            run.pop('hedge')
+    frames = {}
+    for name, request in (('designated', designated), ('economic', economic)):
+        frames[name] = journal(runtime.run(request, tmp_path / name, timeout=300., partition_rows=64)).with_columns(
+            (pl.col('debit') - pl.col('credit')).alias('v'))
+    economic_gls = ('cash', 'derivative_asset', 'derivative_liability', 'derivative_posted_vm_asset',
+                    'derivative_received_vm_liability', 'asset_principal', 'dated_interest_receivable')
+
+    def daily(frame):
+        rows = frame.filter(pl.col('gl_account').is_in(economic_gls)).group_by('scenario', 'day', 'gl_account').agg(
+            pl.col('v').sum())
+        return {(r['scenario'], r['day'], r['gl_account']): r['v'] for r in rows.iter_rows(named=True)}
+    a, b = daily(frames['designated']), daily(frames['economic'])
+    assert a.keys() == b.keys()
+    for key in a:
+        assert a[key] == pytest.approx(b[key], rel=1e-12, abs=1e-9), key
+
+    def equity(frame):
+        rows = frame.filter(pl.col('gl_account').str.starts_with('pnl:') | pl.col('gl_account').is_in(
+            ('opening_equity', 'cash_flow_hedge_oci', 'hedged_item_basis_adjustment')))
+        return rows['v'].sum()
+    assert equity(frames['designated']) == pytest.approx(equity(frames['economic']), rel=1e-12, abs=1e-9)
+    oci = frames['designated'].filter(pl.col('gl_account') == 'cash_flow_hedge_oci')
+    assert oci.height > 0 and oci['v'].abs().max() > 1e-9
+    assert not frames['economic'].filter(pl.col('gl_account').str.contains('hedge')).height

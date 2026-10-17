@@ -1130,7 +1130,7 @@ proxy, keyed per relationship and closed by the complete tail. The reviewed
 `hedged_item_matured` reason derecognizes basis on the principal date.
 The Hedge Accounting panel is the dedicated browser flow over durable hedge-accounting-1
 runs (transport only, through `lib/api.ts`).
-Remaining ASU 2025-09 rate items: qualitative similarity after a quantitative pass,
+ASU 2025-09 rate follow-through is supported: qualitative similarity after a quantitative pass,
 tenor option schedules, forecasted choose-your-rate issuance (best-estimate change,
 `debt_issued` documentation update, issuance deadline) and `debt_replacement`.
 ASU 2022-01 portfolio layers: closed-portfolio items under the adopted method and
@@ -1141,4 +1141,9 @@ last-designated-first or pro rata. See docs/models/hedge-accounting.md.
 Verified saved derivative and hedge mixed jobs are `ledger` sources for
 `/treasury/bridges` at their complete-tail date (receipt-gated; the native
 bridge classifies gross derivative GLs); credit/FTP kinds still refuse.
+Opt-in `receive_fixed_swap_5y`/`pay_fixed_swap_5y` monthly strategy units carry net
+settlement NII, DV01 and a research RWA weight per notional. They are off balance
+sheet: no balance, asset, liability, funding or liquidity rows, and the solver
+excludes them from asset caps and ALL_ASSET/ALL_LIAB selectors. An allocation never
+designates a hedge. See docs/models/swap-strategy-units.md.
 Rebuild product and decision/ledger binaries and restart workers before use.

@@ -528,13 +528,34 @@ no native callbacks. A receipt is returned only when the whole result passes.
 ## Scope statement
 
 This lane admits single-currency fixed/floating swaps against fixed-rate
-assets/liabilities and forecast index-linked interest, with the ASU 2025-09
-similar-risk group, choose-your-rate and swap/written-option elections above.
-It does not establish accounting-standard compliance, observed effectiveness,
-portfolio-layer, net-investment, standalone option or nonfinancial coverage, or
-complete-scale acceptance. Shared daily journal adoption is the separate
-`saved-hedge-mixed-1` route below. Those remain open under issue #35 and are listed in
-`implementation-plan.md`.
+assets/liabilities, closed-portfolio layers, and forecast index-linked interest,
+with the ASU 2025-09 similar-risk group, choose-your-rate and swap/written-option
+elections above. The shared daily journal is the separate `saved-hedge-mixed-1`
+route below, and closing capital is fed from either verified journal.
+
+ASU 2025-09 coverage by area:
+
+| Area | Status |
+|---|---|
+| Similar-risk grouping, including qualitative support | implemented |
+| Choose-your-rate debt: tenor schedules, forecasted issuance, replacement debt | implemented |
+| Net written option combined with a swap | implemented |
+| Nonfinancial price-component cash-flow hedges | refused; follow-up [#88](https://github.com/beauschwab/model-portfolio-sim/issues/88) |
+| Dual hedge of foreign-currency debt, and net-investment hedges | refused; follow-up [#89](https://github.com/beauschwab/model-portfolio-sim/issues/89) |
+
+Other work tracked outside this lane:
+
+- Saved derivative trades in the native pricing graph with paired curve risk:
+  [#90](https://github.com/beauschwab/model-portfolio-sim/issues/90).
+- Rust application services and an independent Rust verifier, replacing the
+  current FastAPI transport and Python reference: #46 and #47. The repository
+  production contract keeps Python as transport and independent verification
+  today, which is what this lane uses.
+- Dynamic initial margin and complete 60,000-position mixed acceptance: #51.
+
+This lane does not establish accounting-standard compliance, observed hedge
+effectiveness, or production deployment. Those need reviewed entity policies,
+observed data and a release, which code alone cannot supply.
 
 ## Shared daily journal (`saved-hedge-mixed-1`)
 
