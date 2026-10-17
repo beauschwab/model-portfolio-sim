@@ -16,6 +16,9 @@ reclassification, frozen OCI release, basis amortization/derecognition and one
 ordered journal. See [the contract](hedge-accounting.md). The rule matrix is
 `asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 dual-hedge election,
 net investment, standalone options and defaulted paths refuse explicitly.
+Partial-term fair-value hedges (`hedged_term_end_ordinal`, 815-25-35-13B) measure
+the benchmark component to an assumed maturity at a coupon period end and amortize
+frozen basis to that date (native and engine hand-value cases with refusals).
 Relationships designated before the derivative opening date carry a reviewed
 `opening` block (hedged value, cumulative changes, basis/OCI balance) posted once
 against opening equity, with measurement continuing from the derivative opening

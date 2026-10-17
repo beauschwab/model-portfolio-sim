@@ -311,6 +311,10 @@ pub struct Relationship {
     /// Required exactly when `inception_ordinal` precedes the derivative opening date.
     #[serde(default)]
     pub opening: Option<RelationshipOpening>,
+    /// Partial-term fair-value hedge (815-25-35-13B): the hedged item's benchmark cash flows are
+    /// measured as if the item matured at this period end, which also bounds basis amortization.
+    #[serde(default)]
+    pub hedged_term_end_ordinal: Option<i32>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -562,6 +566,8 @@ pub struct RelationshipClosing {
     pub written_option_position_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_evidence: Option<Identity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hedged_term_end_ordinal: Option<i32>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct HedgeAccountingResult {

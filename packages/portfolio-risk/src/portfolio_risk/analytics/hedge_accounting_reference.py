@@ -70,19 +70,21 @@ def _year(start, end, convention):
     return 0. if start == end else _tau(start, end, convention)
 
 
-def _unit_clean(item, rate, dfs, t, before):
+def _unit_clean(item, rate, dfs, t, before, term_end=None):
     active = (lambda pay: pay >= t) if before else (lambda pay: pay > t)
+    term_end = item['principal_ordinal'] if term_end is None else term_end
     dirty = accrued = 0.
     for p in item['periods']:
+        if p['end_ordinal'] > term_end: continue
         tau = _tau(p['start_ordinal'], p['end_ordinal'], p['day_count'])
         if active(p['payment_ordinal']):
             _require(p['payment_ordinal'] in dfs, 'missing exact hedged item discount point')
             dirty += rate * tau * dfs[p['payment_ordinal']]
             if p['end_ordinal'] <= t: accrued += rate * tau
         if p['start_ordinal'] <= t < p['end_ordinal']: accrued += rate * _year(p['start_ordinal'], t, p['day_count'])
-    if active(item['principal_ordinal']):
-        _require(item['principal_ordinal'] in dfs, 'missing exact principal discount point')
-        dirty += dfs[item['principal_ordinal']]
+    if active(term_end):
+        _require(term_end in dfs, 'missing exact principal discount point')
+        dirty += dfs[term_end]
     return _money(dirty - accrued)
 
 
@@ -232,10 +234,13 @@ def _admit(raw):
             hedged_total[item['item_id']] = hedged_total.get(item['item_id'], 0.) + hedged
             _require(hedged_total[item['item_id']] <= item['notional'] + 1e-9, 'item over-hedged')
             _require(any(q['start_ordinal'] == inception for q in item['periods']), 'item inception boundary')
+            end = rel.get('hedged_term_end_ordinal')
+            _require(end is None or inception < end < item['principal_ordinal'] and any(q['end_ordinal'] == end for q in item['periods']), 'partial-term end')
             entry.update(item=item, dir=1. if item['direction'] == 'asset' else -1.)
             if opening is not None: _require(_near(opening['basis_balance'] + math.fsum(t_['amount'] for t_ in opening.get('frozen_basis') or []), -entry['dir'] * opening['cumulative_hedged_change']), 'seasoned basis plus frozen equals signed cumulative hedged change')
         else:
-            _require(rel['designation'] == 'cash_flow_hedge' and rel['hedged_item_id'] is None and rel['hedged_notional'] is None and rel['benchmark_rate'] is None, 'CFH inputs')
+            _require(rel['designation'] == 'cash_flow_hedge' and rel['hedged_item_id'] is None and rel['hedged_notional'] is None and rel['benchmark_rate'] is None
+                     and rel.get('hedged_term_end_ordinal') is None, 'CFH inputs')
             _require(reviews[inst]['coupon_recognition'] == 'settle_derivative_carrying', 'CFH coupon policy')
             group = rel.get('group')
             if group is not None:
@@ -525,7 +530,8 @@ def replay(raw, check=lambda: False):
                 if t >= rel['inception_ordinal']:
                     swap = _swap_of(node, inst)
                     dfs = _discount(swap['discount_curve'], t, raw['currency'], swap['valuation_cutoff_unix_seconds'])
-                    before = _unit_clean(item, rate, dfs, t, True); unit = _unit_clean(item, rate, dfs, t, False)
+                    term_end = rel.get('hedged_term_end_ordinal')
+                    before = _unit_clean(item, rate, dfs, t, True, term_end); unit = _unit_clean(item, rate, dfs, t, False, term_end)
                     if st['status'] == 'qualified':
                         d_c = _money(hedged * st['scale'] * (before - st['unit']))
                         if d_c != 0.:
@@ -536,8 +542,9 @@ def replay(raw, check=lambda: False):
                             st['cum_e'] = _money(st['cum_e'] - c['dir'] * d_c)
                     st['unit'] = unit; st['last_clean'] = _money(hedged * st['scale'] * unit)
                 for tranche in st['frozen_basis']:
-                    if item['principal_ordinal'] <= tranche['start']: target = tranche['amount']
-                    else: target = _money(tranche['amount'] * min(1., (t - tranche['start']) / (item['principal_ordinal'] - tranche['start'])))
+                    term_end = rel.get('hedged_term_end_ordinal') or item['principal_ordinal']
+                    if term_end <= tranche['start']: target = tranche['amount']
+                    else: target = _money(tranche['amount'] * min(1., (t - tranche['start']) / (term_end - tranche['start'])))
                     delta = _money(target - tranche['amortized'])
                     if delta != 0.:
                         journal.emit('hedged_item_basis_amortization', t, 'financial', inst, item['item_id'], None, rid, hedge_policy,
@@ -710,6 +717,7 @@ def replay(raw, check=lambda: False):
         if c['cyr']: relationships[-1]['selected_index_id'] = st['members'][0]['selected']
         if rel.get('written_option_position_id') is not None: relationships[-1]['written_option_position_id'] = rel['written_option_position_id']
         if rel.get('opening') is not None: relationships[-1]['opening_evidence'] = deepcopy(rel['opening']['evidence'])
+        if rel.get('hedged_term_end_ordinal') is not None: relationships[-1]['hedged_term_end_ordinal'] = rel['hedged_term_end_ordinal']
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))

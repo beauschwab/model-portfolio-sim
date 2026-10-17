@@ -225,3 +225,37 @@ def test_integer_categories_for_typed_money_verify_but_clock_categories_stay_exa
     assert result['relationships'][0]['designated_proportion'] == 1.
     changed = deepcopy(result); changed['lifecycle'][0]['ordinal'] = float(changed['lifecycle'][0]['ordinal'])
     with pytest.raises(ValueError): verify(request, changed)
+
+
+def item_unit_partial(t, term_end=MAR1):
+    """Benchmark-component unit value with the principal assumed repaid at the hedged term end."""
+    r = curve(t); dirty = accrued = 0.
+    for s, e in PERIODS:
+        if e > term_end: continue
+        if e > t: dirty += .06 * (e - s) / 360. * df(r, e - t)
+        if s <= t < e: accrued += .06 * (t - s) / 360.
+    if term_end > t: dirty += df(r, term_end - t)
+    return dirty - accrued
+
+
+def test_partial_term_fair_value_hedge_measures_to_the_assumed_maturity():
+    request = raw(); request['relationships'][0]['hedged_term_end_ordinal'] = MAR1
+    request['events'] = [event('assess', 'fvh-1', FEB1, 0)]
+    result = run(request); assert verify(request, result)['verified']
+    jan1 = item_unit_partial(JAN1); a = result['assessments'][0]
+    d = swap_value(FEB1, .06) - swap_value(JAN1, .06); e = -100. * (item_unit_partial(FEB1) - jan1)
+    near(a['cumulative_instrument_change'], d); near(a['cumulative_hedged_change'], e); near(a['ratio'], d / e)
+    assert not a['qualified'] and a['ratio'] > 1.25
+    record = next(l for l in result['lifecycle'] if l['kind'] == 'assessment'); frozen = 100. * (item_unit_partial(FEB1) - jan1)
+    near(record['frozen_basis'], frozen)
+    mid = next(x for x in result['daily'] if x['ordinal'] == FEB1 + 14)['relationships'][0]
+    near(mid['frozen_basis_balance'], frozen * (1. - 14. / 29.))
+    early = next(x for x in result['daily'] if x['ordinal'] == JAN1 + 14)['relationships'][0]; near(early['hedged_item_clean_value'], 100. * item_unit_partial(JAN1 + 14))
+    at_end = next(x for x in result['daily'] if x['ordinal'] == MAR1)['relationships'][0]; near(at_end['frozen_basis_balance'], 0.)
+    near(result['closing'][0]['basis_amortized'], frozen); near(result['closing'][0]['basis_closing'], 0.)
+    assert result['relationships'][0]['hedged_term_end_ordinal'] == MAR1 and 'hedged_term_end_ordinal' not in result['relationships'][1]
+    for end in (FEB1 + 3, APR1, JAN1):
+        bad = deepcopy(request); bad['relationships'][0]['hedged_term_end_ordinal'] = end
+        with pytest.raises(ValueError): run(bad)
+    cfh = deepcopy(request); cfh['relationships'][1]['hedged_term_end_ordinal'] = MAR1
+    with pytest.raises(ValueError): run(cfh)

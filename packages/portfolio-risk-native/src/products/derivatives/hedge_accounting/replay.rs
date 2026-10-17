@@ -217,6 +217,7 @@ fn unit_clean(
     curve: &DiscountCurve,
     t: i32,
     timing: PaymentTiming,
+    term_end: i32,
 ) -> Result<f64, String> {
     let active = |pay: i32| {
         if timing == PaymentTiming::BeforeScheduledPayments {
@@ -227,7 +228,7 @@ fn unit_clean(
     };
     let mut dirty = 0.;
     let mut accrued = 0.;
-    for p in &item.periods {
+    for p in item.periods.iter().filter(|p| p.end_ordinal <= term_end) {
         let tau = actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count)?;
         if active(p.payment_ordinal) {
             dirty += rate * tau * curve.at(p.payment_ordinal)?;
@@ -239,8 +240,9 @@ fn unit_clean(
             accrued += rate * actual_year_fraction(p.start_ordinal, t, p.day_count)?;
         }
     }
-    if active(item.principal_ordinal) {
-        dirty += curve.at(item.principal_ordinal)?;
+    // Partial-term hedges assume the principal is repaid at the hedged term end (815-25-35-13B).
+    if active(term_end) {
+        dirty += curve.at(term_end)?;
     }
     amount(dirty - accrued)
 }
@@ -718,6 +720,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                     let item = &r.hedged_items[cr.item.ok_or("compiled item missing")?];
                     let hedged = rel.hedged_notional.ok_or("hedged notional missing")?;
                     let rate = rel.benchmark_rate.ok_or("benchmark rate missing")?;
+                    let term_end = rel
+                        .hedged_term_end_ordinal
+                        .unwrap_or(item.principal_ordinal);
                     if t >= rel.inception_ordinal {
                         let curve = node_curve(node, instrument)?;
                         // Settled item cash is excluded exactly as the derivative owner excludes coupons:
@@ -728,6 +733,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             curve,
                             t,
                             PaymentTiming::BeforeScheduledPayments,
+                            term_end,
                         )?;
                         let unit = unit_clean(
                             item,
@@ -735,6 +741,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                             curve,
                             t,
                             PaymentTiming::AfterScheduledPayments,
+                            term_end,
                         )?;
                         if st.status == Status::Qualified {
                             let prev = st
@@ -773,11 +780,11 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         st.last_clean = Some(amount(hedged * st.scale * unit)?);
                     }
                     for tranche in &mut st.frozen_basis {
-                        let target = if item.principal_ordinal <= tranche.start {
+                        let target = if term_end <= tranche.start {
                             tranche.amount
                         } else {
                             let fraction = (f64::from(t - tranche.start)
-                                / f64::from(item.principal_ordinal - tranche.start))
+                                / f64::from(term_end - tranche.start))
                             .min(1.);
                             amount(tranche.amount * fraction)?
                         };
@@ -1621,6 +1628,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             },
             written_option_position_id: rel.written_option_position_id.clone(),
             opening_evidence: rel.opening.as_ref().map(|o| o.evidence.clone()),
+            hedged_term_end_ordinal: rel.hedged_term_end_ordinal,
         });
         let frozen_basis: f64 = st.frozen_basis.iter().map(|x| x.amount - x.amortized).sum();
         let frozen_oci: f64 = st.frozen_oci.iter().map(|x| x.amount - x.released).sum();

@@ -21,7 +21,7 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Designation and documentation (815-20-25) | Relationship identity, risk-management objective, documentation, instrument, hedged item/exposure, designated proportion, hedged risk and inception date are mandatory retained inputs. Missing or unsupported values reject. |
 | Hedged risk | `benchmark_interest_rate` only. The benchmark coupon component of a fixed-rate instrument (FVH) or the variability of forecast index-linked interest (CFH). Credit, FX, price-component, total-cash-flow and prepayment risks reject. |
 | Effectiveness assessment (815-20-35) | `cumulative_dollar_offset` with explicit reviewed `lower_bound`/`upper_bound`. The band is policy input; no universal band is coded. Regression, qualitative and shortcut methods reject. CFH without a supplied hypothetical requires reviewed `matched_critical_terms_evidence` and exact native term matching. |
-| Fair-value hedge recognition (815-25-35) | Instrument marks stay in earnings. The hedged item's benchmark-component clean value change is posted daily as a basis adjustment with the offset in earnings. Discontinuation freezes the basis; it is amortized straight-line by actual days to the item's principal date, or derecognized on sale. |
+| Fair-value hedge recognition (815-25-35) | Instrument marks stay in earnings. The hedged item's benchmark-component clean value change is posted daily as a basis adjustment with the offset in earnings. A partial-term hedge (`hedged_term_end_ordinal`, 815-25-35-13B) measures the benchmark cash flows as if the item matured at that coupon period end. Discontinuation freezes the basis; it is amortized straight-line by actual days to the item's principal date (the assumed maturity for a partial-term hedge), or derecognized on sale. |
 | Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
 | ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
@@ -164,7 +164,11 @@ C_t = B_t - A_t
 ```
 
 A period is active with before-payment timing when `pay_i >= t`, otherwise
-when `pay_i > t`. `C_t` is continuous across coupon payments. The daily basis
+when `pay_i > t`. With `hedged_term_end_ordinal = T` (an item period end after
+inception and before the principal date) only periods ending at or before `T`
+enter the sum and the principal is discounted at `T` instead of the principal
+date, so the hedged benchmark cash flows are those of an item maturing at the
+end of the hedged term. `C_t` is continuous across coupon payments. The daily basis
 adjustment is `dC_t = C_t(before payments) - C_{t-1}(after payments)`, starting
 from the inception node's after-payment `C`, so settled coupons and the
 principal repayment are excluded exactly as the derivative owner excludes
@@ -378,7 +382,7 @@ explicit flags: `accounting_standard_approval=false`,
 (`similar_risk`, assessment and lifecycle `index_id`, `effective_ordinal`,
 `earnings_catch_up`, `reversed_reclassification`, daily `members`,
 `member_exposure_ids`, `selected_index_id`, `written_option_position_id`,
-`opening_evidence`) appear only for relationships
+`opening_evidence`, `hedged_term_end_ordinal`) appear only for relationships
 that use an election, so results without elections are unchanged.
 
 Journal accounts are the derivative owner's accounts plus

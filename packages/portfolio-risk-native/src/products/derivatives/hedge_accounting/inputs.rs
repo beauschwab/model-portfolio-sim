@@ -697,6 +697,16 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         "inception must be an accrual-free start of a hedged item period".into(),
                     );
                 }
+                if let Some(end) = rel.hedged_term_end_ordinal {
+                    // The assumed maturity is a coupon period end after inception and before the
+                    // item's principal date; its payment date must be exactly discountable.
+                    if end <= inception
+                        || end >= item.principal_ordinal
+                        || !item.periods.iter().any(|q| q.end_ordinal == end)
+                    {
+                        return Err("partial-term hedge requires an item period end after inception and before the principal date".into());
+                    }
+                }
                 let direction_sign = if item.direction == ItemDirection::Asset {
                     1.
                 } else {
@@ -727,6 +737,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 if rel.hedged_item_id.is_some()
                     || rel.hedged_notional.is_some()
                     || rel.benchmark_rate.is_some()
+                    || rel.hedged_term_end_ordinal.is_some()
                 {
                     return Err("cash-flow relationships cannot carry hedged item inputs".into());
                 }

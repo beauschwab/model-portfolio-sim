@@ -669,3 +669,87 @@ fn protocol_envelope_dispatch_bounds_and_rejections() {
     let (_, ok) = portfolio_risk_native::term_protocol::respond(text.as_bytes());
     assert!(!ok, "duplicate keys must reject");
 }
+
+/// Benchmark-component unit value with the principal assumed repaid at the hedged term end.
+fn item_unit_partial(t: i32, term_end: i32) -> f64 {
+    let r = curve_rate(t);
+    let mut dirty = 0.;
+    let mut accrued = 0.;
+    for (s, e) in periods() {
+        if e > term_end {
+            continue;
+        }
+        let tau = f64::from(e - s) / 360.;
+        if e > t {
+            dirty += 0.06 * tau * df(r, e - t);
+        }
+        if s <= t && t < e {
+            accrued += 0.06 * f64::from(t - s) / 360.;
+        }
+    }
+    if term_end > t {
+        dirty += df(r, term_end - t);
+    }
+    dirty - accrued
+}
+
+#[test]
+fn partial_term_fair_value_hedge_measures_to_the_assumed_maturity() {
+    let mut v = with_events(raw(), vec![assess("fvh-1", day(2, 1), 0)]);
+    v["relationships"][0]["hedged_term_end_ordinal"] = json!(day(3, 1));
+    let result = run(&v).unwrap();
+    let jan1 = item_unit_partial(day(1, 1), day(3, 1));
+    let a = &result.assessments[0];
+    let d = swap_value(day(2, 1), 0.06) - swap_value(day(1, 1), 0.06);
+    let e = -100. * (item_unit_partial(day(2, 1), day(3, 1)) - jan1);
+    close(a.cumulative_instrument_change, d);
+    close(a.cumulative_hedged_change, e);
+    close(a.ratio.unwrap(), d / e);
+    assert!(!a.qualified && a.ratio.unwrap() > 1.25);
+    let record = result
+        .lifecycle
+        .iter()
+        .find(|l| l.kind == "assessment")
+        .unwrap();
+    let frozen = 100. * (item_unit_partial(day(2, 1), day(3, 1)) - jan1);
+    close(record.frozen_basis, frozen);
+    let mid = &result
+        .daily
+        .iter()
+        .find(|x| x.ordinal == day(2, 15))
+        .unwrap()
+        .relationships[0];
+    close(mid.frozen_basis_balance, frozen * (1. - 14. / 29.));
+    let early = &result
+        .daily
+        .iter()
+        .find(|x| x.ordinal == day(1, 15))
+        .unwrap()
+        .relationships[0];
+    close(
+        early.hedged_item_clean_value.unwrap(),
+        100. * item_unit_partial(day(1, 15), day(3, 1)),
+    );
+    let at_end = &result
+        .daily
+        .iter()
+        .find(|x| x.ordinal == day(3, 1))
+        .unwrap()
+        .relationships[0];
+    close(at_end.frozen_basis_balance, 0.);
+    close(result.closing[0].basis_amortized, frozen);
+    close(result.closing[0].basis_closing, 0.);
+    assert_eq!(
+        result.relationships[0].hedged_term_end_ordinal,
+        Some(day(3, 1))
+    );
+    assert!(result.relationships[1].hedged_term_end_ordinal.is_none());
+    for end in [day(2, 4), day(4, 1), day(1, 1)] {
+        let mut bad = v.clone();
+        bad["relationships"][0]["hedged_term_end_ordinal"] = json!(end);
+        assert!(run(&bad).is_err(), "{end} must reject");
+    }
+    let mut cfh = v.clone();
+    cfh["relationships"][1]["hedged_term_end_ordinal"] = json!(day(3, 1));
+    assert!(run(&cfh).is_err());
+}
