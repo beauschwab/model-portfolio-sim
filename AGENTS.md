@@ -1129,6 +1129,11 @@ once in place of the undesignated intents, basis a signed stock and
 cash-flow-hedge OCI equity outside earnings, the AFS `oci` GL and the CET1
 proxy, keyed per relationship and closed by the complete tail. The reviewed
 `hedged_item_matured` reason derecognizes basis on the principal date.
+ASU 2022-01 portfolio layers: closed-portfolio items under the adopted method and
+a reviewed breach policy; bullet or amortizing layers keep portfolio-level basis;
+observed balances (actual breach: basis to earnings) and reviewed projections
+(anticipated breach: basis amortized to final maturity) dedesignate layers
+last-designated-first or pro rata. See docs/models/hedge-accounting.md.
 Verified saved derivative and hedge mixed jobs are `ledger` sources for
 `/treasury/bridges` at their complete-tail date (receipt-gated; the native
 bridge classifies gross derivative GLs); credit/FTP kinds still refuse.

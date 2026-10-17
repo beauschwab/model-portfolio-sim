@@ -50,6 +50,66 @@ pub enum Reclassification {
 #[serde(rename_all = "snake_case")]
 pub enum ItemKind {
     FixedRateInstrument,
+    /// ASU 2022-01 closed portfolio of prepayable fixed-rate financial assets, hedged only
+    /// through portfolio-layer relationships (815-20-25-12A, 815-25-35-1(c)).
+    ClosedPortfolio,
+}
+/// Order in which a breach dedesignates layers (a consistently applied reviewed policy).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BreachOrder {
+    /// The most recently designated layer is dedesignated first.
+    LastDesignatedFirst,
+    /// Every affected layer is dedesignated pro rata to its current amount.
+    ProRata,
+}
+/// Reviewed ASU 2022-01 portfolio-layer policy. Basis on an anticipated breach is allocated to
+/// the remaining assets and amortized straight-line to the closed portfolio's final maturity;
+/// basis on an actual breach is recognized in earnings at once (815-25-40-8/9).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioLayerPolicy {
+    pub identity: Identity,
+    pub breach_order: BreachOrder,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioMember {
+    pub asset_id: String,
+    pub source: Identity,
+    pub prepayable: bool,
+}
+/// Observed outstanding amortized-cost basis of the closed portfolio at a path node.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioBalance {
+    pub ordinal: i32,
+    pub outstanding: f64,
+}
+/// Reviewed projection, made at `ordinal`, of the amount expected outstanding at a layer end.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioProjection {
+    pub ordinal: i32,
+    pub term_end_ordinal: i32,
+    pub anticipated: f64,
+}
+/// Closed-portfolio membership, observed balances and reviewed surviving-amount projections.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClosedPortfolio {
+    pub members: Vec<PortfolioMember>,
+    pub balance_source: Identity,
+    pub balances: Vec<PortfolioBalance>,
+    pub projection_evidence: Identity,
+    pub projections: Vec<PortfolioProjection>,
+}
+/// Amount of an amortizing layer outstanding during the hedged item period ending on `period_end_ordinal`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LayerAmount {
+    pub period_end_ordinal: i32,
+    pub amount: f64,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -165,6 +225,9 @@ pub struct Policy {
     pub cfh_reclassification: Reclassification,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forecast_timing: Option<ForecastTimingPolicy>,
+    /// Required when the ASU 2022-01 portfolio-layer method is adopted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portfolio_layer: Option<PortfolioLayerPolicy>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -187,6 +250,9 @@ pub struct HedgedItem {
     pub contractual_rate: f64,
     pub periods: Vec<Period>,
     pub principal_ordinal: i32,
+    /// Required exactly for `closed_portfolio` items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portfolio: Option<ClosedPortfolio>,
 }
 /// Documented choose-your-rate options (815-30-35-37D/37J); `index_id` is the initial selection.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -339,6 +405,10 @@ pub struct Relationship {
     /// combination is one hedging instrument for clean value, cumulative change and mark ownership.
     #[serde(default)]
     pub additional_instrument_position_ids: Vec<String>,
+    /// Amortizing portfolio layer (ASU 2022-01): the layer amount outstanding in each hedged
+    /// period through the layer end; the first amount equals `hedged_notional`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layer_amortization: Option<Vec<LayerAmount>>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -528,6 +598,9 @@ pub struct LifecycleRecord {
     pub period_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub new_payment_ordinal: Option<i32>,
+    /// Portfolio-layer breach: the layer amount dedesignated by this record.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub breach_amount: Option<f64>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct DailyMember {
@@ -598,6 +671,18 @@ pub struct RelationshipClosing {
     pub selected_index_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub written_option_position_id: Option<String>,
+    /// Portfolio layer: the layer amount still designated at the closing node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layer_amount: Option<f64>,
+    /// Portfolio layer: cumulative amounts dedesignated by anticipated and actual breaches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anticipated_breach_amount: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actual_breach_amount: Option<f64>,
+    /// The portfolio-level basis is never allocated to individual assets for credit-loss
+    /// measurement while hedged (815-25-35-1(c)); this lane computes no credit losses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub basis_excluded_from_credit_loss_measurement: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_evidence: Option<Identity>,
     #[serde(skip_serializing_if = "Option::is_none")]

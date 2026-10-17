@@ -235,3 +235,4 @@ Formal hedge owners run in the existing dated daily Sim through the decision
 | Engine | `pytest tests/test_saved_hedge_mixed_process.py tests/test_saved_derivative_mixed_process.py` plus the maturity case | 15 passed |
 | API | `pytest tests/test_saved_hedge_mixed_jobs.py tests/test_saved_derivative_mixed_jobs.py` | 43 passed |
 | Closing capital from the shared journal | `pytest tests/test_saved_mixed_treasury_sources.py` plus the derivative and joint capital permission tests | 12 passed (independent ratio recomputation for both schemas) |
+| Portfolio layers (ASU 2022-01) | native `--test hedge_portfolio_layer`; engine `tests/test_hedge_portfolio_layer.py` with every hedge suite and the mixed process suite | 3 passed; 26 passed within 148 (hedge suites, mixed process); API hedge jobs 28 passed after rebuilding product and decision binaries |

@@ -14,8 +14,9 @@ exposures, append-only lifecycle, cumulative dollar-offset assessment under revi
 bounds at accrual-free dates, mark re-ownership into OCI, hedged-period
 reclassification, frozen OCI release, basis amortization/derecognition and one
 ordered journal. See [the contract](hedge-accounting.md). The rule matrix is
-`asc815-asu2017-12`; ASU 2022-01 layers, the ASU 2025-09 dual-hedge election,
-net investment, standalone options and defaulted paths refuse explicitly.
+`asc815-asu2017-12`; ASU 2022-01 portfolio layers run under their adopted
+method (below); the ASU 2025-09 dual-hedge election, net investment, standalone
+options and defaulted paths refuse explicitly.
 Forecast timing follows a reviewed `forecast_timing` policy: a hedged period
 delayed within the documented window keeps its measured settlement and posts
 on the new date, and a single period probable of not occurring releases its
@@ -92,6 +93,17 @@ refusals each, eight engine mixed-process checks (independent journal replay,
 five preparation tampers, three native refusals, cancellation and binary
 mismatch, derivative-only invariance) and seven durable API checks (publish and
 reopen, four rehashed persistence tampers, overlay drift, example route).
+ASU 2022-01 portfolio layers (2026-10-17): closed portfolios of financial
+assets under the adopted method and a reviewed breach policy; bullet and
+amortizing layers with portfolio-level basis; actual breaches (observed
+balances) recognize the dedesignated basis at once and anticipated breaches
+(reviewed projections) amortize it to the portfolio's final maturity, under
+last-designated-first or pro-rata order; the basis stays out of credit-loss
+measurement. Evidence: three native tests (both breach kinds scaled exactly
+from the example's basis, a pro-rata actual breach, an amortizing layer's
+inception value by hand, seventeen refusals) and 26 engine checks (independent
+replay of both cases, ten tampers, eight native refusals).
+
 Closing capital from either verified shared journal (2026-10-17): the treasury
 store admits completed saved derivative/hedge mixed jobs by their retained
 receipt at the complete-tail date; the native bridge classifies the gross
@@ -124,7 +136,7 @@ that node reconciled to its trial balance; native and engine cases with refusals
 FTP, posted deferred tax/threshold deductions and approval remain open.
 
 Not closed by this stage: accounting-standard approval, observed effectiveness,
-the remaining ASU 2025-09 elections, portfolio layers, net investment, options, saved-book adoption
+the remaining ASU 2025-09 elections, net investment, options, saved-book adoption
 beyond the shared daily journal, deferred-tax/AOCI opt-out and interim capital policy (#30/#72),
 browser flow beyond the generic model-analysis page, PostgreSQL parity and the
 60,000-position joint acceptance. Local validation does not deploy or restart workers.

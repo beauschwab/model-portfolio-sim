@@ -22,6 +22,9 @@ struct FrozenBasis {
     amount: f64,
     start: i32,
     amortized: f64,
+    /// Straight-line amortization end: the assumed maturity, or the closed portfolio's final
+    /// maturity for basis dedesignated by an anticipated portfolio-layer breach.
+    end: i32,
 }
 struct FrozenEntry {
     pay: i32,
@@ -72,6 +75,9 @@ struct State {
     reclass_log: Vec<(i32, usize, f64)>,
     /// Last node at which the relationship was assessed (inception until then).
     last_assessed: i32,
+    /// Portfolio-layer amounts dedesignated by anticipated and actual breaches.
+    anticipated_breach: f64,
+    actual_breach: f64,
 }
 struct Ledger<'a> {
     request: &'a HedgeAccountingRequest,
@@ -252,6 +258,78 @@ fn unit_clean(
     }
     amount(dirty - accrued)
 }
+/// Benchmark-component clean value per unit of the designated layer amount for an amortizing
+/// portfolio layer: coupons on the amount outstanding each period, principal as it amortizes.
+fn unit_clean_amortizing(
+    item: &HedgedItem,
+    rate: f64,
+    curve: &DiscountCurve,
+    t: i32,
+    timing: PaymentTiming,
+    schedule: &[LayerAmount],
+    hedged: f64,
+) -> Result<f64, String> {
+    let active = |pay: i32| {
+        if timing == PaymentTiming::BeforeScheduledPayments {
+            pay >= t
+        } else {
+            pay > t
+        }
+    };
+    let first = schedule.first().ok_or("empty layer amortization")?.amount;
+    let factor = |end: i32| {
+        schedule
+            .iter()
+            .find(|x| x.period_end_ordinal == end)
+            .map_or(first, |x| x.amount)
+            / hedged
+    };
+    let last_end = schedule
+        .last()
+        .ok_or("empty layer amortization")?
+        .period_end_ordinal;
+    let mut dirty = 0.;
+    let mut accrued = 0.;
+    for p in item.periods.iter().filter(|p| p.end_ordinal <= last_end) {
+        let f = factor(p.end_ordinal);
+        let tau = actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count)?;
+        if active(p.payment_ordinal) {
+            dirty += f * rate * tau * curve.at(p.payment_ordinal)?;
+            if p.end_ordinal <= t {
+                accrued += f * rate * tau;
+            }
+        }
+        if p.start_ordinal <= t && t < p.end_ordinal {
+            accrued += f * rate * actual_year_fraction(p.start_ordinal, t, p.day_count)?;
+        }
+    }
+    // Principal amortizes at each scheduled period end; the remainder at the layer end.
+    for (k, x) in schedule.iter().enumerate() {
+        let next = schedule.get(k + 1).map_or(0., |n| n.amount);
+        let repaid = (x.amount - next) / hedged;
+        if repaid != 0. && active(x.period_end_ordinal) {
+            dirty += repaid * curve.at(x.period_end_ordinal)?;
+        }
+    }
+    amount(dirty - accrued)
+}
+/// Layer amount outstanding at `at` before any breach scaling (zero from the layer end).
+fn layer_amount(rel: &Relationship, item: &HedgedItem, at: i32) -> f64 {
+    let hedged = rel.hedged_notional.unwrap_or(0.);
+    let end = rel
+        .hedged_term_end_ordinal
+        .unwrap_or(item.principal_ordinal);
+    if at >= end {
+        return 0.;
+    }
+    match &rel.layer_amortization {
+        None => hedged,
+        Some(schedule) => schedule
+            .iter()
+            .find(|x| at < x.period_end_ordinal)
+            .map_or(0., |x| x.amount),
+    }
+}
 fn hypothetical_value(req: &SwapRequest) -> Result<f64, String> {
     swaps::value_swap(req).map(|v| v.clean_value)
 }
@@ -395,6 +473,8 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             oci_at_node: BTreeMap::new(),
             reclass_log: Vec::new(),
             last_assessed: rel.inception_ordinal,
+            anticipated_breach: 0.,
+            actual_breach: 0.,
         })
         .collect::<Vec<_>>();
     let mut lifecycle = Vec::new();
@@ -447,11 +527,15 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 st.unit_clean = Some(o.hedged_value);
                 st.basis = o.basis_balance;
                 st.basis_adjustments = o.basis_balance;
+                let tranche_end = rel
+                    .hedged_term_end_ordinal
+                    .unwrap_or(item.principal_ordinal);
                 for t in &o.frozen_basis {
                     st.frozen_basis.push(FrozenBasis {
                         amount: t.amount,
                         start: t.start_ordinal,
                         amortized: t.amortized,
+                        end: tranche_end,
                     });
                     st.basis_adjustments = amount(st.basis_adjustments + t.amount)?;
                     st.basis_amortized = amount(st.basis_amortized + t.amortized)?;
@@ -548,6 +632,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             reversed_reclassification: None,
             period_id: None,
             new_payment_ordinal: None,
+            breach_amount: None,
         });
     }
     let mut cursor = 0usize;
@@ -763,22 +848,46 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         let curve = node_curve(node, instrument)?;
                         // Settled item cash is excluded exactly as the derivative owner excludes coupons:
                         // the change measures before-payment value against the prior after-payment value.
-                        let before = unit_clean(
-                            item,
-                            rate,
-                            curve,
-                            t,
-                            PaymentTiming::BeforeScheduledPayments,
-                            term_end,
-                        )?;
-                        let unit = unit_clean(
-                            item,
-                            rate,
-                            curve,
-                            t,
-                            PaymentTiming::AfterScheduledPayments,
-                            term_end,
-                        )?;
+                        let (before, unit) = match &rel.layer_amortization {
+                            None => (
+                                unit_clean(
+                                    item,
+                                    rate,
+                                    curve,
+                                    t,
+                                    PaymentTiming::BeforeScheduledPayments,
+                                    term_end,
+                                )?,
+                                unit_clean(
+                                    item,
+                                    rate,
+                                    curve,
+                                    t,
+                                    PaymentTiming::AfterScheduledPayments,
+                                    term_end,
+                                )?,
+                            ),
+                            Some(schedule) => (
+                                unit_clean_amortizing(
+                                    item,
+                                    rate,
+                                    curve,
+                                    t,
+                                    PaymentTiming::BeforeScheduledPayments,
+                                    schedule,
+                                    hedged,
+                                )?,
+                                unit_clean_amortizing(
+                                    item,
+                                    rate,
+                                    curve,
+                                    t,
+                                    PaymentTiming::AfterScheduledPayments,
+                                    schedule,
+                                    hedged,
+                                )?,
+                            ),
+                        };
                         if st.status == Status::Qualified {
                             let prev = st
                                 .unit_clean
@@ -816,11 +925,11 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         st.last_clean = Some(amount(hedged * st.scale * unit)?);
                     }
                     for tranche in &mut st.frozen_basis {
-                        let target = if term_end <= tranche.start {
+                        let target = if tranche.end <= tranche.start {
                             tranche.amount
                         } else {
                             let fraction = (f64::from(t - tranche.start)
-                                / f64::from(term_end - tranche.start))
+                                / f64::from(tranche.end - tranche.start))
                             .min(1.);
                             amount(tranche.amount * fraction)?
                         };
@@ -1053,6 +1162,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 reversed_reclassification: None,
                 period_id: None,
                 new_payment_ordinal: None,
+                breach_amount: None,
             });
         }
         // Reviewed events at this node, in sequence order.
@@ -1086,6 +1196,7 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 reversed_reclassification: None,
                 period_id: None,
                 new_payment_ordinal: None,
+                breach_amount: None,
             };
             let event_sources = || {
                 vec![
@@ -1176,6 +1287,9 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                                 amount: frozen,
                                 start: t,
                                 amortized: 0.,
+                                end: rel
+                                    .hedged_term_end_ordinal
+                                    .unwrap_or(item.principal_ordinal),
                             });
                             record.frozen_basis = frozen;
                         }
@@ -1697,6 +1811,260 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             }
             lifecycle.push(record);
         }
+        // ASU 2022-01 portfolio layers: actual, then anticipated, breach monitoring after events.
+        for (item_index, item) in r.hedged_items.iter().enumerate() {
+            let Some(portfolio) = &item.portfolio else {
+                continue;
+            };
+            let mut layers: Vec<usize> = (0..r.relationships.len())
+                .filter(|&i| {
+                    compiled.relationships[i].item == Some(item_index)
+                        && states[i].status == Status::Qualified
+                })
+                .collect();
+            if layers.is_empty() {
+                continue;
+            }
+            let policy = r
+                .policy
+                .portfolio_layer
+                .as_ref()
+                .ok_or("portfolio-layer policy missing")?;
+            // Designation order: the most recent layer is the last element.
+            layers.sort_by_key(|&i| (r.relationships[i].inception_ordinal, i));
+            let current = |states: &Vec<State>, i: usize, at: i32| {
+                layer_amount(&r.relationships[i], item, at) * states[i].scale
+            };
+            let actual = portfolio
+                .balances
+                .iter()
+                .find(|b| b.ordinal == t)
+                .ok_or("closed portfolio balance missing at a hedged node")?
+                .outstanding;
+            let projections: Vec<&PortfolioProjection> = portfolio
+                .projections
+                .iter()
+                .filter(|x| x.ordinal == t)
+                .collect();
+            let projection_required = layers.iter().any(|&i| {
+                r.relationships[i].inception_ordinal == t
+                    || r.events.iter().any(|ev| {
+                        ev.ordinal == t
+                            && ev.kind == EventKind::Assess
+                            && rel_index[ev.relationship_id.as_str()] == i
+                    })
+            });
+            // Allocate an excess over the affected layers under the reviewed order.
+            let allocate = |states: &Vec<State>, affected: &[usize], excess: f64, at: i32| {
+                let mut out = Vec::new();
+                match policy.breach_order {
+                    BreachOrder::LastDesignatedFirst => {
+                        let mut rest = excess;
+                        for &i in affected.iter().rev() {
+                            let cur = current(states, i, at);
+                            let take = rest.min(cur);
+                            if take > 0. {
+                                out.push((i, take, take / cur));
+                                rest -= take;
+                            }
+                            if rest <= 0. {
+                                break;
+                            }
+                        }
+                    }
+                    BreachOrder::ProRata => {
+                        let total: f64 = affected.iter().map(|&i| current(states, i, at)).sum();
+                        for &i in affected {
+                            let cur = current(states, i, at);
+                            if cur > 0. {
+                                out.push((i, cur * excess / total, excess / total));
+                            }
+                        }
+                    }
+                }
+                out
+            };
+            let mut breaches: Vec<(usize, f64, f64, bool)> = Vec::new();
+            let required: f64 = layers.iter().map(|&i| current(&states, i, t)).sum();
+            if actual < required - 1e-9 {
+                if layers
+                    .iter()
+                    .any(|&i| r.relationships[i].inception_ordinal == t)
+                {
+                    return Err(
+                        "a portfolio layer must not exceed the closed portfolio at designation"
+                            .into(),
+                    );
+                }
+                for (i, take, q) in allocate(&states, &layers, required - actual, t) {
+                    breaches.push((i, take, q, true));
+                }
+            }
+            // Apply actual breaches before measuring anticipated ones.
+            let apply = |states: &mut Vec<State>,
+                         ledger: &mut Ledger<'_>,
+                         lifecycle: &mut Vec<LifecycleRecord>,
+                         i: usize,
+                         take: f64,
+                         q: f64,
+                         actual_breach: bool|
+             -> Result<(), String> {
+                let rel = &r.relationships[i];
+                let cr = &compiled.relationships[i];
+                let st = &mut states[i];
+                let q = q.min(1.);
+                let before = (st.status, st.proportion);
+                let frozen = amount(q * st.basis)?;
+                st.basis = amount(st.basis - frozen)?;
+                let mut record = LifecycleRecord {
+                    ordinal: t,
+                    sequence: None,
+                    relationship_id: rel.relationship_id.clone(),
+                    kind: "portfolio_layer_breach".into(),
+                    event_id: None,
+                    review: Some(policy.identity.clone()),
+                    reason: Some(
+                        if actual_breach {
+                            "actual_breach"
+                        } else {
+                            "anticipated_breach"
+                        }
+                        .into(),
+                    ),
+                    status_before: before.0,
+                    status_after: before.0,
+                    proportion_before: before.1,
+                    proportion_after: before.1,
+                    frozen_basis: 0.,
+                    frozen_oci: 0.,
+                    released_oci: 0.,
+                    derecognized_basis: 0.,
+                    index_id: None,
+                    effective_ordinal: None,
+                    earnings_catch_up: None,
+                    reversed_reclassification: None,
+                    period_id: None,
+                    new_payment_ordinal: None,
+                    breach_amount: Some(take),
+                };
+                if actual_breach {
+                    // The basis of the breached amount is recognized in earnings at once.
+                    ledger.emit(
+                        "portfolio_layer_breach_basis",
+                        t,
+                        JournalLedger::Financial,
+                        Some(rel.hedging_instrument_position_id.as_str()),
+                        Some(&item.item_id),
+                        None,
+                        Some(&rel.relationship_id),
+                        &r.policy.identity,
+                        vec![
+                            r.policy.identity.clone(),
+                            rel.documentation.clone(),
+                            policy.identity.clone(),
+                            portfolio.balance_source.clone(),
+                        ],
+                        pair(
+                            Account::HedgedItemBasisAdjustment,
+                            -cr.direction_sign * frozen,
+                            &item.item_id,
+                            &rel.relationship_id,
+                            Account::HedgedItemBasisDerecognition,
+                        ),
+                    )?;
+                    st.basis_derecognized = amount(st.basis_derecognized + frozen)?;
+                    st.actual_breach = amount(st.actual_breach + take)?;
+                    record.derecognized_basis = frozen;
+                } else {
+                    // Allocated to the remaining assets and amortized to the portfolio's final maturity.
+                    if frozen != 0. {
+                        st.frozen_basis.push(FrozenBasis {
+                            amount: frozen,
+                            start: t,
+                            amortized: 0.,
+                            end: item.principal_ordinal,
+                        });
+                    }
+                    st.anticipated_breach = amount(st.anticipated_breach + take)?;
+                    record.frozen_basis = frozen;
+                }
+                st.scale *= 1. - q;
+                st.proportion = amount(rel.designated_proportion * st.scale)?;
+                if q >= 1. - 1e-12 {
+                    st.scale = 0.;
+                    st.proportion = 0.;
+                    st.status = Status::Discontinued;
+                }
+                record.status_after = st.status;
+                record.proportion_after = st.proportion;
+                lifecycle.push(record);
+                Ok(())
+            };
+            for (i, take, q, kind) in breaches {
+                apply(&mut states, &mut ledger, &mut lifecycle, i, take, q, kind)?;
+            }
+            layers.retain(|&i| states[i].status == Status::Qualified);
+            let mut ends: Vec<i32> = layers
+                .iter()
+                .map(|&i| {
+                    r.relationships[i]
+                        .hedged_term_end_ordinal
+                        .unwrap_or(item.principal_ordinal)
+                })
+                .filter(|&e| e > t)
+                .collect();
+            ends.sort_unstable();
+            ends.dedup();
+            if projection_required
+                && ends
+                    .iter()
+                    .any(|e| !projections.iter().any(|x| x.term_end_ordinal == *e))
+            {
+                return Err("portfolio projections must cover every active layer end at designation and assessment".into());
+            }
+            if !projections.is_empty() {
+                if projections
+                    .iter()
+                    .any(|x| !ends.contains(&x.term_end_ordinal))
+                {
+                    return Err("portfolio projection names no active layer end".into());
+                }
+                for &e in &ends {
+                    let projection = projections
+                        .iter()
+                        .find(|x| x.term_end_ordinal == e)
+                        .ok_or("portfolio projections must cover every active layer end")?;
+                    let affected: Vec<usize> = layers
+                        .iter()
+                        .copied()
+                        .filter(|&i| {
+                            states[i].status == Status::Qualified
+                                && r.relationships[i]
+                                    .hedged_term_end_ordinal
+                                    .unwrap_or(item.principal_ordinal)
+                                    >= e
+                        })
+                        .collect();
+                    let need: f64 = affected.iter().map(|&i| current(&states, i, e - 1)).sum();
+                    if projection.anticipated < need - 1e-9 {
+                        if affected
+                            .iter()
+                            .any(|&i| r.relationships[i].inception_ordinal == t)
+                        {
+                            return Err(
+                                "a portfolio layer must be expected to remain at designation"
+                                    .into(),
+                            );
+                        }
+                        for (i, take, q) in
+                            allocate(&states, &affected, need - projection.anticipated, e - 1)
+                        {
+                            apply(&mut states, &mut ledger, &mut lifecycle, i, take, q, false)?;
+                        }
+                    }
+                }
+            }
+        }
         // Daily closing reconciles the derivative owner's balances except re-owned marks.
         for b in &closing_k.financial_trial_balance {
             let mine = ledger
@@ -1844,6 +2212,23 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                 None
             },
             written_option_position_id: rel.written_option_position_id.clone(),
+            layer_amount: cr
+                .item
+                .filter(|&k| r.hedged_items[k].kind == ItemKind::ClosedPortfolio)
+                .map(|_| amount(rel.hedged_notional.unwrap_or(0.) * st.scale))
+                .transpose()?,
+            anticipated_breach_amount: cr
+                .item
+                .filter(|&k| r.hedged_items[k].kind == ItemKind::ClosedPortfolio)
+                .map(|_| st.anticipated_breach),
+            actual_breach_amount: cr
+                .item
+                .filter(|&k| r.hedged_items[k].kind == ItemKind::ClosedPortfolio)
+                .map(|_| st.actual_breach),
+            basis_excluded_from_credit_loss_measurement: cr
+                .item
+                .filter(|&k| r.hedged_items[k].kind == ItemKind::ClosedPortfolio)
+                .map(|_| true),
             opening_evidence: rel.opening.as_ref().map(|o| o.evidence.clone()),
             hedged_term_end_ordinal: rel.hedged_term_end_ordinal,
             additional_instrument_position_ids: rel.additional_instrument_position_ids.clone(),
@@ -1888,12 +2273,12 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         empirical_validation: false,
         persisted_journal_verified: false,
         saved_book_adoption: false,
-        portfolio_layer_supported: false,
+        portfolio_layer_supported: true,
         net_investment_supported: false,
         asu_2025_09_similar_risk_supported: true,
         asu_2025_09_selectable_rate_supported: true,
         asu_2025_09_swap_written_option_supported: true,
         seasoned_openings_supported: true,
-        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Relationships designated before the derivative opening date carry reviewed retained cumulative changes and basis/OCI balances posted once against opening equity. Not accounting-standard approval, observed effectiveness, portfolio-layer, net-investment, option or nonfinancial coverage, saved-book or shared daily journal adoption, treasury/capital feed or complete-scale acceptance.".into(),
+        disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Relationships designated before the derivative opening date carry reviewed retained cumulative changes and basis/OCI balances posted once against opening equity. Under the adopted ASU 2022-01 portfolio-layer method, layers of a closed portfolio (bullet or amortizing) keep portfolio-level basis, and supplied observed balances and reviewed projections drive actual and anticipated breach dedesignation under the reviewed order. Not accounting-standard approval, observed effectiveness, net-investment, option or nonfinancial coverage or complete-scale acceptance; saved-book, shared-journal and capital adoption are separate explicit routes.".into(),
     })
 }

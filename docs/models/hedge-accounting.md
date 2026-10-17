@@ -24,7 +24,7 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Fair-value hedge recognition (815-25-35) | Instrument marks stay in earnings. The hedged item's benchmark-component clean value change is posted daily as a basis adjustment with the offset in earnings. A partial-term hedge (`hedged_term_end_ordinal`, 815-25-35-13B) measures the benchmark cash flows as if the item matured at that coupon period end. Discontinuation freezes the basis; it is amortized straight-line by actual days to the item's principal date (the assumed maturity for a partial-term hedge), or derecognized on sale. |
 | Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
-| ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
+| ASU 2022-01 portfolio layers (815-20-25-12A, 815-25-35-1(c), 815-25-40-8/9) | With `asu_2022_01_portfolio_layer=true` and a reviewed `portfolio_layer` policy, closed portfolios of financial assets are hedged through one or more fair-value layer relationships (bullet or amortizing); portfolio-level basis; supplied observed balances and reviewed projections drive actual and anticipated breach dedesignation. See [portfolio layers](#asu-2022-01-portfolio-layers). |
 | ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). The `swap_written_option_exception` election designates a swap combined with a written cash-settled European swaption of matching notional as one hedging instrument without the net written option test (815-20-25-88). All apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `dual_hedge_basis` rejects as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
 | Seasoned relationships | A relationship whose `inception_ordinal` precedes the derivative opening date must carry a reviewed `opening` block (and only such relationships may): the after-payment hedged value at the opening, cumulative instrument and hedged changes, and the retained basis or OCI balance. Balances are posted once against opening equity before the first node; measurement continues from the derivative opening clean values. See [seasoned openings](#seasoned-openings). |
 | Net investment, nonfinancial components, standalone options as instruments, counterparty default | Rejected explicitly. |
@@ -345,6 +345,64 @@ every component, and the hypothetical derivative method is required.
 **Refused elections.** `dual_hedge_basis` rejects; other option instruments
 still require their own lane. Nonfinancial price components (Issue 3) are
 outside the interest-rate scope of this owner.
+
+## ASU 2022-01 portfolio layers
+
+Adopted with `policy.adoption.asu_2022_01_portfolio_layer = true` and a reviewed
+`policy.portfolio_layer = {identity, breach_order}` (`last_designated_first` or
+`pro_rata`); the election and the policy must appear together.
+
+**Closed portfolio.** A hedged item with `kind = "closed_portfolio"` (asset
+direction only) carries `portfolio = {members, balance_source, balances,
+projection_evidence, projections}`: unique immutable members (asset id, source,
+prepayable flag), observed outstanding balances (ordered, non-increasing because
+the portfolio is closed, within the designated item notional) and reviewed
+projections `(ordinal, term_end_ordinal, anticipated)` of the amount expected
+outstanding at a layer end. The item's periods, coupon and principal date
+describe the portfolio's fixed-rate cash flows; `principal_ordinal` is its final
+maturity.
+
+**Layers.** Each layer is a fair-value relationship on the closed portfolio:
+`hedged_notional` is the layer amount, `hedged_term_end_ordinal` its end (default
+the final maturity), and the benchmark component is measured as a partial-term
+bullet at that end. An optional `layer_amortization` lists the amount outstanding
+in each item period ending after inception through the layer end (non-increasing,
+starting at `hedged_notional`); the measure then pays coupons on each period's
+amount and principal as it amortizes. Multiple layers share the item within its
+notional and keep portfolio-level basis (`hedged_item_basis_adjustment` keyed by
+the portfolio item and the layer relationship). Seasoned layer openings and
+written-option combinations refuse.
+
+**Breaches.** After each node's reviewed events the owner monitors every closed
+portfolio with a qualified layer:
+
+1. *Actual.* The observed balance at the node must cover the sum of current
+   layer amounts (each layer's scheduled amount times its remaining scale; zero
+   from its end). A shortfall is dedesignated under the reviewed order; the
+   basis on the dedesignated fraction is recognized in earnings at once
+   (`portfolio_layer_breach_basis`, earnings account
+   `hedged_item_basis_derecognition`).
+2. *Anticipated.* At a node with projections, for each active layer end `E` in
+   ascending order, the projection must cover the layers ending at or after `E`
+   (their amounts just before `E`). A shortfall is dedesignated under the order;
+   the basis on the dedesignated fraction is allocated to the remaining assets
+   and amortized straight-line to the closed portfolio's final maturity.
+
+`last_designated_first` dedesignates the most recently designated layer first
+(inception, then list order); `pro_rata` shares the excess by current amount.
+Projections are required for every active layer end at each layer's inception
+and at every assessment node; a layer must not exceed the portfolio or its
+projection at designation (refused). Every breach is a lifecycle record
+`portfolio_layer_breach` with `reason` and `breach_amount`.
+
+Output adds per layer `layer_amount`, cumulative `anticipated_breach_amount` and
+`actual_breach_amount`, and `basis_excluded_from_credit_loss_measurement=true`:
+the portfolio-level basis is never allocated to individual assets for
+credit-loss measurement while hedged; this owner computes no credit losses, and
+defaults appear only through the observed balances (as actual breaches).
+`portfolio_layer_supported` is now `true` (a capability flag; economics of
+existing requests are unchanged). Liability layers and the proposed HTM
+eligibility remain unavailable.
 
 ## Seasoned openings
 

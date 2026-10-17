@@ -32,6 +32,8 @@ pub(super) struct CompiledMember {
     /// Hypothetical per documented index; empty when matched critical terms are elected.
     pub hypotheticals: BTreeMap<String, HypRef>,
 }
+const MAX_PORTFOLIO_MEMBERS: usize = 4096;
+const MAX_PORTFOLIO_OBSERVATIONS: usize = 8192;
 pub(super) struct CompiledRelationship {
     pub item: Option<usize>,
     pub direction_sign: f64,
@@ -353,10 +355,14 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     };
     let a = &r.policy.adoption;
     let e = &a.asu_2025_09.elections;
-    if a.asu_2022_01_portfolio_layer {
-        return Err(
-            "ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into(),
-        );
+    // ASU 2022-01 portfolio-layer method: adoption requires the reviewed breach policy.
+    match (a.asu_2022_01_portfolio_layer, &r.policy.portfolio_layer) {
+        (true, Some(p)) => identity(&p.identity, &mut bytes)?,
+        (false, None) => {}
+        _ => return Err(
+            "the ASU 2022-01 portfolio-layer election and its reviewed breach policy go together"
+                .into(),
+        ),
     }
     if e.dual_hedge_basis {
         return Err("ASU 2025-09 dual-hedge election is not implemented; explicit refusal".into());
@@ -416,6 +422,67 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         }
         if !item_ids.insert(item.item_id.as_str()) {
             return Err("duplicate hedged item identity".into());
+        }
+        match (item.kind, &item.portfolio) {
+            (ItemKind::FixedRateInstrument, None) => {}
+            (ItemKind::ClosedPortfolio, Some(p)) => {
+                if !a.asu_2022_01_portfolio_layer || item.direction != ItemDirection::Asset {
+                    return Err("closed portfolios require the adopted ASU 2022-01 portfolio-layer method on financial assets".into());
+                }
+                identity(&p.balance_source, &mut bytes)?;
+                identity(&p.projection_evidence, &mut bytes)?;
+                if p.members.is_empty()
+                    || p.members.len() > MAX_PORTFOLIO_MEMBERS
+                    || p.balances.len() > MAX_PORTFOLIO_OBSERVATIONS
+                    || p.projections.len() > MAX_PORTFOLIO_OBSERVATIONS
+                {
+                    return Err(
+                        "closed portfolio membership/observation counts exceed admission".into(),
+                    );
+                }
+                let mut members = HashSet::new();
+                for m in &p.members {
+                    text(&m.asset_id, &mut bytes)?;
+                    identity(&m.source, &mut bytes)?;
+                    if !members.insert(m.asset_id.as_str()) {
+                        return Err(
+                            "closed portfolio membership must be unique and immutable".into()
+                        );
+                    }
+                }
+                // Closed: no additions, so observed balances never increase.
+                let mut prior: Option<(i32, f64)> = None;
+                for b in &p.balances {
+                    domain(asof, b.ordinal)?;
+                    let v = amount(b.outstanding)?;
+                    if v < 0.
+                        || v > item.notional + 1e-9
+                        || prior.is_some_and(|(o, x)| b.ordinal <= o || v > x + 1e-9)
+                    {
+                        return Err("closed portfolio balances must be ordered, within the designated portfolio and non-increasing".into());
+                    }
+                    prior = Some((b.ordinal, v));
+                }
+                let mut prior: Option<(i32, i32)> = None;
+                for x in &p.projections {
+                    domain(asof, x.ordinal)?;
+                    domain(asof, x.term_end_ordinal)?;
+                    let v = amount(x.anticipated)?;
+                    if v < 0.
+                        || v > item.notional + 1e-9
+                        || x.term_end_ordinal <= x.ordinal
+                        || prior.is_some_and(|o| (x.ordinal, x.term_end_ordinal) <= o)
+                    {
+                        return Err("portfolio projections must be ordered, future-dated and within the designated portfolio".into());
+                    }
+                    prior = Some((x.ordinal, x.term_end_ordinal));
+                }
+            }
+            _ => {
+                return Err(
+                    "a portfolio block belongs exactly to closed-portfolio hedged items".into(),
+                )
+            }
         }
     }
     let mut exposure_ids = HashSet::new();
@@ -773,6 +840,44 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                     return Err(
                         "inception must be an accrual-free date at or before a hedged item period start".into(),
                     );
+                }
+                let layer = item.kind == ItemKind::ClosedPortfolio;
+                if layer && (rel.opening.is_some() || rel.written_option_position_id.is_some()) {
+                    return Err(
+                        "portfolio layers admit no seasoned opening or written option in this lane"
+                            .into(),
+                    );
+                }
+                if !layer && rel.layer_amortization.is_some() {
+                    return Err("layer amortization applies only to closed-portfolio layers".into());
+                }
+                if let Some(schedule) = &rel.layer_amortization {
+                    // Exactly the item periods ending after inception through the layer end, with
+                    // positive, non-increasing amounts starting at the designated layer amount.
+                    let end = rel
+                        .hedged_term_end_ordinal
+                        .unwrap_or(item.principal_ordinal);
+                    let expected: Vec<i32> = item
+                        .periods
+                        .iter()
+                        .filter(|q| q.end_ordinal > inception && q.end_ordinal <= end)
+                        .map(|q| q.end_ordinal)
+                        .collect();
+                    let ends: Vec<i32> = schedule.iter().map(|x| x.period_end_ordinal).collect();
+                    let mut previous = hedged;
+                    for x in schedule {
+                        amount(x.amount)?;
+                        if x.amount <= 0. || x.amount > previous + 1e-12 {
+                            return Err(
+                                "layer amortization amounts must be positive and non-increasing"
+                                    .into(),
+                            );
+                        }
+                        previous = x.amount;
+                    }
+                    if ends != expected || schedule.first().is_none_or(|x| x.amount != hedged) {
+                        return Err("layer amortization must cover each layer period from the designated amount".into());
+                    }
                 }
                 if let Some(end) = rel.hedged_term_end_ordinal {
                     // The assumed maturity is a coupon period end after inception and before the
