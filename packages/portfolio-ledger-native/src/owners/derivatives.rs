@@ -163,6 +163,14 @@ fn reserve(
 }
 impl<'a> Compiled<'a> {
     pub fn new(c: &CompiledDatedLedger, sources: Vec<Source<'a>>) -> Result<Self, String> {
+        Self::new_with_limit(c, sources, MAX_WORK)
+    }
+    /// The same admission under an explicitly selected joined work bound (an acceptance tier).
+    pub fn new_with_limit(
+        c: &CompiledDatedLedger,
+        sources: Vec<Source<'a>>,
+        max_work: usize,
+    ) -> Result<Self, String> {
         checkpoint()?;
         if sources.is_empty()
             || sources.len() > 64
@@ -331,7 +339,7 @@ impl<'a> Compiled<'a> {
                     .and_then(|n| n.checked_mul(6))
                     .ok_or("derivative daily replay work overflow")?,
             )?;
-            if work > MAX_WORK || capacity > MAX_CAPACITY {
+            if work > max_work || capacity > MAX_CAPACITY {
                 return Err("derivative joined work/capacity admission exceeded".into());
             }
         }

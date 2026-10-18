@@ -42,6 +42,8 @@ struct Request {
     schema: String,
     dated: DatedLedgerRequest,
     owners: Vec<HedgeOwner>,
+    #[serde(default)]
+    scale_tier: Option<super::stream::ScaleTier>,
 }
 
 /// One kind per formal hedge journal account; every account is owned exactly once.
@@ -204,11 +206,26 @@ fn hedge_source<'a>(
     Ok(base)
 }
 pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    let original = strict_json::parse(bytes, 32 * 1024 * 1024)?;
+    execute_with(bytes, None)?.ok_or_else(|| "buffered mixed result required".into())
+}
+/// `streaming` selects the acceptance tier's header-then-journal output; `None` keeps the
+/// historical single buffered envelope.
+pub(crate) fn execute_with(
+    bytes: &[u8],
+    streaming: Option<super::stream::Streaming<'_>>,
+) -> Result<Option<Vec<u8>>, String> {
+    let original = strict_json::parse(bytes, super::stream::MAX_TIER_BYTES)?;
     raw_domain::validate(&original)?;
     let request: Request = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
-    if request.schema != SCHEMA || request.owners.is_empty() || request.owners.len() > 64 {
-        return Err("explicit saved hedge mixed schema/owners required".into());
+    let limits = super::stream::limits(request.scale_tier);
+    let tier = request.scale_tier;
+    if request.schema != SCHEMA
+        || request.owners.is_empty()
+        || request.owners.len() > 64
+        || bytes.len() > limits.raw_bytes
+        || streaming.is_some() != tier.is_some()
+    {
+        return Err("explicit saved hedge mixed schema/owners/tier required".into());
     }
     // Bind every overlay to its exact saved Physical source before any valuation.
     let mut owners = Vec::with_capacity(request.owners.len());
@@ -259,8 +276,8 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
     }
     let dated = CompiledDatedLedger::compile_with_native_opening(
         request.dated,
-        512,
-        owner::MAX_WORK,
+        limits.positions,
+        limits.work,
         &opening,
     )?;
     if !dated.spec.netting_sets.is_empty() || !dated.spec.reverse_severities.is_empty() {
@@ -299,7 +316,7 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
             .and_then(|n| n.checked_add(reserve))
             .ok_or("hedge work overflow")?;
     }
-    if count == 0 || count > 64 || reserve > owner::MAX_WORK {
+    if count == 0 || count > 64 || reserve > limits.work {
         return Err("joined raw derivative/hedge source work admission".into());
     }
     let results = project_sources(&owners, &dated)?;
@@ -324,9 +341,39 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
             index += 1;
         }
     }
-    let compiled = owner::Compiled::new(&dated, sources)?;
+    let compiled = owner::Compiled::new_with_limit(&dated, sources, limits.work)?;
     if compiled.work > reserve {
         return Err("observed hedge work exceeds structural preflight reservation".into());
+    }
+    if let Some(s) = streaming {
+        #[derive(Serialize)]
+        struct Receipt<'a> {
+            schema: &'static str,
+            scale_tier: super::stream::ScaleTier,
+            input_sha256: &'a str,
+            native_sources: &'a [saved::ResultData],
+            native_hedges: &'a [HedgeAccountingResult],
+            joined_work_units: usize,
+            owner_capacity_bytes: usize,
+            empirical_validation: bool,
+            accounting_standard_approval: bool,
+            capital_ftp_eligible: bool,
+        }
+        let receipt = Receipt {
+            schema: SCHEMA,
+            scale_tier: tier.ok_or("tier")?,
+            input_sha256: &s.input_sha256,
+            native_sources: &results,
+            native_hedges: &hedges,
+            joined_work_units: compiled.work,
+            owner_capacity_bytes: compiled.capacity,
+            empirical_validation: false,
+            accounting_standard_approval: false,
+            capital_ftp_eligible: false,
+        };
+        super::stream::header(s.output, SCHEMA, &receipt, &s.input_sha256)?;
+        super::stream::run_streaming(&dated, &compiled, s.output)?;
+        return Ok(None);
     }
     #[derive(Clone)]
     struct Output(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
@@ -382,7 +429,7 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
         accounting_standard_approval: false,
         capital_ftp_eligible: false,
     };
-    strict_json::encode(&data, 32 * 1024 * 1024)
+    strict_json::encode(&data, 32 * 1024 * 1024).map(Some)
 }
 #[cfg(test)]
 mod tests {

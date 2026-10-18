@@ -36,6 +36,8 @@ struct Request {
     schema: String,
     dated: DatedLedgerRequest,
     owners: Vec<Owner>,
+    #[serde(default)]
+    scale_tier: Option<stream::ScaleTier>,
 }
 
 fn kind(code: Code) -> owner::Kind {
@@ -396,20 +398,31 @@ pub(crate) fn project_sources(
     Ok(results)
 }
 pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    let original = strict_json::parse(bytes, 32 * 1024 * 1024)?;
+    execute_with(bytes, None)?.ok_or_else(|| "buffered mixed result required".into())
+}
+/// `streaming` selects the acceptance tier's header-then-journal output; `None` keeps the
+/// historical single buffered envelope.
+pub(crate) fn execute_with(
+    bytes: &[u8],
+    streaming: Option<stream::Streaming<'_>>,
+) -> Result<Option<Vec<u8>>, String> {
+    let original = strict_json::parse(bytes, stream::MAX_TIER_BYTES)?;
     raw_domain::validate(&original)?;
     let request: Request = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
+    let limits = stream::limits(request.scale_tier);
     if request.schema != "saved-derivative-mixed-1"
         || request.owners.is_empty()
         || request.owners.len() > 64
+        || bytes.len() > limits.raw_bytes
+        || streaming.is_some() != request.scale_tier.is_some()
     {
-        return Err("explicit saved derivative mixed schema/owners required".into());
+        return Err("explicit saved derivative mixed schema/owners/tier required".into());
     }
     let opening = opening_anchors(&request.owners)?;
     let dated = CompiledDatedLedger::compile_with_native_opening(
         request.dated,
-        512,
-        owner::MAX_WORK,
+        limits.positions,
+        limits.work,
         &opening,
     )?;
     if !dated.spec.netting_sets.is_empty() || !dated.spec.reverse_severities.is_empty() {
@@ -436,7 +449,7 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
                 .ok_or("source work overflow")?;
         }
     }
-    if count == 0 || count > 64 || reserve > owner::MAX_WORK {
+    if count == 0 || count > 64 || reserve > limits.work {
         return Err("joined raw derivative source work admission".into());
     }
     let results = project_sources(&request.owners, &dated)?;
@@ -448,9 +461,41 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
             index += 1;
         }
     }
-    let compiled = owner::Compiled::new(&dated, sources)?;
+    let compiled = owner::Compiled::new_with_limit(&dated, sources, limits.work)?;
     if compiled.work > reserve {
         return Err("observed derivative work exceeds structural preflight reservation".into());
+    }
+    if let Some(s) = streaming {
+        #[derive(Serialize)]
+        struct Receipt<'a> {
+            schema: &'static str,
+            scale_tier: stream::ScaleTier,
+            input_sha256: &'a str,
+            native_sources: &'a [saved::ResultData],
+            joined_work_units: usize,
+            owner_capacity_bytes: usize,
+            empirical_validation: bool,
+            capital_ftp_eligible: bool,
+        }
+        let tier = request.scale_tier.ok_or("tier")?;
+        let receipt = Receipt {
+            schema: "saved-derivative-mixed-1",
+            scale_tier: tier,
+            input_sha256: &s.input_sha256,
+            native_sources: &results,
+            joined_work_units: compiled.work,
+            owner_capacity_bytes: compiled.capacity,
+            empirical_validation: false,
+            capital_ftp_eligible: false,
+        };
+        stream::header(
+            s.output,
+            "saved-derivative-mixed-1",
+            &receipt,
+            &s.input_sha256,
+        )?;
+        stream::run_streaming(&dated, &compiled, s.output)?;
+        return Ok(None);
     }
     #[derive(Clone)]
     struct Output(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
@@ -502,7 +547,7 @@ pub fn execute(bytes: &[u8]) -> Result<Vec<u8>, String> {
         empirical_validation: false,
         capital_ftp_eligible: false,
     };
-    strict_json::encode(&data, 32 * 1024 * 1024)
+    strict_json::encode(&data, 32 * 1024 * 1024).map(Some)
 }
 #[cfg(test)]
 mod tests {
@@ -707,6 +752,7 @@ mod tests {
 pub mod hedges;
 #[path = "public.rs"]
 pub mod public;
+pub mod stream;
 
 #[path = "raw_domain.rs"]
 pub(crate) mod raw_domain;

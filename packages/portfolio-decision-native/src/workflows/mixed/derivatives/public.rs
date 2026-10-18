@@ -25,7 +25,7 @@ pub fn run_started(
 ) -> Result<(), String> {
     checkpoint()?;
     let parent = portfolio_compute_control::active();
-    let original = strict_json::parse_checked(bytes, MAX_BYTES, checkpoint)?;
+    let original = strict_json::parse_checked(bytes, super::stream::MAX_TIER_BYTES, checkpoint)?;
     let envelope: Envelope = serde_json::from_value(original).map_err(|e| e.to_string())?;
     let schema = match envelope.request.get("schema").and_then(Value::as_str) {
         Some(s @ ("saved-derivative-mixed-1" | super::hedges::SCHEMA)) => s.to_string(),
@@ -35,8 +35,29 @@ pub fn run_started(
         Some(p) => p.child_started(envelope.execution_timeout_ms, parse_started)?,
         None => Control::from_started(envelope.execution_timeout_ms, parse_started)?,
     };
+    let tiered = envelope.request.get("scale_tier").is_some();
+    if bytes.len() > MAX_BYTES && !tiered {
+        return Err("model ledger input exceeds 32 MiB".into());
+    }
     scope(Some(control), || {
         checkpoint()?;
+        if tiered {
+            // The acceptance tier binds the exact input envelope by hash and streams the journal.
+            use sha2::{Digest, Sha256};
+            let digest = Sha256::digest(bytes);
+            let input_sha256: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+            let request = strict_json::encode(&envelope.request, super::stream::MAX_TIER_BYTES)?;
+            let sink = super::stream::Streaming {
+                input_sha256,
+                output: &mut *output,
+            };
+            if schema == super::hedges::SCHEMA {
+                super::hedges::execute_with(&request, Some(sink))?;
+            } else {
+                super::execute_with(&request, Some(sink))?;
+            }
+            return Ok(());
+        }
         let request = strict_json::encode(&envelope.request, MAX_BYTES)?;
         let encoded = if schema == super::hedges::SCHEMA {
             super::hedges::execute(&request)?
@@ -233,5 +254,82 @@ mod tests {
             scope(Some(parent), || run(&bytes, &mut sink)).unwrap_err(),
             "COMPUTE_CANCELLED"
         );
+    }
+    #[test]
+    fn acceptance_tier_binds_input_by_hash_and_streams_the_same_journal() {
+        use sha2::{Digest, Sha256};
+        let buffered = {
+            let bytes = strict_json::encode(
+                &json!({"request":request(),"execution_timeout_ms":30000}),
+                MAX_BYTES,
+            )
+            .unwrap();
+            let mut out = vec![];
+            run(&bytes, &mut out).unwrap();
+            out
+        };
+        let mut raw = request();
+        raw["scale_tier"] = json!("acceptance_60000");
+        let bytes = strict_json::encode(
+            &json!({"request":raw,"execution_timeout_ms":30000}),
+            MAX_BYTES,
+        )
+        .unwrap();
+        let mut out = vec![];
+        run(&bytes, &mut out).unwrap();
+        let text = std::str::from_utf8(&out).unwrap();
+        let mut lines = text.lines();
+        let header: Value = serde_json::from_str(lines.next().unwrap()).unwrap();
+        let workflow = &header["workflow"];
+        let digest: String = Sha256::digest(&bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        // The header binds the exact input envelope and never echoes the raw request.
+        assert_eq!(workflow["input_sha256"], json!(digest));
+        assert_eq!(workflow["source_receipt"]["input_sha256"], json!(digest));
+        assert_eq!(
+            workflow["source_receipt"]["scale_tier"],
+            json!("acceptance_60000")
+        );
+        assert!(workflow.get("prepared_request").is_none());
+        assert!(workflow["source_receipt"].get("original_request").is_none());
+        // The streamed journal equals the buffered one line for line, ending with completion.
+        let streamed: Vec<_> = lines.collect();
+        let historical: Vec<_> = std::str::from_utf8(&buffered)
+            .unwrap()
+            .lines()
+            .skip(1)
+            .collect();
+        assert_eq!(streamed, historical);
+        assert_eq!(
+            *streamed.last().unwrap(),
+            "{\"complete\":true,\"protocol\":3}"
+        );
+    }
+    #[test]
+    fn acceptance_tier_limits_and_buffered_refusal() {
+        let default = super::super::stream::limits(None);
+        assert_eq!(
+            (default.positions, default.raw_bytes),
+            (512, 32 * 1024 * 1024)
+        );
+        let tier =
+            super::super::stream::limits(Some(super::super::stream::ScaleTier::Acceptance60000));
+        assert_eq!((tier.positions, tier.work), (60_000, 90_000_000));
+        // The buffered entry point never runs a tiered request, and unknown tiers are refused.
+        let mut raw = request();
+        raw["scale_tier"] = json!("acceptance_60000");
+        let encoded = strict_json::encode(&raw, MAX_BYTES).unwrap();
+        assert!(super::super::execute(&encoded).is_err());
+        raw["scale_tier"] = json!("acceptance_120000");
+        let bytes = strict_json::encode(
+            &json!({"request":raw,"execution_timeout_ms":30000}),
+            MAX_BYTES,
+        )
+        .unwrap();
+        let mut out = vec![];
+        assert!(run(&bytes, &mut out).is_err());
+        assert!(out.is_empty());
     }
 }
