@@ -192,6 +192,30 @@ class NativeMarketIndexedBooks(NativeGraph):
         return self.call('price_market_indexed_books',request=request,runtime=runtime)
 
 
+class NativeSavedDerivativeRisk(NativeGraph):
+    """Saved raw swap trades as cached native graph nodes with paired curve risk (transport only)."""
+    def __init__(self, request, max_bytes=8 * 1024 * 1024, max_entries=4096, *, runtime=None):
+        self._path = library_path()
+        self._library = _load(str(self._path))[0]
+        self._check_identity()
+        self._request = partial(term_call, _library=self._library)
+        options={} if runtime is None else {'runtime':runtime}
+        created = self._request('graph-1',dict(op='create_saved_derivative_risk',max_bytes=max_bytes,max_entries=max_entries,request=request),**options)
+        self.handle = created['handle']
+        self.initial = created['initial']
+        self._finalizer = weakref.finalize(self, self._request, 'graph-1',
+                                         dict(op='drop', handle=self.handle))
+
+    def price(self, request, *, runtime=None):
+        return self.call('price_saved_derivative_risk',request=request,runtime=runtime)
+
+    def info(self, *, runtime=None):
+        return self.call('info',runtime=runtime)
+
+    def clear(self, *, runtime=None):
+        return self.call('clear',runtime=runtime)
+
+
 def market_indexed_book_request(legacy, bindings, balance_sheet_extras=None):
     # Raw transport only. Rust reconciles dates, rows, amounts, quotes and parents.
     if not isinstance(bindings, dict) or set(bindings) != {'schema', 'identity', 'bindings'}:

@@ -265,6 +265,12 @@ enum Request {
         execution_timeout_ms: u64,
         request: Box<crate::products::derivatives::derivative_treasury::Request>,
     },
+    #[serde(rename = "saved-derivative-risk-1")]
+    SavedDerivativeRisk {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::graph::derivative_risk::Request>,
+    },
     #[serde(rename = "dated-income-1")]
     DatedIncome {
         threads: usize,
@@ -539,6 +545,10 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::DerivativeTreasury {
             execution_timeout_ms,
             ..
+        }
+        | Request::SavedDerivativeRisk {
+            execution_timeout_ms,
+            ..
         } => Some(*execution_timeout_ms),
         Request::CommercialGraph {
             execution_timeout_ms,
@@ -566,6 +576,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 Request::HedgeAccounting { .. }
                     | Request::HedgeTreasury { .. }
                     | Request::DerivativeTreasury { .. }
+                    | Request::SavedDerivativeRisk { .. }
             ) {
                 crate::products::derivatives::hedge_accounting::MAX_INPUT
             } else {
@@ -588,6 +599,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::HedgeAccounting { threads, .. }
         | Request::HedgeTreasury { threads, .. }
         | Request::DerivativeTreasury { threads, .. }
+        | Request::SavedDerivativeRisk { threads, .. }
         | Request::CommercialContinuation { threads, .. }
         | Request::CommercialGraph { threads, .. }
         | Request::CommercialUnits { threads, .. }
@@ -728,6 +740,17 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                     &result,
                     crate::products::derivatives::derivative_treasury::MAX_OUTPUT,
                 )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::SavedDerivativeRisk { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                // A fresh owner per analysis: the durable job never shares a cache across runs.
+                let mut graph = crate::graph::derivative_risk::Graph::new(&request, 8 << 20, 4096)?;
+                let result = graph.price(&request)?;
+                portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,
                 ))

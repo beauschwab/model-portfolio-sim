@@ -227,7 +227,7 @@ fn node_curve<'a>(
         .ok_or_else(|| "hedging instrument absent from derivative node".into())
 }
 /// Benchmark-component clean value per unit of hedged notional.
-fn unit_clean(
+pub(super) fn unit_clean(
     item: &HedgedItem,
     rate: f64,
     curve: &DiscountCurve,

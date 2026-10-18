@@ -543,10 +543,11 @@ ASU 2025-09 coverage by area:
 | Nonfinancial price-component cash-flow hedges | refused; follow-up [#88](https://github.com/beauschwab/model-portfolio-sim/issues/88) |
 | Dual hedge of foreign-currency debt, and net-investment hedges | refused; follow-up [#89](https://github.com/beauschwab/model-portfolio-sim/issues/89) |
 
+Saved derivative trades and hedge relationships have cached graph values and paired curve risk
+in `saved-derivative-risk-1` ([saved-derivative-risk.md](saved-derivative-risk.md), #90).
+
 Other work tracked outside this lane:
 
-- Saved derivative trades in the native pricing graph with paired curve risk:
-  [#90](https://github.com/beauschwab/model-portfolio-sim/issues/90).
 - Rust application services and an independent Rust verifier, replacing the
   current FastAPI transport and Python reference: #46 and #47. The repository
   production contract keeps Python as transport and independent verification

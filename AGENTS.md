@@ -1146,4 +1146,9 @@ settlement NII, DV01 and a research RWA weight per notional. They are off balanc
 sheet: no balance, asset, liability, funding or liquidity rows, and the solver
 excludes them from asset caps and ALL_ASSET/ALL_LIAB selectors. An allocation never
 designates a hedge. See docs/models/swap-strategy-units.md.
+`saved-derivative-risk-1` prices saved raw swaps as cached graph nodes with paired curve
+risk per trade, netting set and hedge relationship. The projection policy is explicit:
+named index curves (base forwards must reproduce supplied fixings) or additive shifts.
+Observed fixings never move; durable jobs use /models/runs with independent reference
+replay. See docs/models/saved-derivative-risk.md.
 Rebuild product and decision/ledger binaries and restart workers before use.
