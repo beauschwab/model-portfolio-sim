@@ -29,9 +29,13 @@ pub(super) struct CompiledMember {
     pub exposure: usize,
     /// Exposure periods starting at or after inception, in order.
     pub hedged_periods: Vec<usize>,
+    /// Documented alternatives with their own payment schedule: (periods, hedged indices).
+    pub schedules: BTreeMap<String, (Vec<Period>, Vec<usize>)>,
     /// Hypothetical per documented index; empty when matched critical terms are elected.
     pub hypotheticals: BTreeMap<String, HypRef>,
 }
+const MAX_PORTFOLIO_MEMBERS: usize = 4096;
+const MAX_PORTFOLIO_OBSERVATIONS: usize = 8192;
 pub(super) struct CompiledRelationship {
     pub item: Option<usize>,
     pub direction_sign: f64,
@@ -353,10 +357,14 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
     };
     let a = &r.policy.adoption;
     let e = &a.asu_2025_09.elections;
-    if a.asu_2022_01_portfolio_layer {
-        return Err(
-            "ASU 2022-01 portfolio-layer accounting is not implemented; election rejected".into(),
-        );
+    // ASU 2022-01 portfolio-layer method: adoption requires the reviewed breach policy.
+    match (a.asu_2022_01_portfolio_layer, &r.policy.portfolio_layer) {
+        (true, Some(p)) => identity(&p.identity, &mut bytes)?,
+        (false, None) => {}
+        _ => return Err(
+            "the ASU 2022-01 portfolio-layer election and its reviewed breach policy go together"
+                .into(),
+        ),
     }
     if e.dual_hedge_basis {
         return Err("ASU 2025-09 dual-hedge election is not implemented; explicit refusal".into());
@@ -417,6 +425,67 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         if !item_ids.insert(item.item_id.as_str()) {
             return Err("duplicate hedged item identity".into());
         }
+        match (item.kind, &item.portfolio) {
+            (ItemKind::FixedRateInstrument, None) => {}
+            (ItemKind::ClosedPortfolio, Some(p)) => {
+                if !a.asu_2022_01_portfolio_layer || item.direction != ItemDirection::Asset {
+                    return Err("closed portfolios require the adopted ASU 2022-01 portfolio-layer method on financial assets".into());
+                }
+                identity(&p.balance_source, &mut bytes)?;
+                identity(&p.projection_evidence, &mut bytes)?;
+                if p.members.is_empty()
+                    || p.members.len() > MAX_PORTFOLIO_MEMBERS
+                    || p.balances.len() > MAX_PORTFOLIO_OBSERVATIONS
+                    || p.projections.len() > MAX_PORTFOLIO_OBSERVATIONS
+                {
+                    return Err(
+                        "closed portfolio membership/observation counts exceed admission".into(),
+                    );
+                }
+                let mut members = HashSet::new();
+                for m in &p.members {
+                    text(&m.asset_id, &mut bytes)?;
+                    identity(&m.source, &mut bytes)?;
+                    if !members.insert(m.asset_id.as_str()) {
+                        return Err(
+                            "closed portfolio membership must be unique and immutable".into()
+                        );
+                    }
+                }
+                // Closed: no additions, so observed balances never increase.
+                let mut prior: Option<(i32, f64)> = None;
+                for b in &p.balances {
+                    domain(asof, b.ordinal)?;
+                    let v = amount(b.outstanding)?;
+                    if v < 0.
+                        || v > item.notional + 1e-9
+                        || prior.is_some_and(|(o, x)| b.ordinal <= o || v > x + 1e-9)
+                    {
+                        return Err("closed portfolio balances must be ordered, within the designated portfolio and non-increasing".into());
+                    }
+                    prior = Some((b.ordinal, v));
+                }
+                let mut prior: Option<(i32, i32)> = None;
+                for x in &p.projections {
+                    domain(asof, x.ordinal)?;
+                    domain(asof, x.term_end_ordinal)?;
+                    let v = amount(x.anticipated)?;
+                    if v < 0.
+                        || v > item.notional + 1e-9
+                        || x.term_end_ordinal <= x.ordinal
+                        || prior.is_some_and(|o| (x.ordinal, x.term_end_ordinal) <= o)
+                    {
+                        return Err("portfolio projections must be ordered, future-dated and within the designated portfolio".into());
+                    }
+                    prior = Some((x.ordinal, x.term_end_ordinal));
+                }
+            }
+            _ => {
+                return Err(
+                    "a portfolio block belongs exactly to closed-portfolio hedged items".into(),
+                )
+            }
+        }
     }
     let mut exposure_ids = HashSet::new();
     for x in &r.forecast_exposures {
@@ -445,6 +514,22 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 || x.direction != ExposureDirection::Payment
             {
                 return Err("choose-your-rate exposures require 2..=16 documented index options including the initial index on liability interest payments".into());
+            }
+            if let Some(evidence) = &cyr.forecasted_issuance {
+                identity(evidence, &mut bytes)?;
+            }
+            let mut scheduled = HashSet::new();
+            for s in &cyr.option_schedules {
+                text(&s.index_id, &mut bytes)?;
+                if s.index_id == x.index_id
+                    || !options.contains(s.index_id.as_str())
+                    || !scheduled.insert(s.index_id.as_str())
+                {
+                    return Err(
+                        "an option schedule belongs once to a documented alternative index".into(),
+                    );
+                }
+                periods(&s.periods, asof, &mut bytes, "option schedule")?;
             }
         }
         if !exposure_ids.insert(x.exposure_id.as_str()) {
@@ -539,6 +624,13 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         delivered_underlying,
                         ..
                     }) if node.ordinal >= terminal.expiry_ordinal => {
+                        // An option that expired before designation is no longer part of the
+                        // hedging instrument: designate the swap (or its delivered swap) alone.
+                        if node.ordinal == inception.max(path.nodes[0].ordinal)
+                            && terminal.expiry_ordinal < inception
+                        {
+                            return Err("the written option expired before designation and is not part of the hedging instrument".into());
+                        }
                         // A physically delivered written option continues as the delivered swap
                         // under the same mapped position; its notional must still match.
                         if let Some(u) = delivered_underlying {
@@ -774,6 +866,44 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         "inception must be an accrual-free date at or before a hedged item period start".into(),
                     );
                 }
+                let layer = item.kind == ItemKind::ClosedPortfolio;
+                if layer && (rel.opening.is_some() || rel.written_option_position_id.is_some()) {
+                    return Err(
+                        "portfolio layers admit no seasoned opening or written option in this lane"
+                            .into(),
+                    );
+                }
+                if !layer && rel.layer_amortization.is_some() {
+                    return Err("layer amortization applies only to closed-portfolio layers".into());
+                }
+                if let Some(schedule) = &rel.layer_amortization {
+                    // Exactly the item periods ending after inception through the layer end, with
+                    // positive, non-increasing amounts starting at the designated layer amount.
+                    let end = rel
+                        .hedged_term_end_ordinal
+                        .unwrap_or(item.principal_ordinal);
+                    let expected: Vec<i32> = item
+                        .periods
+                        .iter()
+                        .filter(|q| q.end_ordinal > inception && q.end_ordinal <= end)
+                        .map(|q| q.end_ordinal)
+                        .collect();
+                    let ends: Vec<i32> = schedule.iter().map(|x| x.period_end_ordinal).collect();
+                    let mut previous = hedged;
+                    for x in schedule {
+                        amount(x.amount)?;
+                        if x.amount <= 0. || x.amount > previous + 1e-12 {
+                            return Err(
+                                "layer amortization amounts must be positive and non-increasing"
+                                    .into(),
+                            );
+                        }
+                        previous = x.amount;
+                    }
+                    if ends != expected || schedule.first().is_none_or(|x| x.amount != hedged) {
+                        return Err("layer amortization must cover each layer period from the designated amount".into());
+                    }
+                }
                 if let Some(end) = rel.hedged_term_end_ordinal {
                     // The assumed maturity is a coupon period end after inception and before the
                     // item's principal date; its payment date must be exactly discountable.
@@ -869,6 +999,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                             exposure: xi,
                             hedged_periods: hedged,
                             hypotheticals: hyps,
+                            schedules: BTreeMap::new(),
                         });
                     }
                     compiled.push(CompiledRelationship {
@@ -941,6 +1072,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                 {
                     return Err("a combination of instruments cannot claim matched critical terms; supply a hypothetical derivative".into());
                 }
+                let mut schedules = BTreeMap::new();
                 let choose_your_rate = match (&exposure.choose_your_rate, &rel.rate_hypotheticals)
                 {
                     (None, None) => false,
@@ -968,10 +1100,21 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                                 .iter()
                                 .position(|x| x.index_id == rh.index_id)
                                 .unwrap_or(0);
+                            // A tenor alternative mirrors its own schedule (815-30-35-37C/37I).
+                            let tenor = cyr.option_schedules.iter().find(|s| s.index_id == rh.index_id);
+                            let alternative = tenor.map(|s| ForecastExposure {
+                                periods: s.periods.clone(),
+                                ..exposure.clone()
+                            });
+                            let mirrored = alternative.as_ref().unwrap_or(exposure);
+                            if let Some(alt) = &alternative {
+                                let hedged_alt = hedged_periods(&ctx, alt, inception)?;
+                                schedules.insert(rh.index_id.clone(), (alt.periods.clone(), hedged_alt));
+                            }
                             let nodes = hypothetical_nodes(
                                 &ctx,
                                 &rh.hypothetical,
-                                exposure,
+                                mirrored,
                                 &rh.index_id,
                                 inception,
                                 &mut bytes,
@@ -998,6 +1141,7 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         exposure: xi,
                         hedged_periods: hedged,
                         hypotheticals: hyps,
+                        schedules,
                     }],
                     matched,
                     predecessor,
@@ -1041,8 +1185,23 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
         for id in &rel.additional_instrument_position_ids {
             swaps.push(opening_swap(c, id)?);
         }
-        if ev.kind != EventKind::RateElection && ev.index_id.is_some() {
-            return Err("only rate elections carry an index".into());
+        let indexed = matches!(
+            ev.kind,
+            EventKind::RateElection | EventKind::DebtIssued | EventKind::DebtReplacement
+        );
+        if !indexed && ev.index_id.is_some() {
+            return Err("only rate elections, debt issuance and replacement carry an index".into());
+        }
+        if let Some(support) = &ev.qualitative_similarity_support {
+            identity(support, &mut bytes)?;
+            if ev.kind != EventKind::Assess
+                || rel
+                    .group
+                    .as_ref()
+                    .is_none_or(|g| g.qualitative_similarity_election.is_none())
+            {
+                return Err("qualitative similarity support requires a group assessment under the 55-23C election".into());
+            }
         }
         if ev.effective_ordinal.is_some()
             && (ev.kind != EventKind::Assess || cr.similar_risk.is_none())
@@ -1073,8 +1232,31 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         return Err("discontinued proportion must lie in (0, 1]".into());
                     }
                 }
+                if ev.reason == Some(DiscontinueReason::HedgedItemMatured) {
+                    let matured = rel.designation == Designation::FairValueHedge
+                        && rel.hedged_term_end_ordinal.is_none()
+                        && ev.proportion.is_none_or(|q| q == 1.)
+                        && cr
+                            .item
+                            .is_some_and(|k| r.hedged_items[k].principal_ordinal == ev.ordinal);
+                    if !matured {
+                        return Err("hedged item maturity applies to a whole full-term fair-value hedge on the item's principal date".into());
+                    }
+                }
             }
             EventKind::ForecastStatus => {
+                let tenor_schedules = cr.members.iter().any(|m| !m.schedules.is_empty());
+                if tenor_schedules
+                    && matches!(
+                        ev.status,
+                        Some(ForecastStatus::Delayed | ForecastStatus::PeriodProbableNotToOccur)
+                    )
+                {
+                    return Err(
+                        "period-level forecast status is not admitted with tenor option schedules"
+                            .into(),
+                    );
+                }
                 if rel.designation != Designation::CashFlowHedge
                     || ev.status.is_none()
                     || ev.proportion.is_some()
@@ -1132,6 +1314,41 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
                         }
                     }
                 }
+            }
+            EventKind::DebtIssued | EventKind::DebtReplacement => {
+                let index_id = ev.index_id.as_deref().ok_or(
+                    "debt issuance and replacement name the documented index that accrues",
+                )?;
+                if !cr.choose_your_rate
+                    || ev.proportion.is_some()
+                    || ev.reason.is_some()
+                    || ev.status.is_some()
+                {
+                    return Err("debt issuance and replacement apply to choose-your-rate relationships and carry only an index".into());
+                }
+                let exposure = &r.forecast_exposures[cr.members[0].exposure];
+                let cyr = exposure
+                    .choose_your_rate
+                    .as_ref()
+                    .ok_or("choose-your-rate terms missing")?;
+                if !cyr.documented_index_ids.iter().any(|x| x == index_id) {
+                    return Err(
+                        "issued or replacement debt must accrue at a documented index option"
+                            .into(),
+                    );
+                }
+                if ev.kind == EventKind::DebtIssued {
+                    // 815-30-35-37H: the issuance stage ends no later than the first hedged period.
+                    let first = cr.members[0]
+                        .hedged_periods
+                        .first()
+                        .map(|&q| exposure.periods[q].start_ordinal)
+                        .ok_or("no hedged period")?;
+                    if cyr.forecasted_issuance.is_none() || ev.ordinal > first {
+                        return Err("debt issuance applies to a forecasted issuance on or before the first hedged period".into());
+                    }
+                }
+                assessment_node(&ctx, rel, cr, &swaps, ev.ordinal)?;
             }
             EventKind::RateElection => {
                 let index_id = ev

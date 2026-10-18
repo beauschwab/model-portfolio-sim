@@ -10,6 +10,7 @@ from .artifacts import PartitionedTable,ObjectReference,Codec
 from .saved_derivative_transport import import_manifest,verify_persisted,body,metadata,same,MAX_RETAINED
 from portfolio_risk.analytics.saved_derivative_identity import encoded,loads,exact_identity,probe
 from portfolio_risk.analytics.saved_derivative_transport import SCHEMA
+from portfolio_risk.analytics.saved_derivative_mixed_reference import SCHEMAS_SUPPORTED
 _SEAL=object()
 OPERATION='saved_derivative.run'
 
@@ -25,7 +26,7 @@ def bundle(check=lambda:False):
     from portfolio_risk.analytics.balance_stream import _hash,source_identity
     probe(check);workspace=db.current_identity();probe(check)
     if not exact_identity(workspace,db.identity()):raise RuntimeError('MODEL_VERSION_CHANGED: stale loaded worker/API')
-    leaves=('saved_derivative_runtime','saved_derivative_transport','saved_derivative_identity','saved_derivative_financial_reference','saved_derivative_mapping_reference','saved_derivative_dated_reference','saved_derivative_mixed_reference','saved_derivative_work_bounds_reference','saved_derivative_dto_reference')
+    leaves=('saved_derivative_runtime','saved_derivative_transport','saved_derivative_identity','saved_derivative_financial_reference','saved_derivative_mapping_reference','saved_derivative_dated_reference','saved_derivative_mixed_reference','saved_derivative_work_bounds_reference','saved_derivative_dto_reference','hedge_accounting_reference','derivative_verification')
     paths={name:Path(runtime.__file__).with_name(name+'.py')for name in leaves}
     paths.update({name:Path(__file__).with_name(name+'.py')for name in ('saved_derivative_jobs','saved_derivative_transport','saved_derivative_routes','worker','operations','repository','artifacts','persistence','deposit_partition_bounds')})
     # Prefix names avoid replacing engine transport with API transport.
@@ -43,7 +44,7 @@ def queue_input(raw,*,timeout=1800.):
         if time.time()>=deadline:raise TimeoutError('derivative accepted queue deadline expired')
         return False
     probe(clock)
-    if type(raw)is not dict or set(raw)!={'schema','dated','owners'}or raw['schema']!=SCHEMA or len(encoded(raw))>32*1024*1024:raise ValueError('bounded explicit raw saved derivative mixed source required')
+    if type(raw)is not dict or set(raw)!={'schema','dated','owners'}or raw['schema']not in SCHEMAS_SUPPORTED or len(encoded(raw))>32*1024*1024:raise ValueError('bounded explicit raw saved derivative or hedge mixed source required')
     current=bundle(clock);probe(clock)
     return dict(schema=SCHEMA,specification=deepcopy(raw),native_bundle=current,publication_deadline_unix=deadline)
 

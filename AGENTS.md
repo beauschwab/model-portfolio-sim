@@ -1093,10 +1093,10 @@ the similar-risk group (815-20-55-23A through 55-23D) and choose-your-rate debt
 (815-30-35-37I through 35-37M) elections apply prospectively with per-member and
 per-option hypotheticals, dated dedesignation and rate elections, and the
 swap/written-option combination (815-20-25-88) designates a swap plus a written
-cash-settled swaption of matching notional as one instrument. ASU 2022-01
-portfolio layers, the ASU 2025-09 dual-hedge election, net-investment,
-nonfinancial, standalone option instruments and counterparty default paths
-reject explicitly; relationships designated before the opening date carry
+cash-settled swaption of matching notional as one instrument. Adopted ASU
+2022-01 portfolio layers are supported (below); the ASU 2025-09 dual-hedge
+election, net-investment, nonfinancial, standalone option instruments and
+counterparty default paths reject explicitly; relationships designated before the opening date carry
 reviewed retained balances posted once against opening equity. Assessment uses
 clean cumulative changes at accrual-free after-payment dates before the final
 instrument settlement; matched critical terms require a zero-value instrument at
@@ -1106,9 +1106,8 @@ million hypothetical work units beyond the derivative owner's own admission.
 Independent Python replay (`hedge_accounting_reference`) reconstructs the
 derivative source, item/hypothetical values, lifecycle, assessments, journal and
 roll-forwards before and after persistence. A legacy saved-book `fvh`/`cfh`
-label is not an input. Saved-book, shared daily journal, treasury/capital/AOCI
-policy, portfolio-layer, empirical effectiveness and complete-scale acceptance
-remain open under #35; see `docs/models/hedge-accounting.md`. Rebuild the
+label is not an input. Accounting-standard approval, empirical effectiveness and
+complete-scale acceptance remain open under #35; see `docs/models/hedge-accounting.md`. Rebuild the
 product artifact and restart API/workers before executing the new schema.
 
 `hedge-treasury-1` (same stage) maps the verified complete-tail hedge closing
@@ -1122,4 +1121,46 @@ deferred-tax/AOCI opt-out policy (#30/#72) and regulatory approval remain open.
 `derivative-treasury-1` feeds the standalone `derivative-accounting-1` journal
 to the same bridge with no hedge accounting: per-instrument rows reconciled to
 the selected reporting node, an optional AOCI policy block and the same interim
-selection and refusals. Mixed saved-derivative treasury feeds remain open.
+selection and refusals.
+`saved-hedge-mixed-1` runs formal hedge owners in the shared dated daily Sim:
+overlays bound to the exact saved Physical source, the formal journal posted
+once in place of the undesignated intents, basis a signed stock and
+cash-flow-hedge OCI equity outside earnings, the AFS `oci` GL and the CET1
+proxy, keyed per relationship and closed by the complete tail. The reviewed
+`hedged_item_matured` reason derecognizes basis on the principal date.
+The Hedge Accounting panel is the dedicated browser flow over durable hedge-accounting-1
+runs (transport only, through `lib/api.ts`).
+ASU 2025-09 rate follow-through is supported: qualitative similarity after a quantitative pass,
+tenor option schedules, forecasted choose-your-rate issuance (best-estimate change,
+`debt_issued` documentation update, issuance deadline) and `debt_replacement`.
+ASU 2022-01 portfolio layers: closed-portfolio items under the adopted method and
+a reviewed breach policy; bullet or amortizing layers keep portfolio-level basis;
+observed balances (actual breach: basis to earnings) and reviewed projections
+(anticipated breach: basis amortized to final maturity) dedesignate layers
+last-designated-first or pro rata. See docs/models/hedge-accounting.md.
+Verified saved derivative and hedge mixed jobs are `ledger` sources for
+`/treasury/bridges` at their complete-tail date (receipt-gated; the native
+bridge classifies gross derivative GLs); credit/FTP kinds still refuse.
+Opt-in `receive_fixed_swap_5y`/`pay_fixed_swap_5y` monthly strategy units carry net
+settlement NII, DV01 and a research RWA weight per notional. They are off balance
+sheet: no balance, asset, liability, funding or liquidity rows, and the solver
+excludes them from asset caps and ALL_ASSET/ALL_LIAB selectors. An allocation never
+designates a hedge. See docs/models/swap-strategy-units.md.
+`saved-derivative-risk-1` prices saved raw swaps as cached graph nodes with paired curve
+risk per trade, netting set and hedge relationship. The projection policy is explicit:
+named index curves (base forwards must reproduce supplied fixings) or additive shifts.
+Observed fixings never move; durable jobs use /models/runs with independent reference
+replay. See docs/models/saved-derivative-risk.md.
+`net-investment-hedge-1` translates one foreign operation (closing spot, flows at supplied
+rates) and accounts for ASC 815-35 net-investment hedges by FX forwards and foreign-currency
+debt; only the hedged portion reaches the hedge CTA, which is released only on disposal. The
+ASU 2025-09 dual hedge takes the debt's basis from an embedded foreign-currency
+hedge-accounting-1 run and keeps its spot remeasurement in earnings while that fair value
+hedge is active. See docs/models/net-investment-hedge.md.
+`nonfinancial-hedge-1` hedges forecasted nonfinancial purchases and sales with commodity
+swaps. Contractually specified components need no adoption; clearly-and-closely-related
+components and subcomponents (815-20-25-22C) need reviewed ASU 2025-09 adoption and supplied
+evidence. Effectiveness uses a hypothetical derivative on the component index; OCI is released
+at sale delivery, on purchase consumption, or at once when a forecast is probable not to occur.
+See docs/models/nonfinancial-hedge.md.
+Rebuild product and decision/ledger binaries and restart workers before use.

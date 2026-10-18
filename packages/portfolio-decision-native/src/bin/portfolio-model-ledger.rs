@@ -57,7 +57,7 @@ fn main() {
             .get("request")
             .and_then(|r| r.get("schema"))
             .and_then(Value::as_str)
-            == Some("saved-derivative-mixed-1")
+            .is_some_and(|s| s == "saved-derivative-mixed-1" || s == "saved-hedge-mixed-1")
         {
             return portfolio_decision_native::saved_derivative_mixed::public::run_started(
                 &input,

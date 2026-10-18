@@ -66,3 +66,11 @@ def test_hedge_contract_is_listed_with_its_synthetic_example(durable):
     assert 'hedge-accounting-1' in model_routes.contracts()['schemas']
     example=model_routes.example('hedge-accounting-1')
     assert example['synthetic'] is True and example['request']['policy']['rule_version']=='asc815-asu2017-12'
+
+
+def test_hedge_job_survives_worker_loss_with_its_original_deadline(durable):
+    jid,job=queued();budget=db.CODEC.load(job['request'])['args'][0]['publication_deadline_unix']
+    db.REPO.release(db.WORKER);db.WORKER='hedge-replacement-worker';assert db.REPO.acquire(db.WORKER)
+    retry=db.REPO.claim(db.WORKER);assert retry['id']==jid and retry['attempt']==2
+    assert db.CODEC.load(retry['request'])['args'][0]['publication_deadline_unix']==budget
+    worker.execute(retry);row=db.REPO.job(jid);assert row['status']=='done',row['detail']

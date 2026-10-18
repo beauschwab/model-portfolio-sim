@@ -25,6 +25,14 @@ pub enum Kind {
     CollateralLoss,
     CustodyAsset,
     CustodyObligation,
+    /// Formal fair-value hedge basis adjustment on a hedged item (signed carrying adjustment).
+    HedgeBasis,
+    /// Cash-flow-hedge OCI (equity, outside earnings and the AFS `oci` GL).
+    HedgeOci,
+    HedgeBasisPnl,
+    HedgeBasisAmortization,
+    HedgeBasisDerecognition,
+    HedgeReclassification,
 }
 impl Kind {
     pub fn gl(self) -> &'static str {
@@ -45,6 +53,12 @@ impl Kind {
             Self::CollateralLoss => "pnl:derivative_collateral_return_loss",
             Self::CustodyAsset => "memo:derivative_custodian_asset",
             Self::CustodyObligation => "memo:derivative_custodian_obligation",
+            Self::HedgeBasis => "hedged_item_basis_adjustment",
+            Self::HedgeOci => "cash_flow_hedge_oci",
+            Self::HedgeBasisPnl => "pnl:hedged_item_basis",
+            Self::HedgeBasisAmortization => "pnl:hedged_item_basis_amortization",
+            Self::HedgeBasisDerecognition => "pnl:hedged_item_basis_derecognition",
+            Self::HedgeReclassification => "pnl:hedged_forecast_reclassification",
         }
     }
     pub fn memo(self) -> bool {
@@ -54,7 +68,18 @@ impl Kind {
         self.gl().starts_with("pnl:")
     }
     pub fn stock(self) -> bool {
-        !self.memo() && !self.pnl() && !matches!(self, Self::Cash | Self::OpeningEquity)
+        !self.memo()
+            && !self.pnl()
+            && !self.equity()
+            && !matches!(self, Self::Cash | Self::OpeningEquity)
+    }
+    /// Equity outside earnings: cash-flow-hedge OCI only.
+    pub fn equity(self) -> bool {
+        self == Self::HedgeOci
+    }
+    /// Signed adjustments whose gross direction is not fixed by the account.
+    pub fn signed(self) -> bool {
+        self == Self::HedgeBasis
     }
     pub fn liability(self) -> bool {
         matches!(self, Self::Liability | Self::Payable | Self::ReceivedVm)
@@ -205,8 +230,9 @@ impl<'a> Compiled<'a> {
                     return Err("opening derivative P&L is not an anchor".into());
                 }
                 if line.kind.stock() {
-                    if (line.kind.liability() && line.debit > 0.)
-                        || (!line.kind.liability() && line.debit < 0.)
+                    if !line.kind.signed()
+                        && ((line.kind.liability() && line.debit > 0.)
+                            || (!line.kind.liability() && line.debit < 0.))
                     {
                         return Err("opening derivative gross direction differs".into());
                     }
@@ -335,7 +361,7 @@ impl<'a> Compiled<'a> {
         if c.spec
             .positions
             .iter()
-            .any(|p| p.id.starts_with("@derivative:"))
+            .any(|p| p.id.starts_with("@derivative:") || p.id.starts_with("@hedge:"))
         {
             return Err("dated position aliases derivative source namespace".into());
         }
@@ -412,12 +438,13 @@ impl State {
         }
         if day + 1 == source.daily.len()
             && (self.cursor != source.intents.len()
-                || self
-                    .book
-                    .iter()
-                    .any(|((kind, _), value)| (kind.stock() || kind.memo()) && !near(*value, 0.)))
+                || self.book.iter().any(|((kind, _), value)| {
+                    (kind.stock() || kind.memo() || kind.equity()) && !near(*value, 0.)
+                }))
         {
-            return Err("unresolved gross derivative/rights/collateral tail".into());
+            return Err(
+                "unresolved gross derivative/rights/collateral/hedge basis/OCI tail".into(),
+            );
         }
         Ok(())
     }
