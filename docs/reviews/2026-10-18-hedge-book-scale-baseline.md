@@ -51,8 +51,13 @@ the 30-minute job deadline but is refused by these component limits:
    header. That header echoes the immutable raw request, which would be about 145 MB at 60,000 loans.
 4. Owner capacity: 128 MiB (derivative owner). This is not reached by backbook growth in this
    measurement.
+5. Complete native output stream: 32 MiB in the Python runtime (`saved_derivative_runtime`), which
+   reads the whole line-delimited JSON stream through the independent verifier. At 512 loans the
+   stream is already 29.5 MB, so this route tops out near 550 loans. At 60,000 loans it would be
+   about 3.3 GB of JSON lines.
 
 Raising 1 and 2 is local. Raising 3 needs the raw request referenced by hash and streamed rather
-than echoed, with the same immutable-identity guarantees. That transport and publication change is
+than echoed, with the same immutable-identity guarantees. Raising 5 needs a binary or columnar
+native stream that the verifier replays incrementally, rather than JSON lines bounded in memory. That transport and publication change is
 the scope of #51 (with #46 and #47), so it is not made here. The combined acceptance also needs
 graph, credit and solver activity in the same run, which this route does not exercise.
