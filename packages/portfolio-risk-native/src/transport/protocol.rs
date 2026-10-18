@@ -265,6 +265,12 @@ enum Request {
         execution_timeout_ms: u64,
         request: Box<crate::products::derivatives::derivative_treasury::Request>,
     },
+    #[serde(rename = "net-investment-hedge-1")]
+    NetInvestmentHedge {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::net_investment::Request>,
+    },
     #[serde(rename = "saved-derivative-risk-1")]
     SavedDerivativeRisk {
         threads: usize,
@@ -549,6 +555,10 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::SavedDerivativeRisk {
             execution_timeout_ms,
             ..
+        }
+        | Request::NetInvestmentHedge {
+            execution_timeout_ms,
+            ..
         } => Some(*execution_timeout_ms),
         Request::CommercialGraph {
             execution_timeout_ms,
@@ -577,6 +587,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                     | Request::HedgeTreasury { .. }
                     | Request::DerivativeTreasury { .. }
                     | Request::SavedDerivativeRisk { .. }
+                    | Request::NetInvestmentHedge { .. }
             ) {
                 crate::products::derivatives::hedge_accounting::MAX_INPUT
             } else {
@@ -600,6 +611,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::HedgeTreasury { threads, .. }
         | Request::DerivativeTreasury { threads, .. }
         | Request::SavedDerivativeRisk { threads, .. }
+        | Request::NetInvestmentHedge { threads, .. }
         | Request::CommercialContinuation { threads, .. }
         | Request::CommercialGraph { threads, .. }
         | Request::CommercialUnits { threads, .. }
@@ -739,6 +751,18 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 portfolio_model_core::strict_json::serialized_size(
                     &result,
                     crate::products::derivatives::derivative_treasury::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::NetInvestmentHedge { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::net_investment::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::net_investment::MAX_OUTPUT,
                 )?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,

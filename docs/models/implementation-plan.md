@@ -7,6 +7,11 @@ is not an empirical calibration, a regulatory methodology approval or a deployme
 
 ## Formal ASC 815 hedge relationships (local 0.29.19; initial lane validated)
 
+`net-investment-hedge-1` ([net-investment-hedge.md](net-investment-hedge.md), #89) translates one
+foreign operation and hedges its net investment with FX forwards (spot or forward method) and
+foreign-currency debt, including the ASU 2025-09 dual hedge, with CTA released only on disposal.
+Native hand cases, an independent reference and durable jobs are its evidence.
+
 `hedge-accounting-1` implements issue #35 stages 0-4 and the durable part of stage 7
 for the initial interest-rate lane: fair-value and cash-flow relationships on one
 reviewed `derivative-accounting-1` Physical source, explicit hedged items/forecast

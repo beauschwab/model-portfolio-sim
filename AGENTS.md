@@ -1151,4 +1151,10 @@ risk per trade, netting set and hedge relationship. The projection policy is exp
 named index curves (base forwards must reproduce supplied fixings) or additive shifts.
 Observed fixings never move; durable jobs use /models/runs with independent reference
 replay. See docs/models/saved-derivative-risk.md.
+`net-investment-hedge-1` translates one foreign operation (closing spot, flows at supplied
+rates) and accounts for ASC 815-35 net-investment hedges by FX forwards and foreign-currency
+debt; only the hedged portion reaches the hedge CTA, which is released only on disposal. The
+ASU 2025-09 dual hedge takes the debt's basis from an embedded foreign-currency
+hedge-accounting-1 run and keeps its spot remeasurement in earnings while that fair value
+hedge is active. See docs/models/net-investment-hedge.md.
 Rebuild product and decision/ledger binaries and restart workers before use.

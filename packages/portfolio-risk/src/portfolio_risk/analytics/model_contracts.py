@@ -194,6 +194,12 @@ def prepare_hedge_treasury(request: dict, **execution_options) -> dict:
     return run("hedge-treasury-1", request, **execution_options)[0]
 
 
+def account_net_investment_hedges(request: dict, **execution_options) -> dict:
+    """Transport a foreign operation and its net-investment hedges; native code owns the accounting."""
+    from portfolio_risk.core.model_native import run
+    return run("net-investment-hedge-1", request, **execution_options)[0]
+
+
 def saved_derivative_risk(request: dict, **execution_options) -> dict:
     """Transport saved raw swaps for native paired curve risk; no Python valuation."""
     from portfolio_risk.core.model_native import run
