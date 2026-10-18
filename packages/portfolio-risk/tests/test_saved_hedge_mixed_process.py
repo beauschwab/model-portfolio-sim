@@ -161,3 +161,18 @@ def test_designation_changes_presentation_not_economics(tmp_path, monkeypatch):
     oci = frames['designated'].filter(pl.col('gl_account') == 'cash_flow_hedge_oci')
     assert oci.height > 0 and oci['v'].abs().max() > 1e-9
     assert not frames['economic'].filter(pl.col('gl_account').str.contains('hedge')).height
+
+
+def test_large_book_reconciliation_residual_scales_with_its_operands(tmp_path, monkeypatch):
+    """A 200-loan backbook: the daily residual (assets - liabilities - equity) of large gross
+    sums is checked at the operands' 1e-12 relative scale, so roundoff does not refuse a
+    correct journal while every financial amount keeps the fixed tolerances."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('scaled', Path(__file__).resolve().parents[3] / 'scripts/make_scaled_hedge_book.py')
+    scaled = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scaled)
+    forbid_callbacks(monkeypatch)
+    manifest = runtime.run(scaled.scaled(200), tmp_path, timeout=600., partition_rows=65536)
+    m = loads(manifest.read_bytes())
+    assert m['validation']['verified'] is True
+    assert sum(p['rows'] for p in m['tables']['journal']['parts']) > 200 * 100

@@ -442,7 +442,12 @@ def verify_stream(raw,control,facade,check=lambda:False):
                 point=next(path_iter,None);require(point is not None,'missing daily path');exact(tuple(point[k]for k in('scenario','day','account')),yield_key)
                 want=classified(state,scenario,account,funding)
                 for field,value in want.items():near(point[field],value,'independent daily gross '+field)
-                near(point['reconciliation_error'],want['assets']-want['liabilities']-want['equity'],'daily reconciliation')
+                # The residual is a difference of large gross sums: its rounding scales with them, so the
+                # same 1e-12 relative tolerance applies to the operands' magnitude, not to a near-zero result.
+                scale=max(abs(want['assets']),abs(want['liabilities']),abs(want['equity']))
+                residual=want['assets']-want['liabilities']-want['equity']
+                require(type(point['reconciliation_error']) in (int,float) and math.isfinite(point['reconciliation_error'])
+                        and abs(point['reconciliation_error']-residual)<=1e-9+1e-12*scale,'daily reconciliation')
                 path_count+=1
                 verify_path_metrics(point,state,data,scenario,day,account)
     require(r is None and next(path_iter,None)is None,'source/path extra dates')
@@ -508,7 +513,7 @@ def verify_secondary_reports(facade,data,check):
     state=defaultdict(float);ledger=[];exposures=[];summaries=[];breaches=[];totals=defaultdict(lambda:[0.,0.,0.]);position=data['spec']['positions']
     journal=iter(rows(facade,'journal',check));r=next(journal,None)
     for scenario in data['scenarios']:
-        minimum={a:float(x.cash) for a,x in data['accounts'].items()};first={};max_error=0.;liquidity_worst={a:{} for a in data['accounts']}
+        minimum={a:float(x.cash) for a,x in data['accounts'].items()};first={};max_error=0.;max_scale=0.;liquidity_worst={a:{} for a in data['accounts']}
         for day in range(data['spec']['horizon_days']+1):
             events={}
             while r is not None and (r['scenario'],r['day'])==(scenario,day):
@@ -532,6 +537,7 @@ def verify_secondary_reports(facade,data,check):
                 stock,m=metrics(state,data,scenario,day,account);minimum[account]=min(minimum[account],stock['cash'])
                 liquidity_policy.accumulate(liquidity_worst[account], m)
                 error=stock['assets']-stock['liabilities']-stock['equity'];max_error=max(max_error,abs(error))
+                max_scale=max(max_scale,abs(stock['assets']),abs(stock['liabilities']),abs(stock['equity']))
                 for metric in ('cash','cet1','leverage','lcr','nsfr','htm'):
                     if m[metric+'_headroom'] is not None and m[metric+'_headroom']< -1e-9 and (account,metric)not in first:
                         first[account,metric]=day;breaches.append(dict(scenario=scenario,account=account,day=day,metric=metric))
@@ -539,10 +545,18 @@ def verify_secondary_reports(facade,data,check):
             stock=classified(state,scenario,account,data['funding_positions']);summary=dict(scenario=scenario,account=account,entity=a.entity,currency=a.currency,final_cash=stock['cash'],final_equity=stock['equity'],minimum_cash=minimum[account],peak_cash_shortfall=max(0.,a.cash_floor-minimum[account]),max_reconciliation_error=max_error)
             summary.update({f'first_{metric}_breach_day':first.get((account,metric))for metric in ('cash','capital','leverage','lcr','nsfr','htm')})
             liquidity_policy.apply_summary(summary, asdict(a), [liquidity_worst[account]])
-            summary['first_capital_breach_day']=first.get((account,'cet1'));summaries.append(summary)
+            summary['first_capital_breach_day']=first.get((account,'cet1'));summary['_scale']=max_scale;summaries.append(summary)
     compare_rows(rows(facade,'ledger',check),ledger,'journal-derived phase ledger')
     compare_rows(rows(facade,'exposures',check),exposures,'journal-derived source exposure')
-    compare_rows(rows(facade,'summary',check),summaries,'journal-derived source summary')
+    # The maximum residual is roundoff of large gross sums: check it against the operands' scale
+    # (the same 1e-12 relative tolerance), then compare every other summary field exactly as before.
+    native_summaries=list(rows(facade,'summary',check));require(len(native_summaries)==len(summaries),'journal-derived source summary rows')
+    for got,want in zip(native_summaries,summaries):
+        scale=want.pop('_scale');value=got['max_reconciliation_error']
+        require(type(value) in (int,float) and math.isfinite(value) and abs(value-want['max_reconciliation_error'])<=1e-9+1e-12*scale,
+                'journal-derived source summary:max_reconciliation_error')
+        want['max_reconciliation_error']=value
+    compare_rows(native_summaries,summaries,'journal-derived source summary')
     compare_rows(rows(facade,'breaches',check),breaches,'journal-derived research breaches')
     attribution=[]
     keys=sorted({(a,e)for _,a,e in totals})
