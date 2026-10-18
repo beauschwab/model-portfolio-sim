@@ -540,7 +540,7 @@ ASU 2025-09 coverage by area:
 | Similar-risk grouping, including qualitative support | implemented |
 | Choose-your-rate debt: tenor schedules, forecasted issuance, replacement debt | implemented |
 | Net written option combined with a swap | implemented |
-| Nonfinancial price-component cash-flow hedges | refused; follow-up [#88](https://github.com/beauschwab/model-portfolio-sim/issues/88) |
+| Nonfinancial price-component cash-flow hedges | implemented in the separate `nonfinancial-hedge-1` owner ([nonfinancial-hedge.md](nonfinancial-hedge.md), #88); `hedge-accounting-1` itself still refuses them |
 | Dual hedge of foreign-currency debt, and net-investment hedges | implemented in the separate `net-investment-hedge-1` owner ([net-investment-hedge.md](net-investment-hedge.md), #89); `hedge-accounting-1` itself still refuses them |
 
 Saved derivative trades and hedge relationships have cached graph values and paired curve risk

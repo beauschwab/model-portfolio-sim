@@ -5,5 +5,6 @@ pub mod hedge_accounting;
 pub mod hedge_treasury;
 pub mod lifecycle;
 pub mod net_investment;
+pub mod nonfinancial_hedge;
 pub mod saved_source;
 pub(crate) mod swaption;

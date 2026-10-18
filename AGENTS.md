@@ -1157,4 +1157,10 @@ debt; only the hedged portion reaches the hedge CTA, which is released only on d
 ASU 2025-09 dual hedge takes the debt's basis from an embedded foreign-currency
 hedge-accounting-1 run and keeps its spot remeasurement in earnings while that fair value
 hedge is active. See docs/models/net-investment-hedge.md.
+`nonfinancial-hedge-1` hedges forecasted nonfinancial purchases and sales with commodity
+swaps. Contractually specified components need no adoption; clearly-and-closely-related
+components and subcomponents (815-20-25-22C) need reviewed ASU 2025-09 adoption and supplied
+evidence. Effectiveness uses a hypothetical derivative on the component index; OCI is released
+at sale delivery, on purchase consumption, or at once when a forecast is probable not to occur.
+See docs/models/nonfinancial-hedge.md.
 Rebuild product and decision/ledger binaries and restart workers before use.

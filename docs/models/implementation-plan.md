@@ -11,6 +11,10 @@ is not an empirical calibration, a regulatory methodology approval or a deployme
 foreign operation and hedges its net investment with FX forwards (spot or forward method) and
 foreign-currency debt, including the ASU 2025-09 dual hedge, with CTA released only on disposal.
 Native hand cases, an independent reference and durable jobs are its evidence.
+`nonfinancial-hedge-1` ([nonfinancial-hedge.md](nonfinancial-hedge.md), #88) hedges forecasted
+nonfinancial purchases and sales with commodity swaps under ASU 2025-09 component eligibility
+(815-20-25-22C), measuring basis risk against a hypothetical derivative on the component index
+and releasing OCI at sale delivery, on consumption of purchases, or at once for missed forecasts.
 
 `hedge-accounting-1` implements issue #35 stages 0-4 and the durable part of stage 7
 for the initial interest-rate lane: fair-value and cash-flow relationships on one

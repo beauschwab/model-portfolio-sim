@@ -200,6 +200,12 @@ def account_net_investment_hedges(request: dict, **execution_options) -> dict:
     return run("net-investment-hedge-1", request, **execution_options)[0]
 
 
+def account_nonfinancial_hedges(request: dict, **execution_options) -> dict:
+    """Transport forecasted nonfinancial exposures and commodity swaps; native code owns the accounting."""
+    from portfolio_risk.core.model_native import run
+    return run("nonfinancial-hedge-1", request, **execution_options)[0]
+
+
 def saved_derivative_risk(request: dict, **execution_options) -> dict:
     """Transport saved raw swaps for native paired curve risk; no Python valuation."""
     from portfolio_risk.core.model_native import run
