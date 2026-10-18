@@ -87,6 +87,31 @@ pub struct Policy {
     pub received_im_segregated: bool,
     pub collateral_interest_day_count: ActualDayCount,
     pub tail_return_ordinal: i32,
+    /// Explicitly selected dynamic initial margin; absent keeps the static supplied balances
+    /// and the historical request and result bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initial_margin_model: Option<InitialMarginModel>,
+}
+/// BCBS-IOSCO standardized schedule initial margin (margin requirements for non-centrally
+/// cleared derivatives, Appendix A): net IM = (0.4 + 0.6 * NGR) * gross schedule IM, where gross
+/// is the sum of notional times the reviewed rate for the trade's remaining maturity band and NGR
+/// is net over gross replacement cost from the posting party's side (zero when gross is zero).
+/// Two-way: each party's requirement uses its own exposure.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InitialMarginModel {
+    pub identity: Identity,
+    /// Reviewed bands by increasing upper remaining-maturity bound in years; the last band
+    /// has no bound.
+    pub schedule: Vec<ScheduleBand>,
+    pub minimum_transfer: f64,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScheduleBand {
+    #[serde(default)]
+    pub max_remaining_years: Option<f64>,
+    pub rate: f64,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

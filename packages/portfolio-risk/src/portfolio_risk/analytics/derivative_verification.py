@@ -351,7 +351,17 @@ def _native(raw):
     _require(raw["schema"] == "derivative-contract-1" and raw["model_version"] in {"derivative-contracts-1", "derivative-contracts-2"}, "unsupported derivative version")
     op=raw["operation"]; _keys(op, ("kind","request")); _require(op["kind"] == "netting", "full raw netting lifecycle required")
     c=op["request"]; _keys(c, ("asof_ordinal","measure","conditional_model","crn","policy","mapping","paths"), ("own_credit",))
-    p=c["policy"]; _keys(p, ("identity","entity","counterparty","currency","monetary_unit","receive_threshold","post_threshold","minimum_transfer","settlement_lag_calendar_days","opening_vm","opening_received_im","opening_posted_im","opening_source","received_vm_reusable_for_funding","received_im_segregated","collateral_interest_day_count","tail_return_ordinal"))
+    p=c["policy"]; _keys(p, ("identity","entity","counterparty","currency","monetary_unit","receive_threshold","post_threshold","minimum_transfer","settlement_lag_calendar_days","opening_vm","opening_received_im","opening_posted_im","opening_source","received_vm_reusable_for_funding","received_im_segregated","collateral_interest_day_count","tail_return_ordinal"), ("initial_margin_model",))
+    im=p.get("initial_margin_model")
+    if im is not None:
+        # Independent BCBS-IOSCO standardized schedule: reviewed bands, open last band, swaps only.
+        _keys(im, ("identity","schedule","minimum_transfer")); _identity(im["identity"]); bands=im["schedule"]
+        for band in bands: _keys(band, ("rate",), ("max_remaining_years",))
+        bounds=[band.get("max_remaining_years") for band in bands]
+        _require(0 < len(bands) <= 16 and all(math.isfinite(band["rate"]) and 0. <= band["rate"] <= 1. for band in bands)
+                 and bounds[-1] is None and all(x is not None and math.isfinite(x) and x > 0. for x in bounds[:-1])
+                 and all(a < b for a,b in zip(bounds[:-2],bounds[1:-1])) and math.isfinite(im["minimum_transfer"]) and im["minimum_transfer"] >= 0.
+                 and all(t["kind"]=="swap" for path in c["paths"] for n in path["nodes"] for t in n["trades"]), "invalid standardized initial margin")
     for i in (c["conditional_model"],c["crn"],p["identity"],p["opening_source"]): _identity(i)
     _require(c["measure"] in {"pricing","physical"} and p["monetary_unit"] == "currency_units" and p["received_im_segregated"] is True and type(p["received_vm_reusable_for_funding"]) is bool and type(p["settlement_lag_calendar_days"]) is int and 0 <= p["settlement_lag_calendar_days"] <= 366, "unsupported CSA policy")
     _require(isinstance(p["currency"],str) and len(p["currency"])==3 and p["currency"].isascii() and p["currency"].isupper(), "invalid actual currency")
@@ -474,6 +484,22 @@ def _native(raw):
                 v=math.fsum(v for _,v in values[b]); replacement=v-embedded[b]
                 unpaid=math.fsum(o["amount"] for o in obligations if o["bucket"]==b and o["settled_ordinal"] is None and not o["included_in_closeout"]) if not closed else 0.
                 claim=replacement+unpaid
+                if im is not None and not default_seen and not closed and n["settlement_available"]:
+                    gross=positive=negative=0.
+                    for pid,tv in values[b]:
+                        req=next(t["request"] for t in n["trades"] if t["kind"]=="swap" and t["request"]["position_id"]==pid)
+                        end=max(x["end_ordinal"] for x in req["fixed_periods"]+req["floating_periods"])
+                        years=max(end-day,0)/365.
+                        rate=next(band["rate"] for band in im["schedule"] if band.get("max_remaining_years") is None or years<=band["max_remaining_years"])
+                        gross+=req["notional"]*rate; positive+=max(tv,0.); negative+=max(-tv,0.)
+                    net=positive-negative
+                    receive=(.4+.6*(max(net,0.)/positive if positive>0. else 0.))*gross
+                    post=(.4+.6*(max(-net,0.)/negative if negative>0. else 0.))*gross
+                    rd=receive-rim[b]; pd=post-pim[b]
+                    rd=rd if abs(rd)>=im["minimum_transfer"] else 0.; pd=pd if abs(pd)>=im["minimum_transfer"] else 0.
+                    if rd!=0. or pd!=0.:
+                        rim[b]+=rd; pim[b]+=pd
+                        movement(n,b,"initial_margin",-pd,0.,rd,pd,rd)
                 exposures.append(dict(ordinal=day,bucket=b,clean_value=float(v),vm=float(vm[b]),received_im=float(rim[b]),posted_im=float(pim[b]),unsecured_receivable=max(claim-max(vm[b],0.),0.),posted_collateral_return_claim=max(-vm[b],0.)+pim[b],clean_trade_values=values[b],extinguished_after_closeout=closed,replacement_after_due_obligations=float(replacement),unpaid_obligation_claim=float(unpaid),total_closeout_claim=float(claim)))
                 if surv is not None and previous is not None and (not default_seen or at_default):
                     _require(previous["ordinal"] in surv and day in surv, "own-credit survival must cover every path node date")

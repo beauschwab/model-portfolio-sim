@@ -140,6 +140,36 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
         }
     };
     let mut dva = 0.;
+    if let Some(m) = &p.initial_margin_model {
+        identity(&m.identity, &mut bytes)?;
+        let bands = &m.schedule;
+        if bands.is_empty()
+            || bands.len() > 16
+            || bands
+                .iter()
+                .any(|b| !b.rate.is_finite() || b.rate < 0. || b.rate > 1.)
+            || bands[..bands.len() - 1].iter().any(|b| {
+                !b.max_remaining_years
+                    .is_some_and(|y| y.is_finite() && y > 0.)
+            })
+            || bands
+                .last()
+                .is_some_and(|b| b.max_remaining_years.is_some())
+            || bands.windows(2).any(|w| {
+                w[1].max_remaining_years
+                    .is_some_and(|y| Some(y) <= w[0].max_remaining_years)
+            })
+            || !m.minimum_transfer.is_finite()
+            || m.minimum_transfer < 0.
+            || r.paths.iter().any(|path| {
+                path.nodes
+                    .iter()
+                    .any(|n| n.trades.iter().any(|t| !matches!(t, Trade::Swap { .. })))
+            })
+        {
+            return Err("standardized initial margin needs reviewed increasing maturity bands with rates in [0, 1], an open last band, a nonnegative transfer amount and swap trades only".into());
+        }
+    }
     let mut results = Vec::new();
     let mut total_prob = 0.;
     let mut cva = 0.;
@@ -438,6 +468,39 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
                 };
                 let total_claim = amount(replacement + unpaid)?;
                 let b = balances.get_mut(&bucket).ok_or("missing balance")?;
+                if let Some(m) = &p.initial_margin_model {
+                    if !default_seen && !closeout_seen && n.settlement_available {
+                        let (receive, post) = standardized_im(m, n, &trades)?;
+                        let rd = amount(receive - b.received_im)?;
+                        let pd = amount(post - b.posted_im)?;
+                        let rd = if rd.abs() >= m.minimum_transfer {
+                            rd
+                        } else {
+                            0.
+                        };
+                        let pd = if pd.abs() >= m.minimum_transfer {
+                            pd
+                        } else {
+                            0.
+                        };
+                        if rd != 0. || pd != 0. {
+                            b.received_im = amount(b.received_im + rd)?;
+                            b.posted_im = amount(b.posted_im + pd)?;
+                            cash_movement(
+                                &mut movements,
+                                n.ordinal,
+                                &bucket,
+                                "initial_margin",
+                                -pd,
+                                0.,
+                                rd,
+                                pd,
+                                rd,
+                                r.measure,
+                            )?;
+                        }
+                    }
+                }
                 exposures.push(Exposure {
                     ordinal: n.ordinal,
                     bucket: bucket.clone(),
@@ -671,6 +734,59 @@ pub fn evaluate(r: &CsaRequest) -> Result<CsaResult, String> {
         String::new()
     };
     Ok(CsaResult{policy:p.identity.clone(),legal_mapping:r.mapping.clone(),conditional_model:r.conditional_model.clone(),crn:r.crn.clone(),clean_value:clean,cva:pricing.then_some(cva),fva:pricing.then_some(fva),clean_less_cva_fva:if pricing{Some(amount(clean-cva-fva)?)}else{None},own_credit_policy:r.own_credit.as_ref().map(|o|o.identity.clone()),dva:survival.is_some().then_some(dva),clean_less_cva_fva_plus_dva:if survival.is_some(){Some(amount(clean-cva-fva+dva)?)}else{None},paths:results,disclosure:own_note+"Raw swaps/options repriced natively at every scenario/date; supplied legal mapping controls aggregation. Signed cash VM, segregated static IM and complete return/default tails remain separate from clean value. Collateral interest settles in cash on opening interval balances; funding uses supplied signed spreads and endpoint discounts. Counterparty-only closeout; own DVA omitted. Physical paths report modeled loss/funding cash, not risk-neutral CVA. Calendar-day lag is explicit; no legal/calibration or business-day inference. European expiry uses an explicit single-state handoff: collateralized cash remains until settlement, physical rights are replaced once by the mapped raw underlying swap. Segregated IM is excluded from unsecured exposure until the reviewed default waterfall applies it. Reviewed MPOR policy captures native signed due cash and European rights, separating unpaid claims from remaining replacement value and settled cash exactly once; complete event coverage and measure-specific fixing paths are mandatory."})
+}
+/// Two-way standardized schedule IM for one netting bucket at a node: (received, posted).
+fn standardized_im(
+    m: &InitialMarginModel,
+    n: &Node,
+    trades: &[(String, f64)],
+) -> Result<(f64, f64), String> {
+    let mut gross = 0.;
+    let mut positive = 0.;
+    let mut negative = 0.;
+    for (id, v) in trades {
+        let request = n
+            .trades
+            .iter()
+            .find_map(|t| match t {
+                Trade::Swap { request } if &request.position_id == id => Some(request),
+                _ => None,
+            })
+            .ok_or("standardized IM covers swap trades only")?;
+        let end = request
+            .fixed_periods
+            .iter()
+            .map(|p| p.end_ordinal)
+            .chain(request.floating_periods.iter().map(|p| p.end_ordinal))
+            .max()
+            .ok_or("swap without periods")?;
+        let years = f64::from((end - n.ordinal).max(0)) / 365.;
+        let rate = m
+            .schedule
+            .iter()
+            .find(|b| b.max_remaining_years.is_none_or(|y| years <= y))
+            .map(|b| b.rate)
+            .ok_or("no schedule band")?;
+        gross = amount(gross + request.notional * rate)?;
+        positive = amount(positive + v.max(0.))?;
+        negative = amount(negative + (-v).max(0.))?;
+    }
+    let net = amount(positive - negative)?;
+    // Each side's NGR: its net replacement cost over its gross replacement cost.
+    let ngr_receive = if positive > 0. {
+        net.max(0.) / positive
+    } else {
+        0.
+    };
+    let ngr_post = if negative > 0. {
+        (-net).max(0.) / negative
+    } else {
+        0.
+    };
+    Ok((
+        amount((0.4 + 0.6 * ngr_receive) * gross)?,
+        amount((0.4 + 0.6 * ngr_post) * gross)?,
+    ))
 }
 fn closeout(
     v: f64,

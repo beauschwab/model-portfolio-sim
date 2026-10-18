@@ -202,6 +202,7 @@ fn csa() -> CsaRequest {
             received_im_segregated: true,
             collateral_interest_day_count: ActualDayCount::Act360,
             tail_return_ordinal: day(12),
+            initial_margin_model: None,
         },
         mapping: vec![Mapping {
             position_id: "swap".into(),

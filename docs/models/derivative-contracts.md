@@ -62,7 +62,30 @@ The complete native event/observation work remains bounded at 250000 across raw 
 
 For positive replacement value, received VM is applied first, then legally available segregated received IM; the residual is an unsecured counterparty claim. Excess received VM is returned once; excess received IM is returned by the custodian. Posted collateral return claims use their own supplied recovery fractions. Received VM already held is not emitted again as closeout cash. For negative replacement value, reviewed posted-collateral setoff reduces the obligation; unused posted collateral has separate return recoveries. All remaining posted/received stocks are closed once. Subsequent exposure rights are extinguished.
 
-Pricing paths produce separate `clean_value`, discounted counterparty/posted-return credit loss (`cva`), and a supplied-spread funding adjustment (`fva`). Funding cost is the left-endpoint settled posted VM plus posted IM, less explicitly reusable received VM, multiplied by supplied signed spread, exact year fraction and endpoint discount. This is a disclosed deterministic interval convention, not a market-calibrated total-XVA model. Dynamic IM/MVA, nonlinear funding and capital/KVA are unavailable.
+Pricing paths produce separate `clean_value`, discounted counterparty/posted-return credit loss (`cva`), and a supplied-spread funding adjustment (`fva`). Funding cost is the left-endpoint settled posted VM plus posted IM, less explicitly reusable received VM, multiplied by supplied signed spread, exact year fraction and endpoint discount. This is a disclosed deterministic interval convention, not a market-calibrated total-XVA model. MVA, nonlinear funding and capital/KVA are unavailable.
+
+### Standardized-schedule dynamic initial margin (opt-in)
+
+A policy may add `initial_margin_model`: a reviewed identity, maturity bands with schedule rates
+in [0, 1] and an open last band, and a minimum transfer amount. Only swaps are admitted. At every
+node before default or closeout, where settlement is available, each netting bucket's two-way
+requirement follows the BCBS-IOSCO standardized schedule (margin requirements for non-centrally
+cleared derivatives, Appendix A):
+
+```
+gross = sum(notional * rate for the trade's remaining-maturity band)
+net IM = (0.4 + 0.6 * NGR) * gross
+NGR    = net replacement cost / gross replacement cost, from the posting side (0 when gross is 0)
+```
+
+The entity receives margin on its own NGR and posts margin on the counterparty's. Each node calls
+both balances to their requirement with an `initial_margin` movement when the change is at least
+the minimum transfer. Posted margin moves entity cash into `posted_im_asset`. Received margin is
+segregated custody. The existing default waterfall applies these balances, and the tail returns
+them. Clean value is unchanged. The schedule rates are supplied and reviewed; this is not ISDA
+SIMM, and it does not add MVA. Without the model, the request and result keep their historical
+keys. The independent verifier recomputes the movements, and the derivative accounting owner books
+them without touching earnings (`test_derivative_initial_margin.py`).
 
 ### Own-credit DVA memo (opt-in)
 

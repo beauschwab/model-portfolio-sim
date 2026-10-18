@@ -200,6 +200,7 @@ fn csa() -> CsaRequest {
             received_im_segregated: true,
             collateral_interest_day_count: ActualDayCount::Act360,
             tail_return_ordinal: day(12),
+            initial_margin_model: None,
         },
         mapping: vec![Mapping {
             position_id: "swap".into(),
@@ -1333,4 +1334,138 @@ fn own_credit_dva_refuses_physical_measure_gaps_and_increasing_survival() {
     r.measure = CashflowMeasure::Physical;
     r.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
     assert!(evaluate(&r).is_err());
+}
+
+fn im_model(minimum_transfer: f64) -> Option<InitialMarginModel> {
+    Some(InitialMarginModel {
+        identity: id("standardized-schedule"),
+        schedule: vec![
+            ScheduleBand {
+                max_remaining_years: Some(2.),
+                rate: 0.01,
+            },
+            ScheduleBand {
+                max_remaining_years: Some(5.),
+                rate: 0.02,
+            },
+            ScheduleBand {
+                max_remaining_years: None,
+                rate: 0.04,
+            },
+        ],
+        minimum_transfer,
+    })
+}
+
+#[test]
+fn standardized_initial_margin_is_two_way_dynamic_and_returned_at_the_tail() {
+    let plain = evaluate(&csa()).unwrap();
+    assert!(plain.paths[0]
+        .movements
+        .iter()
+        .all(|m| m.kind != "initial_margin"));
+    let bytes = serde_json::to_value(csa()).unwrap();
+    assert!(bytes["policy"].get("initial_margin_model").is_none());
+
+    let mut r = csa();
+    r.policy.initial_margin_model = im_model(0.);
+    let result = evaluate(&r).unwrap();
+    let p = &result.paths[0];
+    let im: Vec<_> = p
+        .movements
+        .iter()
+        .filter(|m| m.kind == "initial_margin")
+        .collect();
+    // The 360 swap has under two years left: gross = 360 * 1%. The entity is in the money, so
+    // it receives (0.4 + 0.6 * 1) * gross and posts 0.4 * gross (its own NGR is zero).
+    let first = im[0];
+    assert_eq!(first.ordinal, day(1));
+    close(first.received_im_delta, 3.6);
+    close(first.posted_im_delta, 0.4 * 3.6);
+    close(first.entity_cash, -0.4 * 3.6);
+    close(first.custodian_cash, 3.6);
+    let e = &p.exposures[0];
+    close(e.received_im, 3.6);
+    close(e.posted_im, 1.44);
+    // Everything posted and received comes back at the tail.
+    close(p.residual_received_im, 0.);
+    close(p.residual_posted_im, 0.);
+    let custody: f64 = p
+        .movements
+        .iter()
+        .filter(|m| m.kind == "initial_margin" || m.kind == "tail_return")
+        .map(|m| m.custodian_cash)
+        .sum();
+    close(custody, 0.);
+    // Clean value is unchanged by margin.
+    close(result.clean_value, plain.clean_value);
+
+    // A minimum transfer above the requirement suppresses the call.
+    let mut r = csa();
+    r.policy.initial_margin_model = im_model(10.);
+    let quiet = evaluate(&r).unwrap();
+    assert!(quiet.paths[0]
+        .movements
+        .iter()
+        .all(|m| m.kind != "initial_margin"));
+}
+
+#[test]
+fn standardized_initial_margin_refuses_unreviewed_schedules_and_options() {
+    for model in [
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: Some(2.),
+                rate: 0.01,
+            }],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![
+                ScheduleBand {
+                    max_remaining_years: Some(5.),
+                    rate: 0.01,
+                },
+                ScheduleBand {
+                    max_remaining_years: Some(2.),
+                    rate: 0.02,
+                },
+                ScheduleBand {
+                    max_remaining_years: None,
+                    rate: 0.04,
+                },
+            ],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: None,
+                rate: 1.5,
+            }],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: None,
+                rate: 0.01,
+            }],
+            minimum_transfer: -1.,
+        }),
+    ] {
+        let mut r = csa();
+        r.policy.initial_margin_model = model;
+        assert!(evaluate(&r).is_err());
+    }
+    let mut r = mpor_option(false);
+    r.policy.initial_margin_model = im_model(0.);
+    assert!(evaluate(&r).is_err(), "standardized IM covers swaps only");
 }
