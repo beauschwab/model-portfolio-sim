@@ -124,6 +124,8 @@ Model/schema changes require explicit input/cache identity rebuilds. Contract, i
 
 `derivative-netting-1.json`: the same payer swap calls +.5 VM immediately and returns it when coupons settle. Net margin cash/stock changes are zero; clean=.5, credit loss=0 and supplied funding cost=0. Other independent tests cover unequal leg frequencies, exact intraday information, negative coupons/remuneration, lag/outage/pending calls, gross margin without legal netting, both closeout directions, segregated IM, complete-tail admission and European expiry replacement.
 
+`european_swaption_scales_with_the_underlying_annuity_across_tenors_and_converges_to_bachelier` (in `tests/derivative_contracts.rs`) establishes the admitted option scope. It prices payer swaptions on 3-, 12- and 36-month monthly underlying swaps with a 3% collateral curve over a binomial terminal law for the flat swap rate. For every tenor, the native value equals the expiry discount × annuity × E[max(rate − strike, 0)] computed independently. The value per unit of discounted annuity is the same for all tenors. As the supplied law is refined from 16 to 256 states, the value converges toward the closed-form Bachelier price, within 0.15% at 256 states, for at-, in- and out-of-the-money strikes. Exercise is exact for the supplied finite law. No volatility calibration is implied, and Bermudan and American requests still fail (`option_scope_is_european_only_and_bermudan_or_american_requests_fail`).
+
 ## Primary sources and scope
 
 - [ISDA 2021 Interest Rate Derivatives Definitions](https://www.isda.org/2021/10/04/2021-isda-interest-rate-derivatives-definitions/) distinguishes confirmed economic terms and conventions. This component requires explicit terms rather than inventing a convention.
