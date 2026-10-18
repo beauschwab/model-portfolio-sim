@@ -1163,4 +1163,9 @@ components and subcomponents (815-20-25-22C) need reviewed ASU 2025-09 adoption 
 evidence. Effectiveness uses a hypothetical derivative on the component index; OCI is released
 at sale delivery, on purchase consumption, or at once when a forecast is probable not to occur.
 See docs/models/nonfinancial-hedge.md.
+`saved-derivative-mixed-1` and `saved-hedge-mixed-1` accept an opt-in `scale_tier:
+"acceptance_60000"`: 60,000 dated positions, 90 million work units, a hash-bound input envelope
+(no raw echo) and a streamed journal. Under the tier only, account-level aggregate checks use the
+floating-summation bound max(1e-12, n*1.12e-16) relative to summed magnitude; defaults and
+historical bytes are unchanged. See docs/reviews/2026-10-18-hedge-book-scale-acceptance.md.
 Rebuild product and decision/ledger binaries and restart workers before use.

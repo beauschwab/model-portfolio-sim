@@ -2,7 +2,8 @@
 
 Each copy of the fixture's dated backbook loan gets its own position, owner, source coverage,
 schedule events and accrual plans; the saved derivative and formal hedge overlays are unchanged.
-Usage: python scripts/make_scaled_hedge_book.py N OUT.json
+Usage: python scripts/make_scaled_hedge_book.py N OUT.json [--tier]
+--tier selects the explicit acceptance_60000 tier (required above 512 positions).
 """
 import copy
 import json
@@ -12,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def scaled(n):
+def scaled(n, tier=False):
     raw = json.loads((ROOT / 'packages/portfolio-risk/tests/fixtures/saved_hedge_mixed/base.json').read_text())
     dated = raw['dated']['dated']
     spec = raw['dated']['specification']
@@ -40,10 +41,12 @@ def scaled(n):
     # Every added loan is an asset funded by opening equity, so the opening stays balanced.
     account = next(a for a in spec['accounts'] if a['id'] == base_position['account'])
     account['equity'] += (n - 1) * base_position['balance']
+    if tier:
+        raw['scale_tier'] = 'acceptance_60000'
     return raw
 
 
 if __name__ == '__main__':
     n, out = int(sys.argv[1]), Path(sys.argv[2])
-    out.write_text(json.dumps(scaled(n), separators=(',', ':')), encoding='utf-8')
+    out.write_text(json.dumps(scaled(n, '--tier' in sys.argv[3:]), separators=(',', ':')), encoding='utf-8')
     print(out, out.stat().st_size)

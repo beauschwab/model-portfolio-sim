@@ -552,7 +552,10 @@ Other work tracked outside this lane:
   current FastAPI transport and Python reference: #46 and #47. The repository
   production contract keeps Python as transport and independent verification
   today, which is what this lane uses.
-- Dynamic initial margin and complete 60,000-position mixed acceptance: #51.
+- Complete 60,000-position combined acceptance: #51. The saved hedge journal now has an opt-in
+  `acceptance_60000` tier that publishes a verified 60,000-position book in about seven minutes
+  ([measured record](../reviews/2026-10-18-hedge-book-scale-acceptance.md)). Graph, credit and
+  solver activity at that scale remain in #51.
 
 This lane does not establish accounting-standard compliance, observed hedge
 effectiveness, or production deployment. Those need reviewed entity policies,
