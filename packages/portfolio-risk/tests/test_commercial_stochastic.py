@@ -237,9 +237,16 @@ def test_original_duplicate_json_and_native_deadline_fail_without_result():
     )
     response = json.loads(timed.stdout)
     assert not response["ok"] and "result" not in response
-    duplicate = original.replace(
+    # Duplicate keys must be rejected on their own, not raced against the 1 ms deadline above.
+    generous = json.dumps(
+        dict(
+            schema=request["schema"], threads=1, execution_timeout_ms=300000, request=request
+        )
+    )
+    duplicate = generous.replace(
         '"parallel_bump": 0.0', '"parallel_bump": 0.0, "parallel_bump": 0.01'
     )
+    assert duplicate != generous
     rejected = subprocess.run(
         [str(model_native.binary_path())],
         input=duplicate,
