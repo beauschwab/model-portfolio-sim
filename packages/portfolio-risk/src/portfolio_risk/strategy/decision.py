@@ -18,7 +18,7 @@ from ..analytics.incremental import price_books, SUPPORTED_BOOKS
 from ..analytics.whatif import apply_overrides, FIELDS
 from ..core.dependency import DependencyCache, fingerprint
 from ..core.runtime import run_context
-from .optimizer import _kpi_vectors
+from .optimizer import _kpi_vectors, book_side
 from .unitlib import (build_unit_library, allocation_vectors, evaluate_strategy,
                       prepare_library, resolve_templates)
 
@@ -82,7 +82,7 @@ def validate_replay(result, libraries, bases, constraints):
             raise RuntimeError('independent replay failed a monthly or capital constraint')
     objective = min(b['nii_total_$'] + r['nii_total_$'] for b, r in zip(bases, replay))
     np.testing.assert_allclose(objective, result['worst_case_nii_$'], rtol=1e-7, atol=.01)
-    sides = {u['template']: u['side'] for u in libraries[0]['units']}
+    sides = {u['template']: book_side(u) for u in libraries[0]['units']}
     def amount(target):
         return sum(a['notional'] for a in allocation if a['template'] == target or
                    target == 'ALL_ASSET' and sides[a['template']] > 0 or

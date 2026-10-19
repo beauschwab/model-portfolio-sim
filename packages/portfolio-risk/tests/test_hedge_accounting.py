@@ -378,3 +378,21 @@ def test_delayed_and_cancelled_forecast_periods_follow_the_timing_policy():
         elif kind == 'unknown': bad['events'][0]['period_id'] = 'e9'
         else: bad = deepcopy(cancelled); bad['events'].append(event('forecast_status', 'cfh-1', FEB1 + 10, 0, status='period_probable_not_to_occur', period_id='e3'))
         with pytest.raises(ValueError): run(bad)
+
+
+def test_hedged_item_maturity_derecognizes_remaining_basis_and_verifies_independently(accepted):
+    from portfolio_risk.analytics.hedge_accounting_reference import verify
+    _, base = accepted
+    before = next(c for c in base['closing'] if c['relationship_id'] == 'fvh-1')['basis_closing']
+    request = raw()
+    request['events'].append(event('discontinue', 'fvh-1', APR1, 0, reason='hedged_item_matured'))
+    result = run(request)
+    assert verify(request, result)['verified']
+    fvh = next(c for c in result['closing'] if c['relationship_id'] == 'fvh-1')
+    near(fvh['basis_closing'], 0.)
+    near(fvh['basis_derecognized'], before)
+    for change in (dict(relationship_id='cfh-1'), dict(ordinal=MAR1, sequence=2), dict(proportion=.5)):
+        bad = raw()
+        bad['events'].append(dict(event('discontinue', 'fvh-1', APR1, 0, reason='hedged_item_matured'), **change))
+        with pytest.raises(ValueError):
+            run(bad)

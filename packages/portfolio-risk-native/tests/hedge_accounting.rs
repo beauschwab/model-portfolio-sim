@@ -1212,3 +1212,50 @@ fn delayed_and_cancelled_forecast_periods_follow_the_timing_policy() {
         assert!(outcome.is_err(), "{label} must reject");
     }
 }
+
+#[test]
+fn hedged_item_maturity_derecognizes_the_remaining_basis_on_the_principal_date() {
+    let base = run(&raw()).unwrap();
+    let before = base
+        .closing
+        .iter()
+        .find(|c| c.relationship_id == "fvh-1")
+        .unwrap()
+        .basis_closing;
+    assert!(before.abs() > 1e-6);
+    let mut events = raw()["events"].as_array().unwrap().clone();
+    let matured = json!({"event_id":"matured-fvh-1","relationship_id":"fvh-1","ordinal":day(4, 1),"sequence":0,
+        "kind":"discontinue","review":{"id":"maturity","revision":"r1"},"reason":"hedged_item_matured"});
+    events.push(matured.clone());
+    let result = run(&with_events(raw(), events.clone())).unwrap();
+    balanced(&result);
+    let fvh = result
+        .closing
+        .iter()
+        .find(|c| c.relationship_id == "fvh-1")
+        .unwrap();
+    close(fvh.basis_closing, 0.);
+    close(fvh.basis_derecognized, before);
+    let derecognized: f64 = result
+        .intents
+        .iter()
+        .filter(|i| i.event_id.starts_with("hedged_item_basis_derecognition:"))
+        .flat_map(|i| &i.postings)
+        .filter(|p| p.account == Account::HedgedItemBasisDerecognition)
+        .map(|p| p.debit_amount)
+        .sum();
+    close(derecognized, before);
+    // Refusals: a cash-flow hedge, a date other than the principal date and a partial proportion.
+    for change in [
+        json!({"relationship_id":"cfh-1"}),
+        json!({"ordinal": day(3, 1), "sequence": 2}),
+        json!({"proportion": 0.5}),
+    ] {
+        let mut e = events.clone();
+        let last = e.last_mut().unwrap();
+        for (k, v) in change.as_object().unwrap() {
+            last[k] = v.clone();
+        }
+        assert!(run(&with_events(raw(), e)).is_err(), "{change} must reject");
+    }
+}

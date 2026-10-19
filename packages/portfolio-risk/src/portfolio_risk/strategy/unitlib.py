@@ -53,14 +53,28 @@ TEMPLATES = {
 }
 
 
+# Explicitly selected economic interest-rate swap units (receive-fixed +1, pay-fixed -1) on the
+# forward par rate. Off balance sheet: they carry net settlement NII, DV01 and a supplied
+# counterparty RWA weight per notional, never funding or liquidity. They are not in the default
+# template set, so existing libraries are unchanged. Hedge designation is the separate durable
+# accounting lane; an interactive coefficient never infers hedge accounting eligibility.
+OPTIONAL_TEMPLATES = {
+    "receive_fixed_swap_5y": dict(kind="swap", term_y=5, spread_bp=0, side=1.0, rwa=0.02,
+                                  hqla_l2a=0, outflow30=0, asf=0, rsf=0),
+    "pay_fixed_swap_5y": dict(kind="swap", term_y=5, spread_bp=0, side=-1.0, rwa=0.02,
+                              hqla_l2a=0, outflow30=0, asf=0, rsf=0),
+}
+KNOWN_TEMPLATES = TEMPLATES | OPTIONAL_TEMPLATES
+
+
 def resolve_templates(overrides=None, names=None):
     """Temporary new-business spread assumptions; existing defaults are unchanged."""
     names = list(TEMPLATES) if names is None else list(names)
-    if not names or len(set(names)) != len(names) or set(names) - set(TEMPLATES):
+    if not names or len(set(names)) != len(names) or set(names) - set(KNOWN_TEMPLATES):
         raise ValueError('template_names must be unique known templates')
-    if set(overrides or {}) - set(TEMPLATES):
+    if set(overrides or {}) - set(KNOWN_TEMPLATES):
         raise ValueError('unknown template override')
-    result = {name: dict(TEMPLATES[name]) for name in names}
+    result = {name: dict(KNOWN_TEMPLATES[name]) for name in names}
     for name, patch in (overrides or {}).items():
         if set(patch) - {'spread_bp'}:
             raise ValueError('only template spread_bp is supported')
@@ -260,13 +274,41 @@ def build_unit_library(swap_rates, vol_pts, mbs_hists, dep_hist,
         dep_run = Pd[:, :horizon]
         dep_bal = np.maximum(1.0 - np.cumsum(dep_run, 1) + dep_run, 0.0)
 
+    # ---- swap units (off balance sheet; net settlement on shared paths) -------------
+    swap_rows = []
+    for tname, t in templates.items():
+        if t["kind"] != "swap":
+            continue
+        months = int(round(t["term_y"] * 12))
+        for h in grid_m:
+            fixed = _fwd_par(dfi, h / 12.0, t["term_y"]) + t["spread_bp"] * 1e-4
+            swap_rows.append((months, fixed))
+            units.append(dict(template=tname, h=h, kind="swap", side=float(t["side"])))
+    if swap_rows:
+        base = rp(swap_rates); down = rp(swap_rates - d25); up = rp(swap_rates + d25)
+        T = base["short"].shape[1]
+        def swap_pv(paths, months, fixed):
+            k = min(months, T)
+            return float(np.mean(np.sum(paths["df"][:, :k] * (fixed - paths["short"][:, :k]) / 12.0, axis=1)))
+        swap_nii = np.zeros((len(swap_rows), horizon)); swap_bal = np.zeros((len(swap_rows), horizon)); swap_dv = np.zeros(len(swap_rows))
+        for j, (months, fixed) in enumerate(swap_rows):
+            k = min(months, horizon)
+            swap_nii[j, :k] = (fixed - base["short"][:, :k].mean(axis=0)) / 12.0
+            swap_bal[j, :min(months, horizon)] = 1.0
+            swap_dv[j] = (swap_pv(down, months, fixed) - swap_pv(up, months, fixed)) / 50.0
+
     # ---- assemble tensor (U, ...) in `units` order -----------------------------
     U = len(units)
     nii = np.zeros((U, horizon)); run = np.zeros((U, horizon))
     bal = np.zeros((U, horizon)); dv = np.zeros(U)
     cash_interest = np.zeros((U, horizon))
-    im = ic = id_ = icd = 0
+    im = ic = id_ = icd = isw = 0
     for i, u in enumerate(units):
+        if u["kind"] == "swap":
+            cash_interest[i] = swap_nii[isw]
+            nii[i], run[i], bal[i], dv[i] = swap_nii[isw], np.zeros(horizon), swap_bal[isw], swap_dv[isw]
+            isw += 1
+            continue
         if u["kind"] == "mbs":
             cash_interest[i] = mbs_nii[im]
             nii[i], run[i], bal[i], dv[i] = (mbs_nii[im], mbs_run[im],
@@ -336,11 +378,16 @@ def allocation_vectors(lib, template, h):
     t = lib["templates"][template]
     x = np.zeros((len(METRICS), H))
     k = H - h
+    outstanding = np.zeros(H); outstanding[h:] = np.maximum(bal[:k], 0)
     x[0, h:] = side * inc[:k]
-    x[1, h:] = np.maximum(bal[:k], 0)
-    x[2, h:] = side * dv * x[1, h:] / max(float(bal[0]), 1e-12)
+    x[1] = outstanding
+    x[2, h:] = side * dv * outstanding[h:] / max(float(bal[0]), 1e-12)
     for i, key in enumerate(("hqla_l2a", "outflow30", "asf", "rsf", "rwa"), 3):
-        x[i] = t.get(key, 0.0) * x[1]
+        x[i] = t.get(key, 0.0) * outstanding
+    if t.get("kind") == "swap":
+        # Off balance sheet: notional scales DV01 and RWA only; no balance, assets or liabilities.
+        x[1] = 0.
+        return x
     x[8 if side > 0 else 9] = x[1]
     return x
 

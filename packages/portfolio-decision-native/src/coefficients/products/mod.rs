@@ -137,6 +137,7 @@ impl PreparedLibrary {
                 template: u.unit_id.clone(),
                 h: u.purchase_period,
                 side: u.side,
+                swap: false,
             })
             .collect();
         let mut bases = BTreeMap::new();

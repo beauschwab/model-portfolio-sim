@@ -5,6 +5,7 @@ import polars as pl
 from .artifacts import PartitionedTable,ObjectReference
 from portfolio_risk.analytics.saved_derivative_identity import loads,encoded,exact_identity,probe
 from portfolio_risk.analytics.saved_derivative_transport import SCHEMAS,SCHEMA
+from portfolio_risk.analytics.saved_derivative_mixed_reference import SCHEMAS_SUPPORTED
 from portfolio_risk.analytics.saved_derivative_mixed_reference import verify_preparation,verify_stream
 from .deposit_partition_bounds import parquet_metadata
 MAX_BYTES=32*1024*1024
@@ -89,11 +90,11 @@ class StoredFrames:
 
 def verify_persisted(codec,output,raw,check=lambda:False):
     facade=StoredFrames(codec,output,check);e=facade.execution
-    if e['model_version']!=SCHEMA or e['backend']!='rust' or type(e['partition_rows'])is not int or not 1<=e['partition_rows']<=65536:raise ValueError('persisted derivative runtime identity')
+    if raw.get('schema')not in SCHEMAS_SUPPORTED or e['model_version']!=raw['schema'] or e['backend']!='rust' or type(e['partition_rows'])is not int or not 1<=e['partition_rows']<=65536:raise ValueError('persisted derivative runtime identity')
     input=loads(body(codec.objects,e['input'],check));same(input['request'],raw,'persisted original input changed')
     if set(input)!={'request','execution_timeout_ms'}or type(input['execution_timeout_ms'])is not int or not 0<input['execution_timeout_ms']<=1800000:raise ValueError('persisted derivative input envelope')
     header=loads(body(codec.objects,e['modeled_source'],check))
-    if set(header)!={'schema','model_schema','prepared_request','source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=SCHEMA:raise ValueError('persisted derivative workflow')
+    if set(header)!={'schema','model_schema','prepared_request','source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=raw['schema']:raise ValueError('persisted derivative workflow')
     control=verify_preparation(raw,header['prepared_request'],header['source_receipt'],check)
     receipt=verify_stream(raw,control,facade,check);same(receipt,e['validation'],'persisted derivative receipt changed')
     facade.recheck();return facade,receipt
@@ -101,7 +102,7 @@ def verify_persisted(codec,output,raw,check=lambda:False):
 def import_manifest(codec,path,check):
     from pathlib import Path
     path=Path(path).resolve();m=loads(path.read_bytes(),1048576);root=path.parent
-    if m.get('version')!='saved-derivative-partitions-1'or m.get('model_version')!=SCHEMA or set(m['tables'])!=set(SCHEMAS):raise ValueError('derivative transport manifest')
+    if m.get('version')!='saved-derivative-partitions-1'or m.get('model_version')not in SCHEMAS_SUPPORTED or set(m['tables'])!=set(SCHEMAS):raise ValueError('derivative transport manifest')
     result={};total=0;count=0
     def read(d):
         nonlocal total

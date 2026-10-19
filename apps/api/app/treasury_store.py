@@ -6,7 +6,7 @@ from . import persistence as db, store, worker
 
 
 def _source(jid, kind):
-    allowed={'ledger':{'balance_stress','saved_balance_stress','streamed_balance_stress','modeled_balance_stress','model_analysis'},
+    allowed={'ledger':{'balance_stress','saved_balance_stress','streamed_balance_stress','modeled_balance_stress','model_analysis','saved_derivative_mixed'},
              'credit_ledger':{'credit_balance_stress','credit_path_balance_stress','modeled_balance_stress'},
              'cashflows':{'cohort_analytics'}}
     row=db.REPO.job(jid)
@@ -20,6 +20,8 @@ def _source(jid, kind):
         tables={path.removeprefix('/model_result'):value for path,value in tables.items() if path.startswith(prefix)}
         if not {'/journal','/trial_balance','/closing_statements'}<=set(tables):
             raise ValueError('mixed dated source lacks independently verified closing tables')
+    if row['kind']=='saved_derivative_mixed':
+        _derivative_protocol(ref)
     if row['kind']=='modeled_balance_stress':
         model=_metadata(ref,{'execution'})['execution'].get('model_version')
         expected_models={'driven-credit-ledger-1'} if kind=='credit_ledger' else {'graph-dated-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1'}
@@ -56,6 +58,33 @@ def _mixed_protocol(ref):
     if type(ordinal) is not int or not 1<=ordinal<=3652059:
         raise ValueError('mixed dated capital source requires its exact closing date')
     return ordinal
+
+
+DERIVATIVE_GATES={'saved-derivative-mixed-1':('verified','native_derivative_source_recomputed','ordered_mixed_journal_recomputed',
+                                             'single_daily_gl_verified','complete_gross_rights_verified'),
+                  'saved-hedge-mixed-1':('verified','native_derivative_source_recomputed','formal_hedge_relationships_replayed',
+                                         'ordered_mixed_journal_recomputed','single_daily_gl_verified','complete_gross_rights_verified',
+                                         'complete_hedge_basis_oci_tail_verified')}
+
+
+def _derivative_protocol(ref):
+    """Admit a published saved-derivative/hedge shared journal by its retained independent receipt.
+
+    The receipt binds the independent source, ordered-journal and complete-tail replays. Capital is
+    closing capital at the complete mixed tail; FTP and report-date capital are not admitted.
+    """
+    execution=_metadata(ref,{'execution'})['execution']
+    model=execution.get('model_version');receipt=execution.get('validation',{})
+    if (model not in DERIVATIVE_GATES or execution.get('backend')!='rust' or
+            any(receipt.get(key) is not True for key in DERIVATIVE_GATES[model]) or
+            receipt.get('accounting_standard_approval') is not False or receipt.get('capital_ftp_eligible') is not False):
+        raise ValueError('saved derivative capital source requires a compatible independently verified shared journal')
+    request=json.loads(db.CODEC.objects.get(execution['input']))['request']
+    if request.get('schema')!=model:raise ValueError('saved derivative source input/model mismatch')
+    dated=request['dated']
+    ordinal=dated['dated']['as_of_ordinal']+dated['specification']['horizon_days']
+    if type(ordinal) is not int or not 1<=ordinal<=3652059:raise ValueError('saved derivative capital source requires its exact closing date')
+    return model,ordinal
 
 
 def _check():
@@ -138,9 +167,11 @@ def run(source_job,specification):
                 raise ValueError('capital policy currency must match ledger account')
         if '/journal' not in tables: raise ValueError('source has no journal to verify')
         mixed=row['kind']=='model_analysis'
-        if mixed:
+        derivative=row['kind']=='saved_derivative_mixed'
+        if mixed or derivative:
             from datetime import date
-            if specification['treasury']['as_of']!=date.fromordinal(_mixed_protocol(ref)).isoformat():
+            closing_ordinal=_mixed_protocol(ref) if mixed else _derivative_protocol(ref)[1]
+            if specification['treasury']['as_of']!=date.fromordinal(closing_ordinal).isoformat():
                 raise ValueError('capital report date must match mixed dated closing date')
         out=bridge(specification,trial_balance=trial,journal_frames=_frames(tables['/journal']),
             credit_protocol=_credit_protocol(ref) if kind=='credit_ledger' else 4,
@@ -165,6 +196,10 @@ def run(source_job,specification):
     if row['kind']=='model_analysis':
         out['source_receipt'].update(model_schema=_metadata(ref,{'execution'})['execution']['schema'],
             closing_ordinal=_mixed_protocol(ref),basis='complete_tail_expected_closing-1')
+    if row['kind']=='saved_derivative_mixed':
+        model,ordinal=_derivative_protocol(ref)
+        out['source_receipt'].update(model_schema=model,closing_ordinal=ordinal,basis='complete_tail_shared_journal_closing-1',
+            cash_flow_hedge_aoci_policy='reviewed cash_flow_hedge_aoci_eligible flag; excluded by default')
     out['revision']=store.current_state()['revision']
     store.report('Source-linked capital/FTP report complete',1.)
     return out
@@ -178,9 +213,9 @@ def template(source_job,kind):
         # Small account scopes only; never read journal/position inventory in a handler.
         data=(_credit_closing(ref,tables) if kind=='credit_ledger' else _table(tables,'/closing_statements',1000)).to_dicts()
         asof=None
-        if row['kind']=='model_analysis':
+        if row['kind'] in {'model_analysis','saved_derivative_mixed'}:
             from datetime import date
-            asof=date.fromordinal(_mixed_protocol(ref)).isoformat()
+            asof=date.fromordinal(_mixed_protocol(ref) if row['kind']=='model_analysis' else _derivative_protocol(ref)[1]).isoformat()
         spec=source_template(kind,data,asof=asof)
     else:
         meta=_metadata(ref,{'asof','horizon','calculation_basis'})
@@ -188,6 +223,9 @@ def template(source_job,kind):
         data=_table(tables,'/openings',256).to_dicts()
         spec=source_template(kind,data,asof=str(meta['asof']),horizon=meta['horizon'],basis=meta['calculation_basis'])
     note='Fill null policy inputs. Regulatory eligibility, risk weights, curve calibration and residual tails are explicit assumptions.'
+    if row['kind']=='saved_derivative_mixed':
+        note+=(' This source is closing capital from the verified shared derivative/hedge journal at its complete tail.'
+               ' Report-date capital, regulatory eligibility, cash-flow-hedge AOCI eligibility and FTP require separate reviewed inputs.')
     if row['kind']=='model_analysis':
         note+=' This source is expected capital at the complete source-tail closing date shown above. Report-date capital, inferred regulatory eligibility and modeled FTP require separate adoption.'
     return dict(specification=spec,source_revision=row['revision'],revision=store.snapshot()['revision'],note=note)
