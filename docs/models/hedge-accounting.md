@@ -50,6 +50,7 @@ recomputes the native result and rejects tampered results (`packages/portfolio-r
 | Net investment and dual hedges (separate owner) | `net_investment_hedge.rs`: all five tests | `test_net_investment_hedge.py`: all four tests |
 | Nonfinancial components (separate owner) | `nonfinancial_hedge.rs`: all four tests | `test_nonfinancial_hedge.py`: all three tests |
 | Daily journal presentation | `saved-hedge-mixed-1` decision `hedges` unit tests | `test_saved_hedge_mixed_process.py`: `test_formal_hedge_journal_posts_once_in_the_shared_daily_gl`, `test_designation_changes_presentation_not_economics` |
+| Qualification cannot survive a changed request (wrong forecast amount or date, changed method, unknown fields) or a failed assessment; elections need an actual adoption | `hedge_accounting.rs`: `explicit_refusals_without_fallback` | `test_hedge_regression_matrix.py`: all tests |
 | Closing capital and AOCI eligibility | `hedge_treasury.rs`: all four tests | `test_hedge_treasury.py`: all nine tests |
 
 Disclosures are not produced by the engine. The relationship lifecycle, assessment evidence,

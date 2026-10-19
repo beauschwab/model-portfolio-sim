@@ -154,7 +154,83 @@ def _same_periods(contract, exposure):
         and c['day_count'] == e['day_count'] and c['fee'] == 0. for c, e in zip(contract, exposure))
 
 
+# Field sets of the request schema (required, optional). Unknown keys reject here as they do in
+# native admission, so a changed request can never verify against an earlier result.
+_FIELDS = {
+    'request': ({'schema', 'model_version', 'run', 'entity', 'currency', 'monetary_unit', 'policy', 'derivative',
+                 'hedged_items', 'forecast_exposures', 'relationships', 'events'}, set()),
+    'item': ({'item_id', 'source', 'carrying_source', 'kind', 'direction', 'notional', 'contractual_rate', 'periods',
+              'principal_ordinal'}, {'portfolio'}),
+    'portfolio': ({'members', 'balance_source', 'balances', 'projection_evidence', 'projections'}, set()),
+    'member': ({'asset_id', 'source', 'prepayable'}, set()),
+    'balance': ({'ordinal', 'outstanding'}, set()),
+    'projection': ({'ordinal', 'term_end_ordinal', 'anticipated'}, set()),
+    'exposure': ({'exposure_id', 'source', 'probability_evidence', 'direction', 'notional', 'index_id', 'periods'},
+                 {'choose_your_rate'}),
+    'choose_your_rate': ({'evidence', 'documented_index_ids', 'debt_classification'}, {'option_schedules', 'forecasted_issuance'}),
+    'option_schedule': ({'index_id', 'periods'}, set()),
+    'hypothetical': ({'evidence', 'nodes'}, set()),
+    'hypothetical_node': ({'ordinal', 'request'}, set()),
+    'group': ({'member_exposure_ids', 'similar_risk_method', 'hypotheticals'}, {'qualitative_similarity_election'}),
+    'member_hypothetical': ({'exposure_id', 'hypothetical'}, set()),
+    'rate_hypothetical': ({'index_id', 'hypothetical'}, set()),
+    'opening': ({'evidence', 'hedged_value', 'cumulative_instrument_change', 'cumulative_hedged_change', 'basis_balance',
+                 'oci_balance'}, {'scale', 'frozen_basis', 'frozen_oci'}),
+    'frozen_basis': ({'amount', 'start_ordinal', 'amortized'}, set()),
+    'frozen_oci': ({'amount', 'released', 'entries'}, set()),
+    'frozen_oci_entry': ({'payment_ordinal', 'weight'}, set()),
+    'layer_amount': ({'period_end_ordinal', 'amount'}, set()),
+    'relationship': ({'relationship_id', 'designation', 'hedging_instrument_position_id', 'designated_proportion',
+                      'hedged_risk', 'inception_ordinal', 'risk_management_objective', 'documentation'},
+                     {'predecessor_relationship_id', 'hedged_item_id', 'hedged_notional', 'forecast_exposure_id', 'benchmark_rate',
+                      'hypothetical', 'matched_critical_terms_evidence', 'group', 'rate_hypotheticals', 'written_option_position_id',
+                      'opening', 'hedged_term_end_ordinal', 'additional_instrument_position_ids', 'layer_amortization'}),
+    'event': ({'event_id', 'relationship_id', 'ordinal', 'sequence', 'kind', 'review'},
+              {'proportion', 'reason', 'status', 'index_id', 'effective_ordinal', 'period_id', 'new_payment_ordinal',
+               'qualitative_similarity_support'}),
+}
+
+
+def _fields(value, kind):
+    required, optional = _FIELDS[kind]
+    _require(type(value) is dict and required <= set(value) <= required | optional, kind + ' fields')
+    return value
+
+
+def _shape(raw):
+    """Schema shape of every request object this reference owns (the derivative request has its own)."""
+    _fields(raw, 'request')
+    for item in raw['hedged_items']:
+        portfolio = _fields(item, 'item').get('portfolio')
+        if portfolio is not None:
+            _fields(portfolio, 'portfolio')
+            for kind, key in (('member', 'members'), ('balance', 'balances'), ('projection', 'projections')):
+                for x in portfolio[key]: _fields(x, kind)
+    for x in raw['forecast_exposures']:
+        cyr = _fields(x, 'exposure').get('choose_your_rate')
+        if cyr is not None:
+            for schedule in _fields(cyr, 'choose_your_rate').get('option_schedules') or []: _fields(schedule, 'option_schedule')
+
+    def hypothetical(h):
+        for node in _fields(h, 'hypothetical')['nodes']: _fields(node, 'hypothetical_node')
+    for rel in raw['relationships']:
+        _fields(rel, 'relationship')
+        if rel.get('hypothetical') is not None: hypothetical(rel['hypothetical'])
+        if rel.get('group') is not None:
+            for h in _fields(rel['group'], 'group')['hypotheticals']: hypothetical(_fields(h, 'member_hypothetical')['hypothetical'])
+        for h in rel.get('rate_hypotheticals') or []: hypothetical(_fields(h, 'rate_hypothetical')['hypothetical'])
+        opening = rel.get('opening')
+        if opening is not None:
+            _fields(opening, 'opening')
+            for t_ in opening.get('frozen_basis') or []: _fields(t_, 'frozen_basis')
+            for t_ in opening.get('frozen_oci') or []:
+                for e in _fields(t_, 'frozen_oci')['entries']: _fields(e, 'frozen_oci_entry')
+        for x in rel.get('layer_amortization') or []: _fields(x, 'layer_amount')
+    for ev in raw['events']: _fields(ev, 'event')
+
+
 def _admit(raw):
+    _shape(raw)
     _require(raw['schema'] == SCHEMA and raw['model_version'] == SCHEMA, 'explicit hedge-accounting-1 selection required')
     policy = raw['policy']
     _require(policy['rule_version'] == RULE, 'unsupported rule matrix')
