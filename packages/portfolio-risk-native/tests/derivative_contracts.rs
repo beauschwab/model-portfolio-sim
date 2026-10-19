@@ -1469,3 +1469,159 @@ fn standardized_initial_margin_refuses_unreviewed_schedules_and_options() {
     r.policy.initial_margin_model = im_model(0.);
     assert!(evaluate(&r).is_err(), "standardized IM covers swaps only");
 }
+
+/// Payer swap starting at expiry with `months` monthly ACT/360 periods, a flat projected
+/// floating rate and an exact continuously compounded 3% collateral curve.
+fn underlying(expiry: i32, months: u32, rate: f64, strike: f64) -> (SwapRequest, f64) {
+    let date =
+        |m: u32| ordinal_from_ymd(2024 + ((6 + m) / 12) as i32, (6 + m) % 12 + 1, 1).unwrap();
+    let mut u = swap(expiry, expiry, date(1), rate, Side::Payer, "option");
+    u.fixed_rate = strike;
+    let template = u.floating_periods[0].clone();
+    u.fixed_periods.clear();
+    u.floating_periods.clear();
+    u.discount_curve.points = vec![DiscountPoint {
+        ordinal: expiry,
+        discount_factor: 1.,
+    }];
+    let mut annuity = 0.;
+    for m in 0..months {
+        let (start, end) = (date(m), date(m + 1));
+        let df = (-0.03 * f64::from(end - expiry) / 365.).exp();
+        annuity += u.notional * f64::from(end - start) / 360. * df;
+        u.discount_curve.points.push(DiscountPoint {
+            ordinal: end,
+            discount_factor: df,
+        });
+        u.fixed_periods.push(FixedPeriod {
+            period_id: format!("f{m}"),
+            start_ordinal: start,
+            end_ordinal: end,
+            payment_ordinal: end,
+            day_count: ActualDayCount::Act360,
+        });
+        let mut period = template.clone();
+        period.period_id = format!("l{m}");
+        (
+            period.start_ordinal,
+            period.end_ordinal,
+            period.payment_ordinal,
+        ) = (start, end, end);
+        if let Coupon::Indexed {
+            observations,
+            reset_cutoff_unix_seconds,
+            ..
+        } = &mut period.coupon
+        {
+            *reset_cutoff_unix_seconds = Some(utc(start));
+            let o = &mut observations[0];
+            (o.interest_start_ordinal, o.interest_end_ordinal) = (start, end);
+            (o.observation_start_ordinal, o.observation_end_ordinal) = (start, end);
+            o.fixing_ordinal = start;
+            o.selection_cutoff_unix_seconds = utc(start);
+        }
+        u.floating_periods.push(period);
+    }
+    u.tail_end_ordinal = date(months);
+    (u, annuity)
+}
+
+/// Binomial terminal law for the flat swap rate: F + s * (2k - n) / sqrt(n).
+fn binomial_swaption(
+    months: u32,
+    n: u32,
+    forward: f64,
+    strike: f64,
+    s: f64,
+) -> (SwaptionRequest, f64) {
+    let asof = ordinal_from_ymd(2024, 1, 1).unwrap();
+    let expiry = ordinal_from_ymd(2024, 7, 1).unwrap();
+    let mut r = option();
+    (r.asof_ordinal, r.expiry_ordinal, r.settlement_ordinal) = (asof, expiry, expiry);
+    let discount_to_expiry = (-0.03 * f64::from(expiry - asof) / 365.).exp();
+    let template = r.states[0].clone();
+    r.states.clear();
+    let mut annuity = 0.;
+    let mut probability = 0.5_f64.powi(n as i32);
+    for k in 0..=n {
+        let rate = forward + s * f64::from(2 * k) / f64::from(n).sqrt() - s * f64::from(n).sqrt();
+        let (u, a) = underlying(expiry, months, rate, strike);
+        annuity = a;
+        let mut state = template.clone();
+        state.state_id = format!("k{k}");
+        state.probability = probability;
+        state.discount_to_expiry = discount_to_expiry;
+        state.underlying = u;
+        r.states.push(state);
+        probability *= f64::from(n - k) / f64::from(k + 1);
+    }
+    r.tail_end_ordinal = r.states[0].underlying.tail_end_ordinal;
+    (r, discount_to_expiry * annuity)
+}
+
+fn bachelier(forward: f64, strike: f64, s: f64) -> f64 {
+    // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7), independent of the native pricer.
+    let erfc = |x: f64| {
+        let t = 1. / (1. + 0.3275911 * x.abs());
+        let y = t
+            * (0.254829592
+                + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))))
+            * (-x * x).exp();
+        if x >= 0. {
+            y
+        } else {
+            2. - y
+        }
+    };
+    let d = (forward - strike) / s;
+    (forward - strike) * 0.5 * erfc(-d / 2_f64.sqrt())
+        + s * (-d * d / 2.).exp() / (2. * std::f64::consts::PI).sqrt()
+}
+
+#[test]
+fn european_swaption_scales_with_the_underlying_annuity_across_tenors_and_converges_to_bachelier() {
+    // Normal volatility 1% a year over six months to expiry.
+    let s = 0.01 * 0.5_f64.sqrt();
+    for (forward, strike) in [(0.04, 0.04), (0.045, 0.04), (0.035, 0.04)] {
+        let mut per_annuity = vec![];
+        for months in [3, 12, 36] {
+            let (r, scale) = binomial_swaption(months, 63, forward, strike, s);
+            let out = value_european(&r).unwrap();
+            // Every state values the raw underlying swap: payer value = annuity * (rate - strike).
+            let expected: f64 = r
+                .states
+                .iter()
+                .map(|x| {
+                    let Coupon::Indexed { observations, .. } =
+                        &x.underlying.floating_periods[0].coupon
+                    else {
+                        unreachable!()
+                    };
+                    x.probability * (observations[0].rate - strike).max(0.)
+                })
+                .sum::<f64>()
+                * scale;
+            assert!(
+                (out.clean_value - expected).abs() <= 1e-12 * expected.abs().max(1.) + 1e-9,
+                "{months}: {} != {expected}",
+                out.clean_value
+            );
+            per_annuity.push(out.clean_value / scale);
+        }
+        // Same terminal rate law: value per unit of expiry-discounted annuity is tenor invariant.
+        for x in &per_annuity[1..] {
+            assert!((x - per_annuity[0]).abs() <= 1e-12 * per_annuity[0].abs() + 1e-15);
+        }
+        // Refining the supplied terminal law converges to the closed-form Bachelier value.
+        let target = bachelier(forward, strike, s);
+        let errors: Vec<f64> = [15, 63, 255]
+            .iter()
+            .map(|&n| {
+                let (r, scale) = binomial_swaption(12, n, forward, strike, s);
+                (value_european(&r).unwrap().clean_value / scale - target).abs() / target
+            })
+            .collect();
+        assert!(errors[0] > errors[1] && errors[1] > errors[2], "{errors:?}");
+        assert!(errors[2] < 1.5e-3, "{errors:?}");
+    }
+}

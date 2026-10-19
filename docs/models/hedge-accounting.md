@@ -29,6 +29,33 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Seasoned relationships | A relationship whose `inception_ordinal` precedes the derivative opening date must carry a reviewed `opening` block (and only such relationships may): the after-payment hedged value at the opening, cumulative instrument and hedged changes, and the retained basis or OCI balance. Balances are posted once against opening equity before the first node; measurement continues from the derivative opening clean values. See [seasoned openings](#seasoned-openings). |
 | Net investment, nonfinancial components, standalone options as instruments, counterparty default | Rejected explicitly. |
 
+### Rule-to-test matrix
+
+Each rule area is checked twice: once by a native test against hand-computed values and refusals
+(`packages/portfolio-risk-native/tests/`), and once by the independent Python reference, which
+recomputes the native result and rejects tampered results (`packages/portfolio-risk/tests/`).
+
+| Rule area | Native tests | Independent tests |
+|---|---|---|
+| Eligibility, admitted risk and refusals (815-20-25) | `hedge_accounting.rs`: `explicit_refusals_without_fallback`, `protocol_envelope_dispatch_bounds_and_rejections` | `test_hedge_accounting.py`: `test_native_refusals_without_fallback`, `test_native_strict_scalar_categories_and_duplicate_keys` |
+| Designation timing and documentation | `hedge_accounting.rs`: `supplied_hypothetical_matches_matched_terms_and_rejects_off_market_inception`, `forward_starting_hedge_of_forecast_issuance_is_assessed_and_released`; `hedge_seasoned.rs`: `seasoned_refusals_without_fallback` | `test_hedge_accounting.py`: `test_narrow_band_fails_assessment_and_supplied_hypothetical_matches_matched_terms`; `test_hedge_seasoned.py`: `test_seasoned_refusals_without_fallback` |
+| Hedging instrument (joint and compound) | `hedge_accounting.rs`: `jointly_designated_swaps_form_one_hedging_instrument`; `hedge_compound_option.rs`: all three tests | `test_hedge_accounting.py`: `test_jointly_designated_swaps_form_one_hedging_instrument`; `test_hedge_compound_option.py`: all four tests |
+| Effectiveness assessment (815-20-35) | `hedge_accounting.rs`: `forecast_not_occurring_releases_oci_and_a_narrow_band_fails_the_assessment` | `test_hedge_accounting.py`: `test_narrow_band_fails_assessment_and_supplied_hypothetical_matches_matched_terms` |
+| Fair-value hedge recognition, partial term and maturity (815-25-35) | `hedge_accounting.rs`: `example_fair_value_and_matched_cash_flow_hedges_reproduce_hand_values`, `partial_term_fair_value_hedge_measures_to_the_assumed_maturity`, `hedged_item_maturity_derecognizes_the_remaining_basis_on_the_principal_date` | `test_hedge_accounting.py`: `test_example_hand_values_verify_independently`, `test_partial_term_fair_value_hedge_measures_to_the_assumed_maturity`, `test_hedged_item_maturity_derecognizes_remaining_basis_and_verifies_independently` |
+| Cash-flow hedge recognition and forecast outcomes (815-30-35, 815-30-40) | `hedge_accounting.rs`: `forecast_not_occurring_releases_oci_and_a_narrow_band_fails_the_assessment`, `delayed_and_cancelled_forecast_periods_follow_the_timing_policy` | `test_hedge_accounting.py`: `test_partial_dedesignation_sale_and_forecast_outcomes_verify_independently`, `test_delayed_and_cancelled_forecast_periods_follow_the_timing_policy` |
+| Discontinuation and redesignation (815-25-40) | `hedge_accounting.rs`: `partial_dedesignation_freezes_half_the_basis_and_amortizes_it_straight_line_to_principal` | `test_hedge_accounting.py`: `test_partial_dedesignation_sale_and_forecast_outcomes_verify_independently` |
+| Seasoned openings | `hedge_seasoned.rs`: `seasoned_relationships_post_retained_balances_once_and_continue_measurement`, `frozen_tranches_and_scale_at_the_opening_continue_amortization_and_release` | `test_hedge_seasoned.py`: all five tests |
+| ASU 2022-01 portfolio layers | `hedge_portfolio_layer.rs`: all three tests | `test_hedge_portfolio_layer.py`: all five tests |
+| Transition: ASU 2025-09 elections and adoption date | `hedge_asu_2025_09.rs` and `hedge_asu_followthrough.rs`: all eight tests | `test_hedge_asu_2025_09.py` (including `test_elections_without_use_keep_the_base_result`) and `test_hedge_asu_followthrough.py`: all tests |
+| Net investment and dual hedges (separate owner) | `net_investment_hedge.rs`: all five tests | `test_net_investment_hedge.py`: all four tests |
+| Nonfinancial components (separate owner) | `nonfinancial_hedge.rs`: all four tests | `test_nonfinancial_hedge.py`: all three tests |
+| Daily journal presentation | `saved-hedge-mixed-1` decision `hedges` unit tests | `test_saved_hedge_mixed_process.py`: `test_formal_hedge_journal_posts_once_in_the_shared_daily_gl`, `test_designation_changes_presentation_not_economics` |
+| Closing capital and AOCI eligibility | `hedge_treasury.rs`: all four tests | `test_hedge_treasury.py`: all nine tests |
+
+Disclosures are not produced by the engine. The relationship lifecycle, assessment evidence,
+basis and OCI roll-forwards and reclassification rows are retained in the output, and a
+disclosure would be drawn from them under the entity's reporting policy.
+
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
 matrix is this document; accounting policy approval, auditor judgment and
 entity-specific qualification are outside the engine.
