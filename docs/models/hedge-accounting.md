@@ -51,11 +51,10 @@ recomputes the native result and rejects tampered results (`packages/portfolio-r
 | Nonfinancial components (separate owner) | `nonfinancial_hedge.rs`: all four tests | `test_nonfinancial_hedge.py`: all three tests |
 | Daily journal presentation | `saved-hedge-mixed-1` decision `hedges` unit tests | `test_saved_hedge_mixed_process.py`: `test_formal_hedge_journal_posts_once_in_the_shared_daily_gl`, `test_designation_changes_presentation_not_economics` |
 | Qualification cannot survive a changed request (wrong forecast amount or date, changed method, unknown fields) or a failed assessment; elections need an actual adoption | `hedge_accounting.rs`: `explicit_refusals_without_fallback` | `test_hedge_regression_matrix.py`: all tests |
+| Disclosure tables (815-10-50, 815-30-50) | `hedge_accounting.rs`: `disclosure_tables_are_opt_in_and_reconcile_at_the_reporting_node`, `disclosure_policy_must_name_a_path_node_and_known_fields` | `test_hedge_disclosures.py`: all tests; API `test_hedge_accounting_jobs.py::test_hedge_disclosure_tables_publish_as_verified_parquet` |
 | Closing capital and AOCI eligibility | `hedge_treasury.rs`: all four tests | `test_hedge_treasury.py`: all nine tests |
 
-Disclosures are not produced by the engine. The relationship lifecycle, assessment evidence,
-basis and OCI roll-forwards and reclassification rows are retained in the output, and a
-disclosure would be drawn from them under the entity's reporting policy.
+Disclosure tables are opt-in; see [disclosure tables](#disclosure-tables-opt-in).
 
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
 matrix is this document; accounting policy approval, auditor judgment and
@@ -542,6 +541,36 @@ Journal accounts are the derivative owner's accounts plus
 Every intent balances; hedge intents carry `relationship_id`. Each node's
 trial balance equals the derivative owner's balances for every derivative
 account except `mark_gain_loss`, which is reduced exactly by the OCI share.
+
+## Disclosure tables (opt-in)
+
+A request may add `disclosure_policy: {identity, reporting_ordinal}`. The reporting date must
+be a node of the derivative path, and the period runs from the opening to that node. Without the
+policy the result keeps its historical keys. With it, the result adds `disclosures`:
+
+| Table | Reference | Content |
+|---|---|---|
+| `derivative_fair_values` | 815-10-50-4B | Each derivative's clean fair value at the node, split into fair-value-hedge, cash-flow-hedge and not-designated amounts by the proportions of relationships qualified at the node. |
+| `earnings` | 815-10-50-4A, 4C | Earnings recognized in the period by journal line and hedge type, income positive. A posting owned by a relationship takes its designation. A derivative-owner earnings posting on a hedging instrument takes the share designated in fair-value hedges qualified at the start of its node; the rest is not designated. |
+| `fair_value_hedged_items` | 815-10-50-4EE | For each fair-value hedge: the designated hedged notional, and the live and discontinued (frozen) cumulative basis adjustments at the node. |
+| `cash_flow_hedge_aoci` | 815-30-50-1, 220-10-45-14A | For each cash-flow hedge: opening AOCI, amounts recognized and reclassified in the period, the part reclassified because a forecast became probable not to occur, closing AOCI, the reclassification expected in the next twelve months, and the latest hedged payment date. |
+
+`maximum_forecast_horizon_days` (815-30-50-1(b)) is the longest time from the node to a hedged
+forecast payment of a qualified cash-flow hedge.
+
+The twelve-month expectation covers payments in the 365 days after the node. It adds, using
+nothing later than the node:
+
+- each hedged period's projected settlement from the node's projections: the instrument for
+  matched critical terms, otherwise the selected hypothetical, scaled exactly as its eventual
+  reclassification would be;
+- amounts already measured and deferred to a delayed date;
+- scheduled frozen-OCI entries. A tranche whose last entry falls in the window counts in full.
+
+Hedged-item carrying amounts belong to the item owner and are not restated. These tables are
+modeled presentation inputs, not an accounting-standard opinion. The independent reference
+rebuilds every table from its own replay, and the durable job persists them as verified Parquet
+tables (`/disclosures/...`).
 
 ## Independent verification
 

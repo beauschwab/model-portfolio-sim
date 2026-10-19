@@ -158,7 +158,8 @@ def _same_periods(contract, exposure):
 # native admission, so a changed request can never verify against an earlier result.
 _FIELDS = {
     'request': ({'schema', 'model_version', 'run', 'entity', 'currency', 'monetary_unit', 'policy', 'derivative',
-                 'hedged_items', 'forecast_exposures', 'relationships', 'events'}, set()),
+                 'hedged_items', 'forecast_exposures', 'relationships', 'events'}, {'disclosure_policy'}),
+    'disclosure_policy': ({'identity', 'reporting_ordinal'}, set()),
     'item': ({'item_id', 'source', 'carrying_source', 'kind', 'direction', 'notional', 'contractual_rate', 'periods',
               'principal_ordinal'}, {'portfolio'}),
     'portfolio': ({'members', 'balance_source', 'balances', 'projection_evidence', 'projections'}, set()),
@@ -200,6 +201,7 @@ def _fields(value, kind):
 def _shape(raw):
     """Schema shape of every request object this reference owns (the derivative request has its own)."""
     _fields(raw, 'request')
+    if raw.get('disclosure_policy') is not None: _fields(raw['disclosure_policy'], 'disclosure_policy')
     for item in raw['hedged_items']:
         portfolio = _fields(item, 'item').get('portfolio')
         if portfolio is not None:
@@ -254,6 +256,7 @@ def _admit(raw):
     csa = d['derivative']['operation']['request']; path = csa['paths'][0]
     _require(len(csa['paths']) == 1 and path['default'] is None, 'single Physical path without default required')
     nodes = {n['ordinal']: i for i, n in enumerate(path['nodes'])}
+    _require(raw.get('disclosure_policy') is None or raw['disclosure_policy']['reporting_ordinal'] in nodes, 'disclosure reporting date must be a path node')
     asof = csa['asof_ordinal']
     items = {}; exposures = {}
     for item in raw['hedged_items']:
@@ -726,9 +729,13 @@ def replay(raw, check=lambda: False):
         if q >= 1.: st['scale'] = 0.; st['proportion'] = 0.; st['status'] = 'discontinued'
         record.update(reason=reason, status_after=st['status'], proportion_after=st['proportion'])
 
+    policy_d = raw.get('disclosure_policy'); fvh_attr = {}; snap = None
+    oci_base = [(st['oci_recognized'], st['oci_reclassified'], _money(st['oci'] + math.fsum(x['amount'] - x['released'] for x in st['frozen_oci'])))
+                for st in states]
     for k, node in enumerate(path['nodes']):
         check(); t = node['ordinal']
         shares = [(i, states[i]['proportion']) for i, r in enumerate(rels) if r['designation'] == 'cash_flow_hedge' and states[i]['status'] == 'qualified']
+        fvh_shares = [(i, states[i]['proportion']) for i, r in enumerate(rels) if r['designation'] == 'fair_value_hedge' and states[i]['status'] == 'qualified']
         _require(cursor >= len(intents) or intents[cursor]['ordinal'] >= t, 'derivative intents out of node order')
         while cursor < len(intents) and intents[cursor]['ordinal'] == t:
             di = intents[cursor]; cursor += 1
@@ -745,6 +752,12 @@ def replay(raw, check=lambda: False):
                     postings.append(_posting('mark_gain_loss', _money(m * retained), p['position_id'], p['bucket']))
                 else:
                     postings.append(_posting(p['account'], p['debit_amount'], p['position_id'], p['bucket']))
+            if policy_d is not None and t <= policy_d['reporting_ordinal'] and di['mapped_position_id'] is not None:
+                share = sum(v for i, v in fvh_shares if di['mapped_position_id'] in _instruments(rels[i]))
+                if share != 0.:
+                    for q in postings:
+                        if q['relationship_id'] is None and q['account'] in _EARNINGS:
+                            fvh_attr[q['account']] = _money(fvh_attr.get(q['account'], 0.) - q['debit_amount'] * share)
             journal.emit(di['event_id'].split(':')[0], t, di['ledger'], di['mapped_position_id'], di['contract_position_id'], di['bucket'], relationship,
                          di['policy'], di['sources'], postings)
         for st in states: st['oci_at'][t] = st['oci_recognized']
@@ -985,6 +998,8 @@ def replay(raw, check=lambda: False):
                                        cumulative_hedged_change=ms['cum_e']) for m, ms in zip(c['members'], st['members'])]
             rows.append(row)
         daily.append(dict(ordinal=t, relationships=rows, financial_trial_balance=journal.balances(journal.gl), custody_trial_balance=journal.balances(journal.memo)))
+        if policy_d is not None and policy_d['reporting_ordinal'] == t:
+            snap = _snapshot(raw, rels, comp, states, oci_base, lifecycle, node, derivative['daily'][k], path['nodes'][0]['ordinal'])
     _require(cursor == len(intents) and event_cursor == len(raw['events']), 'intents or events beyond the tail')
     last = path['nodes'][-1]['ordinal']; relationships = []; closing = []
     for i, rel in enumerate(rels):
@@ -1014,7 +1029,117 @@ def replay(raw, check=lambda: False):
     check()
     return dict(schema=SCHEMA, model_version=SCHEMA, rule_version=RULE, run=deepcopy(raw['run']), entity=raw['entity'], currency=raw['currency'],
                 monetary_unit=raw['monetary_unit'], policy=deepcopy(raw['policy']), derivative=derivative, relationships=relationships,
-                lifecycle=lifecycle, assessments=assessments, daily=daily, intents=journal.intents, closing=closing, **FLAGS)
+                lifecycle=lifecycle, assessments=assessments, daily=daily, intents=journal.intents, closing=closing, **FLAGS,
+                **({} if policy_d is None else dict(disclosures=_disclosures(policy_d, snap, journal.intents, fvh_attr, rels, path['nodes'][0]['ordinal']))))
+
+
+# Disclosure tables (opt-in). Account and hedge-type order follow the published schema enums.
+_ACCOUNT_ORDER = ['cash', 'derivative_asset', 'derivative_liability', 'unpaid_receivable', 'unpaid_payable', 'posted_vm_asset',
+                  'received_vm_liability', 'posted_im_asset', 'opening_equity', 'mark_gain_loss', 'contractual_income',
+                  'collateral_interest_income', 'counterparty_loss_expense', 'posted_collateral_return_loss_expense', 'memo_custodian_asset',
+                  'memo_custodian_obligation', 'cash_flow_hedge_oci', 'hedged_item_basis_adjustment', 'hedged_item_basis_gain_loss',
+                  'hedged_item_basis_amortization', 'hedged_item_basis_derecognition', 'hedged_forecast_reclassification']
+_HEDGE_TYPES = ['fair_value_hedge', 'cash_flow_hedge', 'not_designated']
+_EARNINGS = {'mark_gain_loss', 'contractual_income', 'collateral_interest_income', 'counterparty_loss_expense',
+             'posted_collateral_return_loss_expense', 'hedged_item_basis_gain_loss', 'hedged_item_basis_amortization',
+             'hedged_item_basis_derecognition', 'hedged_forecast_reclassification'}
+_YEAR_DAYS = 365
+_NOT_OCCURRING = {'forecast_probable_not_to_occur', 'forecast_period_probable_not_to_occur'}
+
+
+def _instruments(rel):
+    return [rel['hedging_instrument_position_id']] + ([rel['written_option_position_id']] if rel.get('written_option_position_id') else []) \
+        + list(rel.get('additional_instrument_position_ids') or [])
+
+
+def _cash_on(req, pay):
+    return _money(math.fsum(c['amount'] for c in _swap(req, due_date=pay)[1]))
+
+
+def _snapshot(raw, rels, comp, states, oci_base, lifecycle, node, closing, asof):
+    t = node['ordinal']; window = t + _YEAR_DAYS
+    values = []
+    for trade in closing['trades']:
+        pos = trade['mapped_position_id']
+        fvh = sum(states[i]['proportion'] for i, r in enumerate(rels) if states[i]['status'] == 'qualified'
+                  and r['designation'] == 'fair_value_hedge' and pos in _instruments(r))
+        cfh = sum(states[i]['proportion'] for i, r in enumerate(rels) if states[i]['status'] == 'qualified'
+                  and r['designation'] == 'cash_flow_hedge' and pos in _instruments(r))
+        v = trade['clean_carrying']; a, b = _money(v * fvh), _money(v * cfh)
+        values.append(dict(position_id=pos, fair_value=v, fair_value_hedge=a, cash_flow_hedge=b, not_designated=_money(v - a - b)))
+    items, aoci, horizon = [], [], None
+    for i, rel in enumerate(rels):
+        st, c = states[i], comp[i]
+        if rel['inception_ordinal'] > t and rel.get('opening') is None: continue
+        if rel['designation'] == 'fair_value_hedge':
+            n = rel.get('hedged_notional')
+            items.append(dict(relationship_id=rel['relationship_id'], hedged_item_id=c['item']['item_id'], status=st['status'],
+                              designated_hedged_notional=None if n is None else _money(n * st['scale']), live_basis_adjustment=st['basis'],
+                              discontinued_basis_adjustment=math.fsum(x['amount'] - x['amortized'] for x in st['frozen_basis'])))
+            continue
+        expected = 0.; latest = None
+        for m, member in enumerate(c['members']):
+            ms = st['members'][m]
+            for when, amt in ms['deferred']:
+                if t < when <= window: expected = _money(expected + amt)
+                if when > t: latest = when if latest is None else max(latest, when)
+            if st['status'] != 'qualified': continue
+            ps, hs = _schedule(member, ms['selected'])
+            for q in hs:
+                if q in ms['excluded']: continue
+                original = ps[q]['payment_ordinal']
+                if original <= t: continue
+                posts = ms['delays'].get(q, original); latest = posts if latest is None else max(latest, posts)
+                if posts > window: continue
+                if c['matched']:
+                    settlement = _money(rel['designated_proportion'] * _cash_on(_swap_of(node, rel['hedging_instrument_position_id']), original))
+                else:
+                    settlement = _cash_on(member['hyps'][ms['selected']][0][t], original)
+                expected = _money(expected + st['scale'] * settlement)
+        for tranche in st['frozen_oci']:
+            open_ = [e for e in tranche['entries'] if not e['released']]
+            if not open_: continue
+            last = max(e['pay'] for e in open_); latest = last if latest is None else max(latest, last)
+            if last <= window: expected = _money(expected + tranche['amount'] - tranche['released'])
+            else:
+                for e in open_:
+                    if e['pay'] <= window: expected = _money(expected + tranche['amount'] * e['weight'])
+        if st['status'] == 'qualified' and latest is not None: horizon = latest - t if horizon is None else max(horizon, latest - t)
+        recognized0, reclassified0, opening = oci_base[i]
+        released = math.fsum(x['released_oci'] for x in lifecycle if x['relationship_id'] == rel['relationship_id'] and asof < x['ordinal'] <= t
+                             and x.get('reason') in _NOT_OCCURRING)
+        aoci.append(dict(relationship_id=rel['relationship_id'], status=st['status'], opening=opening, recognized=_money(st['oci_recognized'] - recognized0),
+                         reclassified=_money(st['oci_reclassified'] - reclassified0), reclassified_forecast_not_occurring=released,
+                         closing=_money(st['oci'] + math.fsum(x['amount'] - x['released'] for x in st['frozen_oci'])),
+                         expected_reclassification_within_twelve_months=expected, latest_hedged_payment_ordinal=latest))
+    return dict(derivative_fair_values=values, fair_value_hedged_items=items, cash_flow_hedge_aoci=aoci, maximum_forecast_horizon_days=horizon)
+
+
+def _disclosures(policy, snap, intents, fvh_attr, rels, asof):
+    _require(snap is not None, 'disclosure reporting node was not replayed')
+    kinds = {r['relationship_id']: r['designation'] for r in rels}; lines = {}
+    for intent in intents:
+        if intent['ordinal'] > policy['reporting_ordinal']: continue
+        for q in intent['postings']:
+            if q['account'] not in _EARNINGS: continue
+            key = (q['account'], kinds[q['relationship_id']] if q['relationship_id'] is not None else 'not_designated')
+            lines[key] = _money(lines.get(key, 0.) - q['debit_amount'])
+    for account, v in fvh_attr.items():
+        lines[account, 'fair_value_hedge'] = _money(lines.get((account, 'fair_value_hedge'), 0.) + v)
+        lines[account, 'not_designated'] = _money(lines.get((account, 'not_designated'), 0.) - v)
+    order = sorted(lines, key=lambda k: (_ACCOUNT_ORDER.index(k[0]), _HEDGE_TYPES.index(k[1])))
+    return dict(policy=deepcopy(policy['identity']), period_start_ordinal=asof, reporting_ordinal=policy['reporting_ordinal'],
+                twelve_month_end_ordinal=policy['reporting_ordinal'] + _YEAR_DAYS, derivative_fair_values=snap['derivative_fair_values'],
+                earnings=[dict(account=a, hedge_type=h, amount=lines[a, h]) for a, h in order],
+                fair_value_hedged_items=snap['fair_value_hedged_items'], cash_flow_hedge_aoci=snap['cash_flow_hedge_aoci'],
+                maximum_forecast_horizon_days=snap['maximum_forecast_horizon_days'], basis=_DISCLOSURE_BASIS)
+
+
+_DISCLOSURE_BASIS = ("Period from the derivative opening to the reporting node. Earnings are credit-positive journal postings by line: a relationship's "
+                     "postings take its designation, and a derivative-owner earnings posting on a hedging instrument takes the share designated in "
+                     "fair-value hedges qualified at the start of its node. The twelve-month expectation uses the reporting node's projections of "
+                     "hedged-period settlements, deferred amounts already measured and scheduled frozen-OCI entries; it is an estimate, not later "
+                     "information. Hedged-item carrying amounts belong to the item owner and are not restated here.")
 
 
 def _portfolio_layers(raw, t, rels, comp, states, compiled, journal, lifecycle, hedge_policy):

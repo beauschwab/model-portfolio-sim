@@ -350,6 +350,12 @@ pub(super) fn admit(r: &HedgeAccountingRequest) -> Result<Compiled, String> {
             return Err("duplicate derivative path node".into());
         }
     }
+    if let Some(policy) = &r.disclosure_policy {
+        identity(&policy.identity, &mut bytes)?;
+        if !node_index.contains_key(&policy.reporting_ordinal) {
+            return Err("disclosure reporting date must be a derivative path node".into());
+        }
+    }
     let ctx = Ctx {
         r,
         path,
