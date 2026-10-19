@@ -1,0 +1,29 @@
+name: Lifecycle verifier
+
+on:
+  push:
+    paths:
+      - 'packages/portfolio-verification-native/**'
+      - '.github/workflows/lifecycle-verifier.yml'
+  pull_request:
+    paths:
+      - 'packages/portfolio-verification-native/**'
+      - '.github/workflows/lifecycle-verifier.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --manifest-path packages/portfolio-verification-native/Cargo.toml -- --check
+      - run: cargo clippy --locked --manifest-path packages/portfolio-verification-native/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path packages/portfolio-verification-native/Cargo.toml

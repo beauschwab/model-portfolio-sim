@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to C)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to D)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -242,8 +242,44 @@ Tests: `portfolio-model-core/tests/lifecycle_execution.rs` (engine, 10 cases) an
 `portfolio-decision-native/tests/lifecycle_acquisition.rs` (shared Sim and native process, with
 the swap priced natively at the termination date).
 
-## Not in stages A to C
+## Stage D: independent Rust verification (#46)
 
-Post-entry derivative marks and coupons, dynamic IM, the independent Rust verifier, the Rust API
-and worker, saved-book adoption, long-term policies, prepared allocations and scale are stages D
-to I (#46 to #51).
+`packages/portfolio-verification-native` is the second implementation. It verifies a
+`liquidity-lifecycle-1` run from two inputs, the raw request bytes and the native process stream,
+and returns a receipt only when every check passes. Its dependency boundary is sealed: Cargo
+dependencies are `serde`, `serde_json` and `sha2` only, and a test refuses any production
+financial crate in the manifest or the sources. It cannot call Risk pricers, Decision preparation
+or Ledger replay to construct expected values.
+
+| Check | What is compared |
+|---|---|
+| Raw identity | The request parses as strict JSON (duplicate keys refused, bounded bytes); the producer's `plan_sha256` equals the hash of the raw plan; lifecycle rows name that plan; the opening cash of each plan account matches the receipt bit for bit, so a signed zero or a retyped number is refused separately from any tolerance. |
+| Native valuations | Every entry and termination valuation in the receipt is recomputed from its raw swap contract with the verifier's own equations (fixed and term-simple indexed legs over the supplied periods and exact discount points, cash due on the date) within 1e-12 relative and 1e-9 absolute. Every date an instruction needs must have a valuation. |
+| Independent replay | For each execution block and account, the verifier re-derives every posting from the raw instructions: purchases, sales, advances, repayments and releases, entries, terminations and settlements, facility draws and repayments, VM calls and returns, IM and custody. It applies the declared phases and dependencies, blocks dependents of failed legs, refuses negative cash, unavailable inventory and unbound IM. |
+| Ordered journal | The expected intents match the `lifecycle_journal_lineage` rows and, separately, the ordered `native_lifecycle_intent` transactions of the columnar journal: same events, dates, accounts, instruments and amounts, in the same order. Custody memo rows match the same way. |
+| Closing stocks | Every lifecycle instrument balance in the trial balance equals the independent closing, including stocks that closed to zero; a nonzero lifecycle balance no posting owns is refused. |
+| Receipt | Closing cash, settled movements, collateral stocks, fees, realized amounts, the open-claims flag, every event status and every accounting fact (kind, quantities, consideration, carrying, realized, lineage) match. |
+| Completion | Exactly one `{"complete": true, "protocol": 3}` line, last. |
+
+Supplied IM is checked for its scope, binding and the custody treatment of received amounts; the
+methodology behind the amounts is not certified (`methodology_certified: false`).
+
+`portfolio-lifecycle-verify <request.json> <stream.jsonl>` runs the same verification as a
+process and exits 1 with the refusal. Tests (`tests/verify.rs`, `tests/boundary.rs`): the frozen
+worked-unwind stream verifies, and these are refused: a balanced but economically changed posting,
+a duplicated, reordered or altered row, an altered journal value, an altered closing stock, a
+forged, missing or misplaced completion, an altered native valuation, a changed plan hash, an
+altered receipt amount or status, a formal-accounting claim, a changed raw instruction, a signed
+zero opening, a duplicate key, and an IM requirement not bound to the live portfolio. The Decision
+crate's `lifecycle_acquisition` tests pipe a live run into the verifier, so producer and verifier
+cannot drift unnoticed.
+
+Not in stage D: the formal ASC 815 lanes (no intents are bound yet), Parquet partition rereads
+(the Python API persists them today; the Rust service of stage E will own that), and any claim of
+empirical or accounting-standard validity.
+
+## Not in stages A to D
+
+Post-entry derivative marks and coupons, dynamic IM, the Rust API and worker with Parquet
+publication, saved-book adoption, long-term policies, prepared allocations and scale are stages E
+to I (#47 to #51).

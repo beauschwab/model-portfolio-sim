@@ -300,3 +300,24 @@ fn unwind_without_the_bridge_is_refused_in_the_native_process() {
         "{err}"
     );
 }
+
+#[test]
+fn a_live_run_verifies_independently_and_a_tampered_stream_does_not() {
+    let v: Value = serde_json::from_str(UNWIND).unwrap();
+    let bytes = Arc::new(Mutex::new(Vec::new()));
+    run(
+        &serde_json::to_vec(&v).unwrap(),
+        Box::new(Capture(bytes.clone())),
+    )
+    .unwrap();
+    let stream = bytes.lock().unwrap().clone();
+    let receipt = portfolio_verification_native::verify(UNWIND.as_bytes(), &stream).unwrap();
+    assert!(receipt.verified && receipt.independent_equations);
+    assert_eq!(receipt.transactions_verified, 16);
+    let tampered = String::from_utf8(stream).unwrap().replacen(
+        "\"debit_amount\":95.0",
+        "\"debit_amount\":94.0",
+        1,
+    );
+    assert!(portfolio_verification_native::verify(UNWIND.as_bytes(), tampered.as_bytes()).is_err());
+}
