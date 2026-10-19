@@ -208,8 +208,8 @@ This specification fixes how those parameters are **fitted**:
 
 - OCC, [Interest Rate Risk, Comptroller's Handbook](https://www.occ.gov/publications-and-resources/publications/comptrollers-handbook/files/interest-rate-risk/pub-ch-interest-rate-risk.pdf): repricing and runoff as separately documented assumptions.
 - BCBS, [SRP98 application guidance on IRRBB](https://www.bis.org/committees/bcbs/basel-framework/standard/srp/98/inforce/2026-01-01/published/2024-07-16): behavioural stability vs contractual liquidity; runoff, constant and dynamic balance views.
-- Drechsler, Savov and Schnabl, *Banking on Deposits* (JF 2021) and the deposit-franchise follow-ups: deposit betas, franchise value and the 2023 reassessment.
-- Jiang, Matvos, Piskorski and Seru (2023), *Monetary tightening and U.S. bank fragility*: uninsured deposit concentration and run incentives.
-- Koont, Santos and Zingales (2024), *Destabilizing digital bank walks*: digital channel and deposit beta/velocity.
-- Federal Reserve FEDS Notes on deposit betas and the 2022–2024 cycle: evidence for threshold behaviour and segment heterogeneity.
+- Drechsler, Savov and Schnabl (2021), *Banking on Deposits: Maturity Transformation without Interest Rate Risk*, Journal of Finance 76(3) ([NBER WP 24582](https://www.nber.org/papers/w24582)): deposit betas, franchise value and the 2023 reassessment.
+- Jiang, Matvos, Piskorski and Seru (2023), [Monetary Tightening and U.S. Bank Fragility in 2023](https://www.nber.org/papers/w31048), NBER WP 31048: uninsured deposit concentration and run incentives.
+- Koont, Santos and Zingales (2024), [Destabilizing Digital "Bank Walks"](https://www.nber.org/papers/w32601), NBER WP 32601: digital channel and deposit beta/velocity.
+- New York Fed, [Deposit Betas: Up, Up, and Away?](https://libertystreeteconomics.newyorkfed.org/2023/04/deposit-betas-up-up-and-away/) (2023) and the Federal Reserve [Senior Financial Officer Surveys](https://www.federalreserve.gov/data/sfos/september-2023-senior-financial-officer-survey.htm) (2023–2024): observed cumulative retail and wholesale betas; Dallas Fed WP 2315 on [deposit convexity](https://fedinprint.org/item/feddwp/97131/original).
 - Search-result summaries only were available when this specification was drafted; page content could not be opened. Claims rest on those summaries and the cited primary documents already linked from `deposit-state.md`.

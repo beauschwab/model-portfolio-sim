@@ -200,9 +200,9 @@ Every commercial lifetime expected-loss figure is reported with:
 
 ## 9. Research references
 
-- Federal Reserve, FR Y-14Q instructions (Schedule H.1 C&I and H.2 CRE): covariate vocabulary and loss-model structure; [2026 supervisory stress test methodology](https://www.federalreserve.gov/publications/files/2026-february-supervisory-stress-test-methodology.pdf) for the wholesale and CRE model families.
-- Belkin, Suchower and Forest (1998), *A one-parameter representation of credit risk and transition matrices*: the Z-shift used in section 4.
-- Vasicek (2002), *The distribution of loan portfolio value*; and the multi-factor extensions in CreditMetrics and CreditPortfolioView: correlated migration conditioned on macro factors.
-- Jiménez, Lopez and Saurina (2009), *Empirical analysis of corporate credit lines*: utilisation rises before default; basis for section 6.
-- Federal Reserve and FDIC supervisory statements on CRE concentration and maturity/refinance risk (2023–2026): the maturity outcome framing in section 5.
+- Federal Reserve, [FR Y-14Q instructions](https://www.federalreserve.gov/apps/reportingforms/Report/Index/FR_Y-14Q) (Schedule H.1 Corporate Loan and H.2 Commercial Real Estate): covariate vocabulary and loss-model structure; [2026 supervisory stress test methodology](https://www.federalreserve.gov/publications/files/2026-february-supervisory-stress-test-methodology.pdf) for the wholesale and CRE model families.
+- Belkin, Suchower and Forest (1998), *A one-parameter representation of credit risk and transition matrices*, KPMG working paper, [CreditMetrics Monitor Q3 1998](https://www.msci.com/www/research-paper/creditmetrics-monitor-third/014211989): the Z-shift used in section 4.
+- Vasicek (2002), [Loan portfolio value](https://www.maths.univ-evry.fr/pages_perso/crepey/Credit/Vasicek.pdf), Risk 15(12); Gupton, Finger and Bhatia (1997), [CreditMetrics Technical Document](https://www.msci.com/resources/technical_documentation/CMTD1.pdf); Wilson (1998), [Portfolio credit risk](https://www.newyorkfed.org/medialibrary/media/research/epr/98v04n3/9810wils.pdf): correlated migration conditioned on macro factors.
+- Jiménez, Lopez and Saurina (2009), *Empirical analysis of corporate credit lines*, Review of Financial Studies 22(12) ([FRBSF WP 2007-14](https://www.frbsf.org/wp-content/uploads/wp07-14bk.pdf)): utilisation rises before default; basis for section 6.
+- Interagency [Policy Statement on Prudent Commercial Real Estate Loan Accommodations and Workouts](https://www.federalreserve.gov/supervisionreg/srletters/sr2305.htm) (SR 23-5, 2023): the maturity outcome framing in section 5.
 - Search-result summaries only were available when this specification was drafted; page content could not be opened. Claims rest on those summaries and the primary documents already linked from `commercial-credit-ledger.md`.

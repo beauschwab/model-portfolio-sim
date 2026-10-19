@@ -6,8 +6,9 @@ document and market convention cited by the model documentation in
 the source, what the repository uses it for, and which documents cite it. Links
 are reproduced as cited; **none could be re-verified from the drafting
 environment** (outbound HTTPS was blocked), so a reader should open each one
-before relying on a quoted paragraph number. Entries marked *no link* were cited
-by name from search-result summaries and need a canonical link added.
+before relying on a quoted paragraph number. Sources first cited by name only
+were resolved to publisher or working-paper links through web search; the two
+FASB codification items are subscription-only and link to the FASB index.
 
 Nothing in this list is reproduced in the engine. Supervisory model
 descriptions inform structure only; no supervisory coefficient is copied, and
@@ -31,8 +32,8 @@ citing a standard is not an accounting or regulatory opinion.
 | FDIC, [Estimated uninsured deposits reporting expectations](https://fdic.gov/news/financial-institution-letters/2023/estimated-uninsured-deposits-reporting-expectations) (FIL 2023) | Uninsured fraction as a reported quantity | deposit-graph-capture |
 | FFIEC, [Call Report FFIEC 051 instructions and glossary](https://www.ffiec.gov/pdf/FFIEC_forms/FFIEC051_202412_i.pdf) (Dec 2024) | Nonaccrual and past-due definitions | commercial-credit-ledger |
 | Federal Reserve, [12 CFR 217.10 minimum capital requirements](https://www.federalreserve.gov/frrs/regulations/section-21710-minimum-capital-requirements.htm) and [217.11 buffers](https://www.federalreserve.gov/frrs/regulations/section-21711-capital-conservation-buffer-countercyclical-capital-buffer-amount-and-gsib-surcharge.htm); [final eSLR modification](https://www.federalreserve.gov/newsevents/pressreleases/bcreg20251125b.htm) (Nov 2025); [large-bank capital requirements](https://www.federalreserve.gov/supervisionreg/large-bank-capital-requirements.htm) | Thirteen-ratio capital coverage, buffer calibration | capital-and-ftp |
-| Federal Reserve, FR Y-14Q instructions, Schedules H.1 (C&I) and H.2 (CRE) — *no link* | Commercial and CRE covariate vocabulary | commercial-credit-drivers |
-| Federal Reserve and FDIC supervisory statements on CRE concentration and maturity/refinance risk (2023–2026) — *no link* | Maturity-outcome framing for CRE | commercial-credit-drivers |
+| Federal Reserve, [FR Y-14Q reporting form and instructions](https://www.federalreserve.gov/apps/reportingforms/Report/Index/FR_Y-14Q), Schedules H.1 (Corporate Loan) and H.2 (Commercial Real Estate), with the [FR Y-14Q Q&As](https://www.federalreserve.gov/publications/fr-y-14-qas/fr-y-14-qas-fr-y-14q.htm) | Commercial and CRE covariate vocabulary | commercial-credit-drivers |
+| Interagency, [Policy Statement on Prudent Commercial Real Estate Loan Accommodations and Workouts](https://www.federalreserve.gov/supervisionreg/srletters/sr2305.htm) (SR 23-5, Jun 2023; OCC Bulletin 2023-23; Federal Register 88 FR 43115) | Maturity-outcome framing for CRE | commercial-credit-drivers |
 | CFPB, Regulation Z [§1026.53](https://www.consumerfinance.gov/rules-policy/regulations/1026/53/) ([2021 version](https://www.consumerfinance.gov/rules-policy/regulations/1026/2021-02-17/53/)) and [§1026.54](https://www.consumerfinance.gov/rules-policy/regulations/1026/54/) | Card payment allocation and interest computation limits | consumer-card, card-credit-accounting, card-credit-accounting-v2, card-product-graph |
 | CFPB, Regulation DD [§1030.4](https://www.consumerfinance.gov/rules-policy/regulations/1030/4/) and [§1030.7](https://www.consumerfinance.gov/rules-policy/regulations/1030/7/) | CD disclosure and interest conventions | term-enhancements |
 | CFPB, [Bulletin 2022-04 on auto repossession](https://www.consumerfinance.gov/compliance/supervisory-guidance/cfpb-bulletin-2022-04-mitigating-harm-from-repossession-of-automobiles/) | Repossession process assumptions | consumer-installment |
@@ -63,8 +64,8 @@ citing a standard is not an accounting or regulatory opinion.
 | IASB, [IAS 32 Financial Instruments: Presentation](https://www.ifrs.org/issued-standards/list-of-standards/ias-32-financial-instruments-presentation/) | Gross vs net presentation of derivative positions | derivative-accounting |
 | IASB staff papers, Sept 2025: [AP11A Determining the effective interest rate](https://www.ifrs.org/content/dam/ifrs/meetings/2025/september/iasb/ap11a-determining-effective-interest-rate.pdf) and [AP11B Subsequent changes](https://www.ifrs.org/content/dam/ifrs/meetings/2025/september/iasb/ap11b-subsequent-changes-effective-interest-rate.pdf); [amortised cost measurement project](https://www.ifrs.org/projects/work-plan/amortised-cost-measurement/) | Original-yield anchoring and catch-up vs prospective revision | product-units, deposit-original-income, dated-income |
 | IFRIC updates: [March 2019](https://www.ifrs.org/news-and-events/updates/ifric/2019/ifric-update-march-2019/), [June 2021](https://www.ifrs.org/news-and-events/updates/ifric/2021/ifric-update-june-2021/), [February 2022](https://www.ifrs.org/news-and-events/updates/ifric/2022/ifric-update-february-2022/) | Curing of credit-impaired assets; demand deposit cash classification; EIR revision | derivative-accounting, commercial-credit-ledger, deposit-original-income |
-| FASB ASC 815, ASU 2017-12, ASU 2022-01, ASU 2025-09 (hedge accounting) — cited by name in `hedge-accounting.md` and `AGENTS.md`, *no link* | Hedge designation, effectiveness and recognition rules | hedge-accounting |
-| FASB ASC 320-10-25 (HTM sale exceptions) — cited by name in `AGENTS.md`, *no link* | HTM taint and reclassification policy | ledger HTM accounting |
+| FASB ASC 815 hedge accounting: [ASU 2017-12 Targeted Improvements (FASB In Focus)](https://storage.fasb.org/FASB%20in%20Focus--Derivatives%20and%20Hedging%20%288-17%29.pdf) (Aug 2017); ASU 2022-01 Portfolio Layer Method (Mar 2022) and ASU 2025-09 Hedge Accounting Improvements (Nov 2025) via the [FASB ASU index](https://www.fasb.org/standards/accounting-standards-updates-issued); full texts require the FASB codification login | Hedge designation, effectiveness and recognition rules | hedge-accounting |
+| FASB [ASC 320-10-25](https://asc.fasb.org) Investments—Debt Securities, HTM sale exceptions (paragraphs 25-6 and 25-14); codification access requires login | HTM taint and reclassification policy | ledger HTM accounting |
 
 ## 4. Market conventions and reference rates
 
@@ -107,17 +108,17 @@ citing a standard is not an accounting or regulatory opinion.
 | Source | Used for | Cited in |
 |---|---|---|
 | Philadelphia Fed WP 26-09 (2026), [Model risk under CECL: a consumer finance perspective](https://fedinprint.org/item/fedpwp/102431/original) | Sensitivity of lifetime loss to macro forecast error | consumer-behaviour-drivers, commercial-credit-drivers (by analogy) |
-| Heitfield and Sabarwal (2004), *What drives default and prepayment on subprime auto loans?* — *no link* | Competing default/prepayment on auto loans | consumer-behaviour-drivers |
+| Heitfield and Sabarwal (2004), [What drives default and prepayment on subprime auto loans?](https://link.springer.com/article/10.1023/B:REAL.0000044023.02636.e6), Journal of Real Estate Finance and Economics 29(4) ([working paper](https://econwpa.ub.uni-muenchen.de/econ-wp/fin/papers/0405/0405034.pdf)) | Competing default/prepayment on auto loans | consumer-behaviour-drivers |
 | [arXiv 2211.09176](https://arxiv.org/pdf/2211.09176), multistate study of auto ABS pools | Prepayment follows vehicle values and equity | consumer-behaviour-drivers |
 | [Springer 2025 review of machine-learning credit scoring](https://link.springer.com/article/10.1007/s10462-025-11416-2); [arXiv 2506.02075](https://arxiv.org/pdf/2506.02075) on evaluating survival models | Challenger model and evaluation design | consumer-behaviour-drivers |
 | [Taylor & Francis 2026](https://www.tandfonline.com/doi/full/10.1080/08839514.2026.2676392), transformer utilisation forecasting | Noted, not adopted | consumer-behaviour-drivers |
-| Drechsler, Savov and Schnabl (2021), *Banking on deposits*, Journal of Finance — *no link* | Deposit beta and franchise value | deposit-behaviour-drivers |
-| Jiang, Matvos, Piskorski and Seru (2023), *Monetary tightening and U.S. bank fragility* — *no link* | Uninsured deposit concentration and run incentives | deposit-behaviour-drivers |
-| Koont, Santos and Zingales (2024), *Destabilizing digital bank walks* — *no link* | Digital channel and deposit velocity | deposit-behaviour-drivers |
-| Federal Reserve FEDS Notes on deposit betas 2022–2024 — *no link* | Threshold beta behaviour by segment | deposit-behaviour-drivers |
-| Belkin, Suchower and Forest (1998), *A one-parameter representation of credit risk and transition matrices*, CreditMetrics Monitor — *no link* | Z-shift macro conditioning of migration matrices | commercial-credit-drivers |
-| Vasicek (2002), *The distribution of loan portfolio value*, Risk — *no link*; CreditMetrics and CreditPortfolioView technical documents — *no link* | Single- and multi-factor correlated default | commercial-credit-drivers |
-| Jiménez, Lopez and Saurina (2009), *Empirical analysis of corporate credit lines*, Review of Financial Studies — *no link* | Utilisation rises before default | commercial-credit-drivers |
+| Drechsler, Savov and Schnabl (2021), *Banking on Deposits: Maturity Transformation without Interest Rate Risk*, Journal of Finance 76(3) ([NBER WP 24582](https://www.nber.org/papers/w24582); [CEPR DP 12950](https://ideas.repec.org/p/cpr/ceprdp/12950.html)) | Deposit beta and franchise value | deposit-behaviour-drivers |
+| Jiang, Matvos, Piskorski and Seru (2023, rev. 2024), [Monetary Tightening and U.S. Bank Fragility in 2023](https://www.nber.org/papers/w31048), NBER WP 31048; Journal of Financial Economics (2024) | Uninsured deposit concentration and run incentives | deposit-behaviour-drivers |
+| Koont, Santos and Zingales (2024, rev. 2025), [Destabilizing Digital "Bank Walks"](https://www.nber.org/papers/w32601), NBER WP 32601 | Digital channel and deposit velocity | deposit-behaviour-drivers |
+| New York Fed Liberty Street Economics, [Deposit Betas: Up, Up, and Away?](https://libertystreeteconomics.newyorkfed.org/2023/04/deposit-betas-up-up-and-away/) (Apr 2023); Federal Reserve [Senior Financial Officer Survey](https://www.federalreserve.gov/data/sfos/september-2023-senior-financial-officer-survey.htm) (Sep 2023, Mar 2024: cumulative retail and wholesale betas); Dallas Fed WP 2315, [Deposit convexity](https://fedinprint.org/item/feddwp/97131/original) | Observed cumulative betas by segment; threshold behaviour | deposit-behaviour-drivers |
+| Belkin, Suchower and Forest (1998), *A one-parameter representation of credit risk and transition matrices*, KPMG working paper, in [CreditMetrics Monitor Q3 1998](https://www.msci.com/www/research-paper/creditmetrics-monitor-third/014211989) | Z-shift macro conditioning of migration matrices | commercial-credit-drivers |
+| Vasicek (2002), [Loan portfolio value](https://www.maths.univ-evry.fr/pages_perso/crepey/Credit/Vasicek.pdf), Risk 15(12); Gupton, Finger and Bhatia (1997), [CreditMetrics Technical Document](https://www.msci.com/resources/technical_documentation/CMTD1.pdf); Wilson (1998), [Portfolio credit risk](https://www.newyorkfed.org/medialibrary/media/research/epr/98v04n3/9810wils.pdf), FRBNY Economic Policy Review (CreditPortfolioView) | Single- and multi-factor correlated default | commercial-credit-drivers |
+| Jiménez, Lopez and Saurina (2009), *Empirical analysis of corporate credit lines*, Review of Financial Studies 22(12), doi:10.1093/rfs/hhp061 ([FRBSF WP 2007-14](https://www.frbsf.org/wp-content/uploads/wp07-14bk.pdf)) | Utilisation rises before default | commercial-credit-drivers |
 
 ## 7. Public data sources (not whitepapers)
 
@@ -142,7 +143,8 @@ beside the research above: [FRED API](https://fred.stlouisfed.org/docs/api/fred/
 - Add a row here whenever a model document gains an external citation; the
   "Cited in" column is the index used to update paragraph references when a
   source is revised.
-- Replace every *no link* entry with a canonical publisher link once verified.
+- Prefer the publisher link; where only a working-paper copy is open access,
+  keep both and cite the published version's volume and issue.
 - The regulatory items dated 2025–2026 (Basel III re-proposal, SR 26-2, eSLR
   final rule, OCC advisory series) change faster than this list; check the
   issuing agency before quoting a paragraph in a validation pack.
