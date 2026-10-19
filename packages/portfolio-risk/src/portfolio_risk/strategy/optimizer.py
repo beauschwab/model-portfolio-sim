@@ -36,6 +36,11 @@ import numpy as np
 from scipy.optimize import linprog
 
 
+def book_side(unit):
+    """Balance-sheet side: off-balance-sheet swap units are neither assets nor liabilities."""
+    return 0.0 if unit.get("kind") == "swap" else unit["side"]
+
+
 def _kpi_vectors(lib: dict, base: dict) -> dict:
     from ..analytics.kpis import NI_TO_NII, PAYOUT
     from .unitlib import allocation_vectors
@@ -179,7 +184,7 @@ def optimize_balance_sheet(
             0.,limit['numerator']-limit['required_ratio']*limit['denominator'],f"capital:{limit['label']}")
     tot = np.zeros(U)
     for i, u in enumerate(units):
-        tot[i] = 1.0 if u["side"] > 0 else 0.0
+        tot[i] = 1.0 if book_side(u) > 0 else 0.0
     if max_total_assets is not None:
         row(tot, 0.0, max_total_assets, "cap:total_assets")
     for c in (commercial or []):
@@ -189,8 +194,8 @@ def optimize_balance_sheet(
             raise ValueError("unknown commercial template")
         sel = np.array([
             1.0 if (c["template"] == u["template"]
-                    or (c["template"] == "ALL_ASSET" and u["side"] > 0)
-                    or (c["template"] == "ALL_LIAB" and u["side"] < 0))
+                    or (c["template"] == "ALL_ASSET" and book_side(u) > 0)
+                    or (c["template"] == "ALL_LIAB" and book_side(u) < 0))
             else 0.0 for u in units])
         if c["sense"] == ">=":
             row(-sel, 0.0, -c["rhs"], f"comm:{c['label']}>= {c['rhs']:.3g}")
@@ -229,7 +234,7 @@ def optimize_balance_sheet(
                 or np.max(np.abs(path["d_eve_pct_eve_+200"])) > eve_limit * 100 + 1e-5
                 or np.max(r["funding_gap"]) > cash_budget + max(0.01, cash_budget * 1e-7)):
             raise RuntimeError("optimizer constraints failed independent allocation replay")
-    sides = {u["template"]: u["side"] for u in units}
+    sides = {u["template"]: book_side(u) for u in units}
     replay_assets = sum(a["notional"] for a in alloc if sides[a["template"]] > 0)
     if max_total_assets is not None and replay_assets > max_total_assets + max(0.01, max_total_assets * 1e-8):
         raise RuntimeError("optimizer asset cap failed allocation replay")

@@ -24,10 +24,37 @@ recognized exactly once. A legacy `fvh`/`cfh` saved-book label is not an input.
 | Fair-value hedge recognition (815-25-35) | Instrument marks stay in earnings. The hedged item's benchmark-component clean value change is posted daily as a basis adjustment with the offset in earnings. A partial-term hedge (`hedged_term_end_ordinal`, 815-25-35-13B) measures the benchmark cash flows as if the item matured at that coupon period end. Discontinuation freezes the basis; it is amortized straight-line by actual days to the item's principal date (the assumed maturity for a partial-term hedge), or derecognized on sale. |
 | Cash-flow hedge recognition (815-30-35, post ASU 2017-12) | The designated share of every instrument mark change goes to OCI while qualified; nothing is split as ineffectiveness. OCI is reclassified to earnings when each hedged forecast period affects earnings, by the hypothetical settlement for that period. After discontinuation frozen OCI is released pro rata by period accrual weight; `probable_not_to_occur` releases all remaining OCI immediately. |
 | Discontinuation (815-25-40, 815-30-40) | Reviewed `discontinue` events (dedesignation, hedged item sold, instrument terminated) and failed assessments discontinue prospectively. Partial discontinuation removes a fraction of the remaining designated proportion. Redesignation is a new relationship with `predecessor_relationship_id`; history is append-only. |
-| ASU 2022-01 portfolio layers | Not implemented; `asu_2022_01_portfolio_layer` must be `false`. |
+| ASU 2022-01 portfolio layers (815-20-25-12A, 815-25-35-1(c), 815-25-40-8/9) | With `asu_2022_01_portfolio_layer=true` and a reviewed `portfolio_layer` policy, closed portfolios of financial assets are hedged through one or more fair-value layer relationships (bullet or amortizing); portfolio-level basis; supplied observed balances and reviewed projections drive actual and anticipated breach dedesignation. See [portfolio layers](#asu-2022-01-portfolio-layers). |
 | ASU 2025-09 (prospective, 815-20-65-7) | With `adopted=true` and an `adoption_ordinal`, the `similar_risk_grouping` election admits groups of forecast exposures with a documented similar-risk method (815-20-55-23A through 55-23D) and the `selectable_rate_debt` election admits choose-your-rate liability debt with documented index options and rate elections (815-30-35-37I through 35-37M, 815-20-25-79B). The `swap_written_option_exception` election designates a swap combined with a written cash-settled European swaption of matching notional as one hedging instrument without the net written option test (815-20-25-88). All apply only to relationships designated at or after the adoption date; existing hedges are not migrated. `dual_hedge_basis` rejects as unimplemented; nonfinancial components are out of scope. See [ASU 2025-09 elections](#asu-2025-09-elections). |
 | Seasoned relationships | A relationship whose `inception_ordinal` precedes the derivative opening date must carry a reviewed `opening` block (and only such relationships may): the after-payment hedged value at the opening, cumulative instrument and hedged changes, and the retained basis or OCI balance. Balances are posted once against opening equity before the first node; measurement continues from the derivative opening clean values. See [seasoned openings](#seasoned-openings). |
 | Net investment, nonfinancial components, standalone options as instruments, counterparty default | Rejected explicitly. |
+
+### Rule-to-test matrix
+
+Each rule area is checked twice: once by a native test against hand-computed values and refusals
+(`packages/portfolio-risk-native/tests/`), and once by the independent Python reference, which
+recomputes the native result and rejects tampered results (`packages/portfolio-risk/tests/`).
+
+| Rule area | Native tests | Independent tests |
+|---|---|---|
+| Eligibility, admitted risk and refusals (815-20-25) | `hedge_accounting.rs`: `explicit_refusals_without_fallback`, `protocol_envelope_dispatch_bounds_and_rejections` | `test_hedge_accounting.py`: `test_native_refusals_without_fallback`, `test_native_strict_scalar_categories_and_duplicate_keys` |
+| Designation timing and documentation | `hedge_accounting.rs`: `supplied_hypothetical_matches_matched_terms_and_rejects_off_market_inception`, `forward_starting_hedge_of_forecast_issuance_is_assessed_and_released`; `hedge_seasoned.rs`: `seasoned_refusals_without_fallback` | `test_hedge_accounting.py`: `test_narrow_band_fails_assessment_and_supplied_hypothetical_matches_matched_terms`; `test_hedge_seasoned.py`: `test_seasoned_refusals_without_fallback` |
+| Hedging instrument (joint and compound) | `hedge_accounting.rs`: `jointly_designated_swaps_form_one_hedging_instrument`; `hedge_compound_option.rs`: all three tests | `test_hedge_accounting.py`: `test_jointly_designated_swaps_form_one_hedging_instrument`; `test_hedge_compound_option.py`: all four tests |
+| Effectiveness assessment (815-20-35) | `hedge_accounting.rs`: `forecast_not_occurring_releases_oci_and_a_narrow_band_fails_the_assessment` | `test_hedge_accounting.py`: `test_narrow_band_fails_assessment_and_supplied_hypothetical_matches_matched_terms` |
+| Fair-value hedge recognition, partial term and maturity (815-25-35) | `hedge_accounting.rs`: `example_fair_value_and_matched_cash_flow_hedges_reproduce_hand_values`, `partial_term_fair_value_hedge_measures_to_the_assumed_maturity`, `hedged_item_maturity_derecognizes_the_remaining_basis_on_the_principal_date` | `test_hedge_accounting.py`: `test_example_hand_values_verify_independently`, `test_partial_term_fair_value_hedge_measures_to_the_assumed_maturity`, `test_hedged_item_maturity_derecognizes_remaining_basis_and_verifies_independently` |
+| Cash-flow hedge recognition and forecast outcomes (815-30-35, 815-30-40) | `hedge_accounting.rs`: `forecast_not_occurring_releases_oci_and_a_narrow_band_fails_the_assessment`, `delayed_and_cancelled_forecast_periods_follow_the_timing_policy` | `test_hedge_accounting.py`: `test_partial_dedesignation_sale_and_forecast_outcomes_verify_independently`, `test_delayed_and_cancelled_forecast_periods_follow_the_timing_policy` |
+| Discontinuation and redesignation (815-25-40) | `hedge_accounting.rs`: `partial_dedesignation_freezes_half_the_basis_and_amortizes_it_straight_line_to_principal` | `test_hedge_accounting.py`: `test_partial_dedesignation_sale_and_forecast_outcomes_verify_independently` |
+| Seasoned openings | `hedge_seasoned.rs`: `seasoned_relationships_post_retained_balances_once_and_continue_measurement`, `frozen_tranches_and_scale_at_the_opening_continue_amortization_and_release` | `test_hedge_seasoned.py`: all five tests |
+| ASU 2022-01 portfolio layers | `hedge_portfolio_layer.rs`: all three tests | `test_hedge_portfolio_layer.py`: all five tests |
+| Transition: ASU 2025-09 elections and adoption date | `hedge_asu_2025_09.rs` and `hedge_asu_followthrough.rs`: all eight tests | `test_hedge_asu_2025_09.py` (including `test_elections_without_use_keep_the_base_result`) and `test_hedge_asu_followthrough.py`: all tests |
+| Net investment and dual hedges (separate owner) | `net_investment_hedge.rs`: all five tests | `test_net_investment_hedge.py`: all four tests |
+| Nonfinancial components (separate owner) | `nonfinancial_hedge.rs`: all four tests | `test_nonfinancial_hedge.py`: all three tests |
+| Daily journal presentation | `saved-hedge-mixed-1` decision `hedges` unit tests | `test_saved_hedge_mixed_process.py`: `test_formal_hedge_journal_posts_once_in_the_shared_daily_gl`, `test_designation_changes_presentation_not_economics` |
+| Closing capital and AOCI eligibility | `hedge_treasury.rs`: all four tests | `test_hedge_treasury.py`: all nine tests |
+
+Disclosures are not produced by the engine. The relationship lifecycle, assessment evidence,
+basis and OCI roll-forwards and reclassification rows are retained in the output, and a
+disclosure would be drawn from them under the entity's reporting policy.
 
 `policy.rule_version` must equal `asc815-asu2017-12`. The implemented rule
 matrix is this document; accounting policy approval, auditor judgment and
@@ -94,7 +121,7 @@ A `cash_flow_hedge` relationship names `forecast_exposure_id` instead of
 `matched_critical_terms_evidence`.
 
 Events are `assess`, `discontinue` (`reason` in `dedesignation`,
-`hedged_item_sold`, `instrument_terminated`; optional `proportion` in (0,1]
+`hedged_item_sold`, `instrument_terminated`, `hedged_item_matured`; optional `proportion` in (0,1]
 of the remaining designated proportion, default 1), `forecast_status`
 (`status` in `no_longer_probable`, `probable_not_to_occur`, `delayed`,
 `period_probable_not_to_occur`; CFH only) and, under the ASU 2025-09
@@ -224,7 +251,10 @@ with reason `failed_assessment`.
 
 **Discontinuation.** For fraction `q` of the remaining proportion: FVH freezes
 `q * basis_balance`; `hedged_item_sold` derecognizes it at once
-(`hedged_item_basis_derecognition`), otherwise it amortizes per node by
+(`hedged_item_basis_derecognition`), as does `hedged_item_matured`, which is
+admitted only for a whole full-term fair-value hedge on the item's
+`principal_ordinal` (the item settles, so the remaining live basis enters
+earnings with it); otherwise it amortizes per node by
 `frozen * (t - t_disc) / (principal - t_disc)` cumulatively
 (`hedged_item_basis_amortization`), fully at or after the principal date.
 CFH freezes `q * oci_balance` for pro rata release. Proportion becomes
@@ -280,8 +310,19 @@ therefore remains until the forecast transactions affect earnings. The
 lifecycle record reports `effective_ordinal`, `earnings_catch_up` and
 `reversed_reclassification`; the assessment reports `similar_risk` with the
 method, verdict and member rows. Similarity failure takes precedence over a
-failed overall dollar offset. Qualitative similarity (55-23B/C) remains a
-reviewer assertion outside the engine.
+failed overall dollar offset.
+
+*Qualitative similarity (55-23C).* A group may carry the hedge-by-hedge
+`qualitative_similarity_election` (an identity). After a quantitative
+similarity assessment of that relationship has passed, a later `assess` event
+may carry `qualitative_similarity_support` (the reviewed reasonable support):
+similarity is then established qualitatively, `similar_risk.basis` is
+`qualitative`, and the quantitative member rows are still reported for
+information. Support without the election, before an initial quantitative
+pass, or on a non-group assessment refuses. If facts change, the reviewer
+omits the support and the member test applies again. The overall dollar offset
+stays quantitative; 55-23B (qualitative effectiveness) is outside this
+quantitative engine.
 
 **Choose-your-rate debt (815-30-35-37B(b), 37I through 37M).** A forecast
 exposure of liability interest payments (`direction = payment`) carries
@@ -301,11 +342,34 @@ reviewed expectation in the event's review; then the hypothetical for the new
 index governs with cumulative change `E_t = s * H_new,t` (its inception value is
 zero) and later reclassifications use its settlements. Assessments report the
 rate measured in `index_id`; daily rows and the closing report the selected
-index. Changes to the number or timing of payments (tenor changes), the
-forecast-issuance documentation update of 35-37H and replacement debt
-designation are not modeled: periods are fixed per exposure, and a probable
-non-documented rate or fixed-rate replacement is recorded by the existing
-`probable_not_to_occur` status (37E/37K). Assets and analogies reject (37B).
+index.
+
+*Tenor changes (37C, 37I).* `choose_your_rate.option_schedules` gives a
+documented alternative its own payment schedule (`{index_id, periods}`); its
+hypothetical mirrors that schedule, and after an election to it the hedged
+payments, reclassification dates, frozen-OCI weights and pending periods follow
+it without dedesignation. Period-level forecast status (delayed or a single
+period not occurring) refuses for exposures with tenor schedules, since period
+identities change with the schedule.
+
+*Forecasted issuance (37B(a), 37C through 37H).* `choose_your_rate.forecasted_issuance`
+(evidence that issuance is probable) makes the exposure a forecasted issuance.
+A `rate_election` before issuance is a change in the best estimate (lifecycle
+kind `best_estimate_change`, same final retrospective assessment and new
+hypothetical as 37F/37G). A `debt_issued` event with the first selected
+documented index, on or before the first hedged period start, updates the
+documentation without dedesignation (reason `documentation_updated`, or the
+election mechanics first if the index differs); afterwards the 37I-37M rules
+apply. Issuance not recorded by the first hedged period refuses: the reviewer
+records a forecast status instead. An undocumented index or a probable
+non-issuance is a `probable_not_to_occur` status (37E).
+
+*Replacement debt (37K).* A `debt_replacement` event after issuance names the
+documented option at which the replacement debt accrues; the hedge continues
+(the election mechanics apply if the index differs). Replacement at an
+undocumented or fixed rate refuses as an event and is recorded as
+`probable_not_to_occur`, which reclassifies OCI at once. Assets and analogies
+reject (37B).
 
 **Swap plus written option (815-20-25-88).** A relationship may name
 `written_option_position_id`: a mapped European swaption that is `short`
@@ -324,9 +388,11 @@ proportions are tracked on the option as on the swap. The hypothetical
 derivative method is required (matched critical terms cannot describe a
 combination); the hypothetical still mirrors the forecast exposure's
 contractual terms, so a written option without a corresponding feature in the
-exposure is measured as dollar-offset mismatch, not excluded. Options expiring
-before inception, caps/floors as separate contracts and optioned hedged
-items/hypotheticals remain open.
+exposure is measured as dollar-offset mismatch, not excluded. A written option
+that expired before designation is not part of the hedging instrument and
+refuses (designate the swap alone). Caps/floors as separate contracts and
+optioned hedged items/hypotheticals (for example floored loans) need option
+products the derivative owner does not yet value and remain unavailable.
 
 **Jointly designated swaps (815-20-25-45).** A relationship may name
 `additional_instrument_position_ids`: further mapped swaps, each with the raw
@@ -342,6 +408,64 @@ every component, and the hypothetical derivative method is required.
 **Refused elections.** `dual_hedge_basis` rejects; other option instruments
 still require their own lane. Nonfinancial price components (Issue 3) are
 outside the interest-rate scope of this owner.
+
+## ASU 2022-01 portfolio layers
+
+Adopted with `policy.adoption.asu_2022_01_portfolio_layer = true` and a reviewed
+`policy.portfolio_layer = {identity, breach_order}` (`last_designated_first` or
+`pro_rata`); the election and the policy must appear together.
+
+**Closed portfolio.** A hedged item with `kind = "closed_portfolio"` (asset
+direction only) carries `portfolio = {members, balance_source, balances,
+projection_evidence, projections}`: unique immutable members (asset id, source,
+prepayable flag), observed outstanding balances (ordered, non-increasing because
+the portfolio is closed, within the designated item notional) and reviewed
+projections `(ordinal, term_end_ordinal, anticipated)` of the amount expected
+outstanding at a layer end. The item's periods, coupon and principal date
+describe the portfolio's fixed-rate cash flows; `principal_ordinal` is its final
+maturity.
+
+**Layers.** Each layer is a fair-value relationship on the closed portfolio:
+`hedged_notional` is the layer amount, `hedged_term_end_ordinal` its end (default
+the final maturity), and the benchmark component is measured as a partial-term
+bullet at that end. An optional `layer_amortization` lists the amount outstanding
+in each item period ending after inception through the layer end (non-increasing,
+starting at `hedged_notional`); the measure then pays coupons on each period's
+amount and principal as it amortizes. Multiple layers share the item within its
+notional and keep portfolio-level basis (`hedged_item_basis_adjustment` keyed by
+the portfolio item and the layer relationship). Seasoned layer openings and
+written-option combinations refuse.
+
+**Breaches.** After each node's reviewed events the owner monitors every closed
+portfolio with a qualified layer:
+
+1. *Actual.* The observed balance at the node must cover the sum of current
+   layer amounts (each layer's scheduled amount times its remaining scale; zero
+   from its end). A shortfall is dedesignated under the reviewed order; the
+   basis on the dedesignated fraction is recognized in earnings at once
+   (`portfolio_layer_breach_basis`, earnings account
+   `hedged_item_basis_derecognition`).
+2. *Anticipated.* At a node with projections, for each active layer end `E` in
+   ascending order, the projection must cover the layers ending at or after `E`
+   (their amounts just before `E`). A shortfall is dedesignated under the order;
+   the basis on the dedesignated fraction is allocated to the remaining assets
+   and amortized straight-line to the closed portfolio's final maturity.
+
+`last_designated_first` dedesignates the most recently designated layer first
+(inception, then list order); `pro_rata` shares the excess by current amount.
+Projections are required for every active layer end at each layer's inception
+and at every assessment node; a layer must not exceed the portfolio or its
+projection at designation (refused). Every breach is a lifecycle record
+`portfolio_layer_breach` with `reason` and `breach_amount`.
+
+Output adds per layer `layer_amount`, cumulative `anticipated_breach_amount` and
+`actual_breach_amount`, and `basis_excluded_from_credit_loss_measurement=true`:
+the portfolio-level basis is never allocated to individual assets for
+credit-loss measurement while hedged; this owner computes no credit losses, and
+defaults appear only through the observed balances (as actual breaches).
+`portfolio_layer_supported` is now `true` (a capability flag; economics of
+existing requests are unchanged). Liability layers and the proposed HTM
+eligibility remain unavailable.
 
 ## Seasoned openings
 
@@ -431,12 +555,135 @@ no native callbacks. A receipt is returned only when the whole result passes.
 ## Scope statement
 
 This lane admits single-currency fixed/floating swaps against fixed-rate
-assets/liabilities and forecast index-linked interest, with the ASU 2025-09
-similar-risk group, choose-your-rate and swap/written-option elections above.
-It does not establish accounting-standard compliance, observed effectiveness,
-portfolio-layer, net-investment, standalone option or nonfinancial coverage, saved-book or shared daily journal adoption, or
-complete-scale acceptance. Those remain open under issue #35 and are listed in
-`implementation-plan.md`.
+assets/liabilities, closed-portfolio layers, and forecast index-linked interest,
+with the ASU 2025-09 similar-risk group, choose-your-rate and swap/written-option
+elections above. The shared daily journal is the separate `saved-hedge-mixed-1`
+route below, and closing capital is fed from either verified journal.
+
+ASU 2025-09 coverage by area:
+
+| Area | Status |
+|---|---|
+| Similar-risk grouping, including qualitative support | implemented |
+| Choose-your-rate debt: tenor schedules, forecasted issuance, replacement debt | implemented |
+| Net written option combined with a swap | implemented |
+| Nonfinancial price-component cash-flow hedges | implemented in the separate `nonfinancial-hedge-1` owner ([nonfinancial-hedge.md](nonfinancial-hedge.md), #88); `hedge-accounting-1` itself still refuses them |
+| Dual hedge of foreign-currency debt, and net-investment hedges | implemented in the separate `net-investment-hedge-1` owner ([net-investment-hedge.md](net-investment-hedge.md), #89); `hedge-accounting-1` itself still refuses them |
+
+Saved derivative trades and hedge relationships have cached graph values and paired curve risk
+in `saved-derivative-risk-1` ([saved-derivative-risk.md](saved-derivative-risk.md), #90).
+
+Other work tracked outside this lane:
+
+- Rust application services and an independent Rust verifier, replacing the
+  current FastAPI transport and Python reference: #46 and #47. The repository
+  production contract keeps Python as transport and independent verification
+  today, which is what this lane uses.
+- Complete 60,000-position combined acceptance: #51. The saved hedge journal now has an opt-in
+  `acceptance_60000` tier that publishes a verified 60,000-position book in about seven minutes
+  ([measured record](../reviews/2026-10-18-hedge-book-scale-acceptance.md)). Graph, credit and
+  solver activity at that scale remain in #51.
+
+This lane does not establish accounting-standard compliance, observed hedge
+effectiveness, or production deployment. Those need reviewed entity policies,
+observed data and a release, which code alone cannot supply.
+
+## Shared daily journal (`saved-hedge-mixed-1`)
+
+`saved-hedge-mixed-1` (native `portfolio-model-ledger`, coordinator
+`workflows/mixed/derivatives/hedges.rs`) runs formal hedge owners in the
+existing dated daily Sim and its single ordered GL. The request is the
+`saved-derivative-mixed-1` shape with one extra field per run: `hedge`, every
+`hedge-accounting-1` field except `derivative`. The coordinator binds each
+overlay to the run's exact saved Physical source (an overlay carrying its own
+`derivative` rejects), requires the overlay to be byte-identical across the
+scenario runs of an owner, and requires the hedge journal's embedded derivative
+result to equal the saved source result exactly.
+
+The formal owner's single journal (re-owned derivative postings plus basis, OCI,
+reclassification, amortization and derecognition) replaces the undesignated
+derivative intents once. Hedge openings (`hedge_opening` intents) join the one
+shared opening, never a daily intent: retained basis adds to the admitted
+opening balance sheet as a signed carrying adjustment and retained OCI reduces
+the opening-equity GL. The hedged item's contractual cash stays with its own
+source owner (in the fixture, a fully dated loan on the item's coupon dates).
+
+Ledger ownership in `portfolio-ledger-native` (`owners/derivatives.rs`):
+
+| Hedge account | Shared GL | Treatment |
+|---|---|---|
+| `hedged_item_basis_adjustment` | `hedged_item_basis_adjustment` | signed stock; gross direction not fixed |
+| `cash_flow_hedge_oci` | `cash_flow_hedge_oci` | equity outside earnings; separate from the AFS `oci` GL |
+| basis gain/loss, amortization, derecognition, forecast reclassification | `pnl:hedged_item_basis`, `pnl:hedged_item_basis_amortization`, `pnl:hedged_item_basis_derecognition`, `pnl:hedged_forecast_reclassification` | earnings |
+
+Hedge postings are keyed `@hedge:[book, relationship]`, so recognition and
+release of basis and OCI net within one relationship key; derivative postings
+keep their `@derivative:` keys. Every basis and OCI key must close by the
+complete tail, as gross derivative rights and collateral already must.
+Cash-flow-hedge OCI never enters the daily research CET1 proxy; with no hedge
+owner it is zero, so every historical route is unchanged.
+
+Admission: the derivative source's structural replay bound is charged per run
+as in the derivative-only route, plus every formal hedge posting through the
+complete mixed tail (six scans per day), within the shared 8,000,000-unit cap.
+The bound is quadratic in the horizon, so the synthetic fixture
+(`scripts/make_hedge_mixed_example.py`, `examples/models/saved-hedge-mixed-1.json`)
+rebuilds the reviewed hedge example on 10-day periods (30 days) with a baseline
+and one stress run, and settles the loan with a reviewed `hedged_item_matured`
+event.
+
+Independent verification (`saved_derivative_mixed_reference`, extended for this
+schema) re-runs `hedge_accounting_reference.verify` on every native hedge result,
+rebuilds the expected mixed postings from the independent replay (intent
+alignment must be exact; no rounding-level normalization is admitted in the
+shared GL), and then replays the persisted partitions: ordered journal, opening
+anchors with OCI outside opening equity, daily gross balances, research path
+metrics with the CET1 exclusion, ledger/attribution aggregates with hedge OCI.
+The receipt `saved-hedge-mixed-verification-1` adds
+`formal_hedge_relationships_replayed` and `complete_hedge_basis_oci_tail_verified`.
+The durable `/derivatives/mixed/runs` job accepts either schema under the
+existing original-deadline, binary, lease/token and persisted-reopen fences;
+`/derivatives/hedge-mixed/example` serves the example. Accounting-standard
+approval, FTP eligibility and empirical validation remain false.
+
+**Closing capital from the shared journal.** A completed `saved_derivative_mixed`
+job (either `saved-derivative-mixed-1` or `saved-hedge-mixed-1`) is a `ledger`
+capital source for `/treasury/bridges` only through its retained receipt: every
+independent source, ordered-journal and complete-tail flag (plus the hedge
+replay and basis/OCI-tail flags for the hedge schema) must be true and approval
+and capital/FTP permission flags false. The report date must equal the complete
+mixed tail (as-of plus horizon). The bridge replays the persisted journal
+against the trial balance, checks the closing statements, and runs the native
+thirteen-ratio bridge, which now classifies the gross shared-Sim derivative
+GLs (`derivative_asset`, `derivative_unpaid_receivable`, posted VM/IM as assets;
+`derivative_liability`, `derivative_unpaid_payable`, received VM as
+liabilities). Cash-flow-hedge OCI stays under its own GL and enters eligible
+AOCI only under the reviewed `cash_flow_hedge_aoci_eligible` flag. Credit and
+FTP source kinds still refuse, as do joint deposit/derivative journals. The
+receipt records `basis=complete_tail_shared_journal_closing-1`. Report-date
+capital from the shared journal and regulatory eligibility remain supplied or
+open.
+
+## Workbench
+
+The **Hedge Accounting** panel (`apps/web/src/pages/HedgeAccounting.tsx`, rail
+section Data) is the dedicated flow over the durable `hedge-accounting-1` run:
+load the reviewed example, inspect and edit the linked derivative source,
+hedged items and forecast exposures, set the assessment band and the ASU
+2025-09 / ASU 2022-01 adoption and elections, edit designations (designation,
+instrument, proportion, item or exposure, inception, benchmark) and reviewed
+events (assess, discontinue with reason, forecast status, rate election, debt
+issuance and replacement), then run. Results show the independent replay
+receipt and approval status, with tabs for relationships, lifecycle history,
+assessments, basis and OCI roll-forwards and the journal, Parquet download per
+table, request JSON download, and reopening a stored job by id. All transport
+goes through `apps/web/src/lib/api.ts`; the panel adds no financial logic.
+Browser evidence: `apps/web/tests/hedge-accounting.spec.ts` against durable
+API/worker/web servers.
+
+Durable hedge jobs run the API storage contracts on SQLite locally and on
+PostgreSQL in the CI storage job (`TEST_POSTGRES_URL`); worker loss is covered
+by reclaim tests that keep the original publication deadline.
 
 ## Closing capital feed (`hedge-treasury-1`)
 

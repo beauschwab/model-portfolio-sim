@@ -213,6 +213,11 @@ const ASSET_GLS: &[&str] = &[
     "default_interest_basis_adjustment",
     // Formal fair-value hedge basis adjustment on an asset item (signed carrying adjustment).
     "hedged_item_basis_adjustment",
+    // Gross shared-Sim derivative owner stocks (saved-derivative/hedge mixed journals).
+    "derivative_asset",
+    "derivative_unpaid_receivable",
+    "derivative_posted_vm_asset",
+    "derivative_posted_im_asset",
 ];
 const LIAB_GLS: &[&str] = &[
     // Formal fair-value hedge basis adjustment on a liability item.
@@ -224,6 +229,9 @@ const LIAB_GLS: &[&str] = &[
     "dated_interest_payable",
     "dated_deferred_income",
     "credit_default_deferred_income",
+    "derivative_liability",
+    "derivative_unpaid_payable",
+    "derivative_received_vm_liability",
 ];
 const CREDIT_ASSET_GLS: &[&str] = &[
     "credit_default_principal",

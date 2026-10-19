@@ -44,6 +44,8 @@
     "mortgage-credit-accounting-1",
     "mortgage-product-graph-1",
     "mortgage-state-1",
+    "net-investment-hedge-1",
+    "nonfinancial-hedge-1",
     "nonintegral-fee-accounting-1",
     "observed-deposit-calibration-1",
     "product-candidate-journal-1",
@@ -51,6 +53,7 @@
     "product-mixed-dated-1",
     "product-mixed-product-credit-1",
     "product-units-1",
+    "saved-derivative-risk-1",
     "strategy-product-1",
     "term-product-graph-1",
     "term-product-graph-2",
@@ -668,6 +671,19 @@
       },
       "method": "GET",
       "path": "/derivatives/deposit-portfolio/example",
+      "permission": "read"
+    },
+    "get_derivatives_hedge_mixed_example": {
+      "description": "Hedge Example [GET /derivatives/hedge-mixed/example; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/derivatives/hedge-mixed/example",
       "permission": "read"
     },
     "get_derivatives_mixed_example": {

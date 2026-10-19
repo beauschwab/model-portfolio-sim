@@ -19,7 +19,7 @@ ACCOUNTS = ('cash', 'derivative_asset', 'derivative_liability', 'unpaid_receivab
             'hedged_item_basis_gain_loss', 'hedged_item_basis_amortization', 'hedged_item_basis_derecognition',
             'hedged_forecast_reclassification')
 FLAGS = dict(accounting_standard_approval=False, empirical_validation=False, persisted_journal_verified=False,
-             saved_book_adoption=False, portfolio_layer_supported=False, net_investment_supported=False,
+             saved_book_adoption=False, portfolio_layer_supported=True, net_investment_supported=False,
              asu_2025_09_similar_risk_supported=True, asu_2025_09_selectable_rate_supported=True,
              asu_2025_09_swap_written_option_supported=True, seasoned_openings_supported=True)
 SIMILAR_METHODS = ('instrument_highly_effective_each_risk', 'hedged_risks_similar_to_each_other')
@@ -88,6 +88,38 @@ def _unit_clean(item, rate, dfs, t, before, term_end=None):
     return _money(dirty - accrued)
 
 
+def _unit_clean_amortizing(item, rate, dfs, t, before, schedule, hedged):
+    """Amortizing portfolio layer: coupons on the amount outstanding each period, principal as it amortizes."""
+    active = (lambda pay: pay >= t) if before else (lambda pay: pay > t)
+    first = schedule[0]['amount']; by_end = {x['period_end_ordinal']: x['amount'] for x in schedule}
+    last_end = schedule[-1]['period_end_ordinal']
+    dirty = accrued = 0.
+    for p in item['periods']:
+        if p['end_ordinal'] > last_end: continue
+        f = by_end.get(p['end_ordinal'], first) / hedged
+        tau = _tau(p['start_ordinal'], p['end_ordinal'], p['day_count'])
+        if active(p['payment_ordinal']):
+            _require(p['payment_ordinal'] in dfs, 'missing exact hedged item discount point')
+            dirty += f * rate * tau * dfs[p['payment_ordinal']]
+            if p['end_ordinal'] <= t: accrued += f * rate * tau
+        if p['start_ordinal'] <= t < p['end_ordinal']: accrued += f * rate * _year(p['start_ordinal'], t, p['day_count'])
+    for k, x in enumerate(schedule):
+        repaid = (x['amount'] - (schedule[k + 1]['amount'] if k + 1 < len(schedule) else 0.)) / hedged
+        if repaid != 0. and active(x['period_end_ordinal']):
+            _require(x['period_end_ordinal'] in dfs, 'missing exact layer amortization discount point')
+            dirty += repaid * dfs[x['period_end_ordinal']]
+    return _money(dirty - accrued)
+
+
+def _layer_amount(rel, item, at):
+    """Layer amount outstanding at `at` before breach scaling; zero from the layer end."""
+    end = rel.get('hedged_term_end_ordinal') or item['principal_ordinal']
+    if at >= end: return 0.
+    schedule = rel.get('layer_amortization')
+    if schedule is None: return rel['hedged_notional']
+    return next((x['amount'] for x in schedule if at < x['period_end_ordinal']), 0.)
+
+
 def _hypothetical(req, t):
     value, _ = _swap(req)
     before = deepcopy(req); before['payment_timing'] = 'before_scheduled_payments'
@@ -127,7 +159,10 @@ def _admit(raw):
     policy = raw['policy']
     _require(policy['rule_version'] == RULE, 'unsupported rule matrix')
     adoption = policy['adoption']; asu = adoption['asu_2025_09']; elections = asu['elections']
-    _require(adoption['asu_2022_01_portfolio_layer'] is False and elections['dual_hedge_basis'] is False, 'unimplemented election')
+    _require(elections['dual_hedge_basis'] is False, 'unimplemented election')
+    layer_policy = policy.get('portfolio_layer')
+    _require((adoption['asu_2022_01_portfolio_layer'] is True) == (layer_policy is not None), 'portfolio-layer election and reviewed breach policy')
+    _require(layer_policy is None or set(layer_policy) == {'identity', 'breach_order'} and layer_policy['breach_order'] in ('last_designated_first', 'pro_rata'), 'portfolio-layer policy')
     _require((asu['adopted'] is True) == (asu['adoption_ordinal'] is not None), 'adoption date selection')
 
     def elected(flag, inception, label):
@@ -146,7 +181,24 @@ def _admit(raw):
     asof = csa['asof_ordinal']
     items = {}; exposures = {}
     for item in raw['hedged_items']:
-        _require(item['kind'] == 'fixed_rate_instrument' and item['direction'] in ('asset', 'liability') and item['item_id'] not in items, 'hedged item')
+        _require(item['kind'] in ('fixed_rate_instrument', 'closed_portfolio') and item['direction'] in ('asset', 'liability') and item['item_id'] not in items, 'hedged item')
+        portfolio = item.get('portfolio')
+        _require((item['kind'] == 'closed_portfolio') == (portfolio is not None), 'portfolio block belongs to closed portfolios')
+        if portfolio is not None:
+            _require(adoption['asu_2022_01_portfolio_layer'] is True and item['direction'] == 'asset', 'closed portfolio requires the adopted method on assets')
+            ids = [m['asset_id'] for m in portfolio['members']]
+            _require(0 < len(ids) <= 4096 and len(set(ids)) == len(ids) and all(type(m['prepayable']) is bool for m in portfolio['members']), 'closed portfolio membership')
+            _require(len(portfolio['balances']) <= 8192 and len(portfolio['projections']) <= 8192, 'portfolio observation count')
+            prior = None
+            for b in portfolio['balances']:
+                v = _money(b['outstanding'])
+                _require(0. <= v <= item['notional'] + 1e-9 and (prior is None or b['ordinal'] > prior[0] and v <= prior[1] + 1e-9), 'closed portfolio balances')
+                prior = (b['ordinal'], v)
+            prior = None
+            for x in portfolio['projections']:
+                v = _money(x['anticipated'])
+                _require(0. <= v <= item['notional'] + 1e-9 and x['term_end_ordinal'] > x['ordinal'] and (prior is None or (x['ordinal'], x['term_end_ordinal']) > prior), 'portfolio projections')
+                prior = (x['ordinal'], x['term_end_ordinal'])
         _require(0. < _money(item['notional']), 'item notional'); _money(item['contractual_rate'])
         _periods(item['periods'], asof, 'hedged item')
         _require(item['principal_ordinal'] >= item['periods'][-1]['payment_ordinal'], 'principal date')
@@ -159,6 +211,9 @@ def _admit(raw):
             options = cyr['documented_index_ids']
             _require(2 <= len(options) <= 16 and len(set(options)) == len(options) and x['index_id'] in options
                      and x['direction'] == 'payment' and cyr['debt_classification'] == 'liability', 'choose-your-rate exposure')
+            scheduled = [s['index_id'] for s in cyr.get('option_schedules') or []]
+            _require(len(set(scheduled)) == len(scheduled) and all(i_ in options and i_ != x['index_id'] for i_ in scheduled), 'option schedules')
+            for s in cyr.get('option_schedules') or []: _periods(s['periods'], asof, 'option schedule')
     _require(1 <= len(raw['relationships']) <= 64 and len(raw['events']) <= 1024, 'cardinality')
     reviews = {t['position_id']: t for t in d['policy']['trades']}
     compiled = {}; proportion = {}; hedged_total = {}; work = 0
@@ -181,6 +236,9 @@ def _admit(raw):
                 _require(trade is not None and trade['kind'] in ('european_swaption', 'expired_european'), 'written option on every node')
                 if trade['kind'] == 'expired_european':
                     _require(node['ordinal'] >= trade['terminal']['expiry_ordinal'], 'expired written option after expiry')
+                    # An option expired before designation is not part of the hedging instrument.
+                    _require(not (node['ordinal'] == max(inception, path['nodes'][0]['ordinal']) and trade['terminal']['expiry_ordinal'] < inception),
+                             'written option expired before designation')
                     u = trade['delivered_underlying']
                     _require(u is None or _near(u['notional'], swap['notional']) and reviews[option]['delivery_review'] is not None, 'delivered written option terms')
                 o = trade.get('request', trade.get('terminal'))
@@ -253,6 +311,15 @@ def _admit(raw):
             _require(_accrual_free(item['periods'], inception) and any(q['start_ordinal'] >= inception for q in item['periods']), 'item inception boundary')
             end = rel.get('hedged_term_end_ordinal')
             _require(end is None or inception < end < item['principal_ordinal'] and any(q['end_ordinal'] == end for q in item['periods']), 'partial-term end')
+            layer = item['kind'] == 'closed_portfolio'; schedule = rel.get('layer_amortization')
+            _require(not layer or opening is None and rel.get('written_option_position_id') is None, 'layers admit no seasoned opening or written option')
+            _require(layer or schedule is None, 'layer amortization applies to closed-portfolio layers')
+            if schedule is not None:
+                last = end or item['principal_ordinal']
+                expected = [q['end_ordinal'] for q in item['periods'] if inception < q['end_ordinal'] <= last]
+                amounts = [_money(x['amount']) for x in schedule]
+                _require([x['period_end_ordinal'] for x in schedule] == expected and amounts and amounts[0] == hedged
+                         and all(a_ > 0. for a_ in amounts) and all(b_ <= a_ + 1e-12 for a_, b_ in zip(amounts, amounts[1:])), 'layer amortization')
             entry.update(item=item, dir=1. if item['direction'] == 'asset' else -1.)
             if opening is not None: _require(_near(opening['basis_balance'] + math.fsum(t_['amount'] for t_ in opening.get('frozen_basis') or []), -entry['dir'] * opening['cumulative_hedged_change']), 'seasoned basis plus frozen equals signed cumulative hedged change')
         else:
@@ -294,9 +361,15 @@ def _admit(raw):
                     elected(elections['selectable_rate_debt'], inception, 'choose-your-rate debt')
                     expected = [i for i in cyr['documented_index_ids'] if i != x['index_id']]
                     _require(sorted(h['index_id'] for h in rate_hyps) == sorted(expected), 'rate hypotheticals per documented alternative')
-                    for rh in rate_hyps: hyps[rh['index_id']] = (hyp_nodes(rh['hypothetical'], x, rh['index_id']), rh['hypothetical']['evidence'])
+                    schedules = {}
+                    for rh in rate_hyps:
+                        tenor = next((s for s in cyr.get('option_schedules') or [] if s['index_id'] == rh['index_id']), None)
+                        mirrored = x if tenor is None else dict(x, periods=tenor['periods'])
+                        if tenor is not None: schedules[rh['index_id']] = (tenor['periods'], hedged_of(mirrored))
+                        hyps[rh['index_id']] = (hyp_nodes(rh['hypothetical'], mirrored, rh['index_id']), rh['hypothetical']['evidence'])
                     entry.update(cyr=True)
-                entry['members'].append(dict(exposure=x, hedged_periods=hedged, hyps=hyps))
+                else: schedules = {}
+                entry['members'].append(dict(exposure=x, hedged_periods=hedged, hyps=hyps, schedules=schedules))
         compiled[rid] = entry
     _require(work <= 1_000_000, 'hypothetical work')
     prior = None; ids = set()
@@ -307,7 +380,9 @@ def _admit(raw):
         _require(ev['ordinal'] in nodes and ev['ordinal'] >= rel['inception_ordinal'], 'event node')
         swaps = [_swap_of(path['nodes'][0], rel['hedging_instrument_position_id'])] + [_swap_of(path['nodes'][0], i_) for i_ in rel.get('additional_instrument_position_ids') or []]
         extra = {k: ev.get(k) for k in ('proportion', 'reason', 'status')}
-        _require(ev.get('index_id') is None or ev['kind'] == 'rate_election', 'index on a non-election event')
+        _require(ev.get('index_id') is None or ev['kind'] in ('rate_election', 'debt_issued', 'debt_replacement'), 'index on a non-election event')
+        if ev.get('qualitative_similarity_support') is not None:
+            _require(ev['kind'] == 'assess' and (rel.get('group') or {}).get('qualitative_similarity_election') is not None, 'qualitative similarity support under the 55-23C election')
         _require(ev.get('effective_ordinal') is None or ev['kind'] == 'assess' and c['similar'] is not None, 'specific last-similar date on a non-group assessment')
 
         def assessment_node():
@@ -325,13 +400,24 @@ def _admit(raw):
         elif ev['kind'] == 'rate_election':
             _require(c['cyr'] and all(v is None for v in extra.values()) and ev.get('index_id') in c['members'][0]['exposure']['choose_your_rate']['documented_index_ids'], 'rate election fields')
             assessment_node()
+        elif ev['kind'] in ('debt_issued', 'debt_replacement'):
+            _require(c['cyr'] and all(v is None for v in extra.values()) and ev.get('index_id') in c['members'][0]['exposure']['choose_your_rate']['documented_index_ids'], 'debt issuance/replacement fields')
+            if ev['kind'] == 'debt_issued':
+                x = c['members'][0]['exposure']; first = x['periods'][c['members'][0]['hedged_periods'][0]]['start_ordinal']
+                _require(x['choose_your_rate'].get('forecasted_issuance') is not None and ev['ordinal'] <= first, 'debt issuance on or before the first hedged period')
+            assessment_node()
         elif ev['kind'] == 'discontinue':
-            _require(extra['reason'] in ('dedesignation', 'hedged_item_sold', 'instrument_terminated') and extra['status'] is None, 'discontinuation fields')
+            _require(extra['reason'] in ('dedesignation', 'hedged_item_sold', 'instrument_terminated', 'hedged_item_matured') and extra['status'] is None, 'discontinuation fields')
             _require(extra['proportion'] is None or 0. < extra['proportion'] <= 1., 'discontinued proportion')
+            if extra['reason'] == 'hedged_item_matured':
+                # Settlement of the item on its principal date derecognizes the remaining basis, as a sale.
+                _require(rel['designation'] == 'fair_value_hedge' and rel.get('hedged_term_end_ordinal') is None
+                         and extra['proportion'] in (None, 1.) and c['item']['principal_ordinal'] == ev['ordinal'], 'hedged item maturity')
         else:
             _require(ev['kind'] == 'forecast_status' and rel['designation'] == 'cash_flow_hedge'
                      and extra['status'] in ('no_longer_probable', 'probable_not_to_occur', 'delayed', 'period_probable_not_to_occur')
                      and extra['proportion'] is None and extra['reason'] is None, 'forecast status fields')
+            _require(not (any(m_.get('schedules') for m_ in c['members']) and extra['status'] in ('delayed', 'period_probable_not_to_occur')), 'period-level status with tenor schedules')
             located = next((m_['exposure']['periods'][q_] for m_ in c['members'] for q_ in m_['hedged_periods'] if m_['exposure']['periods'][q_]['period_id'] == ev.get('period_id')), None)
             if extra['status'] in ('no_longer_probable', 'probable_not_to_occur'):
                 _require(ev.get('period_id') is None and ev.get('new_payment_ordinal') is None, 'relationship-level forecast status fields')
@@ -349,6 +435,8 @@ def _state(rel, c):
     return dict(status='pending', scale=1., proportion=rel['designated_proportion'], unit=None, inst=None, cum_d=0., cum_e=0., basis=0.,
                 frozen_basis=[], oci=0., frozen_oci=[], basis_adjustments=0., basis_amortized=0., basis_derecognized=0., oci_recognized=0.,
                 oci_reclassified=0., last_clean=None, last_hyp=None, last_assessed=rel['inception_ordinal'], oci_at={}, reclass_log=[],
+                anticipated_breach=0., actual_breach=0., quantitative_similar=False,
+                issued=not c.get('cyr') or all((m['exposure'].get('choose_your_rate') or {}).get('forecasted_issuance') is None for m in c['members']),
                 members=[dict(selected=m['exposure']['index_id'], hyp=None, cum_e=0., last_hyp=None, delays={}, excluded=set(), deferred=[]) for m in c['members']])
 
 
@@ -381,6 +469,12 @@ class _Journal:
 
 def _posting(account, value, owner=None, bucket=None, relationship=None):
     return dict(account=account, position_id=owner, bucket=bucket, relationship_id=relationship, debit_amount=float(value))
+
+
+def _schedule(member, selected):
+    """The selected index's payment schedule: a tenor alternative's own periods, else the exposure's."""
+    if selected in member.get('schedules', {}): return member['schedules'][selected]
+    return member['exposure']['periods'], member['hedged_periods']
 
 
 def _record(t, rel, st, **fields):
@@ -434,7 +528,8 @@ def replay(raw, check=lambda: False):
         if rel['designation'] == 'fair_value_hedge':
             item = c['item']; st.update(unit=o['hedged_value'], basis=o['basis_balance'], basis_adjustments=o['basis_balance'])
             for t_ in o.get('frozen_basis') or []:
-                st['frozen_basis'].append(dict(amount=t_['amount'], start=t_['start_ordinal'], amortized=t_['amortized']))
+                st['frozen_basis'].append(dict(amount=t_['amount'], start=t_['start_ordinal'], amortized=t_['amortized'],
+                                               end=rel.get('hedged_term_end_ordinal') or c['item']['principal_ordinal']))
                 st['basis_adjustments'] = _money(st['basis_adjustments'] + t_['amount']); st['basis_amortized'] = _money(st['basis_amortized'] + t_['amortized'])
             retained = _money(o['basis_balance'] + math.fsum(t_['amount'] - t_['amortized'] for t_ in o.get('frozen_basis') or []))
             journal.emit('hedge_opening', asof, 'financial', inst, item['item_id'], None, rid, hedge_policy, sources,
@@ -503,6 +598,25 @@ def replay(raw, check=lambda: False):
             st['oci'] = _money(st['oci'] - g); st['oci_recognized'] = _money(st['oci_recognized'] - g)
         return g
 
+    def elect(i, t, ev, record, new_index):
+        """815-30-35-37F/G and 37L/M: final retrospective assessment on the prior rate, then the new hypothetical governs."""
+        rel, st, c = rels[i], states[i], comp[i]; rid = rel['relationship_id']
+        _require(st['status'] == 'qualified', 'rate election requires a qualified relationship')
+        ms = st['members'][0]; prior_index = ms['selected']
+        d, e = st['cum_d'], st['cum_e']; _require(not (d == 0. and e == 0.), 'nothing to assess')
+        ratio = _ratio(d, e); qualified = _in_band(band, ratio)
+        assessments.append(dict(event_id=ev['event_id'], relationship_id=rid, ordinal=t, method=band['method'], lower_bound=band['lower_bound'],
+                                upper_bound=band['upper_bound'], cumulative_instrument_change=d, cumulative_hedged_change=e, ratio=ratio,
+                                qualified=qualified, index_id=prior_index))
+        if not qualified:
+            effective = st['last_assessed']; g = catch_up(i, t, 'rate_election_earnings_catch_up', effective, ev['review'])
+            record.update(effective_ordinal=effective, earnings_catch_up=g, reason='ineffective_period_in_earnings')
+        else: record['reason'] = 'qualified'
+        nodes_, _ = c['members'][0]['hyps'][new_index]; h, _ = _hypothetical(nodes_[t], t); scaled = _money(st['scale'] * h)
+        ms.update(selected=new_index, hyp=h, cum_e=scaled, last_hyp=scaled)
+        st['cum_e'] = math.fsum(x['cum_e'] for x in st['members']); st['last_hyp'] = scaled; st['last_assessed'] = t
+        record['index_id'] = new_index
+
     def discontinue(i, t, q, reason, review, record, cutoff=None):
         cutoff = t if cutoff is None else cutoff
         rel, st, c = rels[i], states[i], comp[i]
@@ -511,17 +625,17 @@ def replay(raw, check=lambda: False):
         inst = rel['hedging_instrument_position_id']; rid = rel['relationship_id']
         if rel['designation'] == 'fair_value_hedge':
             item = c['item']; frozen = _money(q * st['basis']); st['basis'] = _money(st['basis'] - frozen)
-            if reason == 'hedged_item_sold':
+            if reason in ('hedged_item_sold', 'hedged_item_matured'):
                 journal.emit('hedged_item_basis_derecognition', t, 'financial', inst, item['item_id'], None, rid, hedge_policy, sources,
                              two('hedged_item_basis_adjustment', -c['dir'] * frozen, item['item_id'], rid, 'hedged_item_basis_derecognition'))
                 st['basis_derecognized'] = _money(st['basis_derecognized'] + frozen); record['derecognized_basis'] = frozen
             elif frozen != 0.:
-                st['frozen_basis'].append(dict(amount=frozen, start=t, amortized=0.)); record['frozen_basis'] = frozen
+                st['frozen_basis'].append(dict(amount=frozen, start=t, amortized=0., end=rel.get('hedged_term_end_ordinal') or item['principal_ordinal'])); record['frozen_basis'] = frozen
         else:
             frozen = _money(q * st['oci']); st['oci'] = _money(st['oci'] - frozen)
-            remaining = [(st['members'][m].get('delays', {}).get(k, x['periods'][k]['payment_ordinal']), m, x['notional'] * _tau(x['periods'][k]['start_ordinal'], x['periods'][k]['end_ordinal'], x['periods'][k]['day_count']))
-                         for m, member in enumerate(c['members']) for x in [member['exposure']] for k in member['hedged_periods']
-                         if x['periods'][k]['payment_ordinal'] > cutoff and k not in st['members'][m]['excluded']]
+            remaining = [(st['members'][m].get('delays', {}).get(k, ps[k]['payment_ordinal']), m, x['notional'] * _tau(ps[k]['start_ordinal'], ps[k]['end_ordinal'], ps[k]['day_count']))
+                         for m, member in enumerate(c['members']) for x in [member['exposure']] for ps, hs in [_schedule(member, st['members'][m]['selected'])] for k in hs
+                         if ps[k]['payment_ordinal'] > cutoff and k not in st['members'][m]['excluded']]
             total = math.fsum(w for _, _, w in remaining)
             if not remaining or total <= 0.:
                 if frozen != 0.:
@@ -571,7 +685,11 @@ def replay(raw, check=lambda: False):
                     swap = _swap_of(node, inst)
                     dfs = _discount(swap['discount_curve'], t, raw['currency'], swap['valuation_cutoff_unix_seconds'])
                     term_end = rel.get('hedged_term_end_ordinal')
-                    before = _unit_clean(item, rate, dfs, t, True, term_end); unit = _unit_clean(item, rate, dfs, t, False, term_end)
+                    schedule = rel.get('layer_amortization')
+                    if schedule is None:
+                        before = _unit_clean(item, rate, dfs, t, True, term_end); unit = _unit_clean(item, rate, dfs, t, False, term_end)
+                    else:
+                        before = _unit_clean_amortizing(item, rate, dfs, t, True, schedule, hedged); unit = _unit_clean_amortizing(item, rate, dfs, t, False, schedule, hedged)
                     if st['status'] == 'qualified':
                         d_c = _money(hedged * st['scale'] * (before - st['unit']))
                         if d_c != 0.:
@@ -582,7 +700,7 @@ def replay(raw, check=lambda: False):
                             st['cum_e'] = _money(st['cum_e'] - c['dir'] * d_c)
                     st['unit'] = unit; st['last_clean'] = _money(hedged * st['scale'] * unit)
                 for tranche in st['frozen_basis']:
-                    term_end = rel.get('hedged_term_end_ordinal') or item['principal_ordinal']
+                    term_end = tranche['end']
                     if term_end <= tranche['start']: target = tranche['amount']
                     else: target = _money(tranche['amount'] * min(1., (t - tranche['start']) / (term_end - tranche['start'])))
                     delta = _money(target - tranche['amortized'])
@@ -606,7 +724,8 @@ def replay(raw, check=lambda: False):
                                 for alt_nodes, _ in member['hyps'].values(): _require(_near(_hypothetical(alt_nodes[t], t)[0], 0.), 'hypothetical must be at market at inception')
                         if st['status'] == 'qualified':
                             delta = _money(st['scale'] * (h - ms['hyp'])); ms['cum_e'] = _money(ms['cum_e'] + delta); st['cum_e'] = _money(st['cum_e'] + delta)
-                            due = next((q for q in member['hedged_periods'] if x['periods'][q]['payment_ordinal'] == t and q not in ms['excluded']), None)
+                            periods_, hedged_ = _schedule(member, ms['selected'])
+                            due = next((q for q in hedged_ if periods_[q]['payment_ordinal'] == t and q not in ms['excluded']), None)
                             if due is not None and due in ms['delays']:
                                 ms['deferred'].append((ms['delays'][due], _money(st['scale'] * settlement)))
                             elif due is not None:
@@ -662,8 +781,15 @@ def replay(raw, check=lambda: False):
                             ok = all(_in_band(band, _ratio(units[m], units[j])) for j in range(len(units)) if j != m); member_ratio = _ratio(units[m], units[0])
                         members.append(dict(exposure_id=member['exposure']['exposure_id'], notional=notionals[m], cumulative_hedged_change=changes[m],
                                             ratio=member_ratio, similar=ok))
-                    similar = all(x['similar'] for x in members)
-                    assessment['similar_risk'] = dict(method=c['similar'], similar=similar, members=members)
+                    if ev.get('qualitative_similarity_support') is not None:
+                        # 815-20-55-23C: reviewed qualitative support after an initial passing quantitative assessment.
+                        _require(st['quantitative_similar'], 'qualitative similarity requires an initial passing quantitative assessment')
+                        similar = True
+                        assessment['similar_risk'] = dict(method=c['similar'], similar=True, members=members, basis='qualitative')
+                    else:
+                        similar = all(x['similar'] for x in members)
+                        if similar: st['quantitative_similar'] = True
+                        assessment['similar_risk'] = dict(method=c['similar'], similar=similar, members=members)
                 assessments.append(assessment)
                 if not similar:
                     # 815-20-55-23D: dedesignate as of the last date all risks were assessed similar (or the specific date).
@@ -687,25 +813,16 @@ def replay(raw, check=lambda: False):
                     record.update(effective_ordinal=effective, earnings_catch_up=g, reversed_reclassification=reversed_, released_oci=_money(record['released_oci'] + released))
                 elif not qualified: discontinue(i, t, 1., 'failed_assessment', ev['review'], record)
                 else: record['reason'] = 'qualified'; st['last_assessed'] = t
+            elif ev['kind'] in ('debt_issued', 'debt_replacement'):
+                issuing = ev['kind'] == 'debt_issued'; record['kind'] = ev['kind']
+                _require(st['status'] == 'qualified' and st['issued'] != issuing, 'debt issuance once for a forecasted issuance; replacement after issuance')
+                if ev['index_id'] != st['members'][0]['selected']: elect(i, t, ev, record, ev['index_id'])
+                else: record.update(reason='documentation_updated' if issuing else 'replacement_at_selected_index', index_id=ev['index_id'])
+                st['issued'] = True
             elif ev['kind'] == 'rate_election':
-                # 815-30-35-37L/M: final retrospective assessment on the prior rate, then the new hypothetical governs.
-                record['kind'] = 'rate_election'
-                _require(st['status'] == 'qualified', 'rate election requires a qualified relationship')
-                ms = st['members'][0]; prior_index = ms['selected']; new_index = ev['index_id']
-                _require(new_index != prior_index, 'rate election must change the selected index')
-                d, e = st['cum_d'], st['cum_e']; _require(not (d == 0. and e == 0.), 'nothing to assess')
-                ratio = _ratio(d, e); qualified = _in_band(band, ratio)
-                assessments.append(dict(event_id=ev['event_id'], relationship_id=rid, ordinal=t, method=band['method'], lower_bound=band['lower_bound'],
-                                        upper_bound=band['upper_bound'], cumulative_instrument_change=d, cumulative_hedged_change=e, ratio=ratio,
-                                        qualified=qualified, index_id=prior_index))
-                if not qualified:
-                    effective = st['last_assessed']; g = catch_up(i, t, 'rate_election_earnings_catch_up', effective, ev['review'])
-                    record.update(effective_ordinal=effective, earnings_catch_up=g, reason='ineffective_period_in_earnings')
-                else: record['reason'] = 'qualified'
-                nodes_, _ = c['members'][0]['hyps'][new_index]; h, _ = _hypothetical(nodes_[t], t); scaled = _money(st['scale'] * h)
-                ms.update(selected=new_index, hyp=h, cum_e=scaled, last_hyp=scaled)
-                st['cum_e'] = math.fsum(x['cum_e'] for x in st['members']); st['last_hyp'] = scaled; st['last_assessed'] = t
-                record['index_id'] = new_index
+                record['kind'] = 'rate_election' if st['issued'] else 'best_estimate_change'
+                _require(ev['index_id'] != st['members'][0]['selected'], 'rate election must change the selected index')
+                elect(i, t, ev, record, ev['index_id'])
             elif ev['kind'] == 'discontinue':
                 record['kind'] = 'discontinuation'
                 discontinue(i, t, ev.get('proportion') or 1., ev['reason'], ev['review'], record)
@@ -761,6 +878,13 @@ def replay(raw, check=lambda: False):
                     if only and st['status'] == 'qualified': st['scale'] = 0.; st['proportion'] = 0.; st['status'] = 'discontinued'
                     record.update(reason='forecast_period_probable_not_to_occur', period_id=ev['period_id'], released_oci=release, status_after=st['status'], proportion_after=st['proportion'])
             lifecycle.append(record)
+        for i_, st_ in enumerate(states):
+            # 815-30-35-37H: a forecasted issuance is recorded by its first hedged interest period.
+            c_ = comp[i_]
+            if not st_['issued'] and st_['status'] == 'qualified' and c_.get('cyr'):
+                m_ = c_['members'][0]
+                _require(t < m_['exposure']['periods'][m_['hedged_periods'][0]]['start_ordinal'], 'forecasted issuance recorded by its first hedged period')
+        _portfolio_layers(raw, t, rels, comp, states, compiled, journal, lifecycle, hedge_policy)
         closing = derivative['daily'][k]
         for b in closing['financial_trial_balance']:
             mine = journal.gl.get(b['account'], 0.)
@@ -789,8 +913,8 @@ def replay(raw, check=lambda: False):
     last = path['nodes'][-1]['ordinal']; relationships = []; closing = []
     for i, rel in enumerate(rels):
         st, c = states[i], comp[i]
-        pending = [m['exposure']['periods'][q]['period_id'] for m, ms in zip(c['members'], st['members']) for q in m['hedged_periods']
-                   if q not in ms['excluded'] and ms['delays'].get(q, m['exposure']['periods'][q]['payment_ordinal']) > last]
+        pending = [ps[q]['period_id'] for m, ms in zip(c['members'], st['members']) for ps, hs in [_schedule(m, ms['selected'])] for q in hs
+                   if q not in ms['excluded'] and ms['delays'].get(q, ps[q]['payment_ordinal']) > last]
         frozen_basis = math.fsum(x['amount'] - x['amortized'] for x in st['frozen_basis']); frozen_oci = math.fsum(x['amount'] - x['released'] for x in st['frozen_oci'])
         relationships.append(dict(relationship_id=rel['relationship_id'], predecessor_relationship_id=rel['predecessor_relationship_id'], designation=rel['designation'],
                                   hedging_instrument_position_id=rel['hedging_instrument_position_id'], hedged_item_id=rel['hedged_item_id'],
@@ -803,6 +927,9 @@ def replay(raw, check=lambda: False):
         if rel.get('opening') is not None: relationships[-1]['opening_evidence'] = deepcopy(rel['opening']['evidence'])
         if rel.get('hedged_term_end_ordinal') is not None: relationships[-1]['hedged_term_end_ordinal'] = rel['hedged_term_end_ordinal']
         if rel.get('additional_instrument_position_ids'): relationships[-1]['additional_instrument_position_ids'] = list(rel['additional_instrument_position_ids'])
+        if c.get('item') is not None and c['item']['kind'] == 'closed_portfolio':
+            relationships[-1].update(layer_amount=_money(rel['hedged_notional'] * st['scale']), anticipated_breach_amount=st['anticipated_breach'],
+                                     actual_breach_amount=st['actual_breach'], basis_excluded_from_credit_loss_measurement=True)
         closing.append(dict(relationship_id=rel['relationship_id'], basis_adjustments=st['basis_adjustments'], basis_amortized=st['basis_amortized'],
                             basis_derecognized=st['basis_derecognized'], basis_closing=_money(st['basis'] + frozen_basis), oci_recognized=st['oci_recognized'],
                             oci_reclassified=st['oci_reclassified'], oci_closing=_money(st['oci'] + frozen_oci)))
@@ -812,6 +939,71 @@ def replay(raw, check=lambda: False):
     return dict(schema=SCHEMA, model_version=SCHEMA, rule_version=RULE, run=deepcopy(raw['run']), entity=raw['entity'], currency=raw['currency'],
                 monetary_unit=raw['monetary_unit'], policy=deepcopy(raw['policy']), derivative=derivative, relationships=relationships,
                 lifecycle=lifecycle, assessments=assessments, daily=daily, intents=journal.intents, closing=closing, **FLAGS)
+
+
+def _portfolio_layers(raw, t, rels, comp, states, compiled, journal, lifecycle, hedge_policy):
+    """ASU 2022-01 breach monitoring after the node's reviewed events: actual, then anticipated."""
+    policy = raw['policy'].get('portfolio_layer')
+    for item in raw['hedged_items']:
+        portfolio = item.get('portfolio')
+        if portfolio is None: continue
+        layers = [i for i, c in enumerate(comp) if c.get('item') is item and states[i]['status'] == 'qualified']
+        if not layers: continue
+        layers.sort(key=lambda i: (rels[i]['inception_ordinal'], i))
+        current = lambda i, at: _layer_amount(rels[i], item, at) * states[i]['scale']
+        actual = next((b['outstanding'] for b in portfolio['balances'] if b['ordinal'] == t), None)
+        _require(actual is not None, 'closed portfolio balance missing at a hedged node')
+        projections = [x for x in portfolio['projections'] if x['ordinal'] == t]
+        required_projection = any(rels[i]['inception_ordinal'] == t or any(ev['ordinal'] == t and ev['kind'] == 'assess'
+                                  and compiled[ev['relationship_id']]['index'] == i for ev in raw['events']) for i in layers)
+
+        def allocate(affected, excess, at):
+            if policy['breach_order'] == 'last_designated_first':
+                out = []; rest = excess
+                for i in reversed(affected):
+                    cur = current(i, at); take = min(rest, cur)
+                    if take > 0.: out.append((i, take, take / cur)); rest -= take
+                    if rest <= 0.: break
+                return out
+            total = math.fsum(current(i, at) for i in affected)
+            return [(i, current(i, at) * excess / total, excess / total) for i in affected if current(i, at) > 0.]
+
+        def apply(i, take, q, actual_breach):
+            rel, st, c = rels[i], states[i], comp[i]; q = min(q, 1.)
+            record = _record(t, rel, st, kind='portfolio_layer_breach', review=deepcopy(policy['identity']),
+                             reason='actual_breach' if actual_breach else 'anticipated_breach', breach_amount=take)
+            frozen = _money(q * st['basis']); st['basis'] = _money(st['basis'] - frozen)
+            if actual_breach:
+                journal.emit('portfolio_layer_breach_basis', t, 'financial', rel['hedging_instrument_position_id'], item['item_id'], None, rel['relationship_id'],
+                             hedge_policy, [deepcopy(hedge_policy), deepcopy(rel['documentation']), deepcopy(policy['identity']), deepcopy(portfolio['balance_source'])],
+                             [_posting('hedged_item_basis_adjustment', -c['dir'] * frozen, item['item_id'], None, rel['relationship_id']),
+                              _posting('hedged_item_basis_derecognition', c['dir'] * frozen, item['item_id'], None, rel['relationship_id'])])
+                st['basis_derecognized'] = _money(st['basis_derecognized'] + frozen); st['actual_breach'] = _money(st['actual_breach'] + take)
+                record['derecognized_basis'] = frozen
+            else:
+                if frozen != 0.: st['frozen_basis'].append(dict(amount=frozen, start=t, amortized=0., end=item['principal_ordinal']))
+                st['anticipated_breach'] = _money(st['anticipated_breach'] + take); record['frozen_basis'] = frozen
+            st['scale'] *= 1. - q; st['proportion'] = _money(rel['designated_proportion'] * st['scale'])
+            if q >= 1. - 1e-12: st['scale'] = 0.; st['proportion'] = 0.; st['status'] = 'discontinued'
+            record.update(status_after=st['status'], proportion_after=st['proportion']); lifecycle.append(record)
+
+        required = math.fsum(current(i, t) for i in layers)
+        if actual < required - 1e-9:
+            _require(not any(rels[i]['inception_ordinal'] == t for i in layers), 'layer exceeds the closed portfolio at designation')
+            for i, take, q in allocate(layers, required - actual, t): apply(i, take, q, True)
+        layers = [i for i in layers if states[i]['status'] == 'qualified']
+        ends = sorted({e for e in ((rels[i].get('hedged_term_end_ordinal') or item['principal_ordinal']) for i in layers) if e > t})
+        have = {x['term_end_ordinal']: x for x in projections}
+        _require(not required_projection or all(e in have for e in ends), 'portfolio projections at designation and assessment')
+        if projections:
+            _require(set(have) <= set(ends), 'projection names no active layer end')
+            for e in ends:
+                _require(e in have, 'portfolio projections must cover every active layer end')
+                affected = [i for i in layers if states[i]['status'] == 'qualified' and (rels[i].get('hedged_term_end_ordinal') or item['principal_ordinal']) >= e]
+                need = math.fsum(current(i, e - 1) for i in affected)
+                if have[e]['anticipated'] < need - 1e-9:
+                    _require(not any(rels[i]['inception_ordinal'] == t for i in affected), 'layer must be expected to remain at designation')
+                    for i, take, q in allocate(affected, need - have[e]['anticipated'], e - 1): apply(i, take, q, False)
 
 
 def _compare(a, b, path='result'):

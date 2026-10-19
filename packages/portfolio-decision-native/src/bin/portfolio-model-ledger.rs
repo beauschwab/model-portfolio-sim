@@ -5,14 +5,30 @@ fn main() {
     let result = (|| -> Result<(), String> {
         let dispatcher_started = std::time::Instant::now();
         let mut input = Vec::new();
+        // The explicitly selected saved derivative/hedge acceptance tier admits larger
+        // envelopes; every other route keeps the 32 MiB input bound.
+        let tier_bound = portfolio_decision_native::saved_derivative_mixed::stream::MAX_TIER_BYTES;
         io::stdin()
-            .take(32 * 1024 * 1024 + 1)
+            .take(tier_bound as u64 + 1)
             .read_to_end(&mut input)
             .map_err(|e| e.to_string())?;
-        if input.len() > 32 * 1024 * 1024 {
+        if input.len() > tier_bound {
             return Err("model ledger input exceeds 32 MiB".into());
         }
         let value: Value = serde_json::from_slice(&input).map_err(|e| e.to_string())?;
+        if input.len() > 32 * 1024 * 1024
+            && !(value
+                .get("request")
+                .and_then(|r| r.get("schema"))
+                .and_then(Value::as_str)
+                .is_some_and(|s| s == "saved-derivative-mixed-1" || s == "saved-hedge-mixed-1")
+                && value
+                    .get("request")
+                    .and_then(|r| r.get("scale_tier"))
+                    .is_some())
+        {
+            return Err("model ledger input exceeds 32 MiB".into());
+        }
         if value
             .get("request")
             .and_then(|r| r.get("schema"))
@@ -57,7 +73,7 @@ fn main() {
             .get("request")
             .and_then(|r| r.get("schema"))
             .and_then(Value::as_str)
-            == Some("saved-derivative-mixed-1")
+            .is_some_and(|s| s == "saved-derivative-mixed-1" || s == "saved-hedge-mixed-1")
         {
             return portfolio_decision_native::saved_derivative_mixed::public::run_started(
                 &input,

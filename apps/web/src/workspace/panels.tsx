@@ -1,6 +1,6 @@
 import { lazy, Suspense, Component, type ReactNode } from "react";
 import type { IDockviewPanelProps } from "dockview";
-import { Activity, BookOpen, ChartLine, Compass, Gauge, Landmark, Layers, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, ChartLine, Compass, Gauge, Landmark, Layers, Scale, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
 import { Badge } from "../components/ui";
 const PipelineMonitor = lazy(() => import("../components/PipelineMonitor"));
 const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import("../pages/Dashboard"));
 const KpisPage = lazy(() => import("../pages/Kpis"));
 const Treasury = lazy(() => import("../pages/Treasury"));
 const ModelLab = lazy(() => import("../pages/ModelLab"));
+const HedgeAccounting = lazy(() => import("../pages/HedgeAccounting"));
 const MarketPage = lazy(() => import("../pages/Market"));
 const MorningSheet = lazy(() => import("../pages/MorningSheet"));
 const Positions = lazy(() => import("../pages/Positions"));
@@ -23,6 +24,7 @@ export type PanelId =
   | "kpis"
   | "treasury"
   | "models"
+  | "hedges"
   | "positions"
   | "cohorts"
   | "decide"
@@ -65,6 +67,7 @@ export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "market", group: "data", title: "Market & Scenarios", icon: ChartLine, subtitle: "Par curve · 9Q scenario builder", component: () => <MarketPage /> },
   { id: "books", group: "data", title: "Book Editor", icon: BookOpen, subtitle: "6 books · table view + JSON edit", component: () => <BalanceSheet /> },
   { id: "models", group: "data", title: "Product Models", icon: Layers, subtitle: "Product terms · dated cashflows · state and source evidence", component: () => <ModelLab /> },
+  { id: "hedges", group: "data", title: "Hedge Accounting", icon: Scale, subtitle: "ASC 815 designations · assessments · basis and OCI history", component: () => <HedgeAccounting /> },
   {
     id: "settings",
     group: "data",

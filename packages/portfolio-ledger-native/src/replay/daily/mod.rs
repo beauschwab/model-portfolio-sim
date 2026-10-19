@@ -252,6 +252,8 @@ struct Sim<'a> {
     commitments: Vec<f64>,
     schedule_balance: Vec<f64>,
     aoci: Vec<f64>,
+    /// Cash-flow-hedge OCI from formal hedge owners; separate from AFS `oci`.
+    hedge_aoci: Vec<f64>,
     extra_assets: Vec<f64>,
     extra_debt: Vec<f64>,
     funding_interest: Vec<f64>,
@@ -415,6 +417,7 @@ impl<'a> Sim<'a> {
             commitments: spec.positions.iter().map(|p| p.commitment).collect(),
             schedule_balance: spec.positions.iter().map(|p| p.balance).collect(),
             aoci: vec![0.; a],
+            hedge_aoci: vec![0.; a],
             extra_assets: vec![0.; a],
             extra_debt: vec![0.; a],
             funding_interest: vec![0.; a],
@@ -497,7 +500,8 @@ impl<'a> Sim<'a> {
             }
         }
         for i in 0..a {
-            sim.opening_equity[i] -= sim.aoci[i];
+            sim.hedge_aoci[i] = sim.derivative_opening_oci(i);
+            sim.opening_equity[i] -= sim.aoci[i] + sim.hedge_aoci[i];
         }
         Ok(sim)
     }
@@ -1139,8 +1143,11 @@ impl<'a> Sim<'a> {
             if !error.is_finite() || error.abs() > 1e-8 * 1_f64.max(assets.abs()).max(liabilities) {
                 return Err(format!("balance sheet mismatch day {day}: {error}"));
             }
-            let cet1 =
-                a.equity - a.capital_deductions - if a.include_aoci { 0. } else { self.aoci[ai] };
+            // Cash-flow-hedge OCI never enters the research CET1 proxy (zero without hedge owners).
+            let cet1 = a.equity
+                - a.capital_deductions
+                - if a.include_aoci { 0. } else { self.aoci[ai] }
+                - self.hedge_aoci[ai];
             let exposure = assets.max(0.) + undrawn;
             self.minimum_cash[ai] = self.minimum_cash[ai].min(a.cash);
             let margins = [

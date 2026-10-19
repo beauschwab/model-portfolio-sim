@@ -8,7 +8,7 @@ import hashlib,json,os,subprocess,sys,tempfile,threading,time,uuid
 from .balance_stream import _hash
 from .saved_derivative_identity import encoded,loads,probe,exact_identity
 from .saved_derivative_transport import DerivativeWriter,SCHEMAS,SCHEMA
-from .saved_derivative_mixed_reference import verify_preparation,verify_stream
+from .saved_derivative_mixed_reference import verify_preparation,verify_stream,SCHEMAS_SUPPORTED
 MAX_BYTES=32*1024*1024
 MAX_PARTS=65536
 
@@ -24,10 +24,16 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
         probe(cancelled)
         if time.monotonic()>=deadline:raise TimeoutError('derivative original process/publication deadline expired')
         return False
+    if type(raw)is not dict or raw.get('schema')not in SCHEMAS_SUPPORTED:raise ValueError('explicit saved derivative or hedge mixed schema required')
     check();binary=binary_path();sha=_hash(binary)
     if expected_binary is not None and sha!=expected_binary:raise RuntimeError('MODEL_VERSION_CHANGED: derivative binary differs')
     body=encoded(dict(request=raw,execution_timeout_ms=max(1,int(timeout*1000))))
-    if len(body)>MAX_BYTES:raise ValueError('derivative raw envelope exceeds32MiB')
+    # The explicit acceptance tier admits a larger envelope, streams the journal and binds the
+    # exact input bytes by hash; every other request keeps the historical bounds.
+    tiered=raw.get('scale_tier')is not None
+    envelope_cap,stream_cap,retained_cap=(512*1024*1024,16*1024**3,16*1024**3)if tiered else(MAX_BYTES,MAX_BYTES,128*1024*1024)
+    if len(body)>envelope_cap:raise ValueError('derivative raw envelope exceeds32MiB')
+    body_sha256=hashlib.sha256(body).hexdigest()
     root=Path(directory).resolve();root.mkdir(parents=True,exist_ok=True)
     staging=Path(tempfile.mkdtemp(prefix='derivative-staging-',dir=root));writer=DerivativeWriter(staging,partition_rows)
     header=None;completion=None;dictionary=[];wire_bytes=0;control=None;stop=threading.Event();failure=[]
@@ -49,14 +55,18 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
                     check();line=process.stdout.readline(MAX_BYTES+1)
                     if not line:break
                     wire_bytes+=len(line)
-                    if wire_bytes>MAX_BYTES:raise ValueError('complete derivative native stream exceeds32MiB')
+                    if wire_bytes>stream_cap:raise ValueError('complete derivative native stream exceeds32MiB')
                     message=loads(line)
                     if completion is not None:raise ValueError('native output after completion')
                     if header is None:
                         if set(message)!={'workflow'}:raise ValueError('first workflow header required')
                         header=message['workflow']
-                        if set(header)!={'schema','model_schema','prepared_request','source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=SCHEMA:raise ValueError('derivative workflow shape')
-                        control=verify_preparation(raw,header['prepared_request'],header['source_receipt'],check)
+                        identity_key='input_sha256'if tiered else'prepared_request'
+                        if set(header)!={'schema','model_schema',identity_key,'source_receipt'}or header['schema']!='model-ledger-preparation-1'or header['model_schema']!=raw['schema']:raise ValueError('derivative workflow shape')
+                        if tiered:
+                            if header['input_sha256']!=body_sha256:raise ValueError('native input identity differs from the sent envelope')
+                            control=verify_preparation(raw,None,header['source_receipt'],check,input_sha256=body_sha256)
+                        else:control=verify_preparation(raw,header['prepared_request'],header['source_receipt'],check)
                         (staging/'source.json').write_bytes(encoded(header));continue
                     if 'complete'in message:
                         if not exact_identity(message,{'complete':True,'protocol':3}):raise ValueError('actual strict completion required')
@@ -101,8 +111,8 @@ def run(raw,directory,*,timeout=1800.,cancelled=lambda:False,partition_rows=6553
             for part in table['parts']:
                 count+=1;size+=part['bytes']
         # Columnar metadata overhead is additional to native32MiB stream, explicit128MiB cap.
-        if count>MAX_PARTS or size>128*1024*1024:raise ValueError('derivative retained transport capacity/count cap')
-        manifest=dict(version='saved-derivative-partitions-1',model_version=SCHEMA,backend='rust',binary_sha256=sha,partition_rows=partition_rows,
+        if count>MAX_PARTS or size>retained_cap:raise ValueError('derivative retained transport capacity/count cap')
+        manifest=dict(version='saved-derivative-partitions-1',model_version=raw['schema'],backend='rust',binary_sha256=sha,partition_rows=partition_rows,
             validation=receipt,input=descriptors[0],modeled_source=descriptors[1],producer_completion=descriptors[2],tables=tables)
         (staging/'stderr.log').unlink()
         (staging/'manifest.json').write_bytes(encoded(manifest))
