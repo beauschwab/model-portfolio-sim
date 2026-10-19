@@ -1469,6 +1469,13 @@ Legacy daily specifications keep their historical behavior.
 The current additive contracts include [consumer installment lending](consumer-installment.md),
 [revolving cards](consumer-card.md), [indexed/optional corporate and CD contracts](term-enhancements.md),
 [joint daily credit state](credit-state.md) and [daily credit replay](credit-replay.md).
+The proposed [consumer behaviour states, covariates and driver specification](consumer-behaviour-drivers.md)
+(#91–#95) fixes the product mappings those estimators need; it is a specification,
+not an installed contract. The companion
+[deposit behaviour specification](deposit-behaviour-drivers.md) (#102–#106) and
+[commercial and CRE credit specification](commercial-credit-drivers.md) (#107–#111)
+are proposals of the same standing. Every external source cited across the
+model documentation is indexed in [references.md](references.md).
 `analytics.credit_ledger.run_credit_ledger` gates publication with an independent SciPy
 matrix-exponential and policy/posting replay over persisted partitions. `/balance-stress/dated`
 and `/balance-stress/credit` execute as durable worker jobs; the partitioned panel pages,
