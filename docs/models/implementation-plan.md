@@ -5,6 +5,25 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Synthetic data and main synchronization (2026-10-19)
+
+Main `8f48fa0` is merged at `100ab9c`, retaining both the commercial follow-through
+and new hedge/treasury routes. On the user's instruction to invent the missing
+histories, a reproducible [synthetic validation pack](synthetic-validation.md)
+now supplies hypothetical credit/deposit spells, endpoint-only credit panels,
+complete recovery outcomes and explicitly unreviewed example policies. Ten actual
+Rust calibration cases and three holdout-separation pairs pass independent raw
+count/exposure/likelihood and known-truth checks; all 15 new regression controls
+pass. This supplies synthetic implementation evidence, not observed accuracy or
+reviewed-policy approval, and does not close any original issue criterion.
+
+The main branch's separately measured graph/solver/journal, credit and hedge
+60,000-position runs retain their stated separate-process scope. A single combined
+graph/credit/solver/journal owner remains a distinct gate. Complete installed
+acceptance after this merge, positive cut publication and wider product adoption
+remain open. The frozen October 16 results below apply to their recorded source
+and artifacts, not automatically to this merged working tree.
+
 ## Current commercial release gate (local 0.29.20; 2026-10-16)
 
 The complete installed attempt passes **1,464 native tests**, **3,643 full engine
