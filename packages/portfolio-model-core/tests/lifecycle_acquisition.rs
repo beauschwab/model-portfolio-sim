@@ -20,7 +20,9 @@ fn run(v: &Value, clean: f64) -> Result<acquisition::AcquisitionJournal, Refusal
         .map_err(|e| Refusal::new(MALFORMED_INPUT, e.to_string()))?;
     let hedges = vec![ResolvedHedge {
         lot_id: "swap-lot".into(),
+        ordinal: 738887,
         clean_value: clean,
+        due_cash: 0.,
         pricing_source: Revision {
             id: "swap-pricer".into(),
             revision: "r1".into(),
@@ -92,12 +94,12 @@ fn acquisition_cash_inventory_financing_derivative_and_collateral_reconcile() {
     assert_eq!(
         ids,
         [
-            "financing_advance:repo-lot",
-            "security_purchase:bond-lot",
-            "hedge_entry:swap-lot",
-            "initial_margin_posted:swap-csa",
-            "initial_margin_received:swap-csa",
-            "variation_margin:swap-lot"
+            "advance:repo-lot",
+            "purchase:bond-lot",
+            "entry:swap-lot",
+            "im:swap-csa:738887",
+            "im:swap-csa:738887:custody",
+            "vm:swap-lot"
         ]
     );
     assert!(j
@@ -112,7 +114,7 @@ fn unavailable_funding_or_collateral_is_infeasible_without_a_plug() {
     v["plan"]["accounts"][0]["cash"] = json!(5.0);
     let refused = run(&v, -4.).unwrap_err();
     assert_eq!(refused.code, INSUFFICIENT_SETTLEMENT_LIQUIDITY);
-    assert!(refused.detail.contains("security_purchase"));
+    assert!(refused.detail.contains("purchase:bond-lot"));
     // The pledge must deliver an owned lot: a bond settling the day after the advance is not.
     let mut v = raw();
     v["plan"]["lots"][0]["acquisition_ordinal"] = json!(738888);
@@ -140,10 +142,7 @@ fn no_par_gain_no_repeated_advance_and_no_day_one_gain() {
     // At-market entry with no consideration is the ordinary case.
     assert_eq!(code(&v, 0.), "ADMITTED");
     let j = run(&v, 0.).unwrap();
-    assert!(j
-        .intents
-        .iter()
-        .all(|i| !i.event_id.starts_with("variation_margin")));
+    assert!(j.intents.iter().all(|i| !i.event_id.starts_with("vm:")));
 }
 
 #[test]

@@ -439,6 +439,18 @@ pub fn validate(r: &LifecycleRequest) -> Result<(), Refusal> {
         text(&a.counterparty, "counterparty")?;
         revision(&a.legal_review, "legal review")?;
         revision(&a.calendar, "calendar")?;
+        if let Some(c) = &a.opening_collateral {
+            for (v, what) in [
+                (c.posted_vm, "posted VM"),
+                (c.received_vm, "received VM"),
+                (c.posted_im, "posted IM"),
+                (c.received_im_custody, "received IM"),
+            ] {
+                if money(v, what)? < 0. {
+                    return Err(malformed(format!("opening {what} must be nonnegative")));
+                }
+            }
+        }
         for id in &a.lot_ids {
             if lot(id, "margin agreement")?.kind != LotKind::Derivative {
                 return Err(Refusal::new(

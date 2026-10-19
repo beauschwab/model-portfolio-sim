@@ -19,7 +19,15 @@ pub enum Kind {
     PostedVm,
     ReceivedVm,
     PostedIm,
+    /// Termination consideration due but unsettled between the effective and settlement dates.
+    UnpaidReceivable,
+    UnpaidPayable,
     FeeExpense,
+    /// Consideration less removed carrying on a sale or termination; marks already in earnings
+    /// are never counted again.
+    RealizedGainLoss,
+    /// Accrued funding interest and break costs paid on repayment.
+    InterestExpense,
     CustodyAsset,
     CustodyObligation,
 }
@@ -37,7 +45,11 @@ impl Kind {
             Self::PostedVm => "derivative_posted_vm_asset",
             Self::ReceivedVm => "derivative_received_vm_liability",
             Self::PostedIm => "derivative_posted_im_asset",
+            Self::UnpaidReceivable => "derivative_unpaid_receivable",
+            Self::UnpaidPayable => "derivative_unpaid_payable",
             Self::FeeExpense => "pnl:lifecycle_fees",
+            Self::RealizedGainLoss => "pnl:lifecycle_realized",
+            Self::InterestExpense => "pnl:lifecycle_interest",
             Self::CustodyAsset => "memo:derivative_custodian_asset",
             Self::CustodyObligation => "memo:derivative_custodian_obligation",
         }
@@ -46,7 +58,10 @@ impl Kind {
         matches!(self, Self::CustodyAsset | Self::CustodyObligation)
     }
     pub fn pnl(self) -> bool {
-        self == Self::FeeExpense
+        matches!(
+            self,
+            Self::FeeExpense | Self::RealizedGainLoss | Self::InterestExpense
+        )
     }
     pub fn stock(self) -> bool {
         !self.memo() && !self.pnl() && !matches!(self, Self::Cash | Self::OpeningEquity)
@@ -58,7 +73,10 @@ impl Kind {
     pub fn liability(self) -> bool {
         matches!(
             self,
-            Self::FundingPrincipal | Self::DerivativeLiability | Self::ReceivedVm
+            Self::FundingPrincipal
+                | Self::DerivativeLiability
+                | Self::ReceivedVm
+                | Self::UnpaidPayable
         )
     }
 }

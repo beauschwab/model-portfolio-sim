@@ -58,7 +58,7 @@ fn balance(messages: &[Value], scenario: &str, gl: &str, instrument: &str) -> f6
 #[test]
 fn acquisition_posts_once_in_the_shared_sim_and_reconciles() {
     let (receipt, m) = execute(&raw()).unwrap();
-    assert_eq!(receipt["stage"], "B");
+    assert_eq!(receipt["stage"], "C");
     assert_eq!(receipt["formal_hedge_accounting"], false);
     near(
         receipt["hedge_entries"][0]["clean_value"].as_f64().unwrap(),
@@ -159,7 +159,7 @@ fn refusals_name_their_cause_and_never_fall_back() {
         .contains("LIFECYCLE_MAPPING_REQUIRED"));
     let mut v = raw();
     v["hedge_contracts"][0]["swap"]["asof_ordinal"] = json!(738886);
-    assert!(execute(&v).unwrap_err().contains("entry date"));
+    assert!(execute(&v).unwrap_err().contains("priced at"));
     let mut v = raw();
     v["plan"]["accounts"][0]["cash"] = json!(99.0);
     assert!(execute(&v)
@@ -231,4 +231,72 @@ fn the_native_process_runs_the_schema_without_python() {
         4.,
     );
     assert!(lines.last().unwrap()["complete"] == true);
+}
+
+const UNWIND: &str = include_str!("fixtures/lifecycle-unwind.json");
+
+#[test]
+fn worked_unwind_posts_once_in_the_shared_sim_and_closes_every_lifecycle_stock() {
+    let v: Value = serde_json::from_str(UNWIND).unwrap();
+    let (receipt, m) = execute(&v).unwrap();
+    assert_eq!(receipt["stage"], "C");
+    near(
+        receipt["hedge_entries"][0]["clean_value"].as_f64().unwrap(),
+        -4.,
+    );
+    near(
+        receipt["hedge_entries"][0]["due_cash"].as_f64().unwrap(),
+        0.,
+    );
+    for scenario in ["baseline", "zero"] {
+        for (gl, instrument) in [
+            ("asset_principal", "@lifecycle:bond-lot"),
+            ("funding_principal", "@lifecycle:repo-lot"),
+            ("funding_principal", "@lifecycle:bridge"),
+            ("derivative_liability", "@lifecycle:swap-lot"),
+            ("derivative_posted_vm_asset", "@lifecycle:swap-csa"),
+            ("derivative_posted_im_asset", "@lifecycle:swap-csa"),
+            ("derivative_unpaid_payable", "@lifecycle:swap-lot"),
+        ] {
+            near(balance(&m, scenario, gl, instrument), 0.);
+        }
+        near(
+            balance(
+                &m,
+                scenario,
+                "pnl:lifecycle_realized",
+                "@lifecycle:bond-lot",
+            ),
+            0.,
+        );
+        // Opening cash 0, the unwind nets to +6, and the backbook loan pays 100.3 on day 30.
+        near(balance(&m, scenario, "cash", ""), 6. + 100.3);
+    }
+    let j = &receipt["journals"][0]["receipt"];
+    assert_eq!(j["open_claims"], false);
+    // Draw, repayment, release, sale, termination effective and settlement, bridge repayment, the
+    // zero IM requirement, and the VM and IM returns.
+    assert_eq!(j["events"].as_array().unwrap().len(), 10);
+    assert!(j["events"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|e| e["status"] == "settled"));
+    assert_eq!(j["accounting_facts"][1]["kind"], "termination");
+    assert!(m.last().unwrap()["complete"] == true);
+}
+
+#[test]
+fn unwind_without_the_bridge_is_refused_in_the_native_process() {
+    let mut v: Value = serde_json::from_str(UNWIND).unwrap();
+    for a in v["acquisitions"].as_array_mut().unwrap() {
+        a["facility_draws"] = json!([]);
+        a["facility_repayments"] = json!([]);
+        a["repayments"][0]["depends_on"] = json!([]);
+    }
+    let err = execute(&v).unwrap_err();
+    assert!(
+        err.contains("INSUFFICIENT_SETTLEMENT_LIQUIDITY") && err.contains("repay-repo"),
+        "{err}"
+    );
 }
