@@ -45,7 +45,8 @@ def validate_spec(raw, *, max_positions=2000, max_work=3_000_000):
     import json
     from .balance_stress import Account,Position,NettingSet,Policy,Scenario,Cashflow
     data=json.dumps(dict(raw=raw,max_positions=max_positions,max_work=max_work),allow_nan=False,separators=(',',':')).encode()
-    if len(data)>100_000_000:raise ValueError('specification exceeds 100 MB')
+    tiered=raw.get('schema')=='credit-ledger-1' and raw.get('scale_tier')=='acceptance_60000'
+    if len(data)>(512_000_000 if tiered else 100_000_000):raise ValueError('specification exceeds 100 MB')
     lib=_spec_library(str(library_path()))
     pointer=lib.portfolio_balance_validate(data,len(data))
     if not pointer:raise RuntimeError('native specification allocation failed')

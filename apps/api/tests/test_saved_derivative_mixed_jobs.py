@@ -196,8 +196,16 @@ def test_actual_upload_and_final_guard_failure_windows(durable,monkeypatch,mutat
     with pytest.raises((ValueError,RuntimeError,InterruptedError,TimeoutError)):candidate.publish(p)
     row=c['repo'].job(job['id']);assert row['status']!='done'and row['result']is None
 
-@pytest.mark.parametrize('kind',['ledger','credit_ledger'])
-def test_verified_derivative_source_is_not_capital_or_ftp_permission(durable,kind):
+@pytest.mark.parametrize('kind',['credit_ledger','cashflows'])
+def test_verified_derivative_source_is_not_credit_or_ftp_permission(durable,kind):
     c=durable;_,job=c['start']();assert c['repo'].job(job['id'])['status']=='done'
     from app import treasury_store
     with pytest.raises(ValueError,match='compatible'):treasury_store.template(job['id'],kind)
+
+
+def test_verified_derivative_source_offers_complete_tail_closing_capital(durable):
+    from datetime import date
+    from app import treasury_store
+    c=durable;q,job=c['start']();assert c['repo'].job(job['id'])['status']=='done'
+    spec=treasury_store.template(job['id'],'ledger')['specification'];d=q['specification']['dated']
+    assert spec['treasury']['as_of']==date.fromordinal(d['dated']['as_of_ordinal']+d['specification']['horizon_days']).isoformat()

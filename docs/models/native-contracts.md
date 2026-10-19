@@ -483,3 +483,49 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+
+## Formal interest-rate hedge relationships (local 0.29.19)
+
+`hedge-accounting-1` binds explicitly reviewed ASC 815 fair-value and cash-flow
+relationships to one complete `derivative-accounting-1` Physical source and to
+explicit hedged-item/forecast-exposure sources. Rust re-owns the undesignated
+owner's marks under the selected designation, values the hedged item's benchmark
+component and any supplied hypothetical natively, assesses cumulative dollar
+offset at accrual-free dates under reviewed bounds, and emits one ordered journal
+with basis, OCI, reclassification, amortization and derecognition entries. The
+rule matrix is `asc815-asu2017-12`; with an explicit adopted ASU 2025-09 policy the
+similar-risk group, choose-your-rate and swap/written-option elections apply
+prospectively, and relationships designated before the opening date carry
+reviewed retained balances; adopted ASU 2022-01 portfolio layers keep
+portfolio-level basis with supplied breach monitoring; the dual-hedge election, net
+investment, standalone options and defaulted paths reject. Independent raw-source and
+persisted replay gate the durable `/models/runs` route; accounting-standard
+approval, saved-book/shared-journal adoption and capital feeds remain false.
+See [the detailed contract](hedge-accounting.md).
+
+`hedge-treasury-1` re-executes a hedge journal natively and feeds its
+complete-tail closing balances to the existing treasury bridge under supplied
+policies. Cash-flow-hedge AOCI keeps its own bridge GL and enters eligible
+AOCI only when the reviewed policy flag `cash_flow_hedge_aoci_eligible` is set.
+The independent reference recomputes rows, eligible amounts and the thirteen
+ratios; an explicit `interim_report` selects report-date capital at a path node
+before the complete tail. FTP and approval remain open. See [the closing capital feed](hedge-accounting.md#closing-capital-feed-hedge-treasury-1).
+
+`saved-hedge-mixed-1` (decision `portfolio-model-ledger`) runs formal
+`hedge-accounting-1` owners in the shared dated daily Sim: each saved-derivative
+run carries a hedge overlay bound to its exact saved Physical source; the formal
+journal replaces the undesignated derivative intents once, hedge openings join
+the shared opening, basis is a signed stock and cash-flow-hedge OCI is equity
+outside earnings and the AFS `oci` GL, keyed per relationship and closed by the
+complete tail. Independent hedge and mixed replays gate durable publication. See
+[the shared daily journal](hedge-accounting.md#shared-daily-journal-saved-hedge-mixed-1).
+
+`derivative-treasury-1` is the same bridge for a standalone reviewed
+`derivative-accounting-1` journal with no hedge accounting: cash, gross derivative
+values, margin, opening equity and earnings balances map once per instrument to
+reviewed GLs, reconcile to the selected reporting node's trial balance and enter
+the thirteen-ratio bridge under supplied policies, whose AOCI eligibility block
+is optional because no OCI arises. The same `interim_report` selection applies;
+unpaid rights, supplied capital/positions/curves and hedge accounts refuse. See
+[the derivative treasury feed](derivative-accounting.md#closing-capital-feed-derivative-treasury-1).

@@ -9,6 +9,7 @@ use std::collections::HashMap;
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct Weights {
+    kind: String,
     hqla_l2a: f64,
     outflow30: f64,
     asf: f64,
@@ -65,6 +66,11 @@ impl Library {
             if weights.iter().any(|n| !n.is_finite() || *n < 0.) {
                 return Err("invalid regulatory weight".into());
             }
+            // Off-balance-sheet swap units: the notional scales DV01 and counterparty RWA only.
+            let swap = w.kind == "swap";
+            if swap != u.swap {
+                return Err("swap unit and template kind disagree".into());
+            }
             let mut v = vec![vec![0.; h]; 10];
             for (age, (income, opening)) in self.nii[i]
                 .iter()
@@ -75,12 +81,14 @@ impl Library {
                 let m = u.h + age;
                 let balance = opening.max(0.);
                 v[0][m] = u.side * income;
-                v[1][m] = balance;
+                v[1][m] = if swap { 0. } else { balance };
                 v[2][m] = u.side * self.dv01[i] * balance / self.balance[i][0].max(1e-12);
                 for (j, weight) in weights.iter().enumerate() {
                     v[3 + j][m] = weight * balance;
                 }
-                v[if u.side > 0. { 8 } else { 9 }][m] = balance;
+                if !swap {
+                    v[if u.side > 0. { 8 } else { 9 }][m] = balance;
+                }
             }
             out.push(v);
         }

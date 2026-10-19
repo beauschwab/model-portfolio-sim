@@ -72,6 +72,9 @@
   "GET /derivatives/mixed/example": {
     "permission": "read"
   },
+  "GET /derivatives/hedge-mixed/example": {
+    "permission": "read"
+  },
   "GET /health": {
     "permission": "read"
   },

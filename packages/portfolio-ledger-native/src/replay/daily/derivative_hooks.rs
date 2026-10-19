@@ -13,7 +13,7 @@ impl Sim<'_> {
                 continue;
             }
             for line in &compiled.sources[state.source].opening {
-                if line.kind.stock() {
+                if line.kind.stock() || line.kind.equity() {
                     entries.push(entry(line.kind.gl(), &line.instrument, line.debit));
                 }
             }
@@ -38,7 +38,7 @@ impl Sim<'_> {
                         self.sink.emit("derivative_opening_lineage",json!({
                         "scenario":self.scenario.name,"account":source.account_id,"book_key":source.book_key,
                         "ordinal":source.asof,"gl_account":line.kind.gl(),"instrument_id":line.instrument,
-                        "debit_amount":line.debit,"posted_in_shared_opening":line.kind.stock(),
+                        "debit_amount":line.debit,"posted_in_shared_opening":line.kind.stock() || line.kind.equity(),
                         "custody_memo":line.kind.memo()}))?;
                     }
                 }
@@ -52,7 +52,7 @@ impl Sim<'_> {
                     return Err("skipped derivative intent date".into());
                 }
                 let mut entries = Vec::new();
-                let (mut cash, mut earnings) = (0., 0.);
+                let (mut cash, mut earnings, mut oci) = (0., 0., 0.);
                 for line in &intent.lines {
                     *state
                         .book
@@ -64,6 +64,9 @@ impl Sim<'_> {
                     entries.push(entry(line.kind.gl(), &line.instrument, line.debit));
                     if line.kind == Kind::Cash {
                         cash += line.debit;
+                    }
+                    if line.kind.equity() {
+                        oci -= line.debit;
                     }
                     if line.kind.pnl() {
                         earnings -= line.debit;
@@ -80,7 +83,8 @@ impl Sim<'_> {
                 if !intent.memo {
                     self.raw_post(day, account, "native_derivative_intent", entries)?;
                     self.accounts[account].cash += cash;
-                    self.accounts[account].equity += earnings;
+                    self.accounts[account].equity += earnings + oci;
+                    self.hedge_aoci[account] += oci;
                     let key = (account, "native_derivative_intent".to_owned());
                     let index = if let Some(&index) = self.aggregate_index.get(&key) {
                         index
@@ -93,6 +97,7 @@ impl Sim<'_> {
                     };
                     self.aggregate[index].2[0] += cash;
                     self.aggregate[index].2[1] += earnings;
+                    self.aggregate[index].2[2] += oci;
                 }
                 if self.detail {
                     for (index, line) in intent.lines.iter().enumerate() {
@@ -118,7 +123,7 @@ impl Sim<'_> {
         for state in &runtime.states {
             let account = compiled.accounts[state.source];
             for ((kind, id), value) in &state.book {
-                if kind.stock() {
+                if kind.stock() || kind.equity() {
                     expected.insert(
                         (account, self.sink.intern(kind.gl()), self.sink.intern(id)),
                         *value,
@@ -127,6 +132,21 @@ impl Sim<'_> {
             }
         }
         Ok(())
+    }
+    /// Retained cash-flow-hedge OCI posted in the shared opening (credit positive).
+    pub(super) fn derivative_opening_oci(&self, account: usize) -> f64 {
+        let (Some(compiled), Some(runtime)) = (self.derivatives, self.derivative_state.as_ref())
+        else {
+            return 0.;
+        };
+        runtime
+            .states
+            .iter()
+            .filter(|state| compiled.accounts[state.source] == account)
+            .flat_map(|state| &compiled.sources[state.source].opening)
+            .filter(|line| line.kind.equity())
+            .map(|line| -line.debit)
+            .sum()
     }
     pub(super) fn derivative_gross(&self, account: usize) -> R<(f64, f64)> {
         let (Some(compiled), Some(runtime)) = (self.derivatives, self.derivative_state.as_ref())

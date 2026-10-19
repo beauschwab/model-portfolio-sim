@@ -1866,3 +1866,12 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Formal hedge relationships (local 0.29.19)
+
+`analytics.model_contracts.account_hedge_relationships` transports the explicit
+`hedge-accounting-1` request to the native process; `analytics.hedge_accounting_reference`
+is the independent oracle that reconstructs the derivative source, hedged-item
+benchmark values, hypothetical values, lifecycle, assessments and the ordered
+journal from raw inputs only. Neither module prices or posts in Python for
+production. See `docs/models/hedge-accounting.md`.

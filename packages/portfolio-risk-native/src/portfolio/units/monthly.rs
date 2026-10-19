@@ -189,6 +189,31 @@ impl UnitLibrary {
         }
         self.dv01.push(dv);
     }
+    /// A swap unit: net settlement as income and cash, no principal runoff, and its notional
+    /// (one through the tenor) retained as the internal balance for DV01 and RWA scaling.
+    fn append_swap(
+        &mut self,
+        template: &str,
+        month: usize,
+        side: f64,
+        nii: &[f64],
+        notional: &[f64],
+        dv: f64,
+    ) {
+        self.units.push(Unit {
+            template: template.into(),
+            h: month,
+            kind: "swap".into(),
+            side,
+        });
+        for m in 0..self.horizon {
+            self.nii.push(nii[m]);
+            self.cash_interest.push(nii[m]);
+            self.runoff.push(0.);
+            self.balance.push(notional[m]);
+        }
+        self.dv01.push(dv);
+    }
     fn prepare(&mut self, templates: &[NamedTemplate]) -> Result<(), String> {
         let h = self.horizon;
         for named in templates {
@@ -217,13 +242,16 @@ impl UnitLibrary {
                 };
                 let dv = (1. - weight) * self.dv01[a] + weight * self.dv01[b];
                 let side = self.units[a].side;
+                let swap = self.units[a].kind == "swap";
                 let base = mix(&self.balance, 0).max(1e-12);
                 let mut values = vec![0.; 10 * h];
                 for m in month..h {
                     let local = m - month;
                     let balance = mix(&self.balance, local).max(0.);
                     values[m] = side * mix(&self.nii, local);
-                    values[h + m] = balance;
+                    // A swap's notional is not a balance-sheet balance (no funding, assets or
+                    // liabilities); it scales DV01 and the counterparty RWA weight only.
+                    values[h + m] = if swap { 0. } else { balance };
                     values[2 * h + m] = side * dv * balance / base;
                     for (j, v) in [
                         named.template.hqla_l2a,
@@ -237,7 +265,9 @@ impl UnitLibrary {
                     {
                         values[(j + 3) * h + m] = v * balance;
                     }
-                    values[if side > 0. { 8 * h + m } else { 9 * h + m }] = balance;
+                    if !swap {
+                        values[if side > 0. { 8 * h + m } else { 9 * h + m }] = balance;
+                    }
                 }
                 self.vectors.push(Coefficients {
                     template: named.name.clone(),
@@ -274,10 +304,27 @@ impl UnitRequest {
             let v = &named.template;
             if named.name.is_empty()
                 || self.templates[..i].iter().any(|x| x.name == named.name)
-                || !["mbs", "corp", "cd", "deposit"].contains(&v.kind.as_str())
+                || !["mbs", "corp", "cd", "deposit", "swap"].contains(&v.kind.as_str())
                 || v.is_float.is_some_and(|x| x > 1)
             {
                 return Err("invalid unit template".into());
+            }
+            if v.kind == "swap"
+                && (v.term_y.is_none()
+                    || !v.side.is_some_and(|s| s == 1. || s == -1.)
+                    || v.is_float.is_some()
+                    || v.amort.is_some()
+                    || v.segment.is_some()
+                    || v.hqla_l2a != 0.
+                    || v.outflow30 != 0.
+                    || v.asf != 0.
+                    || v.rsf != 0.
+                    || v.rwa < 0.)
+            {
+                // Economic interest-rate swap units only: receive-fixed (+1) or pay-fixed (-1) on
+                // the forward par rate; no balance-sheet liquidity weights; hedge designation is a
+                // separate durable accounting lane, never an interactive coefficient.
+                return Err("swap unit template requires a tenor, a side of +1 or -1 and only a counterparty RWA weight".into());
             }
             finite(&[v.spread_bp, v.hqla_l2a, v.outflow30, v.asf, v.rsf, v.rwa])?;
         }
@@ -513,6 +560,45 @@ impl UnitRequest {
                     &coupon,
                     &principal,
                     (d[i] - u[i]) / 50.,
+                );
+            }
+        }
+        // Swap units follow every balance-sheet unit, matching the reference unit order.
+        for named in self.templates.iter().filter(|x| x.template.kind == "swap") {
+            let v = &named.template;
+            let tenor = v.term_y.ok_or("swap unit template requires a tenor")?;
+            let months = (tenor * 12.).round() as usize;
+            if months == 0 {
+                return Err("swap unit template requires a positive tenor".into());
+            }
+            for &month in &grid {
+                let fixed = forward(&market.dfs, month, tenor)? + v.spread_bp * 1e-4;
+                // Expected monthly receive-fixed net settlement per unit notional on shared paths.
+                let mut nii = vec![0.; h];
+                for (m, slot) in nii.iter_mut().enumerate().take(months.min(h)) {
+                    let float = (0..p).map(|i| base.short[i * t + m]).sum::<f64>() / p as f64;
+                    *slot = (fixed - float) / 12.;
+                }
+                let pv = |paths: &crate::market::RatePaths| {
+                    (0..p)
+                        .map(|i| {
+                            (0..months.min(t))
+                                .map(|m| {
+                                    paths.df[i * t + m] * (fixed - paths.short[i * t + m]) / 12.
+                                })
+                                .sum::<f64>()
+                        })
+                        .sum::<f64>()
+                        / p as f64
+                };
+                let notional: Vec<f64> = (0..h).map(|m| if m < months { 1. } else { 0. }).collect();
+                out.append_swap(
+                    &named.name,
+                    month,
+                    v.side.unwrap_or(1.),
+                    &nii,
+                    &notional,
+                    (pv(&down) - pv(&up)) / 50.,
                 );
             }
         }

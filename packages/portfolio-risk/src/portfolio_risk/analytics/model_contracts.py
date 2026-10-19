@@ -200,6 +200,42 @@ def account_derivative_contract(request: dict) -> dict:
     return term_call("derivative-accounting-1",request)
 
 
+def account_hedge_relationships(request: dict, **execution_options) -> dict:
+    """Transport reviewed formal ASC 815 relationships over one Physical derivative source."""
+    from portfolio_risk.core.model_native import run
+    return run("hedge-accounting-1", request, **execution_options)[0]
+
+
+def prepare_hedge_treasury(request: dict, **execution_options) -> dict:
+    """Transport a hedge journal and reviewed policies for complete-tail closing capital."""
+    from portfolio_risk.core.model_native import run
+    return run("hedge-treasury-1", request, **execution_options)[0]
+
+
+def account_net_investment_hedges(request: dict, **execution_options) -> dict:
+    """Transport a foreign operation and its net-investment hedges; native code owns the accounting."""
+    from portfolio_risk.core.model_native import run
+    return run("net-investment-hedge-1", request, **execution_options)[0]
+
+
+def account_nonfinancial_hedges(request: dict, **execution_options) -> dict:
+    """Transport forecasted nonfinancial exposures and commodity swaps; native code owns the accounting."""
+    from portfolio_risk.core.model_native import run
+    return run("nonfinancial-hedge-1", request, **execution_options)[0]
+
+
+def saved_derivative_risk(request: dict, **execution_options) -> dict:
+    """Transport saved raw swaps for native paired curve risk; no Python valuation."""
+    from portfolio_risk.core.model_native import run
+    return run("saved-derivative-risk-1", request, **execution_options)[0]
+
+
+def prepare_derivative_treasury(request: dict, **execution_options) -> dict:
+    """Transport a standalone derivative journal and reviewed policies for closing or report-date capital."""
+    from portfolio_risk.core.model_native import run
+    return run("derivative-treasury-1", request, **execution_options)[0]
+
+
 def fit_credit_snapshots(request: dict) -> dict:
     """Fit declared interval-censored snapshot models with isolated holdouts."""
     return term_call("credit-snapshot-calibration-1", request)

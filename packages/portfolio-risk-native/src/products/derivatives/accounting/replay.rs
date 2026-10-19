@@ -145,6 +145,7 @@ pub(super) fn evaluate(
             if movement.kind != "variation_margin"
                 && movement.kind != "collateral_interest"
                 && movement.kind != "tail_return"
+                && movement.kind != "initial_margin"
             {
                 return Err("unknown native collateral movement; no accounting fallback".into());
             }

@@ -1,0 +1,753 @@
+//! Immutable formal hedge relationship contracts and sealed accounting output.
+use crate::products::derivatives::accounting::{
+    AccountCode as DerivativeAccount, DerivativeAccountingRequest, DerivativeAccountingResult,
+    ExecutionBasis, JournalLedger,
+};
+use crate::products::derivatives::contract::{swaps::SwapRequest, Identity};
+use portfolio_model_core::cashflow::{ActualDayCount, CashflowMeasure};
+use serde::{Deserialize, Serialize};
+
+pub const SCHEMA: &str = "hedge-accounting-1";
+pub const MODEL_VERSION: &str = "hedge-accounting-1";
+pub const RULE_VERSION: &str = "asc815-asu2017-12";
+pub const MAX_RELATIONSHIPS: usize = 64;
+pub const MAX_EVENTS: usize = 1024;
+pub const MAX_SOURCES: usize = 64;
+pub const MAX_PERIODS: usize = 4096;
+pub const MAX_INPUT: usize = 32 << 20;
+pub const MAX_OUTPUT: usize = 32 << 20;
+pub const MAX_WORK: usize = 1_000_000;
+pub const MAX_GROUP_MEMBERS: usize = 16;
+pub const MAX_RATE_OPTIONS: usize = 16;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Designation {
+    FairValueHedge,
+    CashFlowHedge,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HedgedRisk {
+    BenchmarkInterestRate,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssessmentMethod {
+    CumulativeDollarOffset,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BasisAmortization {
+    StraightLineActualDaysToPrincipal,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Reclassification {
+    HedgedPeriodHypotheticalSettlement,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemKind {
+    FixedRateInstrument,
+    /// ASU 2022-01 closed portfolio of prepayable fixed-rate financial assets, hedged only
+    /// through portfolio-layer relationships (815-20-25-12A, 815-25-35-1(c)).
+    ClosedPortfolio,
+}
+/// Order in which a breach dedesignates layers (a consistently applied reviewed policy).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BreachOrder {
+    /// The most recently designated layer is dedesignated first.
+    LastDesignatedFirst,
+    /// Every affected layer is dedesignated pro rata to its current amount.
+    ProRata,
+}
+/// Reviewed ASU 2022-01 portfolio-layer policy. Basis on an anticipated breach is allocated to
+/// the remaining assets and amortized straight-line to the closed portfolio's final maturity;
+/// basis on an actual breach is recognized in earnings at once (815-25-40-8/9).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioLayerPolicy {
+    pub identity: Identity,
+    pub breach_order: BreachOrder,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioMember {
+    pub asset_id: String,
+    pub source: Identity,
+    pub prepayable: bool,
+}
+/// Observed outstanding amortized-cost basis of the closed portfolio at a path node.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioBalance {
+    pub ordinal: i32,
+    pub outstanding: f64,
+}
+/// Reviewed projection, made at `ordinal`, of the amount expected outstanding at a layer end.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PortfolioProjection {
+    pub ordinal: i32,
+    pub term_end_ordinal: i32,
+    pub anticipated: f64,
+}
+/// Closed-portfolio membership, observed balances and reviewed surviving-amount projections.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClosedPortfolio {
+    pub members: Vec<PortfolioMember>,
+    pub balance_source: Identity,
+    pub balances: Vec<PortfolioBalance>,
+    pub projection_evidence: Identity,
+    pub projections: Vec<PortfolioProjection>,
+}
+/// Amount of an amortizing layer outstanding during the hedged item period ending on `period_end_ordinal`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LayerAmount {
+    pub period_end_ordinal: i32,
+    pub amount: f64,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemDirection {
+    Asset,
+    Liability,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExposureDirection {
+    Receipt,
+    Payment,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventKind {
+    Assess,
+    Discontinue,
+    ForecastStatus,
+    /// ASU 2025-09 choose-your-rate election (815-30-35-37I through 35-37M); before a forecasted
+    /// issuance it is a change in the best estimate (815-30-35-37E through 35-37G).
+    RateElection,
+    /// The forecasted choose-your-rate debt is issued with its first selected index: the hedge
+    /// documentation is updated without dedesignation (815-30-35-37H).
+    DebtIssued,
+    /// Replacement debt accruing at a documented option of the original debt (815-30-35-37K).
+    DebtReplacement,
+}
+/// ASU 2025-09 similar-risk assessment method (815-20-55-23A).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimilarRiskMethod {
+    /// 55-23A(a): the instrument, pro rata by member notional, is highly effective against each member.
+    InstrumentHighlyEffectiveEachRisk,
+    /// 55-23A(b): each member's per-unit hedged change is within the band of every other member's.
+    HedgedRisksSimilarToEachOther,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DebtClassification {
+    Liability,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscontinueReason {
+    Dedesignation,
+    HedgedItemSold,
+    InstrumentTerminated,
+    /// The hedged item is settled at its principal date: the remaining live basis is
+    /// derecognized into earnings with the item, exactly as on a sale (fair-value hedges only).
+    HedgedItemMatured,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ForecastStatus {
+    NoLongerProbable,
+    ProbableNotToOccur,
+    /// One hedged period is delayed within the documented timing window (815-30-40-4): its
+    /// reclassification waits for the new date.
+    Delayed,
+    /// One hedged period is probable of not occurring (815-30-40-5): its share of OCI is
+    /// reclassified at once and the period leaves the relationship.
+    PeriodProbableNotToOccur,
+}
+/// Reviewed timing-window policy: how far beyond its documented date a hedged forecast
+/// transaction may be delayed and remain hedged (the Codification's additional two-month
+/// period is a supplied day count, not a hard-coded rule).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ForecastTimingPolicy {
+    pub identity: Identity,
+    pub additional_delay_days: u32,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Status {
+    Pending,
+    Qualified,
+    Discontinued,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Elections {
+    pub similar_risk_grouping: bool,
+    pub selectable_rate_debt: bool,
+    pub swap_written_option_exception: bool,
+    pub dual_hedge_basis: bool,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Asu202509 {
+    pub adopted: bool,
+    pub adoption_ordinal: Option<i32>,
+    pub elections: Elections,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Adoption {
+    pub asu_2025_09: Asu202509,
+    pub asu_2022_01_portfolio_layer: bool,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssessmentPolicy {
+    pub identity: Identity,
+    pub method: AssessmentMethod,
+    pub lower_bound: f64,
+    pub upper_bound: f64,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Policy {
+    pub identity: Identity,
+    pub rule_version: String,
+    pub adoption: Adoption,
+    pub assessment: AssessmentPolicy,
+    pub fvh_basis_amortization: BasisAmortization,
+    pub cfh_reclassification: Reclassification,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecast_timing: Option<ForecastTimingPolicy>,
+    /// Required when the ASU 2022-01 portfolio-layer method is adopted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portfolio_layer: Option<PortfolioLayerPolicy>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Period {
+    pub period_id: String,
+    pub start_ordinal: i32,
+    pub end_ordinal: i32,
+    pub payment_ordinal: i32,
+    pub day_count: ActualDayCount,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HedgedItem {
+    pub item_id: String,
+    pub source: Identity,
+    pub carrying_source: Identity,
+    pub kind: ItemKind,
+    pub direction: ItemDirection,
+    pub notional: f64,
+    pub contractual_rate: f64,
+    pub periods: Vec<Period>,
+    pub principal_ordinal: i32,
+    /// Required exactly for `closed_portfolio` items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub portfolio: Option<ClosedPortfolio>,
+}
+/// Documented choose-your-rate options (815-30-35-37D/37J); `index_id` is the initial selection.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChooseYourRate {
+    pub evidence: Identity,
+    pub documented_index_ids: Vec<String>,
+    pub debt_classification: DebtClassification,
+    /// Payment schedules of documented alternatives whose tenor changes the number or timing of
+    /// the hedged payments (815-30-35-37C/37I); other alternatives use the exposure's periods.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub option_schedules: Vec<OptionSchedule>,
+    /// Evidence that issuance of this choose-your-rate debt is probable (815-30-35-37B(a), 37D):
+    /// the exposure is a forecasted issuance until a `debt_issued` event.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecasted_issuance: Option<Identity>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OptionSchedule {
+    pub index_id: String,
+    pub periods: Vec<Period>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ForecastExposure {
+    pub exposure_id: String,
+    pub source: Identity,
+    pub probability_evidence: Identity,
+    pub direction: ExposureDirection,
+    pub notional: f64,
+    pub index_id: String,
+    pub periods: Vec<Period>,
+    #[serde(default)]
+    pub choose_your_rate: Option<ChooseYourRate>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HypotheticalNode {
+    pub ordinal: i32,
+    pub request: Box<SwapRequest>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Hypothetical {
+    pub evidence: Identity,
+    pub nodes: Vec<HypotheticalNode>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MemberHypothetical {
+    pub exposure_id: String,
+    pub hypothetical: Hypothetical,
+}
+/// ASU 2025-09 group of individual forecast exposures with similar risk (815-20-55-23A).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GroupDesignation {
+    pub member_exposure_ids: Vec<String>,
+    pub similar_risk_method: SimilarRiskMethod,
+    pub hypotheticals: Vec<MemberHypothetical>,
+    /// Hedge-by-hedge election to assess similarity qualitatively after an initial passing
+    /// quantitative assessment (815-20-55-23C).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualitative_similarity_election: Option<Identity>,
+}
+/// Hypothetical derivative for one documented alternative rate, with terms as of inception (35-37M).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RateHypothetical {
+    pub index_id: String,
+    pub hypothetical: Hypothetical,
+}
+/// Reviewed retained balances of a relationship designated before the derivative opening date.
+/// `hedged_value` is the after-payment hedged clean value at the opening (per unit of hedged
+/// notional for a fair-value hedge, the hypothetical or matched instrument value for a
+/// cash-flow hedge); cumulative changes and balances are those through the opening.
+/// A frozen basis tranche retained at the opening: amortizes straight-line from `start_ordinal`
+/// to the item's principal date; `amortized` is the amount already amortized through the opening.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenBasis {
+    pub amount: f64,
+    pub start_ordinal: i32,
+    pub amortized: f64,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenOciEntry {
+    pub payment_ordinal: i32,
+    pub weight: f64,
+}
+/// A frozen OCI tranche retained at the opening: `entries` are the remaining hedged payment dates
+/// (at or after the opening) with their original release weights; `released` is the amount
+/// already reclassified through the opening.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningFrozenOci {
+    pub amount: f64,
+    pub released: f64,
+    pub entries: Vec<OpeningFrozenOciEntry>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RelationshipOpening {
+    pub evidence: Identity,
+    pub hedged_value: f64,
+    pub cumulative_instrument_change: f64,
+    pub cumulative_hedged_change: f64,
+    pub basis_balance: f64,
+    pub oci_balance: f64,
+    /// Remaining fraction of the designated proportion after earlier partial discontinuations.
+    #[serde(default)]
+    pub scale: Option<f64>,
+    #[serde(default)]
+    pub frozen_basis: Vec<OpeningFrozenBasis>,
+    #[serde(default)]
+    pub frozen_oci: Vec<OpeningFrozenOci>,
+}
+impl RelationshipOpening {
+    pub fn scale(&self) -> f64 {
+        self.scale.unwrap_or(1.)
+    }
+    pub fn frozen_basis_remaining(&self) -> f64 {
+        self.frozen_basis
+            .iter()
+            .map(|t| t.amount - t.amortized)
+            .sum()
+    }
+    pub fn frozen_oci_remaining(&self) -> f64 {
+        self.frozen_oci.iter().map(|t| t.amount - t.released).sum()
+    }
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Relationship {
+    pub relationship_id: String,
+    pub predecessor_relationship_id: Option<String>,
+    pub designation: Designation,
+    pub hedging_instrument_position_id: String,
+    pub designated_proportion: f64,
+    pub hedged_item_id: Option<String>,
+    pub hedged_notional: Option<f64>,
+    pub forecast_exposure_id: Option<String>,
+    pub hedged_risk: HedgedRisk,
+    pub benchmark_rate: Option<f64>,
+    pub inception_ordinal: i32,
+    pub risk_management_objective: Identity,
+    pub documentation: Identity,
+    pub hypothetical: Option<Hypothetical>,
+    pub matched_critical_terms_evidence: Option<Identity>,
+    #[serde(default)]
+    pub group: Option<GroupDesignation>,
+    #[serde(default)]
+    pub rate_hypotheticals: Option<Vec<RateHypothetical>>,
+    /// ASU 2025-09 (815-20-25-88): a written European swaption combined with the swap as one
+    /// hedging instrument of interest-rate risk, exempt from the net written option test.
+    #[serde(default)]
+    pub written_option_position_id: Option<String>,
+    /// Required exactly when `inception_ordinal` precedes the derivative opening date.
+    #[serde(default)]
+    pub opening: Option<RelationshipOpening>,
+    /// Partial-term fair-value hedge (815-25-35-13B): the hedged item's benchmark cash flows are
+    /// measured as if the item matured at this period end, which also bounds basis amortization.
+    #[serde(default)]
+    pub hedged_term_end_ordinal: Option<i32>,
+    /// Further mapped swaps jointly designated with the primary instrument (815-20-25-45): the
+    /// combination is one hedging instrument for clean value, cumulative change and mark ownership.
+    #[serde(default)]
+    pub additional_instrument_position_ids: Vec<String>,
+    /// Amortizing portfolio layer (ASU 2022-01): the layer amount outstanding in each hedged
+    /// period through the layer end; the first amount equals `hedged_notional`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layer_amortization: Option<Vec<LayerAmount>>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Event {
+    pub event_id: String,
+    pub relationship_id: String,
+    pub ordinal: i32,
+    pub sequence: u32,
+    pub kind: EventKind,
+    pub review: Identity,
+    #[serde(default)]
+    pub proportion: Option<f64>,
+    #[serde(default)]
+    pub reason: Option<DiscontinueReason>,
+    #[serde(default)]
+    pub status: Option<ForecastStatus>,
+    /// `rate_election`: the newly selected documented index.
+    #[serde(default)]
+    pub index_id: Option<String>,
+    /// Group `assess`: the specific last-similar date when determined (815-20-55-23D).
+    #[serde(default)]
+    pub effective_ordinal: Option<i32>,
+    /// `forecast_status` delayed / period_probable_not_to_occur: the hedged exposure period.
+    #[serde(default)]
+    pub period_id: Option<String>,
+    /// `forecast_status` delayed: the new date on which the delayed transaction affects earnings.
+    #[serde(default)]
+    pub new_payment_ordinal: Option<i32>,
+    /// Group `assess`: reviewed qualitative support that the hedged risks remain similar
+    /// (815-20-55-23C), in place of the quantitative member test.
+    #[serde(default)]
+    pub qualitative_similarity_support: Option<Identity>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HedgeAccountingRequest {
+    pub schema: String,
+    pub model_version: String,
+    pub run: Identity,
+    pub entity: String,
+    pub currency: String,
+    pub monetary_unit: String,
+    pub policy: Policy,
+    pub derivative: Box<DerivativeAccountingRequest>,
+    pub hedged_items: Vec<HedgedItem>,
+    pub forecast_exposures: Vec<ForecastExposure>,
+    pub relationships: Vec<Relationship>,
+    pub events: Vec<Event>,
+}
+
+/// Derivative owner accounts plus the formal hedge accounts, one journal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Account {
+    Cash,
+    DerivativeAsset,
+    DerivativeLiability,
+    UnpaidReceivable,
+    UnpaidPayable,
+    PostedVmAsset,
+    ReceivedVmLiability,
+    PostedImAsset,
+    OpeningEquity,
+    MarkGainLoss,
+    ContractualIncome,
+    CollateralInterestIncome,
+    CounterpartyLossExpense,
+    PostedCollateralReturnLossExpense,
+    MemoCustodianAsset,
+    MemoCustodianObligation,
+    CashFlowHedgeOci,
+    HedgedItemBasisAdjustment,
+    HedgedItemBasisGainLoss,
+    HedgedItemBasisAmortization,
+    HedgedItemBasisDerecognition,
+    HedgedForecastReclassification,
+}
+impl From<DerivativeAccount> for Account {
+    fn from(a: DerivativeAccount) -> Self {
+        match a {
+            DerivativeAccount::Cash => Self::Cash,
+            DerivativeAccount::DerivativeAsset => Self::DerivativeAsset,
+            DerivativeAccount::DerivativeLiability => Self::DerivativeLiability,
+            DerivativeAccount::UnpaidReceivable => Self::UnpaidReceivable,
+            DerivativeAccount::UnpaidPayable => Self::UnpaidPayable,
+            DerivativeAccount::PostedVmAsset => Self::PostedVmAsset,
+            DerivativeAccount::ReceivedVmLiability => Self::ReceivedVmLiability,
+            DerivativeAccount::PostedImAsset => Self::PostedImAsset,
+            DerivativeAccount::OpeningEquity => Self::OpeningEquity,
+            DerivativeAccount::MarkGainLoss => Self::MarkGainLoss,
+            DerivativeAccount::ContractualIncome => Self::ContractualIncome,
+            DerivativeAccount::CollateralInterestIncome => Self::CollateralInterestIncome,
+            DerivativeAccount::CounterpartyLossExpense => Self::CounterpartyLossExpense,
+            DerivativeAccount::PostedCollateralReturnLossExpense => {
+                Self::PostedCollateralReturnLossExpense
+            }
+            DerivativeAccount::MemoCustodianAsset => Self::MemoCustodianAsset,
+            DerivativeAccount::MemoCustodianObligation => Self::MemoCustodianObligation,
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Posting {
+    pub account: Account,
+    pub position_id: Option<String>,
+    pub bucket: Option<String>,
+    pub relationship_id: Option<String>,
+    pub debit_amount: f64,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Intent {
+    pub event_id: String,
+    pub ordinal: i32,
+    pub ledger: JournalLedger,
+    pub run: Identity,
+    pub scenario_id: String,
+    pub entity: String,
+    pub currency: String,
+    pub policy: Identity,
+    pub sources: Vec<Identity>,
+    pub mapped_position_id: Option<String>,
+    pub contract_position_id: Option<String>,
+    pub bucket: Option<String>,
+    pub relationship_id: Option<String>,
+    pub measure: CashflowMeasure,
+    pub basis: ExecutionBasis,
+    pub postings: Vec<Posting>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct MemberAssessment {
+    pub exposure_id: String,
+    pub notional: f64,
+    pub cumulative_hedged_change: f64,
+    /// 55-23A(a): pro-rata instrument change over the member change; 55-23A(b): the member's
+    /// per-unit change over the first member's per-unit change.
+    pub ratio: Option<f64>,
+    pub similar: bool,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct SimilarRiskAssessment {
+    pub method: SimilarRiskMethod,
+    pub similar: bool,
+    pub members: Vec<MemberAssessment>,
+    /// `qualitative` when reviewed qualitative support replaced the member test (55-23C); the
+    /// quantitative member rows are still reported for information.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub basis: Option<String>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Assessment {
+    pub event_id: String,
+    pub relationship_id: String,
+    pub ordinal: i32,
+    pub method: AssessmentMethod,
+    pub lower_bound: f64,
+    pub upper_bound: f64,
+    pub cumulative_instrument_change: f64,
+    pub cumulative_hedged_change: f64,
+    pub ratio: Option<f64>,
+    pub qualified: bool,
+    /// Choose-your-rate: the contractually specified rate this assessment measured.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub similar_risk: Option<SimilarRiskAssessment>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct LifecycleRecord {
+    pub ordinal: i32,
+    pub sequence: Option<u32>,
+    pub relationship_id: String,
+    pub kind: String,
+    pub event_id: Option<String>,
+    pub review: Option<Identity>,
+    pub reason: Option<String>,
+    pub status_before: Status,
+    pub status_after: Status,
+    pub proportion_before: f64,
+    pub proportion_after: f64,
+    pub frozen_basis: f64,
+    pub frozen_oci: f64,
+    pub released_oci: f64,
+    pub derecognized_basis: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_ordinal: Option<i32>,
+    /// Instrument changes after the effective date moved from OCI back to earnings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub earnings_catch_up: Option<f64>,
+    /// Hedged-period reclassifications after the effective date reversed before freezing OCI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reversed_reclassification: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_payment_ordinal: Option<i32>,
+    /// Portfolio-layer breach: the layer amount dedesignated by this record.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub breach_amount: Option<f64>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyMember {
+    pub exposure_id: String,
+    pub index_id: String,
+    pub hypothetical_value: f64,
+    pub cumulative_hedged_change: f64,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyRelationship {
+    pub relationship_id: String,
+    pub status: Status,
+    pub designated_proportion: f64,
+    pub instrument_designated_value: f64,
+    pub hedged_item_clean_value: Option<f64>,
+    pub hypothetical_value: Option<f64>,
+    pub cumulative_instrument_change: f64,
+    pub cumulative_hedged_change: f64,
+    pub basis_adjustment_balance: f64,
+    pub frozen_basis_balance: f64,
+    pub oci_balance: f64,
+    pub frozen_oci_balance: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub members: Option<Vec<DailyMember>>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Balance {
+    pub account: Account,
+    pub debit_balance: f64,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Daily {
+    pub ordinal: i32,
+    pub relationships: Vec<DailyRelationship>,
+    pub financial_trial_balance: Vec<Balance>,
+    pub custody_trial_balance: Vec<Balance>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct RollForward {
+    pub relationship_id: String,
+    pub basis_adjustments: f64,
+    pub basis_amortized: f64,
+    pub basis_derecognized: f64,
+    pub basis_closing: f64,
+    pub oci_recognized: f64,
+    pub oci_reclassified: f64,
+    pub oci_closing: f64,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct RelationshipClosing {
+    pub relationship_id: String,
+    pub predecessor_relationship_id: Option<String>,
+    pub designation: Designation,
+    pub hedging_instrument_position_id: String,
+    pub hedged_item_id: Option<String>,
+    pub forecast_exposure_id: Option<String>,
+    pub inception_ordinal: i32,
+    pub status: Status,
+    pub designated_proportion: f64,
+    pub basis_adjustment_balance: f64,
+    pub frozen_basis_balance: f64,
+    pub oci_balance: f64,
+    pub frozen_oci_balance: f64,
+    pub pending_reclassification_periods: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member_exposure_ids: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected_index_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub written_option_position_id: Option<String>,
+    /// Portfolio layer: the layer amount still designated at the closing node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layer_amount: Option<f64>,
+    /// Portfolio layer: cumulative amounts dedesignated by anticipated and actual breaches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anticipated_breach_amount: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actual_breach_amount: Option<f64>,
+    /// The portfolio-level basis is never allocated to individual assets for credit-loss
+    /// measurement while hedged (815-25-35-1(c)); this lane computes no credit losses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub basis_excluded_from_credit_loss_measurement: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opening_evidence: Option<Identity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hedged_term_end_ordinal: Option<i32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub additional_instrument_position_ids: Vec<String>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct HedgeAccountingResult {
+    pub schema: String,
+    pub model_version: String,
+    pub rule_version: String,
+    pub run: Identity,
+    pub entity: String,
+    pub currency: String,
+    pub monetary_unit: String,
+    pub policy: Policy,
+    pub derivative: DerivativeAccountingResult,
+    pub relationships: Vec<RelationshipClosing>,
+    pub lifecycle: Vec<LifecycleRecord>,
+    pub assessments: Vec<Assessment>,
+    pub daily: Vec<Daily>,
+    pub intents: Vec<Intent>,
+    pub closing: Vec<RollForward>,
+    pub accounting_standard_approval: bool,
+    pub empirical_validation: bool,
+    pub persisted_journal_verified: bool,
+    pub saved_book_adoption: bool,
+    pub portfolio_layer_supported: bool,
+    pub net_investment_supported: bool,
+    pub asu_2025_09_similar_risk_supported: bool,
+    pub asu_2025_09_selectable_rate_supported: bool,
+    pub asu_2025_09_swap_written_option_supported: bool,
+    pub seasoned_openings_supported: bool,
+    pub disclosure: String,
+}

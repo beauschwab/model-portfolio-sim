@@ -18,7 +18,7 @@ A European contract supplies a complete set of terminal conditional states, risk
 
 Terminal intrinsic value is `max(clean_underlying_at_expiry,0)`. Long option value is `sum(probability * expiry_discount * intrinsic)`; short is its negative. Zero intrinsic expires. Cash settlement supports the **collateralized swap-value policy**: terminal cash equals intrinsic divided by the supplied expiry-to-settlement collateral discount factor. Thus delayed cash carries the same expiry PV. This is an explicit policy, not a claim to reproduce every ISDA settlement matrix or par-yield/realized-annuity convention.
 
-Physical settlement at expiry emits only the exercised, mapped underlying future legs, weighted by the supplied conditional probabilities. It emits no intrinsic cash payment. Delivered position and legal netting-set IDs are mandatory. The output legs remain Pricing projections; a physical observed election or realized cash settlement requires separately supplied evidence and integration. Bermudan/American exercise is unsupported.
+Physical settlement at expiry emits only the exercised, mapped underlying future legs, weighted by the supplied conditional probabilities. It emits no intrinsic cash payment. Delivered position and legal netting-set IDs are mandatory. The output legs remain Pricing projections; a physical observed election or realized cash settlement requires separately supplied evidence and integration. Bermudan/American exercise is unsupported by schema: an option has one expiry, and any Bermudan, American or callable-swap kind or extra exercise field fails before valuation (native test `option_scope_is_european_only_and_bermudan_or_american_requests_fail`). This is the admitted option scope for issue #20.
 
 ## Raw exposure and European expiry handoff
 
@@ -62,7 +62,51 @@ The complete native event/observation work remains bounded at 250000 across raw 
 
 For positive replacement value, received VM is applied first, then legally available segregated received IM; the residual is an unsecured counterparty claim. Excess received VM is returned once; excess received IM is returned by the custodian. Posted collateral return claims use their own supplied recovery fractions. Received VM already held is not emitted again as closeout cash. For negative replacement value, reviewed posted-collateral setoff reduces the obligation; unused posted collateral has separate return recoveries. All remaining posted/received stocks are closed once. Subsequent exposure rights are extinguished.
 
-Pricing paths produce separate `clean_value`, discounted counterparty/posted-return credit loss (`cva`), and a supplied-spread funding adjustment (`fva`). Funding cost is the left-endpoint settled posted VM plus posted IM, less explicitly reusable received VM, multiplied by supplied signed spread, exact year fraction and endpoint discount. This is a disclosed deterministic interval convention, not a market-calibrated total-XVA model. Own DVA, dynamic IM/MVA, nonlinear funding and capital/KVA are unavailable. Physical scenario paths retain modeled movements and losses but do not become risk-neutral CVA/FVA values. No allowance, chargeoff, accounting designation, GL posting or regulatory-capital consequence is derived.
+Pricing paths produce separate `clean_value`, discounted counterparty/posted-return credit loss (`cva`), and a supplied-spread funding adjustment (`fva`). Funding cost is the left-endpoint settled posted VM plus posted IM, less explicitly reusable received VM, multiplied by supplied signed spread, exact year fraction and endpoint discount. This is a disclosed deterministic interval convention, not a market-calibrated total-XVA model. MVA, nonlinear funding and capital/KVA are unavailable.
+
+### Standardized-schedule dynamic initial margin (opt-in)
+
+A policy may add `initial_margin_model`: a reviewed identity, maturity bands with schedule rates
+in [0, 1] and an open last band, and a minimum transfer amount. Only swaps are admitted. At every
+node before default or closeout, where settlement is available, each netting bucket's two-way
+requirement follows the BCBS-IOSCO standardized schedule (margin requirements for non-centrally
+cleared derivatives, Appendix A):
+
+```
+gross = sum(notional * rate for the trade's remaining-maturity band)
+net IM = (0.4 + 0.6 * NGR) * gross
+NGR    = net replacement cost / gross replacement cost, from the posting side (0 when gross is 0)
+```
+
+The entity receives margin on its own NGR and posts margin on the counterparty's. Each node calls
+both balances to their requirement with an `initial_margin` movement when the change is at least
+the minimum transfer. Posted margin moves entity cash into `posted_im_asset`. Received margin is
+segregated custody. The existing default waterfall applies these balances, and the tail returns
+them. Clean value is unchanged. The schedule rates are supplied and reviewed; this is not ISDA
+SIMM, and it does not add MVA. Without the model, the request and result keep their historical
+keys. The independent verifier recomputes the movements, and the derivative accounting owner books
+them without touching earnings (`test_derivative_initial_margin.py`).
+
+### Own-credit DVA memo (opt-in)
+
+A Pricing request may add `own_credit`: a reviewed identity, a recovery in [0, 1] and an
+entity survival curve. The curve starts at one on the as-of date, never increases, and
+must list every path node date. Nothing is interpolated. For each path and each node
+after the first:
+
+```
+benefit += (S(previous node) - S(node)) * (1 - recovery) * discount(node) * payable(node)
+payable = max(-closeout claim - entity-posted VM - entity-posted IM, 0)
+```
+
+Accrual stops after the counterparty's own default date on that path. The result adds
+`own_credit_policy`, `dva`, `clean_less_cva_fva_plus_dva` and each path's
+`discounted_own_default_benefit`. Clean value, CVA and FVA are unchanged. The memo
+assumes own default is independent of the exposure paths. It has no first-to-default
+joint law and no funding-benefit netting. It is never posted, and it never adds to
+capital. Physical requests with `own_credit` fail. Without `own_credit` the request
+and result keep their historical keys. The independent Python reference recomputes
+the memo (`test_derivative_own_credit.py`). Physical scenario paths retain modeled movements and losses but do not become risk-neutral CVA/FVA values. No allowance, chargeoff, accounting designation, GL posting or regulatory-capital consequence is derived.
 
 ## Bounds, identity and compatibility
 
@@ -79,6 +123,8 @@ Model/schema changes require explicit input/cache identity rebuilds. Contract, i
 `derivative-mpor-2.json`: default on January 3, contractual coupon on January 11, closeout on January 12. Native fixed cash -0.5 and floating cash +1 remain unpaid after maturity. Remaining replacement value is zero; unpaid claim is 0.5. With supplied 40% recovery, closeout cash is 0.2 and credit loss is 0.3. V1 policy selection rejects; explicit v2 succeeds.
 
 `derivative-netting-1.json`: the same payer swap calls +.5 VM immediately and returns it when coupons settle. Net margin cash/stock changes are zero; clean=.5, credit loss=0 and supplied funding cost=0. Other independent tests cover unequal leg frequencies, exact intraday information, negative coupons/remuneration, lag/outage/pending calls, gross margin without legal netting, both closeout directions, segregated IM, complete-tail admission and European expiry replacement.
+
+`european_swaption_scales_with_the_underlying_annuity_across_tenors_and_converges_to_bachelier` (in `tests/derivative_contracts.rs`) establishes the admitted option scope. It prices payer swaptions on 3-, 12- and 36-month monthly underlying swaps with a 3% collateral curve over a binomial terminal law for the flat swap rate. For every tenor, the native value equals the expiry discount × annuity × E[max(rate − strike, 0)] computed independently. The value per unit of discounted annuity is the same for all tenors. As the supplied law is refined from 16 to 256 states, the value converges toward the closed-form Bachelier price, within 0.15% at 256 states, for at-, in- and out-of-the-money strikes. Exercise is exact for the supplied finite law. No volatility calibration is implied, and Bermudan and American requests still fail (`option_scope_is_european_only_and_bermudan_or_american_requests_fail`).
 
 ## Primary sources and scope
 

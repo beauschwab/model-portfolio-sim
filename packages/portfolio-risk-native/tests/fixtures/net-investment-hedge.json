@@ -1,0 +1,238 @@
+{
+ "dates": [
+  {
+   "foreign_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738886
+    },
+    {
+     "discount_factor": 0.9884643124782391,
+     "ordinal": 739007
+    }
+   ],
+   "ordinal": 738886,
+   "reporting_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738886
+    },
+    {
+     "discount_factor": 0.9835612726675135,
+     "ordinal": 739007
+    }
+   ],
+   "spot": 1.1,
+   "spot_source": {
+    "id": "ecb-reference-rate",
+    "revision": "r1"
+   }
+  },
+  {
+   "foreign_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738917
+    },
+    {
+     "discount_factor": 0.9914069957489241,
+     "ordinal": 739007
+    }
+   ],
+   "ordinal": 738917,
+   "reporting_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738917
+    },
+    {
+     "discount_factor": 0.9877469207606989,
+     "ordinal": 739007
+    }
+   ],
+   "spot": 1.08,
+   "spot_source": {
+    "id": "ecb-reference-rate",
+    "revision": "r1"
+   }
+  },
+  {
+   "foreign_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.9941677588683926,
+     "ordinal": 739007
+    }
+   ],
+   "ordinal": 738946,
+   "reporting_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.9916786513153159,
+     "ordinal": 739007
+    }
+   ],
+   "spot": 1.12,
+   "spot_source": {
+    "id": "ecb-reference-rate",
+    "revision": "r1"
+   }
+  },
+  {
+   "foreign_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.997127421443303,
+     "ordinal": 739007
+    }
+   ],
+   "ordinal": 738977,
+   "reporting_discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.9958988437642043,
+     "ordinal": 739007
+    }
+   ],
+   "spot": 1.09,
+   "spot_source": {
+    "id": "ecb-reference-rate",
+    "revision": "r1"
+   }
+  },
+  {
+   "ordinal": 739007,
+   "spot": 1.11,
+   "spot_source": {
+    "id": "ecb-reference-rate",
+    "revision": "r1"
+   }
+  }
+ ],
+ "entity": "bank",
+ "events": [
+  {
+   "event_id": "sell-20pct",
+   "fraction": 0.2,
+   "kind": "disposal",
+   "ordinal": 738977,
+   "proceeds": 230.0,
+   "review": {
+    "id": "disposal-review",
+    "revision": "r1"
+   }
+  }
+ ],
+ "foreign_currency": "EUR",
+ "foreign_operation": {
+  "movements": [
+   {
+    "amount": 20.0,
+    "kind": "income",
+    "movement_id": "feb-income",
+    "ordinal": 738917,
+    "rate": 1.09,
+    "rate_source": {
+     "id": "january-average",
+     "revision": "r1"
+    }
+   },
+   {
+    "amount": 50.0,
+    "kind": "distribution",
+    "movement_id": "apr-dividend",
+    "ordinal": 738977,
+    "rate": 1.09,
+    "rate_source": {
+     "id": "april-spot",
+     "revision": "r1"
+    }
+   }
+  ],
+  "opening_net_assets": 1000.0,
+  "opening_translation_cta": 25.0,
+  "operation_id": "de-sub",
+  "source": {
+   "id": "de-sub-ledger",
+   "revision": "r1"
+  }
+ },
+ "instruments": [
+  {
+   "forward_rate": 1.1054834853116684,
+   "kind": "fx_forward",
+   "maturity_ordinal": 739007,
+   "notional": 400.0,
+   "position_id": "fwd-1",
+   "side": "sell_foreign",
+   "source": {
+    "id": "fwd-1-confirmation",
+    "revision": "r1"
+   },
+   "trade_ordinal": 738886
+  },
+  {
+   "kind": "foreign_debt",
+   "maturity_ordinal": 739617,
+   "notional": 700.0,
+   "position_id": "debt-1",
+   "source": {
+    "id": "debt-1-terms",
+    "revision": "r1"
+   }
+  }
+ ],
+ "model_version": "net-investment-hedge-1",
+ "monetary_unit": "currency_units",
+ "policy": {
+  "assessment_lower_bound": 0.8,
+  "assessment_upper_bound": 1.25,
+  "identity": {
+   "id": "nih-policy",
+   "revision": "r1"
+  }
+ },
+ "relationships": [
+  {
+   "designation_ordinal": 738886,
+   "documentation": {
+    "id": "nih-fwd-documentation",
+    "revision": "r1"
+   },
+   "excluded_component": "amortization",
+   "hedged_net_investment": 400.0,
+   "instrument_position_id": "fwd-1",
+   "method": "spot",
+   "relationship_id": "nih-fwd"
+  },
+  {
+   "designation_ordinal": 738886,
+   "documentation": {
+    "id": "nih-debt-documentation",
+    "revision": "r1"
+   },
+   "hedged_net_investment": 600.0,
+   "instrument_position_id": "debt-1",
+   "method": "spot",
+   "relationship_id": "nih-debt"
+  }
+ ],
+ "reporting_currency": "USD",
+ "run": {
+  "id": "nih-run",
+  "revision": "r1"
+ },
+ "schema": "net-investment-hedge-1"
+}

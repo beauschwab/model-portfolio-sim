@@ -247,6 +247,42 @@ enum Request {
         execution_timeout_ms: u64,
         request: Box<portfolio_model_core::nonintegral_fee::Request>,
     },
+    #[serde(rename = "hedge-accounting-1")]
+    HedgeAccounting {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::hedge_accounting::HedgeAccountingRequest>,
+    },
+    #[serde(rename = "hedge-treasury-1")]
+    HedgeTreasury {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::hedge_treasury::Request>,
+    },
+    #[serde(rename = "derivative-treasury-1")]
+    DerivativeTreasury {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::derivative_treasury::Request>,
+    },
+    #[serde(rename = "net-investment-hedge-1")]
+    NetInvestmentHedge {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::net_investment::Request>,
+    },
+    #[serde(rename = "nonfinancial-hedge-1")]
+    NonfinancialHedge {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::products::derivatives::nonfinancial_hedge::Request>,
+    },
+    #[serde(rename = "saved-derivative-risk-1")]
+    SavedDerivativeRisk {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::graph::derivative_risk::Request>,
+    },
     #[serde(rename = "dated-income-1")]
     DatedIncome {
         threads: usize,
@@ -509,6 +545,30 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         | Request::NonintegralFees {
             execution_timeout_ms,
             ..
+        }
+        | Request::HedgeAccounting {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::HedgeTreasury {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::DerivativeTreasury {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::SavedDerivativeRisk {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::NetInvestmentHedge {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::NonfinancialHedge {
+            execution_timeout_ms,
+            ..
         } => Some(*execution_timeout_ms),
         Request::CommercialGraph {
             execution_timeout_ms,
@@ -531,6 +591,16 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 1 << 20
             } else if matches!(&request, Request::NonintegralFees { .. }) {
                 portfolio_model_core::nonintegral_fee::MAX_INPUT
+            } else if matches!(
+                &request,
+                Request::HedgeAccounting { .. }
+                    | Request::HedgeTreasury { .. }
+                    | Request::DerivativeTreasury { .. }
+                    | Request::SavedDerivativeRisk { .. }
+                    | Request::NetInvestmentHedge { .. }
+                    | Request::NonfinancialHedge { .. }
+            ) {
+                crate::products::derivatives::hedge_accounting::MAX_INPUT
             } else {
                 32 << 20
             };
@@ -548,6 +618,12 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     let threads = match &request {
         Request::CommercialGeneratedExercise { threads, .. }
         | Request::NonintegralFees { threads, .. }
+        | Request::HedgeAccounting { threads, .. }
+        | Request::HedgeTreasury { threads, .. }
+        | Request::DerivativeTreasury { threads, .. }
+        | Request::SavedDerivativeRisk { threads, .. }
+        | Request::NetInvestmentHedge { threads, .. }
+        | Request::NonfinancialHedge { threads, .. }
         | Request::CommercialContinuation { threads, .. }
         | Request::CommercialGraph { threads, .. }
         | Request::CommercialUnits { threads, .. }
@@ -663,6 +739,77 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 portfolio_model_core::strict_json::serialized_size(
                     &result,
                     portfolio_model_core::nonintegral_fee::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::HedgeTreasury { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::hedge_treasury::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::hedge_treasury::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::DerivativeTreasury { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::derivative_treasury::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::derivative_treasury::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::NonfinancialHedge { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::nonfinancial_hedge::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::nonfinancial_hedge::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::NetInvestmentHedge { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::net_investment::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::net_investment::MAX_OUTPUT,
+                )?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::SavedDerivativeRisk { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                // A fresh owner per analysis: the durable job never shares a cache across runs.
+                let mut graph = crate::graph::derivative_risk::Graph::new(&request, 8 << 20, 4096)?;
+                let result = graph.price(&request)?;
+                portfolio_model_core::strict_json::serialized_size(&result, 32 << 20)?;
+                Ok(Output::Kpi(
+                    serde_json::to_value(result).map_err(|e| e.to_string())?,
+                ))
+            })
+        }
+        Request::HedgeAccounting { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::products::derivatives::hedge_accounting::evaluate(&request)?;
+                portfolio_model_core::strict_json::serialized_size(
+                    &result,
+                    crate::products::derivatives::hedge_accounting::MAX_OUTPUT,
                 )?;
                 Ok(Output::Kpi(
                     serde_json::to_value(result).map_err(|e| e.to_string())?,

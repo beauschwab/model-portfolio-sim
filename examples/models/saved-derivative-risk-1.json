@@ -1,0 +1,629 @@
+{
+ "bumps": {
+  "bump_bp": 1.0,
+  "identity": {
+   "id": "paired-curve-bumps",
+   "revision": "r1"
+  },
+  "key_rate_ordinals": [
+   738917,
+   738946,
+   738977
+  ]
+ },
+ "positions": [
+  {
+   "netting_set_id": "ns",
+   "position_id": "swap-fvh",
+   "swap": {
+    "asof_ordinal": 738886,
+    "contract": {
+     "id": "swap-fvh-contract",
+     "revision": "r1"
+    },
+    "currency": "USD",
+    "discount_curve": {
+     "asof_ordinal": 738886,
+     "basis": "collateralized_clean",
+     "collateral_discount_policy": {
+      "id": "discount-policy",
+      "revision": "r1"
+     },
+     "currency": "USD",
+     "information_unix_seconds": 1704099600,
+     "points": [
+      {
+       "discount_factor": 1.0,
+       "ordinal": 738886
+      },
+      {
+       "discount_factor": 0.9948598905654119,
+       "ordinal": 738917
+      },
+      {
+       "discount_factor": 0.9900990099009901,
+       "ordinal": 738946
+      },
+      {
+       "discount_factor": 0.985059924478739,
+       "ordinal": 738977
+      }
+     ],
+     "source": {
+      "id": "discount",
+      "revision": "r1"
+     }
+    },
+    "fixed_periods": [
+     {
+      "day_count": "act360",
+      "end_ordinal": 738917,
+      "payment_ordinal": 738917,
+      "period_id": "f1",
+      "start_ordinal": 738886
+     },
+     {
+      "day_count": "act360",
+      "end_ordinal": 738946,
+      "payment_ordinal": 738946,
+      "period_id": "f2",
+      "start_ordinal": 738917
+     },
+     {
+      "day_count": "act360",
+      "end_ordinal": 738977,
+      "payment_ordinal": 738977,
+      "period_id": "f3",
+      "start_ordinal": 738946
+     }
+    ],
+    "fixed_rate": 0.06,
+    "floating_periods": [
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738886,
+         "interest_end_ordinal": 738917,
+         "interest_start_ordinal": 738886,
+         "observation_end_ordinal": 738917,
+         "observation_start_ordinal": 738886,
+         "rate": 0.065,
+         "selection_cutoff_unix_seconds": 1704099600,
+         "source": {
+          "fixing": {
+           "id": "observed-reset-1",
+           "revision": "r1"
+          },
+          "kind": "observed",
+          "publication_unix_seconds": 1704096000
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1704099600
+      },
+      "day_count": "act360",
+      "end_ordinal": 738917,
+      "fee": 0.0,
+      "payment_ordinal": 738917,
+      "period_id": "l1",
+      "start_ordinal": 738886
+     },
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738917,
+         "interest_end_ordinal": 738946,
+         "interest_start_ordinal": 738917,
+         "observation_end_ordinal": 738946,
+         "observation_start_ordinal": 738917,
+         "rate": 0.06,
+         "selection_cutoff_unix_seconds": 1706778000,
+         "source": {
+          "information_unix_seconds": 1704099600,
+          "kind": "conditional_projection",
+          "measure": "pricing",
+          "model": {
+           "id": "index-model",
+           "revision": "r1"
+          },
+          "path": {
+           "id": "index-path",
+           "revision": "r1"
+          }
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1706778000
+      },
+      "day_count": "act360",
+      "end_ordinal": 738946,
+      "fee": 0.0,
+      "payment_ordinal": 738946,
+      "period_id": "l2",
+      "start_ordinal": 738917
+     },
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738946,
+         "interest_end_ordinal": 738977,
+         "interest_start_ordinal": 738946,
+         "observation_end_ordinal": 738977,
+         "observation_start_ordinal": 738946,
+         "rate": 0.06,
+         "selection_cutoff_unix_seconds": 1709283600,
+         "source": {
+          "information_unix_seconds": 1704099600,
+          "kind": "conditional_projection",
+          "measure": "pricing",
+          "model": {
+           "id": "index-model",
+           "revision": "r1"
+          },
+          "path": {
+           "id": "index-path",
+           "revision": "r1"
+          }
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1709283600
+      },
+      "day_count": "act360",
+      "end_ordinal": 738977,
+      "fee": 0.0,
+      "payment_ordinal": 738977,
+      "period_id": "l3",
+      "start_ordinal": 738946
+     }
+    ],
+    "index_basis": {
+     "id": "index-basis",
+     "revision": "r1"
+    },
+    "monetary_unit": "currency_units",
+    "notional": 100.0,
+    "payment_timing": "after_scheduled_payments",
+    "position_id": "swap-fvh",
+    "rate_path": {
+     "id": "index-path",
+     "revision": "r1"
+    },
+    "scenario_id": "physical",
+    "side": "payer",
+    "tail_end_ordinal": 738977,
+    "valuation_cutoff_unix_seconds": 1704099600
+   }
+  },
+  {
+   "netting_set_id": "ns",
+   "position_id": "swap-cfh",
+   "swap": {
+    "asof_ordinal": 738886,
+    "contract": {
+     "id": "swap-cfh-contract",
+     "revision": "r1"
+    },
+    "currency": "USD",
+    "discount_curve": {
+     "asof_ordinal": 738886,
+     "basis": "collateralized_clean",
+     "collateral_discount_policy": {
+      "id": "discount-policy",
+      "revision": "r1"
+     },
+     "currency": "USD",
+     "information_unix_seconds": 1704099600,
+     "points": [
+      {
+       "discount_factor": 1.0,
+       "ordinal": 738886
+      },
+      {
+       "discount_factor": 0.9948598905654119,
+       "ordinal": 738917
+      },
+      {
+       "discount_factor": 0.9900990099009901,
+       "ordinal": 738946
+      },
+      {
+       "discount_factor": 0.985059924478739,
+       "ordinal": 738977
+      }
+     ],
+     "source": {
+      "id": "discount",
+      "revision": "r1"
+     }
+    },
+    "fixed_periods": [
+     {
+      "day_count": "act360",
+      "end_ordinal": 738917,
+      "payment_ordinal": 738917,
+      "period_id": "f1",
+      "start_ordinal": 738886
+     },
+     {
+      "day_count": "act360",
+      "end_ordinal": 738946,
+      "payment_ordinal": 738946,
+      "period_id": "f2",
+      "start_ordinal": 738917
+     },
+     {
+      "day_count": "act360",
+      "end_ordinal": 738977,
+      "payment_ordinal": 738977,
+      "period_id": "f3",
+      "start_ordinal": 738946
+     }
+    ],
+    "fixed_rate": 0.042579053477542164,
+    "floating_periods": [
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738886,
+         "interest_end_ordinal": 738917,
+         "interest_start_ordinal": 738886,
+         "observation_end_ordinal": 738917,
+         "observation_start_ordinal": 738886,
+         "rate": 0.065,
+         "selection_cutoff_unix_seconds": 1704099600,
+         "source": {
+          "fixing": {
+           "id": "observed-reset-1",
+           "revision": "r1"
+          },
+          "kind": "observed",
+          "publication_unix_seconds": 1704096000
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1704099600
+      },
+      "day_count": "act360",
+      "end_ordinal": 738917,
+      "fee": 0.0,
+      "payment_ordinal": 738917,
+      "period_id": "l1",
+      "start_ordinal": 738886
+     },
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738917,
+         "interest_end_ordinal": 738946,
+         "interest_start_ordinal": 738917,
+         "observation_end_ordinal": 738946,
+         "observation_start_ordinal": 738917,
+         "rate": 0.06,
+         "selection_cutoff_unix_seconds": 1706778000,
+         "source": {
+          "information_unix_seconds": 1704099600,
+          "kind": "conditional_projection",
+          "measure": "pricing",
+          "model": {
+           "id": "index-model",
+           "revision": "r1"
+          },
+          "path": {
+           "id": "index-path",
+           "revision": "r1"
+          }
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1706778000
+      },
+      "day_count": "act360",
+      "end_ordinal": 738946,
+      "fee": 0.0,
+      "payment_ordinal": 738946,
+      "period_id": "l2",
+      "start_ordinal": 738917
+     },
+     {
+      "coupon": {
+       "all_in_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "calculation": "term_simple",
+       "calendar": {
+        "id": "calendar",
+        "revision": "r1"
+       },
+       "complete_calendar_mapping": true,
+       "index": {
+        "average_calendar_days": null,
+        "index_id": "term-1m",
+        "kind": "term",
+        "tenor_months": 1
+       },
+       "index_bounds": {
+        "cap": null,
+        "floor": null
+       },
+       "kind": "indexed",
+       "lookback_business_days": 0,
+       "margin": 0.0,
+       "margin_treatment": "simple",
+       "observation_shift": false,
+       "observations": [
+        {
+         "fixing_ordinal": 738946,
+         "interest_end_ordinal": 738977,
+         "interest_start_ordinal": 738946,
+         "observation_end_ordinal": 738977,
+         "observation_start_ordinal": 738946,
+         "rate": 0.06,
+         "selection_cutoff_unix_seconds": 1709283600,
+         "source": {
+          "information_unix_seconds": 1704099600,
+          "kind": "conditional_projection",
+          "measure": "pricing",
+          "model": {
+           "id": "index-model",
+           "revision": "r1"
+          },
+          "path": {
+           "id": "index-path",
+           "revision": "r1"
+          }
+         }
+        }
+       ],
+       "reset_cutoff_unix_seconds": 1709283600
+      },
+      "day_count": "act360",
+      "end_ordinal": 738977,
+      "fee": 0.0,
+      "payment_ordinal": 738977,
+      "period_id": "l3",
+      "start_ordinal": 738946
+     }
+    ],
+    "index_basis": {
+     "id": "index-basis",
+     "revision": "r1"
+    },
+    "monetary_unit": "currency_units",
+    "notional": 100.0,
+    "payment_timing": "after_scheduled_payments",
+    "position_id": "swap-cfh",
+    "rate_path": {
+     "id": "index-path",
+     "revision": "r1"
+    },
+    "scenario_id": "physical",
+    "side": "payer",
+    "tail_end_ordinal": 738977,
+    "valuation_cutoff_unix_seconds": 1704099600
+   }
+  }
+ ],
+ "projection_curves": [
+  {
+   "day_count": "act360",
+   "index_id": "term-1m",
+   "points": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738886
+    },
+    {
+     "discount_factor": 0.994433932295623,
+     "ordinal": 738917
+    },
+    {
+     "discount_factor": 0.9896506209609784,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.984563708467231,
+     "ordinal": 738977
+    }
+   ],
+   "source": {
+    "id": "term-1m-projection",
+    "revision": "r1"
+   }
+  }
+ ],
+ "projection_policy": "named_projection_curves",
+ "relationships": [
+  {
+   "hedged_item": {
+    "benchmark_rate": 0.06,
+    "hedged_notional": 100.0,
+    "item": {
+     "carrying_source": {
+      "id": "loan-1-carrying",
+      "revision": "r1"
+     },
+     "contractual_rate": 0.07,
+     "direction": "asset",
+     "item_id": "loan-1",
+     "kind": "fixed_rate_instrument",
+     "notional": 100.0,
+     "periods": [
+      {
+       "day_count": "act360",
+       "end_ordinal": 738917,
+       "payment_ordinal": 738917,
+       "period_id": "p1",
+       "start_ordinal": 738886
+      },
+      {
+       "day_count": "act360",
+       "end_ordinal": 738946,
+       "payment_ordinal": 738946,
+       "period_id": "p2",
+       "start_ordinal": 738917
+      },
+      {
+       "day_count": "act360",
+       "end_ordinal": 738977,
+       "payment_ordinal": 738977,
+       "period_id": "p3",
+       "start_ordinal": 738946
+      }
+     ],
+     "principal_ordinal": 738977,
+     "source": {
+      "id": "loan-1-terms",
+      "revision": "r1"
+     }
+    }
+   },
+   "instrument_position_ids": [
+    "swap-fvh"
+   ],
+   "relationship_id": "fvh-1"
+  },
+  {
+   "instrument_position_ids": [
+    "swap-cfh"
+   ],
+   "relationship_id": "cfh-1"
+  }
+ ],
+ "schema": "saved-derivative-risk-1",
+ "source": {
+  "id": "saved-derivative-source-example",
+  "revision": "r1"
+ }
+}

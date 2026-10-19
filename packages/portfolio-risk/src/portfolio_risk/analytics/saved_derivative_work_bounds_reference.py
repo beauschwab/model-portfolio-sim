@@ -43,7 +43,7 @@ def counters(physical,mixed_days,check=lambda:False):
         legal_buckets=len(legal),cash_slots=rights,line_upper=lines,replay_work=scans)
 
 
-def standalone_upper(owners,mixed_days,dated_work_units,check=lambda:False):
+def standalone_upper(owners,mixed_days,dated_work_units,check=lambda:False,max_work=8000000):
     from .saved_derivative_mapping_reference import validate_mapping,require
     from .saved_derivative_financial_reference import _admit
     from .saved_derivative_dto_reference import saved_dto
@@ -52,5 +52,5 @@ def standalone_upper(owners,mixed_days,dated_work_units,check=lambda:False):
         for run in owner['runs']:
             probe(check);validate_mapping(run['saved']);physical=saved_dto(run['saved'])['physical'];_admit(physical)
             work=checked(work+250000+counters(physical,mixed_days,check)['replay_work'])
-    require(work<=8000000,'joined standalone structural work preflight')
+    require(work<=max_work,'joined standalone structural work preflight')
     return work

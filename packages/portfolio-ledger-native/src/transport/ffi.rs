@@ -12,7 +12,7 @@ pub unsafe extern "C" fn portfolio_balance_validate(
     length: usize,
 ) -> *mut std::ffi::c_char {
     let result = std::panic::catch_unwind(|| -> Result<serde_json::Value, String> {
-        if input.is_null() || length > 100_000_000 {
+        if input.is_null() || length > 512_000_000 {
             return Err("null or oversized specification".into());
         }
         #[derive(serde::Deserialize)]
@@ -24,6 +24,21 @@ pub unsafe extern "C" fn portfolio_balance_validate(
         }
         let request: Request = serde_json::from_slice(std::slice::from_raw_parts(input, length))
             .map_err(|e| e.to_string())?;
+        // Only an explicitly tiered credit ledger request may exceed the historical 100 MB.
+        if length > 100_000_000
+            && !(request
+                .raw
+                .get("schema")
+                .and_then(serde_json::Value::as_str)
+                == Some(credit_replay::SCHEMA)
+                && request
+                    .raw
+                    .get("scale_tier")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(credit_replay::ACCEPTANCE_TIER))
+        {
+            return Err("null or oversized specification".into());
+        }
         if request
             .raw
             .get("schema")

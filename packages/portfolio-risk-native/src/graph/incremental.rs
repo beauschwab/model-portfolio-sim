@@ -19,6 +19,7 @@ enum Owner {
     Legacy(Arc<Mutex<Cache>>),
     MarketIndexed(Arc<Mutex<crate::graph::indexed::Graph>>),
     MarketIndexedBooks(Arc<Mutex<crate::portfolio::indexed_books::Portfolio>>),
+    SavedDerivativeRisk(Arc<Mutex<crate::graph::derivative_risk::Graph>>),
 }
 type Handles = HashMap<u64, Owner>;
 static HANDLES: OnceLock<Mutex<Handles>> = OnceLock::new();
@@ -47,6 +48,15 @@ pub enum Request {
     PriceMarketIndexedBooks {
         handle: u64,
         request: Box<crate::portfolio::indexed_books::Request>,
+    },
+    CreateSavedDerivativeRisk {
+        max_bytes: usize,
+        max_entries: usize,
+        request: Box<crate::graph::derivative_risk::Request>,
+    },
+    PriceSavedDerivativeRisk {
+        handle: u64,
+        request: Box<crate::graph::derivative_risk::Request>,
     },
     Clear {
         handle: u64,
@@ -114,7 +124,9 @@ impl Request {
     pub(crate) fn is_creation(&self) -> bool {
         matches!(
             self,
-            Self::CreateMarketIndexed { .. } | Self::CreateMarketIndexedBooks { .. }
+            Self::CreateMarketIndexed { .. }
+                | Self::CreateMarketIndexedBooks { .. }
+                | Self::CreateSavedDerivativeRisk { .. }
         )
     }
     pub(crate) fn admit_runtime(&self) -> Result<(), String> {
@@ -125,7 +137,8 @@ impl Request {
             Self::Info { handle }
             | Self::Clear { handle }
             | Self::PriceMarketIndexed { handle, .. }
-            | Self::PriceMarketIndexedBooks { handle, .. } => *handle,
+            | Self::PriceMarketIndexedBooks { handle, .. }
+            | Self::PriceSavedDerivativeRisk { handle, .. } => *handle,
             _ => return Err("GRAPH_CONTROL_EXPLICIT_INDEXED_OPERATION_REQUIRED".into()),
         };
         let owner = HANDLES
@@ -143,7 +156,13 @@ impl Request {
                     Self::PriceMarketIndexedBooks { .. }
                 )
                 | (
-                    Owner::MarketIndexed(_) | Owner::MarketIndexedBooks(_),
+                    Owner::SavedDerivativeRisk(_),
+                    Self::PriceSavedDerivativeRisk { .. }
+                )
+                | (
+                    Owner::MarketIndexed(_)
+                        | Owner::MarketIndexedBooks(_)
+                        | Owner::SavedDerivativeRisk(_),
                     Self::Info { .. } | Self::Clear { .. }
                 )
         );
@@ -161,6 +180,8 @@ impl Request {
                 | Self::PriceMarketIndexed { .. }
                 | Self::CreateMarketIndexedBooks { .. }
                 | Self::PriceMarketIndexedBooks { .. }
+                | Self::CreateSavedDerivativeRisk { .. }
+                | Self::PriceSavedDerivativeRisk { .. }
         )
     }
     pub fn run_with_control(
@@ -170,7 +191,9 @@ impl Request {
         // If scope's final checkpoint rejects creation, do not leak the unpublished handle.
         let creation = matches!(
             self,
-            Self::CreateMarketIndexed { .. } | Self::CreateMarketIndexedBooks { .. }
+            Self::CreateMarketIndexed { .. }
+                | Self::CreateMarketIndexedBooks { .. }
+                | Self::CreateSavedDerivativeRisk { .. }
         );
         let mut created = None;
         let result = portfolio_compute_control::scope(control, || {
@@ -256,6 +279,33 @@ impl Request {
                     json!({"handle":handle,"owner":crate::portfolio::indexed_books::SCHEMA,"initial":initial}),
                 )
             }
+            Self::CreateSavedDerivativeRisk {
+                max_bytes,
+                max_entries,
+                request,
+            } => {
+                portfolio_compute_control::checkpoint()?;
+                if registry
+                    .lock()
+                    .map_err(|_| "graph registry poisoned")?
+                    .len()
+                    >= 128
+                {
+                    return Err("too many active graph caches".into());
+                }
+                let mut graph =
+                    crate::graph::derivative_risk::Graph::new(&request, max_bytes, max_entries)?;
+                let initial = graph.price(&request)?;
+                let initial = serde_json::to_value(initial).map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                let handle = register(
+                    Owner::SavedDerivativeRisk(Arc::new(Mutex::new(graph))),
+                    true,
+                )?;
+                Ok(
+                    json!({"handle":handle,"owner":crate::graph::derivative_risk::SCHEMA,"initial":initial}),
+                )
+            }
             Self::Drop { handle } => {
                 registry
                     .lock()
@@ -270,7 +320,8 @@ impl Request {
                     | Self::Compare { handle, .. }
                     | Self::Price { handle, .. }
                     | Self::PriceMarketIndexed { handle, .. }
-                    | Self::PriceMarketIndexedBooks { handle, .. } => *handle,
+                    | Self::PriceMarketIndexedBooks { handle, .. }
+                    | Self::PriceSavedDerivativeRisk { handle, .. } => *handle,
                     _ => unreachable!(),
                 };
                 let owner = registry
@@ -296,7 +347,8 @@ impl Request {
                                 ..
                             } => compare(*request, patches, &calibration_mode, &mut cache),
                             Self::PriceMarketIndexed { .. }
-                            | Self::PriceMarketIndexedBooks { .. } => Err(
+                            | Self::PriceMarketIndexedBooks { .. }
+                            | Self::PriceSavedDerivativeRisk { .. } => Err(
                                 "GRAPH_OWNER_MISMATCH: legacy handle requires legacy operation"
                                     .into(),
                             ),
@@ -313,7 +365,7 @@ impl Request {
                             Self::Clear {..} => {portfolio.clear();Ok(portfolio.info())},
                             Self::Info {..} => Ok(portfolio.info()),
                             Self::PriceMarketIndexedBooks {request,..} => portfolio.price(&request),
-                            Self::Price{..}|Self::Compare{..}|Self::PriceMarketIndexed{..} => Err("GRAPH_OWNER_MISMATCH: portfolio requires versioned portfolio operation".into()),
+                            Self::Price{..}|Self::Compare{..}|Self::PriceMarketIndexed{..}|Self::PriceSavedDerivativeRisk{..} => Err("GRAPH_OWNER_MISMATCH: portfolio requires versioned portfolio operation".into()),
                             _ => unreachable!(),
                         }
                     }
@@ -331,7 +383,36 @@ impl Request {
                                 portfolio_compute_control::checkpoint()?;
                                 serde_json::to_value(result).map_err(|e| e.to_string())
                             }
-                            Self::Price { .. } | Self::Compare { .. } | Self::PriceMarketIndexedBooks { .. } => Err("GRAPH_OWNER_MISMATCH: market handle requires versioned market operation".into()),
+                            Self::Price { .. } | Self::Compare { .. } | Self::PriceMarketIndexedBooks { .. } | Self::PriceSavedDerivativeRisk { .. } => Err("GRAPH_OWNER_MISMATCH: market handle requires versioned market operation".into()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    Owner::SavedDerivativeRisk(graph) => {
+                        let mut graph = if portfolio_compute_control::active().is_some() {
+                            controlled_lock(&graph)?
+                        } else {
+                            graph
+                                .lock()
+                                .map_err(|_| "saved derivative risk graph poisoned")?
+                        };
+                        match other {
+                            Self::Clear { .. } => {
+                                graph.clear();
+                                Ok(graph.info())
+                            }
+                            Self::Info { .. } => Ok(graph.info()),
+                            Self::PriceSavedDerivativeRisk { request, .. } => {
+                                let result = graph.price(&request)?;
+                                portfolio_compute_control::checkpoint()?;
+                                serde_json::to_value(result).map_err(|e| e.to_string())
+                            }
+                            Self::Price { .. }
+                            | Self::Compare { .. }
+                            | Self::PriceMarketIndexed { .. }
+                            | Self::PriceMarketIndexedBooks { .. } => Err(
+                                "GRAPH_OWNER_MISMATCH: saved derivative risk handle requires its versioned operation"
+                                    .into(),
+                            ),
                             _ => unreachable!(),
                         }
                     }

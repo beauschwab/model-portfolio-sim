@@ -200,6 +200,7 @@ fn csa() -> CsaRequest {
             received_im_segregated: true,
             collateral_interest_day_count: ActualDayCount::Act360,
             tail_return_ordinal: day(12),
+            initial_margin_model: None,
         },
         mapping: vec![Mapping {
             position_id: "swap".into(),
@@ -218,6 +219,7 @@ fn csa() -> CsaRequest {
             nodes: vec![node(1, true), node(3, true), node(11, true), node(12, true)],
             default: None,
         }],
+        own_credit: None,
     }
 }
 #[test]
@@ -1191,4 +1193,435 @@ fn mpor_v2_json_envelope_native_dispatch_hand_result() {
     close(result.cva.unwrap(), 0.3);
     close(result.paths[0].closeouts[0].unpaid_obligation_claim, 0.5);
     close(result.paths[0].closeouts[0].entity_cash, 0.2);
+}
+
+#[test]
+fn option_scope_is_european_only_and_bermudan_or_american_requests_fail() {
+    use portfolio_risk_native::derivative_contract::{
+        evaluate as evaluate_derivative, DerivativeRequest,
+    };
+    // Issue #20 admitted option scope: one European expiry. Bermudan and American
+    // structures have no schema; any attempt to express them fails before valuation.
+    let envelope: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../examples/models/derivative-option-1.json"
+    ))
+    .unwrap();
+    let base = envelope["request"].clone();
+    let decode = |v: serde_json::Value| serde_json::from_value::<DerivativeRequest>(v);
+    let request = decode(base.clone()).unwrap();
+    assert!(evaluate_derivative(&request).is_ok());
+    for kind in ["bermudan_swaption", "american_swaption", "callable_swap"] {
+        let mut v = base.clone();
+        v["operation"]["kind"] = kind.into();
+        assert!(decode(v).is_err(), "{kind} must not be admitted");
+    }
+    let expiry = base["operation"]["request"]["expiry_ordinal"]
+        .as_i64()
+        .unwrap();
+    for (field, value) in [
+        (
+            "exercise_ordinals",
+            serde_json::json!([expiry - 30, expiry]),
+        ),
+        ("exercise_style", serde_json::json!("bermudan")),
+        ("exercise_style", serde_json::json!("american")),
+        (
+            "exercise_window_end_ordinal",
+            serde_json::json!(expiry + 30),
+        ),
+    ] {
+        let mut v = base.clone();
+        v["operation"]["request"][field] = value;
+        assert!(decode(v).is_err(), "{field} must not be admitted");
+    }
+}
+
+fn own_credit(points: &[(u32, f64)], recovery: f64) -> Option<OwnCredit> {
+    Some(OwnCredit {
+        identity: id("own-credit"),
+        recovery,
+        survival: points
+            .iter()
+            .map(|&(d, s)| SurvivalPoint {
+                ordinal: day(d),
+                survival_probability: s,
+            })
+            .collect(),
+    })
+}
+
+#[test]
+fn own_credit_dva_memo_is_opt_in_and_reconciles_to_uncollateralized_payables() {
+    let mut r = csa();
+    // Uncollateralized receiver swap: the entity owes the counterparty, so DVA is positive.
+    r.policy.post_threshold = 1e9;
+    r.policy.receive_threshold = 1e9;
+    for n in &mut r.paths[0].nodes {
+        let Trade::Swap { request } = &mut n.trades[0] else {
+            unreachable!()
+        };
+        **request = swap(n.ordinal, day(1), day(11), 0.1, Side::Receiver, "p");
+    }
+    let plain = evaluate(&r).unwrap();
+    let bytes = serde_json::to_value(&plain).unwrap();
+    for key in ["dva", "own_credit_policy", "clean_less_cva_fva_plus_dva"] {
+        assert!(
+            bytes.get(key).is_none(),
+            "{key} must be absent without own credit"
+        );
+    }
+    assert!(bytes["paths"][0]
+        .get("discounted_own_default_benefit")
+        .is_none());
+    assert!(!plain.disclosure.contains("Own-credit DVA memo"));
+
+    r.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    let with = evaluate(&r).unwrap();
+    // Economic clean value, CVA and FVA are untouched by the memo.
+    close(with.clean_value, plain.clean_value);
+    close(with.cva.unwrap(), plain.cva.unwrap());
+    close(with.fva.unwrap(), plain.fva.unwrap());
+    let survival = [1., 0.99, 0.95, 0.94];
+    let exposures = &with.paths[0].exposures;
+    assert_eq!(exposures.len(), 4);
+    let expected: f64 = (1..4)
+        .map(|k| {
+            let e = &exposures[k];
+            let payable = (-e.total_closeout_claim - (-e.vm).max(0.) - e.posted_im).max(0.);
+            (survival[k - 1] - survival[k]) * 0.6 * payable
+        })
+        .sum();
+    assert!(expected > 0.);
+    close(with.dva.unwrap(), expected);
+    close(
+        with.paths[0].discounted_own_default_benefit.unwrap(),
+        expected,
+    );
+    close(
+        with.clean_less_cva_fva_plus_dva.unwrap(),
+        with.clean_value - with.cva.unwrap() - with.fva.unwrap() + expected,
+    );
+    assert!(with.disclosure.starts_with("Own-credit DVA memo"));
+
+    // A payer swap that the entity never owes has zero DVA.
+    let mut payer = csa();
+    payer.policy.post_threshold = 1e9;
+    payer.policy.receive_threshold = 1e9;
+    payer.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    let payer = evaluate(&payer).unwrap();
+    assert!(payer.paths[0]
+        .exposures
+        .iter()
+        .all(|e| e.total_closeout_claim >= 0.));
+    close(payer.dva.unwrap(), 0.);
+}
+
+#[test]
+fn own_credit_dva_refuses_physical_measure_gaps_and_increasing_survival() {
+    let bad = [
+        own_credit(&[(1, 1.), (3, 0.99), (12, 0.94)], 0.4),
+        own_credit(&[(1, 1.), (3, 0.99), (11, 0.995), (12, 0.94)], 0.4),
+        own_credit(&[(1, 0.99), (3, 0.98), (11, 0.95), (12, 0.94)], 0.4),
+        own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 1.2),
+        own_credit(&[(3, 1.), (11, 0.95), (12, 0.94)], 0.4),
+    ];
+    for own in bad {
+        let mut r = csa();
+        r.own_credit = own;
+        assert!(evaluate(&r).is_err());
+    }
+    let mut r = csa();
+    r.measure = CashflowMeasure::Physical;
+    r.own_credit = own_credit(&[(1, 1.), (3, 0.99), (11, 0.95), (12, 0.94)], 0.4);
+    assert!(evaluate(&r).is_err());
+}
+
+fn im_model(minimum_transfer: f64) -> Option<InitialMarginModel> {
+    Some(InitialMarginModel {
+        identity: id("standardized-schedule"),
+        schedule: vec![
+            ScheduleBand {
+                max_remaining_years: Some(2.),
+                rate: 0.01,
+            },
+            ScheduleBand {
+                max_remaining_years: Some(5.),
+                rate: 0.02,
+            },
+            ScheduleBand {
+                max_remaining_years: None,
+                rate: 0.04,
+            },
+        ],
+        minimum_transfer,
+    })
+}
+
+#[test]
+fn standardized_initial_margin_is_two_way_dynamic_and_returned_at_the_tail() {
+    let plain = evaluate(&csa()).unwrap();
+    assert!(plain.paths[0]
+        .movements
+        .iter()
+        .all(|m| m.kind != "initial_margin"));
+    let bytes = serde_json::to_value(csa()).unwrap();
+    assert!(bytes["policy"].get("initial_margin_model").is_none());
+
+    let mut r = csa();
+    r.policy.initial_margin_model = im_model(0.);
+    let result = evaluate(&r).unwrap();
+    let p = &result.paths[0];
+    let im: Vec<_> = p
+        .movements
+        .iter()
+        .filter(|m| m.kind == "initial_margin")
+        .collect();
+    // The 360 swap has under two years left: gross = 360 * 1%. The entity is in the money, so
+    // it receives (0.4 + 0.6 * 1) * gross and posts 0.4 * gross (its own NGR is zero).
+    let first = im[0];
+    assert_eq!(first.ordinal, day(1));
+    close(first.received_im_delta, 3.6);
+    close(first.posted_im_delta, 0.4 * 3.6);
+    close(first.entity_cash, -0.4 * 3.6);
+    close(first.custodian_cash, 3.6);
+    let e = &p.exposures[0];
+    close(e.received_im, 3.6);
+    close(e.posted_im, 1.44);
+    // Everything posted and received comes back at the tail.
+    close(p.residual_received_im, 0.);
+    close(p.residual_posted_im, 0.);
+    let custody: f64 = p
+        .movements
+        .iter()
+        .filter(|m| m.kind == "initial_margin" || m.kind == "tail_return")
+        .map(|m| m.custodian_cash)
+        .sum();
+    close(custody, 0.);
+    // Clean value is unchanged by margin.
+    close(result.clean_value, plain.clean_value);
+
+    // A minimum transfer above the requirement suppresses the call.
+    let mut r = csa();
+    r.policy.initial_margin_model = im_model(10.);
+    let quiet = evaluate(&r).unwrap();
+    assert!(quiet.paths[0]
+        .movements
+        .iter()
+        .all(|m| m.kind != "initial_margin"));
+}
+
+#[test]
+fn standardized_initial_margin_refuses_unreviewed_schedules_and_options() {
+    for model in [
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: Some(2.),
+                rate: 0.01,
+            }],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![
+                ScheduleBand {
+                    max_remaining_years: Some(5.),
+                    rate: 0.01,
+                },
+                ScheduleBand {
+                    max_remaining_years: Some(2.),
+                    rate: 0.02,
+                },
+                ScheduleBand {
+                    max_remaining_years: None,
+                    rate: 0.04,
+                },
+            ],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: None,
+                rate: 1.5,
+            }],
+            minimum_transfer: 0.,
+        }),
+        Some(InitialMarginModel {
+            identity: id("x"),
+            schedule: vec![ScheduleBand {
+                max_remaining_years: None,
+                rate: 0.01,
+            }],
+            minimum_transfer: -1.,
+        }),
+    ] {
+        let mut r = csa();
+        r.policy.initial_margin_model = model;
+        assert!(evaluate(&r).is_err());
+    }
+    let mut r = mpor_option(false);
+    r.policy.initial_margin_model = im_model(0.);
+    assert!(evaluate(&r).is_err(), "standardized IM covers swaps only");
+}
+
+/// Payer swap starting at expiry with `months` monthly ACT/360 periods, a flat projected
+/// floating rate and an exact continuously compounded 3% collateral curve.
+fn underlying(expiry: i32, months: u32, rate: f64, strike: f64) -> (SwapRequest, f64) {
+    let date =
+        |m: u32| ordinal_from_ymd(2024 + ((6 + m) / 12) as i32, (6 + m) % 12 + 1, 1).unwrap();
+    let mut u = swap(expiry, expiry, date(1), rate, Side::Payer, "option");
+    u.fixed_rate = strike;
+    let template = u.floating_periods[0].clone();
+    u.fixed_periods.clear();
+    u.floating_periods.clear();
+    u.discount_curve.points = vec![DiscountPoint {
+        ordinal: expiry,
+        discount_factor: 1.,
+    }];
+    let mut annuity = 0.;
+    for m in 0..months {
+        let (start, end) = (date(m), date(m + 1));
+        let df = (-0.03 * f64::from(end - expiry) / 365.).exp();
+        annuity += u.notional * f64::from(end - start) / 360. * df;
+        u.discount_curve.points.push(DiscountPoint {
+            ordinal: end,
+            discount_factor: df,
+        });
+        u.fixed_periods.push(FixedPeriod {
+            period_id: format!("f{m}"),
+            start_ordinal: start,
+            end_ordinal: end,
+            payment_ordinal: end,
+            day_count: ActualDayCount::Act360,
+        });
+        let mut period = template.clone();
+        period.period_id = format!("l{m}");
+        (
+            period.start_ordinal,
+            period.end_ordinal,
+            period.payment_ordinal,
+        ) = (start, end, end);
+        if let Coupon::Indexed {
+            observations,
+            reset_cutoff_unix_seconds,
+            ..
+        } = &mut period.coupon
+        {
+            *reset_cutoff_unix_seconds = Some(utc(start));
+            let o = &mut observations[0];
+            (o.interest_start_ordinal, o.interest_end_ordinal) = (start, end);
+            (o.observation_start_ordinal, o.observation_end_ordinal) = (start, end);
+            o.fixing_ordinal = start;
+            o.selection_cutoff_unix_seconds = utc(start);
+        }
+        u.floating_periods.push(period);
+    }
+    u.tail_end_ordinal = date(months);
+    (u, annuity)
+}
+
+/// Binomial terminal law for the flat swap rate: F + s * (2k - n) / sqrt(n).
+fn binomial_swaption(
+    months: u32,
+    n: u32,
+    forward: f64,
+    strike: f64,
+    s: f64,
+) -> (SwaptionRequest, f64) {
+    let asof = ordinal_from_ymd(2024, 1, 1).unwrap();
+    let expiry = ordinal_from_ymd(2024, 7, 1).unwrap();
+    let mut r = option();
+    (r.asof_ordinal, r.expiry_ordinal, r.settlement_ordinal) = (asof, expiry, expiry);
+    let discount_to_expiry = (-0.03 * f64::from(expiry - asof) / 365.).exp();
+    let template = r.states[0].clone();
+    r.states.clear();
+    let mut annuity = 0.;
+    let mut probability = 0.5_f64.powi(n as i32);
+    for k in 0..=n {
+        let rate = forward + s * f64::from(2 * k) / f64::from(n).sqrt() - s * f64::from(n).sqrt();
+        let (u, a) = underlying(expiry, months, rate, strike);
+        annuity = a;
+        let mut state = template.clone();
+        state.state_id = format!("k{k}");
+        state.probability = probability;
+        state.discount_to_expiry = discount_to_expiry;
+        state.underlying = u;
+        r.states.push(state);
+        probability *= f64::from(n - k) / f64::from(k + 1);
+    }
+    r.tail_end_ordinal = r.states[0].underlying.tail_end_ordinal;
+    (r, discount_to_expiry * annuity)
+}
+
+fn bachelier(forward: f64, strike: f64, s: f64) -> f64 {
+    // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7), independent of the native pricer.
+    let erfc = |x: f64| {
+        let t = 1. / (1. + 0.3275911 * x.abs());
+        let y = t
+            * (0.254829592
+                + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))))
+            * (-x * x).exp();
+        if x >= 0. {
+            y
+        } else {
+            2. - y
+        }
+    };
+    let d = (forward - strike) / s;
+    (forward - strike) * 0.5 * erfc(-d / 2_f64.sqrt())
+        + s * (-d * d / 2.).exp() / (2. * std::f64::consts::PI).sqrt()
+}
+
+#[test]
+fn european_swaption_scales_with_the_underlying_annuity_across_tenors_and_converges_to_bachelier() {
+    // Normal volatility 1% a year over six months to expiry.
+    let s = 0.01 * 0.5_f64.sqrt();
+    for (forward, strike) in [(0.04, 0.04), (0.045, 0.04), (0.035, 0.04)] {
+        let mut per_annuity = vec![];
+        for months in [3, 12, 36] {
+            let (r, scale) = binomial_swaption(months, 63, forward, strike, s);
+            let out = value_european(&r).unwrap();
+            // Every state values the raw underlying swap: payer value = annuity * (rate - strike).
+            let expected: f64 = r
+                .states
+                .iter()
+                .map(|x| {
+                    let Coupon::Indexed { observations, .. } =
+                        &x.underlying.floating_periods[0].coupon
+                    else {
+                        unreachable!()
+                    };
+                    x.probability * (observations[0].rate - strike).max(0.)
+                })
+                .sum::<f64>()
+                * scale;
+            assert!(
+                (out.clean_value - expected).abs() <= 1e-12 * expected.abs().max(1.) + 1e-9,
+                "{months}: {} != {expected}",
+                out.clean_value
+            );
+            per_annuity.push(out.clean_value / scale);
+        }
+        // Same terminal rate law: value per unit of expiry-discounted annuity is tenor invariant.
+        for x in &per_annuity[1..] {
+            assert!((x - per_annuity[0]).abs() <= 1e-12 * per_annuity[0].abs() + 1e-15);
+        }
+        // Refining the supplied terminal law converges to the closed-form Bachelier value.
+        let target = bachelier(forward, strike, s);
+        let errors: Vec<f64> = [15, 63, 255]
+            .iter()
+            .map(|&n| {
+                let (r, scale) = binomial_swaption(12, n, forward, strike, s);
+                (value_european(&r).unwrap().clean_value / scale - target).abs() / target
+            })
+            .collect();
+        assert!(errors[0] > errors[1] && errors[1] > errors[2], "{errors:?}");
+        assert!(errors[2] < 1.5e-3, "{errors:?}");
+    }
 }

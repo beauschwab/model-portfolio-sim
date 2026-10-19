@@ -1,0 +1,587 @@
+{
+ "currency": "USD",
+ "dates": [
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738886
+    },
+    {
+     "discount_factor": 0.9918145070108791,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.9876116222305686,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.9835612726675135,
+     "ordinal": 739007
+    },
+    {
+     "discount_factor": 0.9793933615569415,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1000.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1000.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1000.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 738886
+  },
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738917
+    },
+    {
+     "discount_factor": 0.9960352776079207,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.9918145070108791,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.9877469207606989,
+     "ordinal": 739007
+    },
+    {
+     "discount_factor": 0.9835612726675135,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1050.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1040.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1030.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1020.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1045.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1036.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1028.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1018.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 738917
+  },
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738946
+    },
+    {
+     "discount_factor": 0.9957624286087757,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.9916786513153159,
+     "ordinal": 739007
+    },
+    {
+     "discount_factor": 0.9874763422332141,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1080.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1060.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1050.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1040.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738946,
+       "price": 1070.0
+      },
+      {
+       "delivery_ordinal": 738977,
+       "price": 1055.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1046.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1036.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 738946
+  },
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 738977
+    },
+    {
+     "discount_factor": 0.9958988437642043,
+     "ordinal": 739007
+    },
+    {
+     "discount_factor": 0.9916786513153159,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738977,
+       "price": 1020.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1010.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1000.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 738977,
+       "price": 1022.0
+      },
+      {
+       "delivery_ordinal": 739007,
+       "price": 1012.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 1002.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 738977
+  },
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 739007
+    },
+    {
+     "discount_factor": 0.9957624286087757,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 739007,
+       "price": 990.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 995.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 739007,
+       "price": 992.0
+      },
+      {
+       "delivery_ordinal": 739038,
+       "price": 996.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 739007
+  },
+  {
+   "discount": [
+    {
+     "discount_factor": 1.0,
+     "ordinal": 739038
+    }
+   ],
+   "indices": [
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 739038,
+       "price": 1000.0
+      }
+     ],
+     "index_id": "pe-gulf",
+     "source": {
+      "id": "pe-gulf-assessment",
+      "revision": "r1"
+     }
+    },
+    {
+     "forwards": [
+      {
+       "delivery_ordinal": 739038,
+       "price": 1001.0
+      }
+     ],
+     "index_id": "pe-europe",
+     "source": {
+      "id": "pe-europe-assessment",
+      "revision": "r1"
+     }
+    }
+   ],
+   "ordinal": 739038
+  }
+ ],
+ "entity": "bank",
+ "events": [
+  {
+   "delivery_id": "mar",
+   "event_id": "use-mar-40",
+   "exposure_id": "pe-purchases",
+   "fraction": 0.4,
+   "kind": "consumption",
+   "ordinal": 738977,
+   "review": {
+    "id": "inventory-relief",
+    "revision": "r1"
+   }
+  },
+  {
+   "delivery_id": "mar",
+   "event_id": "use-mar-60",
+   "exposure_id": "pe-purchases",
+   "fraction": 0.6,
+   "kind": "consumption",
+   "ordinal": 739038,
+   "review": {
+    "id": "inventory-relief",
+    "revision": "r1"
+   }
+  },
+  {
+   "delivery_id": "apr",
+   "event_id": "use-apr",
+   "exposure_id": "pe-purchases",
+   "fraction": 1.0,
+   "kind": "consumption",
+   "ordinal": 739038,
+   "review": {
+    "id": "inventory-relief",
+    "revision": "r1"
+   }
+  }
+ ],
+ "exposures": [
+  {
+   "asset": "polyethylene",
+   "component": {
+    "evidence": {
+     "id": "pe-gulf-clearly-and-closely-related",
+     "revision": "r1"
+    },
+    "index_id": "pe-gulf",
+    "kind": "clearly_and_closely_related",
+    "market": "forward"
+   },
+   "deliveries": [
+    {
+     "delivery_id": "mar",
+     "ordinal": 738946,
+     "quantity": 100.0
+    },
+    {
+     "delivery_id": "apr",
+     "ordinal": 738977,
+     "quantity": 100.0
+    }
+   ],
+   "direction": "purchase",
+   "exposure_id": "pe-purchases",
+   "probability_evidence": {
+    "id": "purchase-history",
+    "revision": "r1"
+   },
+   "quantity_unit": "metric_ton",
+   "source": {
+    "id": "procurement-plan",
+    "revision": "r1"
+   }
+  },
+  {
+   "asset": "polyethylene",
+   "component": {
+    "contract": {
+     "id": "sales-pricing-formula",
+     "revision": "r1"
+    },
+    "index_id": "pe-gulf",
+    "kind": "contractually_specified"
+   },
+   "deliveries": [
+    {
+     "delivery_id": "may",
+     "ordinal": 739007,
+     "quantity": 50.0
+    }
+   ],
+   "direction": "sale",
+   "exposure_id": "pe-sales",
+   "probability_evidence": {
+    "id": "sales-contract-signed",
+    "revision": "r1"
+   },
+   "quantity_unit": "metric_ton",
+   "source": {
+    "id": "sales-contract",
+    "revision": "r1"
+   }
+  }
+ ],
+ "instruments": [
+  {
+   "fixed_price": 1000.0,
+   "index_id": "pe-gulf",
+   "legs": [
+    {
+     "leg_id": "mar",
+     "quantity": 100.0,
+     "settlement_ordinal": 738946
+    },
+    {
+     "leg_id": "apr",
+     "quantity": 100.0,
+     "settlement_ordinal": 738977
+    }
+   ],
+   "position_id": "swap-purchase",
+   "side": "receive_index",
+   "source": {
+    "id": "swap-purchase-confirmation",
+    "revision": "r1"
+   },
+   "trade_ordinal": 738886
+  },
+  {
+   "fixed_price": 1000.0,
+   "index_id": "pe-gulf",
+   "legs": [
+    {
+     "leg_id": "may",
+     "quantity": 50.0,
+     "settlement_ordinal": 739007
+    }
+   ],
+   "position_id": "swap-sale",
+   "side": "pay_index",
+   "source": {
+    "id": "swap-sale-confirmation",
+    "revision": "r1"
+   },
+   "trade_ordinal": 738886
+  }
+ ],
+ "model_version": "nonfinancial-hedge-1",
+ "monetary_unit": "currency_units",
+ "policy": {
+  "assessment_lower_bound": 0.8,
+  "assessment_upper_bound": 1.25,
+  "asu_2025_09_adoption": {
+   "adoption_ordinal": 738886,
+   "review": {
+    "id": "asu-2025-09-adoption",
+    "revision": "r1"
+   }
+  },
+  "identity": {
+   "id": "nfh-policy",
+   "revision": "r1"
+  }
+ },
+ "relationships": [
+  {
+   "designation_ordinal": 738886,
+   "documentation": {
+    "id": "cfh-purchases-documentation",
+    "revision": "r1"
+   },
+   "exposure_id": "pe-purchases",
+   "instrument_position_id": "swap-purchase",
+   "legs": [
+    {
+     "delivery_id": "mar",
+     "leg_id": "mar"
+    },
+    {
+     "delivery_id": "apr",
+     "leg_id": "apr"
+    }
+   ],
+   "relationship_id": "cfh-purchases"
+  },
+  {
+   "designation_ordinal": 738886,
+   "documentation": {
+    "id": "cfh-sales-documentation",
+    "revision": "r1"
+   },
+   "exposure_id": "pe-sales",
+   "instrument_position_id": "swap-sale",
+   "legs": [
+    {
+     "delivery_id": "may",
+     "leg_id": "may"
+    }
+   ],
+   "relationship_id": "cfh-sales"
+  }
+ ],
+ "run": {
+  "id": "nfh-run",
+  "revision": "r1"
+ },
+ "schema": "nonfinancial-hedge-1"
+}

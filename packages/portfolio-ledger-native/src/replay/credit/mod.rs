@@ -18,6 +18,11 @@ pub const SCHEMA: &str = "credit-ledger-1";
 pub const PROTOCOL: u32 = 4;
 pub const MAX_WORK: usize = 90_000_000;
 pub const MAX_CONTRACTS: usize = 62_000;
+/// Explicit `acceptance_60000` tier: 60,000 positions in each of a baseline and a stress run.
+pub const ACCEPTANCE_MAX_CONTRACTS: usize = 124_000;
+pub const ACCEPTANCE_TIER: &str = "acceptance_60000";
+/// Retained recovery claims per run under the acceptance tier (still bounded by MAX_WORK).
+pub const ACCEPTANCE_MAX_CLAIMS: usize = 1_000_000;
 pub const MAX_BOUNDARIES: usize = 1_000_000;
 mod strict_action;
 
@@ -78,6 +83,9 @@ pub struct CreditReplayRequest {
     pub as_of_ordinal: i32,
     pub specification: Value,
     pub runs: Vec<CreditReplayRun>,
+    /// Explicitly selected acceptance tier; absent keeps the historical contract bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale_tier: Option<String>,
 }
 struct Position {
     account: usize,
@@ -99,6 +107,7 @@ pub struct CompiledCreditReplay {
     runs: Vec<Run>,
     admitted_work: usize,
     max_work: usize,
+    max_claims: usize,
 }
 
 fn near(a: f64, b: f64) -> bool {
@@ -230,6 +239,11 @@ impl CompiledCreditReplay {
             .map(|(i, a)| (a.id.as_str(), i))
             .collect();
         let positions: HashMap<_, _> = spec.positions.iter().map(|p| (p.id.as_str(), p)).collect();
+        let (max_contracts, max_claims) = match request.scale_tier.as_deref() {
+            None => (MAX_CONTRACTS, crate::journal::credit::MAX_CLAIMS),
+            Some(ACCEPTANCE_TIER) => (ACCEPTANCE_MAX_CONTRACTS, ACCEPTANCE_MAX_CLAIMS),
+            Some(_) => return Err("unknown credit acceptance tier".into()),
+        };
         let mut runs = Vec::with_capacity(request.runs.len());
         for r in request.runs {
             portfolio_compute_control::checkpoint()?;
@@ -245,7 +259,7 @@ impl CompiledCreditReplay {
             contracts = contracts
                 .checked_add(r.positions.len())
                 .ok_or("credit contract count overflow")?;
-            if contracts > MAX_CONTRACTS {
+            if contracts > max_contracts {
                 return Err("credit replay exceeds 62000 run-position contracts".into());
             }
             let mut seen = BTreeSet::new();
@@ -310,7 +324,7 @@ impl CompiledCreditReplay {
                         return Err("opening claims require unique IDs belonging to their retained credit namespace".into());
                     }
                 }
-                if opening_claim_ids.len() > crate::journal::credit::MAX_CLAIMS {
+                if opening_claim_ids.len() > max_claims {
                     return Err("aggregate opening run claims exceed 62000 retained claims".into());
                 }
                 let principal = live_sum(&p.opening, |x| x.principal)
@@ -501,6 +515,7 @@ impl CompiledCreditReplay {
             runs,
             admitted_work,
             max_work,
+            max_claims,
         })
     }
 }
@@ -757,7 +772,7 @@ pub fn run<W: Write>(compiled: CompiledCreditReplay, output: W) -> Result<(), St
                 .iter()
                 .map(|s| s.accounting.claims.len())
                 .sum::<usize>();
-            if claim_count > crate::journal::credit::MAX_CLAIMS {
+            if claim_count > compiled.max_claims {
                 return Err("aggregate run recovery claims exceed 62000 retained claims".into());
             }
             work = work
@@ -872,7 +887,7 @@ pub fn run<W: Write>(compiled: CompiledCreditReplay, output: W) -> Result<(), St
                 .iter()
                 .map(|s| s.accounting.claims.len())
                 .sum::<usize>();
-            if total_claims > crate::journal::credit::MAX_CLAIMS {
+            if total_claims > compiled.max_claims {
                 return Err("aggregate closing claims exceed native retention bound".into());
             }
             reconcile(
@@ -973,15 +988,27 @@ fn reconcile<W: Write>(
             .filter(|((i, g, _), _)| *i == ai && *g == "cash")
             .map(|(_, v)| v)
             .sum::<f64>();
+        // Each side is a sum of many balances in a different order (GL key order versus position
+        // order). Count the terms and their magnitude so the comparison allows floating
+        // summation error (about n * eps * sum|terms|) on top of the fixed tolerance.
+        let (mut terms, mut magnitude) = (0usize, 0f64);
         let assets = gl
             .iter()
             .filter(|((i, g, _), _)| *i == ai && is_asset(g))
-            .map(|(_, v)| v)
+            .map(|(_, v)| {
+                terms += 1;
+                magnitude += v.abs();
+                v
+            })
             .sum::<f64>();
         let equity = a.equity
             - gl.iter()
                 .filter(|((i, g, _), _)| *i == ai && is_earnings(g))
-                .map(|(_, v)| v)
+                .map(|(_, v)| {
+                    terms += 1;
+                    magnitude += v.abs();
+                    v
+                })
                 .sum::<f64>();
         let mut source_assets = cash;
         let mut allowance = 0.;
@@ -993,23 +1020,28 @@ fn reconcile<W: Write>(
         {
             let _ = p;
             allowance += state.accounting.allowance;
-            source_assets += live_sum(state, |r| {
+            let live = live_sum(state, |r| {
                 r.principal + r.book_adjustment + r.accrued_interest
             }) - state.accounting.allowance;
-            source_assets += state
-                .accounting
-                .claims
-                .iter()
-                .map(|c| {
-                    c.outstanding_principal
-                        + c.outstanding_book_adjustment
-                        + c.outstanding_accrued_interest
-                })
-                .sum::<f64>();
+            source_assets += live;
+            terms += 4;
+            magnitude += live.abs() + state.accounting.allowance.abs();
+            for c in &state.accounting.claims {
+                let claim = c.outstanding_principal
+                    + c.outstanding_book_adjustment
+                    + c.outstanding_accrued_interest;
+                source_assets += claim;
+                terms += 3;
+                magnitude += claim.abs();
+            }
         }
         let error = (assets - equity).abs().max((assets - source_assets).abs());
         *max_error = max_error.max(error);
-        if !near(assets, equity) || !near(assets, source_assets) {
+        let summed = |x: f64, y: f64| {
+            near(x, y)
+                || (x - y).abs() <= terms as f64 * f64::EPSILON * magnitude.max(a.equity.abs())
+        };
+        if !summed(assets, equity) || !summed(assets, source_assets) {
             return Err("daily credit GL/source subledger reconciliation failed".into());
         }
         for v in [cash, assets, equity, allowance] {

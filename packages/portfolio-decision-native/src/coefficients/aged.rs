@@ -225,6 +225,7 @@ fn solve_prepared(
             template: u.template.clone(),
             h: u.h,
             side: u.side,
+            swap: false,
         })
         .collect();
     let mut scenarios = Vec::with_capacity(s);

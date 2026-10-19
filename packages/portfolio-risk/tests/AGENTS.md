@@ -1416,3 +1416,12 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Formal hedge relationships (local 0.29.19)
+
+`test_hedge_accounting.py` runs the native `hedge-accounting-1` owner on the
+synthetic two-period example and hand cases (partial dedesignation, sale,
+forecast not occurring, failed assessment, supplied hypothetical), verifies each
+with the independent reference, rejects tampered results and native refusals,
+and proves fresh-process execution with Python financial callbacks forbidden.
+Rust hand/lifecycle/refusal tests live in `portfolio-risk-native/tests/hedge_accounting.rs`.

@@ -62,6 +62,31 @@ pub struct Unit {
     pub template: String,
     pub h: usize,
     pub side: f64,
+    /// An explicitly selected off-balance-sheet swap unit (library `kind == "swap"`). Only the
+    /// swap marker is retained or serialized, so historical units keep their exact bytes.
+    #[serde(
+        default,
+        rename = "kind",
+        deserialize_with = "swap_kind",
+        serialize_with = "swap_kind_out",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub swap: bool,
+}
+fn swap_kind<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
+    Ok(<Option<String> as Deserialize>::deserialize(d)?.as_deref() == Some("swap"))
+}
+fn swap_kind_out<S: serde::Serializer>(_: &bool, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str("swap")
+}
+impl Unit {
+    /// Funded balance-sheet asset: swaps carry notional but never assets, funding or cost caps.
+    pub fn asset(&self) -> bool {
+        self.side > 0. && !self.swap
+    }
+    pub fn liability(&self) -> bool {
+        self.side < 0. && !self.swap
+    }
 }
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Scenario {
@@ -331,7 +356,7 @@ impl Solver {
                 let mut coefs: Vec<_> = units
                     .iter()
                     .zip(&f.purchase_costs)
-                    .map(|(u, cost)| if u.side > 0. { *cost } else { 0. })
+                    .map(|(u, cost)| if u.asset() { *cost } else { 0. })
                     .collect();
                 coefs.push(0.);
                 rows.push(Row {
@@ -490,7 +515,7 @@ impl Solver {
                     .iter()
                     .zip(&x)
                     .zip(&f.purchase_costs)
-                    .filter(|((u, _), _)| u.side > 0.)
+                    .filter(|((u, _), _)| u.asset())
                     .map(|((_, a), p)| a * p)
                     .sum();
                 if !cost.is_finite()
@@ -517,7 +542,7 @@ impl Solver {
                     "numerator":numerator,"denominator":denominator,"ratio":numerator/denominator,
                     "required_ratio":r.required_ratio,"headroom":numerator-r.required_ratio*denominator})
             }).collect();
-            let mut value = json!({"feasible":true,"worst_case_nii_$":t,"allocation":allocations,"binding_constraints":binding,"replay":replay,"capital_replay":capital_replay,"native_max_violation_$":max_violation,"total_new_assets_$":units.iter().zip(&x).filter(|(u,_)|u.side>0.).map(|(_,x)|x).sum::<f64>()});
+            let mut value = json!({"feasible":true,"worst_case_nii_$":t,"allocation":allocations,"binding_constraints":binding,"replay":replay,"capital_replay":capital_replay,"native_max_violation_$":max_violation,"total_new_assets_$":units.iter().zip(&x).filter(|(u,_)|u.asset()).map(|(_,x)|x).sum::<f64>()});
             if !product_limits.is_empty() {
                 value["product_face_replay"] = json!(product_face_replay);
             }
@@ -730,7 +755,7 @@ fn rows(units: &[Unit], scenarios: &[Scenario], c: &Constraints) -> Vec<Row> {
         add(
             units
                 .iter()
-                .map(|u| if u.side > 0. { 1. } else { 0. })
+                .map(|u| if u.asset() { 1. } else { 0. })
                 .collect(),
             0.,
             cap,
@@ -744,8 +769,8 @@ fn rows(units: &[Unit], scenarios: &[Scenario], c: &Constraints) -> Vec<Row> {
                 .iter()
                 .map(|u| {
                     if x.template == u.template
-                        || (x.template == "ALL_ASSET" && u.side > 0.)
-                        || (x.template == "ALL_LIAB" && u.side < 0.)
+                        || (x.template == "ALL_ASSET" && u.asset())
+                        || (x.template == "ALL_LIAB" && u.liability())
                     {
                         sign
                     } else {
@@ -825,7 +850,7 @@ pub fn evaluate_product_allocation(
         .iter()
         .zip(x)
         .zip(&funding.purchase_costs)
-        .filter(|((u, _), _)| u.side > 0.)
+        .filter(|((u, _), _)| u.asset())
         .map(|((_, x), p)| x * p)
         .sum();
     if !cost.is_finite()
@@ -900,8 +925,8 @@ fn validate_allocation(
             .zip(x)
             .filter(|(u, _)| {
                 u.template == target
-                    || target == "ALL_ASSET" && u.side > 0.
-                    || target == "ALL_LIAB" && u.side < 0.
+                    || target == "ALL_ASSET" && u.asset()
+                    || target == "ALL_LIAB" && u.liability()
             })
             .map(|(_, n)| n)
             .sum::<f64>()

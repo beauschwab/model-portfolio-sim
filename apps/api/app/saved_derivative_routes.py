@@ -31,3 +31,9 @@ def example():
     from .storage_config import ROOT
     from portfolio_risk.analytics.saved_derivative_identity import loads
     return loads((ROOT/'examples/models/saved-derivative-mixed-1.json').read_bytes())
+
+@router.get('/hedge-mixed/example')
+def hedge_example():
+    from .storage_config import ROOT
+    from portfolio_risk.analytics.saved_derivative_identity import loads
+    return loads((ROOT/'examples/models/saved-hedge-mixed-1.json').read_bytes())

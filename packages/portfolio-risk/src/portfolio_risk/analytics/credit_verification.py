@@ -50,16 +50,35 @@ def replay_credit_journal(frames):
     return dict(balances),count
 
 
-def compare(row, expected):
+def compare(row, expected, sums=None):
+    """`sums` maps an aggregate column to (terms, magnitude): the native ledger adds that many
+    balances term by term, so its rounding is bounded by terms * eps * magnitude, while this
+    reference sums them exactly. Every other column keeps the fixed tolerance."""
     if row.keys() != expected.keys(): raise ArithmeticError('credit persisted columns differ')
     for key, value in expected.items():
         actual = row[key]
         if isinstance(value, (float, np.floating)):
             good = close(actual, value)
+            if not good and sums and key in sums:
+                terms, magnitude = sums[key]
+                good = math.isfinite(actual) and abs(actual - value) <= terms * 1.12e-16 * magnitude
         elif isinstance(value, (list, np.ndarray)):
             good = len(actual) == len(value) and all(close(a, b) for a, b in zip(actual, value))
         else: good = actual == value
         if not good: raise ArithmeticError(f'credit persisted source mismatch: {key}: {actual} != {value}')
+
+
+def aggregate_sums(balances, account, allowances):
+    """Term counts and magnitudes of the native running sums behind each aggregate column."""
+    def part(values):
+        values = list(values)
+        return len(values), math.fsum(abs(v) for v in values)
+    cash = part(v for g, v in balances if g == 'cash')
+    assets = part(v for g, v in balances if g in ASSETS)
+    earnings = part(v for g, v in balances if g in EARNINGS)
+    equity = (earnings[0] + 1, earnings[1] + abs(account['equity']))
+    return dict(cash=cash, assets=assets, equity=equity, allowance=part(allowances),
+                reconciliation_error=(assets[0] + equity[0], assets[1] + equity[1]))
 
 
 def coefficients(contract):
@@ -209,10 +228,10 @@ def verify_credit_sources(raw, spec, writer, check):
             check()
             yield from frame.iter_rows(named=True)
     streams = {table: iter(rows(table)) for table in ('journal','credit_states','credit_claims','credit_lineage','daily_balance','trial_balance','summary')}
-    def take(table, expected):
+    def take(table, expected, sums=None):
         got = next(streams[table], None)
         if got is None: raise ArithmeticError(f'missing credit {table} evidence')
-        compare(got, expected)
+        compare(got, expected, sums)
     transaction = 0; state_count = claim_count = 0
     accounts = [vars(a) for a in spec['accounts']]
     horizon = spec['horizon_days']; asof = raw['as_of_ordinal']; end = asof+horizon
@@ -251,6 +270,7 @@ def verify_credit_sources(raw, spec, writer, check):
                     lines += [(f'credit_default_{k}',claim['claim_id'],claim[f'outstanding_{k}']) for k in ('principal','accrued_interest','book_adjustment')]
             post('opening_balance',lines)
         max_error = 0.
+        max_sum=(0,0.)
         for day in range(1,horizon+1):
             check(); ordinal=asof+day
             for o in sources:
@@ -276,16 +296,20 @@ def verify_credit_sources(raw, spec, writer, check):
                 equity=account['equity']-math.fsum(v for g,v in balances if g in EARNINGS)
                 allowance=math.fsum(o.allowance for o in sources if o.source['account_id']==name)
                 error=abs(assets-equity);max_error=max(max_error,error)
+                sums=aggregate_sums(balances,account,[o.allowance for o in sources if o.source['account_id']==name])
+                max_sum=max(max_sum,sums['reconciliation_error'],key=lambda x:x[0]*x[1])
                 take('daily_balance',dict(labels,day=day,ordinal=ordinal,account=name,entity=account['entity'],currency=account['currency'],
-                    cash=cash,assets=assets,equity=equity,allowance=allowance,reconciliation_error=error))
+                    cash=cash,assets=assets,equity=equity,allowance=allowance,reconciliation_error=error),sums)
         for account in accounts:
             name=account['id']
             for (_,g,i),value in sorted((k,v) for k,v in gl.items() if k[0]==name):
                 take('trial_balance',dict(labels,account=name,gl_account=g,instrument_id=i,balance=value))
             balances=[(g,v) for (a,g,_),v in gl.items() if a==name]
+            sums=aggregate_sums(balances,account,[])
             take('summary',dict(labels,account=name,final_cash=math.fsum(v for g,v in balances if g=='cash'),
                 final_assets=math.fsum(v for g,v in balances if g in ASSETS),
-                final_equity=account['equity']-math.fsum(v for g,v in balances if g in EARNINGS),max_reconciliation_error=max_error))
+                final_equity=account['equity']-math.fsum(v for g,v in balances if g in EARNINGS),max_reconciliation_error=max_error),
+                dict(final_cash=sums['cash'],final_assets=sums['assets'],final_equity=sums['equity'],max_reconciliation_error=max_sum))
     for table, stream in streams.items():
         if next(stream,None) is not None: raise ArithmeticError(f'unexpected extra credit {table} evidence')
     check()
