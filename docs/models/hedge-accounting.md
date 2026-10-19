@@ -705,7 +705,9 @@ instrument, proportion, item or exposure, inception, benchmark) and reviewed
 events (assess, discontinue with reason, forecast status, rate election, debt
 issuance and replacement), then run. Results show the independent replay
 receipt and approval status, with tabs for relationships, lifecycle history,
-assessments, basis and OCI roll-forwards and the journal, Parquet download per
+assessments, basis and OCI roll-forwards and the journal, and, when the ASC 815
+disclosure tables are enabled with a reporting date, derivative fair values, hedge
+earnings, hedged item basis and cash-flow hedge AOCI. Each table has a Parquet download per
 table, request JSON download, and reopening a stored job by id. All transport
 goes through `apps/web/src/lib/api.ts`; the panel adds no financial logic.
 Browser evidence: `apps/web/tests/hedge-accounting.spec.ts` against durable
