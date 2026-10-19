@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stage A)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A and B)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -111,9 +111,73 @@ Tests are in `packages/portfolio-model-core/tests/lifecycle.rs` unless noted.
 | Bounded admission | Record and byte bounds | `admission_is_bounded` |
 | Decision preflight | Refusal before financial generation | `workflows::lifecycle::tests` in the Decision crate |
 
-## Not in this stage
+## Stage B: native acquisition replay (#44)
 
-Opening balance-sheet reconciliation from carrying values, native acquisition and unwind
-coordination, voluntary funding and derivative exits, margin recalculation, the shared journal, the
-independent Rust verifier, the Rust API and worker, saved-book adoption, long-term policies,
-prepared allocations and scale are stages B to I (#44 to #51).
+Stage B replays a security purchase, its financing advance and pledge, a hedge entry with cash
+variation margin, and supplied exact initial margin, and posts the result in the existing daily
+Sim beside a reviewed dated backbook. Code: `portfolio-model-core/src/lifecycle/acquisition.rs`
+(engine) and `journal.rs` (shared kinds), `portfolio-ledger-native/src/owners/lifecycle.rs` and
+`replay/daily/lifecycle_hooks.rs` (owner), and the Decision coordinator
+`workflows/lifecycle/acquisition.rs`, exposed by the `portfolio-model-ledger` process as schema
+`liquidity-lifecycle-1`. All code and tests are Rust.
+
+### Request
+
+`{schema, dated, plan, acquisitions[], hedge_contracts[]}`: the reviewed `dated-ledger-1`
+backbook, the stage A plan (admitted from its own bytes), one acquisition block per dated run,
+and the raw swap contract for every hedge entry. Every plan account is a dated account with the
+same opening cash and equity, so the opening is posted once by the Sim.
+
+| Instruction | Fields | Rule |
+|---|---|---|
+| Security purchase | new security lot, reviewed quote, trade and settlement dates, clean price per 100, accrued interest, fees, delivery versus payment | The lot's original cost must equal clean cost plus fees. Carrying is face plus a book adjustment of cost less face: no purchase-price gain is manufactured. Accrued interest is a receivable; fees are expensed. |
+| Financing advance | new funding lot, advance date, principal, plan pledge | Principal equals the lot quantity and is advanced once; an opening contract is never advanced again. The pledge must secure that lot and deliver an owned, unencumbered quantity. |
+| Hedge entry | new derivative lot, margin agreement, entry date, upfront consideration, VM terms (thresholds, minimum transfer) | The clean value is priced natively from the raw swap at the entry date. Upfront consideration must equal it, so no day-one gain or loss exists. Exposure beyond a threshold is called at entry and settles after the agreement's lag as posted or received VM. |
+| Supplied initial margin | agreement, portfolio lot ids, scenario, date, posted and received requirement, review | Bound to the exact live portfolio, scenario and entry date, else `MARGIN_REFRESH_REQUIRED`. Posted IM is cash to a posted-IM asset; received IM is custody memo only. |
+
+Reservation (trade date), obligation creation and settlement are separate: intents post on the
+settlement day in phase order (advance, purchase, pledge, entry, VM, IM). Cash may never go
+negative after an event (`INSUFFICIENT_SETTLEMENT_LIQUIDITY`), a pledge needs owned unencumbered
+inventory (`INVENTORY_UNAVAILABLE`), and no cash plug or emergency facility is invented.
+
+Received VM under a segregated agreement reduces usable cash once, in the daily closing; the GL
+keeps the gross received stock. Under a reusable agreement it is usable.
+
+### Journal
+
+Kinds and GLs: `cash`, `opening_equity`, `asset_principal`, `book_adjustment`,
+`dated_interest_receivable`, `funding_principal`, `derivative_asset`, `derivative_liability`,
+`derivative_posted_vm_asset`, `derivative_received_vm_liability`, `derivative_posted_im_asset`,
+`pnl:lifecycle_fees`, and the custody memo pair. Instruments are namespaced `@lifecycle:<lot or
+agreement id>`; a dated position cannot alias one. The owner reconciles its book to the engine's
+daily closings every day, and the Sim's daily balance-sheet identity includes the lifecycle
+stocks. Lineage rows: `lifecycle_journal_lineage` and `lifecycle_custody_journal`.
+
+The engine's receipt reports the cash bridge, inventory and collateral conservation, gross
+derivative stocks and fees; the process header carries the native entry valuations with their
+pricing source and the plan's SHA-256.
+
+### Hand fixture
+
+Opening cash 100 (the dated account). Day 1: a 95 repo advance; a bond bought at 99.5 clean plus
+0.5 accrued and 0.25 fees for a 100 lot (cost 100.25); the bond pledged to the repo; a payer swap
+priced at -4 and entered for -4 upfront; 3 IM posted and 2 received in custody. Day 2: 4 VM posted.
+Cash 100 → 195 → 94.75 → 98.75 → 95.75 → 91.75. Assets less liabilities fall by exactly the fee.
+Tests: `portfolio-model-core/tests/lifecycle_acquisition.rs` (engine) and
+`portfolio-decision-native/tests/lifecycle_acquisition.rs` (coordinator, shared Sim and the
+native process).
+
+### Not in stage B
+
+Formal hedge accounting of an acquisition refuses with `FORMAL_OWNER_REQUIRED`: the
+`hedge-accounting-1` intents are not yet bound to this journal, and there is no fallback to
+undesignated treatment. Post-entry derivative settlements and marks, coupons on the purchased
+security, unwinds, voluntary exits, dynamic IM, offsetting trades and the independent Rust
+verifier are stages C to I. The acquisition is one Physical plan: the same intents post in every
+dated run, and the supplied IM must be bound per scenario.
+
+## Not in stages A and B
+
+Unwind coordination, voluntary funding and derivative exits, margin recalculation after
+population changes, the independent Rust verifier, the Rust API and worker, saved-book adoption,
+long-term policies, prepared allocations and scale are stages C to I (#45 to #51).

@@ -1,7 +1,8 @@
-//! Decision preflight for `liquidity-lifecycle-1` (stage A, issue #43). Admission runs before
-//! any financial generation: missing or duplicate owners, unknown fields, overallocated shared
-//! resources and cyclic settlement dependencies refuse with a typed code. Acquisition and unwind
-//! coordination (stages B and C) build on an admitted plan only.
+//! Decision coordination for `liquidity-lifecycle-1`. Stage A (issue #43) is the preflight that
+//! runs admission before any financial generation. Stage B (issue #44) is `acquisition`: native
+//! acquisition replay through the Risk swap pricer, the model-core engine and the ledger owner.
+pub mod acquisition;
+
 use portfolio_model_core::lifecycle::{self, Admitted, Refusal};
 use serde_json::{json, Value};
 
@@ -24,8 +25,9 @@ pub fn preflight_json(bytes: &[u8]) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const FIXTURE: &str =
-        include_str!("../../../portfolio-model-core/tests/fixtures/lifecycle/unwind-bridge.json");
+    const FIXTURE: &str = include_str!(
+        "../../../../portfolio-model-core/tests/fixtures/lifecycle/unwind-bridge.json"
+    );
 
     #[test]
     fn preflight_admits_the_worked_unwind_and_refuses_overallocation_before_generation() {
