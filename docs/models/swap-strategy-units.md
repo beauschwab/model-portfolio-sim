@@ -44,6 +44,11 @@ apply the same rule as the independent reference.
 - A strategy allocation is an economic position. It does not designate a hedge.
   Hedge accounting stays in the durable `hedge-accounting-1` and
   `saved-hedge-mixed-1` lanes, which need reviewed documentation.
+- Units are strict. A unit carries only `template`, `h`, `side` and `kind`, and the
+  kind is one the library produces (`mbs`, `corp`, `cd`, `deposit`, `swap`). A
+  designation field or any other kind is refused by the native solver and the Python
+  reference, so accounting eligibility is never inferred or approximated in the
+  interactive path.
 - Swap units carry no collateral, margin, CVA or DVA cost, and no netting set.
 - Only fixed-for-floating swaps on the existing short-rate model are offered.
   Options and cross-currency swaps have no unit template.
