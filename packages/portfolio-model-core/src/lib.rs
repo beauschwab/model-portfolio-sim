@@ -57,6 +57,7 @@ pub use transport::strict_json;
 pub mod accounting;
 pub mod cashflows;
 pub mod conventions;
+pub mod lifecycle;
 pub mod models;
 pub mod products;
 pub mod transport;

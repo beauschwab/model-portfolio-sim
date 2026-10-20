@@ -2,6 +2,7 @@ pub mod candidates;
 pub mod commercial;
 pub mod consumer;
 pub mod deposits;
+pub mod lifecycle;
 pub mod mixed;
 pub mod mortgages;
 pub(crate) mod owned;
