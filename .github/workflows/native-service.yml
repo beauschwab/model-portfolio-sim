@@ -1,0 +1,82 @@
+name: Rust workbench service
+
+on:
+  push:
+    paths:
+      - 'apps/api-rust/**'
+      - 'packages/portfolio-verification-native/**'
+      - 'apps/web/src/lib/native-api.generated.ts'
+      - 'apps/api/app/repository.py'
+      - '.github/workflows/native-service.yml'
+  pull_request:
+    paths:
+      - 'apps/api-rust/**'
+      - 'packages/portfolio-verification-native/**'
+      - 'apps/web/src/lib/native-api.generated.ts'
+      - 'apps/api/app/repository.py'
+      - '.github/workflows/native-service.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  service:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --manifest-path apps/api-rust/Cargo.toml -- --check
+      - run: cargo clippy --locked --manifest-path apps/api-rust/Cargo.toml --all-targets --features s3,fault-injection -- -D warnings
+      # SQLite; every service process runs with a cleared environment and an empty PATH.
+      - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features fault-injection
+
+  storage:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: workbench_test
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: workbench_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U workbench_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql://workbench_test:local_test_only@localhost:5432/workbench_test
+      TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      TEST_S3_BUCKET: workbench-native-test
+      AWS_ACCESS_KEY_ID: local_test_only
+      AWS_SECRET_ACCESS_KEY: local_test_only_secret
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.1
+      - name: Start MinIO and create the test bucket
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=$AWS_ACCESS_KEY_ID -e MINIO_ROOT_PASSWORD=$AWS_SECRET_ACCESS_KEY \
+            minio/minio:latest server /data
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
+          docker run --rm --network host --entrypoint sh minio/mc:latest -c \
+            "mc alias set local http://127.0.0.1:9000 $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY && mc mb local/$TEST_S3_BUCKET"
+      # PostgreSQL and SQLite for every scenario, and selected S3 publication.
+      - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features s3,fault-injection
+
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.1
+      - run: sudo apt-get update && sudo apt-get install -y cmake libclang-dev
+      # The real native producer, built with Cargo only.
+      - run: cargo build --release --locked --manifest-path packages/portfolio-decision-native/Cargo.toml --bin portfolio-model-ledger
+      - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --test live
+        env:
+          WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger

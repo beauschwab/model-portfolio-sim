@@ -1,0 +1,922 @@
+{
+  "components": {
+    "schemas": {
+      "Admission": {
+        "properties": {
+          "deadline_at": {
+            "type": "number"
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "duplicate",
+          "deadline_at",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "Authority": {
+        "properties": {
+          "admitted_at": {
+            "type": "number"
+          },
+          "admitted_revision": {
+            "type": "integer"
+          },
+          "authority_sha256": {
+            "type": "string"
+          },
+          "deadline_at": {
+            "type": "number"
+          },
+          "executable_name": {
+            "type": "string"
+          },
+          "executable_sha256": {
+            "type": "string"
+          },
+          "raw": {
+            "$ref": "#/components/schemas/Descriptor"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "verifier": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "raw",
+          "admitted_revision",
+          "admitted_at",
+          "deadline_at",
+          "executable_name",
+          "executable_sha256",
+          "verifier",
+          "authority_sha256"
+        ],
+        "type": "object"
+      },
+      "Cancelled": {
+        "properties": {
+          "cancelled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cancelled"
+        ],
+        "type": "object"
+      },
+      "Descriptor": {
+        "properties": {
+          "bytes": {
+            "type": "integer"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "parquet",
+              "bin"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sha256",
+          "bytes",
+          "format"
+        ],
+        "type": "object"
+      },
+      "Health": {
+        "properties": {
+          "engine": {
+            "enum": [
+              "rust",
+              "legacy"
+            ],
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "fault_injection": {
+            "type": "boolean"
+          },
+          "native_schema": {
+            "type": "integer"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "engine",
+          "epoch",
+          "native_schema",
+          "fault_injection"
+        ],
+        "type": "object"
+      },
+      "Job": {
+        "properties": {
+          "attempt": {
+            "type": "integer"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/Authority"
+          },
+          "created_at": {
+            "type": "number"
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "progress": {},
+          "published": {
+            "type": "boolean"
+          },
+          "result": {},
+          "revision": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "revision",
+          "attempt",
+          "created_at",
+          "finished_at",
+          "detail",
+          "progress",
+          "result",
+          "published",
+          "authority"
+        ],
+        "type": "object"
+      },
+      "JobList": {
+        "items": {
+          "$ref": "#/components/schemas/JobSummary"
+        },
+        "type": "array"
+      },
+      "JobStatus": {
+        "enum": [
+          "native_queued",
+          "native_running",
+          "native_done",
+          "native_error",
+          "native_cancelled"
+        ],
+        "type": "string"
+      },
+      "JobSummary": {
+        "properties": {
+          "attempt": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "number"
+          },
+          "finished_at": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "revision",
+          "attempt",
+          "created_at",
+          "finished_at"
+        ],
+        "type": "object"
+      },
+      "Manifest": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "Refusal": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "Revision": {
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "number"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/Descriptor"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "manifest",
+          "created_at",
+          "actor",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RevisionHead": {
+        "properties": {
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "Snapshot": {
+        "properties": {
+          "documents": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Descriptor"
+            },
+            "type": "object"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "schema": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "revision",
+          "documents"
+        ],
+        "type": "object"
+      },
+      "TablePage": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "table": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "table",
+          "offset",
+          "limit",
+          "total",
+          "rows"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Same-origin native admission, durable leased worker and verified publication (issue #47).",
+    "title": "Rust workbench service",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/native/documents/{name}": {
+      "put": {
+        "operationId": "commitDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Expected head revision.",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Raw strict JSON; the bytes are stored and hashed exactly as sent.",
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionHead"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Commit an immutable named lifecycle document as the next revision"
+      }
+    },
+    "/native/health": {
+      "get": {
+        "operationId": "health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Service, schema and routing state"
+      }
+    },
+    "/native/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Native job metadata, newest first"
+      }
+    },
+    "/native/jobs/{id}": {
+      "get": {
+        "operationId": "job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A freshly built job view (never authority)"
+      }
+    },
+    "/native/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "cancelJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cancelled"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel a queued or running native job"
+      }
+    },
+    "/native/jobs/{id}/manifest": {
+      "get": {
+        "operationId": "manifest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifest"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The completed publication manifest, reread and checksum-verified"
+      }
+    },
+    "/native/jobs/{id}/tables/{table}": {
+      "get": {
+        "operationId": "tablePage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TablePage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One bounded page of a published table"
+      }
+    },
+    "/native/lifecycle/runs": {
+      "post": {
+        "operationId": "submitLifecycleRun",
+        "parameters": [
+          {
+            "description": "Workspace revision the submission was prepared against; a stale value is refused.",
+            "in": "header",
+            "name": "X-Expected-Revision",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repeated keys return the original job for identical input.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Original deadline from admission, within [1, 3600] (the native execution bound); retries never reset it.",
+            "in": "header",
+            "name": "X-Deadline-Seconds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "document",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Raw strict JSON; the bytes are stored and hashed exactly as sent.",
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Admit a durable liquidity-lifecycle-1 run (raw body, or ?document= at the expected revision)"
+      }
+    },
+    "/native/revisions/head": {
+      "get": {
+        "operationId": "revisionHead",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionHead"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current workspace revision"
+      }
+    },
+    "/native/revisions/{revision}": {
+      "get": {
+        "operationId": "revision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Revision"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One immutable revision row"
+      }
+    },
+    "/native/revisions/{revision}/snapshot": {
+      "get": {
+        "operationId": "snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verified native snapshot of a revision (native workspaces only)"
+      }
+    }
+  }
+}

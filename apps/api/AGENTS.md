@@ -49,6 +49,10 @@ outside their reference context and forbid Python financial callbacks.
   Tests must use temporary files, unique workspaces, and loopback ports. Never
   modify a user's existing dev or production database to validate changes.
 - Keep `docs/production-storage.md` and `.env.example` aligned with behavior.
+- The Rust service (`apps/api-rust`, #47) shares `jobs`/`workspaces`/`revisions` and the object
+  layout. Its jobs use `native_*` statuses, so the legacy claim must keep selecting only `queued`
+  and requeueing only `running`. `Repository.acquire` refuses a workspace that `worker_routes`
+  routes to Rust. Shared table changes must stay in step with `apps/api-rust/src/migrate.rs`.
 - `/balance-stress/stream` is durable-worker-only. Preserve queued native identity,
   cancellation/lease fencing and partition descriptors; never hydrate its full
   journal in the API or concatenate all partitions for paging/downloads. Large-book

@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to D)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to E)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -278,8 +278,42 @@ Not in stage D: the formal ASC 815 lanes (no intents are bound yet), Parquet par
 (the Python API persists them today; the Rust service of stage E will own that), and any claim of
 empirical or accounting-standard validity.
 
-## Not in stages A to D
+## Stage E: Rust service, durable worker and verified publication (#47)
 
-Post-entry derivative marks and coupons, dynamic IM, the Rust API and worker with Parquet
-publication, saved-book adoption, long-term policies, prepared allocations and scale are stages E
-to I (#47 to #51).
+`apps/api-rust` (crate `workbench-native`) is one binary with four roles. `api` is same-origin HTTP
+admission, `worker` is the leased durable worker, and `admin` handles migration, initialization,
+cutover and status. `contract` generates the HTTP contract. It runs the native
+`portfolio-model-ledger` process and the stage D verifier, and contains no financial calculation and
+no Python. Every scenario below is an actual process test (`tests/service.rs`, `tests/fencing.rs`)
+on SQLite and, with `TEST_POSTGRES_URL`, PostgreSQL. Every service process runs with a cleared
+environment and an empty `PATH`.
+
+| Concern | Behavior |
+|---|---|
+| Shared storage | The existing `workspaces`, `revisions` and `jobs` tables and the object layout of `apps/api/app/artifacts.py` (workspace-hashed prefix, content-addressed keys, `{key, sha256, bytes, format}` descriptors) are reused unchanged. A fresh environment creates them with the SQLAlchemy definitions (`schema_version` 2). Rust-owned tables (`worker_routes`, `native_workspaces`, `native_job_authority`, `native_publications`) are versioned in `native_migrations` with a SHA-256 per migration; drift or a newer database refuses. |
+| Scope | One process serves its configured tenant and workspace; no request selects either or a storage prefix. |
+| Admission | `POST /native/lifecycle/runs` takes the raw body (strict JSON, duplicate keys refused, 8 MiB) or `?document=` at the expected revision, requires `X-Expected-Revision` (a stale value is refused), and stores the raw bytes before the job row commits. A repeated `Idempotency-Key` returns the original job and original deadline for byte-identical input and refuses anything else, across API restarts. |
+| Revisions | Native workspaces commit immutable named documents with `PUT /native/documents/{name}` and `If-Match`; snapshots are reread with checksums. Workspaces whose snapshots the Python service owns are readable but refuse native commits. |
+| Authority | Admission writes one immutable `native_job_authority` row: raw descriptor and hash, admitted revision, original deadline, producer executable name and SHA-256, verifier, and the digest of all of them. The worker reads authority only from it; a job view that disagrees, or an authority row edited after admission, is refused (`AUTHORITY_MISMATCH`). |
+| Routing and cutover | Native jobs use `native_queued`/`native_running`/`native_done`/`native_error`/`native_cancelled`; the legacy oldest-job claim selects only `queued` and requeues only `running`, so it can neither consume nor reset them. `admin cutover --to rust` requires the legacy queue drained and no live legacy lease; `--to legacy` requires the native queue drained and no live native lease. Each change advances an epoch that fences leases and publication. The Python worker refuses the lease of a workspace routed to Rust. |
+| Lease and attempts | The workspace lease is the only compute ownership, taken only while routed to Rust. A new holder requeues work a previous holder left running; that attempt's token cannot publish. Three attempts at most; a job past its original deadline fails at claim without running. Retries never reset the deadline. |
+| Execution | The producer receives `{"execution_timeout_ms": <time left to the original deadline>, "request": <raw bytes>}`. A watchdog kills it on the deadline, lease loss, cancellation or an output above 256 MiB. The executable hash is checked before the run and again before publication (`EXECUTABLE_CHANGED`). |
+| Publication | The stream is verified independently; then the verbatim stream (4 MiB whole-line chunks), bounded table pages and the manifest are written; the manifest, every chunk and page are reread with checksums and the reread stream is verified again. Only then does one transaction, under the workspace lock, check lease, epoch, authority digest, attempt token (not cancelled or superseded) and the original deadline, and insert the completed manifest. Cancellation or expiry during final I/O leaves no completed manifest. |
+| Reopen | `GET /native/jobs/{id}/manifest` and `/tables/{table}?offset&limit` read only the pages that overlap the window, each checksum-verified; journal dictionary columns are decoded. Local files and, with the `s3` feature, S3-compatible buckets are supported (`tests/s3.rs`, MinIO in CI). |
+| HTTP guard | A browser `Origin` other than the configured one, or a cross-site fetch, is refused; a bearer token is required when configured and always in production. |
+| Contract | `contract/openapi.json` and `apps/web/src/lib/native-api.generated.ts` are generated by the binary from one route table; a test fails when either is stale. Tests also check that the service links no production financial crate and invokes no Python, and that the shared DDL matches `repository.py`. |
+
+`tests/live.rs` runs the real producer through the whole path when `WORKBENCH_TEST_LEDGER_EXE` names
+a built `portfolio-model-ledger`; CI builds it with Cargo alone.
+
+Not in stage E: the ASC 815 lane (#35) on this service. Its jobs need an independent Rust hedge
+verifier, so `hedge-accounting-1` stays on the Python durable route and the shared-path acceptance
+item remains open. Also not in stage E: Parquet and Iceberg delivery of lifecycle tables (JSON
+pages are published, and the verbatim stream is what verification replays), Rust-side object
+collection (the offline Python maintenance tool now counts native active jobs) and any browser
+workflow (stage F).
+
+## Not in stages A to E
+
+Post-entry derivative marks and coupons, dynamic IM, saved-book adoption, long-term policies,
+prepared allocations and scale are stages F to I (#48 to #51).
