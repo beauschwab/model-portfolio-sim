@@ -3,6 +3,11 @@ name: Rust workbench service
 on:
   push:
     paths:
+      - 'packages/portfolio-model-core/src/lifecycle/**'
+      - 'apps/web/src/pages/LiquidityLifecycle.tsx'
+      - 'apps/web/src/lib/api.ts'
+      - 'apps/web/tests/liquidity-lifecycle.spec.ts'
+      - 'apps/web/playwright.native.config.ts'
       - 'apps/api-rust/**'
       - 'packages/portfolio-verification-native/**'
       - 'apps/web/src/lib/native-api.generated.ts'
@@ -10,6 +15,11 @@ on:
       - '.github/workflows/native-service.yml'
   pull_request:
     paths:
+      - 'packages/portfolio-model-core/src/lifecycle/**'
+      - 'apps/web/src/pages/LiquidityLifecycle.tsx'
+      - 'apps/web/src/lib/api.ts'
+      - 'apps/web/tests/liquidity-lifecycle.spec.ts'
+      - 'apps/web/playwright.native.config.ts'
       - 'apps/api-rust/**'
       - 'packages/portfolio-verification-native/**'
       - 'apps/web/src/lib/native-api.generated.ts'
@@ -76,5 +86,18 @@ jobs:
       # The real native producer, built with Cargo only.
       - run: cargo build --release --locked --manifest-path packages/portfolio-decision-native/Cargo.toml --bin portfolio-model-ledger
       - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --test live
+        env:
+          WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger
+      # The browser flow against the Rust service only: no Python API, worker or verifier runs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: cargo build --locked --manifest-path apps/api-rust/Cargo.toml
+      - run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: bunx playwright test -c playwright.native.config.ts --reporter=line
+        working-directory: apps/web
         env:
           WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger

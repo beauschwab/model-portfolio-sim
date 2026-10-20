@@ -18,3 +18,9 @@
   `cargo test --features fault-injection`. Set `TEST_POSTGRES_URL`, `TEST_S3_ENDPOINT`/`TEST_S3_BUCKET`
   and `WORKBENCH_TEST_LEDGER_EXE` to repeat the scenarios on PostgreSQL, S3 and the live producer.
   `fault-injection` is test-only; never enable it in a deployment.
+- Saved-book composition (`src/compose.rs`) is structural only: it binds the saved revision, checks
+  references and explicit treatments, and assembles the request. Never compute amounts there, and
+  never map `formal` treatment to the economic lane. Liquidity amounts shown in the workbench come
+  from the verified native receipt (`steps`) or published tables.
+- `workbench-native dev` runs a native workspace, the API and the worker in one process for local
+  development and `apps/web/playwright.native.config.ts`; deployments run `api` and `worker` apart.

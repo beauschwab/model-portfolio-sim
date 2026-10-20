@@ -322,3 +322,53 @@ fn dependencies_must_be_known_and_earlier_and_formal_treatment_is_refused() {
         LIFECYCLE_MAPPING_REQUIRED
     );
 }
+
+#[test]
+fn liquidity_steps_show_the_bridge_need_and_when_margin_becomes_usable() {
+    let j = run(&raw()).unwrap();
+    let steps = &j.receipt.steps;
+    assert_eq!(steps.len(), j.receipt.events.len());
+    for line in steps {
+        eprintln!(
+            "{} {} cash {:+} -> {} usable {} drawn {} undrawn {} pledged {} vm {} im {} pend +{} -{}",
+            line.ordinal, line.event_id, line.cash_movement, line.cash_after, line.usable_cash_after,
+            line.facility_drawn_after, line.facility_undrawn_after, line.pledged_quantity_after,
+            line.posted_vm_after, line.posted_im_after, line.pending_receivable_after,
+            line.pending_payable_after
+        );
+    }
+    let step = |id: &str| {
+        steps
+            .iter()
+            .find(|s| s.event_id == id)
+            .unwrap_or_else(|| panic!("{id}"))
+    };
+    // The repo repayment needs 95 before any sale cash exists: the draw is what funds it.
+    near(step("draw").cash_movement, 95.);
+    near(step("draw").facility_drawn_after, 95.);
+    near(step("repay-repo").cash_movement, -95.);
+    near(step("repay-repo").cash_after, 0.);
+    // The bond stays pledged until its release, so the sale cannot settle before it.
+    assert!(step("repay-repo").pledged_quantity_after > 0.);
+    near(
+        step("release:bond-to-repo:738887").pledged_quantity_after,
+        0.,
+    );
+    near(step("sell-bond").cash_movement, 100.);
+    near(step("sell-bond").security_quantity_after, 0.);
+    near(step("repay-bridge").facility_drawn_after, 0.);
+    // Posted VM and IM are restricted collateral until their settled returns on later days.
+    assert!(step("repay-bridge").posted_vm_after > 0. && step("repay-bridge").posted_im_after > 0.);
+    let vm = step("vm_return:swap-lot");
+    assert!(vm.ordinal > step("draw").ordinal);
+    near(vm.posted_vm_after, 0.);
+    let last = steps.last().unwrap();
+    near(last.cash_after, 6.);
+    near(last.usable_cash_after, 6.);
+    near(last.posted_im_after, 0.);
+    // Undrawn capacity is reported separately and never counted in cash.
+    for s in steps {
+        near(s.usable_cash_after, s.cash_after - s.restricted_cash_after);
+        assert!(s.facility_undrawn_after >= 0.);
+    }
+}

@@ -255,6 +255,17 @@ pub struct Fact {
     pub economic_allocation_ids: Vec<String>,
     pub formal_relationship_ids: Vec<String>,
 }
+/// The independently replayed liquidity state after one event (see the native `LiquidityStep`).
+#[derive(Debug, Clone)]
+pub struct Step {
+    pub event_id: String,
+    pub ordinal: i64,
+    pub phase: u32,
+    pub status: &'static str,
+    pub depends_on: Vec<String>,
+    /// (field, value) in the native field order.
+    pub amounts: Vec<(&'static str, f64)>,
+}
 #[derive(Debug, Clone)]
 pub struct Expected {
     pub opening_cash_bits: u64,
@@ -263,6 +274,7 @@ pub struct Expected {
     pub closing_cash: f64,
     pub cash_movements: f64,
     pub events: Vec<(String, &'static str)>,
+    pub steps: Vec<Step>,
     pub facts: Vec<Fact>,
     pub posted_vm: f64,
     pub received_vm: f64,
@@ -934,9 +946,12 @@ pub fn replay(
         .collect();
     let mut settled: BTreeSet<String> = BTreeSet::new();
     let mut statuses = Vec::new();
+    let mut steps = Vec::new();
+    let commitment: f64 = plan.facilities.iter().map(|f| f.commitment).sum();
     let mut facts = Vec::new();
     let (mut fees, mut realized) = (0., 0.);
     for e in &events {
+        let cash_before = book.cash;
         if e.ordinal < asof || e.ordinal > end {
             return Err(format!(
                 "independent replay: `{}` is outside the horizon",
@@ -1318,6 +1333,56 @@ pub fn replay(
             "settled"
         };
         statuses.push((e.id.clone(), status));
+        // Restricted cash: received VM held under a segregated agreement (independently from
+        // the received VM liability balances, not from a running counter).
+        let restricted: f64 = plan
+            .margin_agreements
+            .iter()
+            .filter(|a| a.segregation == "segregated")
+            .map(|a| -book.balance("received_vm", &a.agreement_id))
+            .sum();
+        let total = |name: &str| -> f64 {
+            book.financial
+                .iter()
+                .filter(|((g, _), _)| g == gl(name))
+                .map(|(_, v)| v)
+                .sum()
+        };
+        let drawn_total: f64 = drawn.values().sum();
+        let securities: f64 = plan
+            .lots
+            .iter()
+            .filter(|l| l.kind == "security" && l.account_id == account_id)
+            .map(|l| owned.get(&l.lot_id).copied().unwrap_or(0.))
+            .sum();
+        steps.push(Step {
+            event_id: e.id.clone(),
+            ordinal: e.ordinal,
+            phase: e.phase,
+            status,
+            depends_on: e.depends_on.clone(),
+            amounts: vec![
+                ("cash_movement", book.cash - cash_before),
+                ("cash_after", book.cash),
+                ("restricted_cash_after", restricted),
+                ("usable_cash_after", book.cash - restricted),
+                ("facility_drawn_after", drawn_total),
+                ("facility_undrawn_after", commitment - drawn_total),
+                ("pledged_quantity_after", pledged.values().sum()),
+                ("security_quantity_after", securities),
+                ("posted_vm_after", total("posted_vm")),
+                ("received_vm_after", -total("received_vm")),
+                ("posted_im_after", total("posted_im")),
+                ("received_im_custody_after", custody.values().sum()),
+                ("pending_receivable_after", total("unpaid_receivable")),
+                ("pending_payable_after", -total("unpaid_payable")),
+                ("derivative_assets_after", total("derivative_asset")),
+                (
+                    "derivative_liabilities_after",
+                    -total("derivative_liability"),
+                ),
+            ],
+        });
     }
     let stock_sum = |name: &str| -> f64 {
         book.financial
@@ -1345,6 +1410,7 @@ pub fn replay(
         closing_cash: book.cash,
         cash_movements: book.moved,
         events: statuses,
+        steps,
         facts,
         posted_vm,
         received_vm,

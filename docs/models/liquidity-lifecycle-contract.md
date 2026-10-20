@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to E)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to F)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -313,7 +313,39 @@ pages are published, and the verbatim stream is what verification replays), Rust
 collection (the offline Python maintenance tool now counts native active jobs) and any browser
 workflow (stage F).
 
-## Not in stages A to E
+## Stage F: saved books and the workbench (#48)
 
-Post-entry derivative marks and coupons, dynamic IM, saved-book adoption, long-term policies,
-prepared allocations and scale are stages F to I (#48 to #51).
+A saved book and a plan are native documents committed through the stage E revisions, and the
+Liquidity Lifecycle panel in the web workbench drives them through the Rust service alone.
+
+| Concern | Behavior |
+|---|---|
+| Saved book | `liquidity-book-1` holds one book: the dated source, the plan records (entity, currency, opening accounts, lots, hedge and funding allocations, pledges, margin agreements, facilities, formal relationships, obligations), raw hedge contracts and scenario horizons. Unknown fields are refused. |
+| Plan | `liquidity-plan-1` holds actions (acquisition, unwind, offset, rebalance, refinance; full or partial lot quantities; `economic` or `formal` treatment), one block of explicit instructions (purchases, financings, facility draws and repayments, funding repayments with pledge releases, sales, hedge entries, terminations, supplied IM), and the explicit hedge treatment and financing instruction for every affected allocation. |
+| Composition | `POST /native/lifecycle/compose?book=` (plan in the body or `?plan=`) binds `saved_book_revision` to `<revision>:<book sha256>` and `workspace_revision` to the workspace and revision, and assembles the request. It computes no amounts. The worked-unwind book and plan compose exactly the stage C request apart from that binding. |
+| Mapping refusals | `LIFECYCLE_MAPPING_REQUIRED` lists every gap at once, each with its record and fix: unknown lots, facilities, agreements or pledges; quantities outside (0, lot quantity] for an exit; a pledged security sold without a repayment that releases it; an affected hedge or funding allocation without explicit treatment; `terminate` without a termination or `repay` without a repayment. An incomplete plan is never admitted as a run. |
+| Formal treatment | Composition never maps `formal` to the economic lane. The native owner refuses it with `FORMAL_OWNER_REQUIRED` until a formal lane is implemented, and the job records that native code. The paired formal and economic plans compose requests that differ only in the treatment. |
+| Liquidity steps | The native receipt gains `steps`, one per event in execution order. Each step records the event's cash movement and, after it, cash, restricted cash (segregated received VM), usable cash, facility drawn and undrawn capacity, pledged and owned securities, posted and received VM and IM, pending receipts and payments (unpaid termination consideration), derivative assets and liabilities, status and dependencies. The stage D verifier recomputes every step from its own replay and refuses an altered, reordered or missing step. |
+| Results | `GET /native/jobs/{id}/receipt` returns the verified producer receipt from its own checksummed publication object; the manifest, tables and pages reopen after an API restart. |
+| Workbench | The panel shows the saved book (facilities as capacity, not cash), edits full and partial actions and the treatments, lists planned obligations, checks the mapping, runs and reopens jobs, and shows the liquidity timeline, obligations (settled, failed, blocked; pending receipts and payments), collateral and facilities, accounting facts and the paged published tables with a page-by-page download. Every amount comes from the native receipt or published tables. The funding-need note names the facility draw, the payment that depends on it and the later VM and IM returns. |
+
+In the worked unwind the timeline shows a 95 bridge draw when usable cash is 0, the 95 repo repayment
+that depends on it, the release before the sale, the bridge repayment from the sale, and usable cash
+rising to 3 and then 6 as posted VM and IM return on later days, while undrawn capacity stays
+separate from cash.
+
+Tests: `apps/api-rust/tests/lifecycle_book.rs` (composition fidelity, every refusal, formal pairing,
+HTTP documents), `tests/live.rs` (saved book through the live producer, verification, publication,
+restart and reopen, formal refusal), the model-core liquidity-step test, the verifier's step tamper
+test, and `apps/web/tests/liquidity-lifecycle.spec.ts`, which runs only `workbench-native dev` and Vite
+(`bunx playwright test -c playwright.native.config.ts`). No Python API, worker, verifier or build runs
+in that browser flow.
+
+Not in stage F: a formal ASC 815 lane inside the lifecycle (formal plans are refused), browser editing
+of every instruction field outside the JSON editor, and saved books mapped from the Python product
+books (their frames carry no lot-level funding, pledge or margin records).
+
+## Not in stages A to F
+
+Post-entry derivative marks and coupons, dynamic IM, long-term policies, prepared allocations and
+scale are stages G to I (#49 to #51).

@@ -5,7 +5,7 @@
 use crate::config::Config;
 use crate::objects::{Descriptor, Objects};
 use crate::repo::{Repo, Submission};
-use crate::{publish, Refusal};
+use crate::{compose, publish, Refusal};
 use portfolio_verification_native::MAX_REQUEST_BYTES;
 use serde_json::{json, Value};
 use std::io::Read;
@@ -30,7 +30,7 @@ pub fn status_for(code: &str) -> u16 {
     match code {
         "NOT_FOUND" => 404,
         "MALFORMED_INPUT" => 400,
-        "UNSUPPORTED_SCHEMA" => 422,
+        "UNSUPPORTED_SCHEMA" | compose::MAPPING_REQUIRED | "BOUND_EXCEEDED" => 422,
         "BODY_TOO_LARGE" => 413,
         "UNAUTHORIZED" => 401,
         "CROSS_ORIGIN" => 403,
@@ -148,6 +148,83 @@ impl App {
         Ok(value)
     }
 
+    /// Saved documents: raw lifecycle requests, saved books and lifecycle plans.
+    fn document(&self, raw: &[u8]) -> Result<(), Refusal> {
+        let value = portfolio_verification_native::raw::parse(raw, MAX_REQUEST_BYTES)
+            .map_err(|e| Refusal::new("MALFORMED_INPUT", e))?;
+        match value.get("schema").and_then(Value::as_str) {
+            Some(crate::LIFECYCLE_SCHEMA) => Ok(()),
+            Some(compose::BOOK_SCHEMA) => compose::parse_book(raw).map(|_| ()),
+            Some(compose::PLAN_SCHEMA) => compose::parse_plan(raw).map(|_| ()),
+            _ => Err(Refusal::new(
+                "UNSUPPORTED_SCHEMA",
+                format!(
+                    "saved documents are `{}`, `{}` or `{}`",
+                    crate::LIFECYCLE_SCHEMA,
+                    compose::BOOK_SCHEMA,
+                    compose::PLAN_SCHEMA
+                ),
+            )),
+        }
+    }
+
+    fn saved(&self, revision: i64, name: &str) -> Result<(Descriptor, Vec<u8>), Refusal> {
+        let snapshot = self.repo.snapshot(&self.objects, revision)?;
+        let d = snapshot["documents"].get(name).ok_or_else(|| {
+            Refusal::new(
+                "NOT_FOUND",
+                format!("document `{name}` is not in revision {revision}"),
+            )
+        })?;
+        let d = Descriptor::from_json(d)?;
+        let bytes = self.objects.get_bounded(&d, MAX_REQUEST_BYTES as u64)?;
+        Ok((d, bytes))
+    }
+
+    fn revision_or_head(&self, incoming: &Incoming) -> Result<i64, Refusal> {
+        match query_param(incoming.query, "revision") {
+            Some(r) => parse_rev(&r),
+            None => self.repo.head()?.ok_or_else(|| {
+                Refusal::new("NOT_INITIALIZED", "workspace has not been initialized")
+            }),
+        }
+    }
+
+    /// Composes the request for `?book=` (and `?plan=` or the body) at the expected revision.
+    fn composed(&self, incoming: &Incoming, expected: i64) -> Result<compose::Composed, Refusal> {
+        let book_name = query_param(incoming.query, "book")
+            .ok_or_else(|| Refusal::new("MALFORMED_INPUT", "`book` names a saved book"))?;
+        let (book_d, book_bytes) = self.saved(expected, &book_name)?;
+        let book = compose::parse_book(&book_bytes)?;
+        let plan_bytes = match query_param(incoming.query, "plan") {
+            Some(name) => {
+                if !incoming.body.is_empty() {
+                    return Err(Refusal::new(
+                        "MALFORMED_INPUT",
+                        "a saved plan run has no body",
+                    ));
+                }
+                self.saved(expected, &name)?.1
+            }
+            None => incoming.body.to_vec(),
+        };
+        let plan = compose::parse_plan(&plan_bytes)?;
+        compose::compose(
+            &book,
+            &plan,
+            &compose::Binding {
+                workspace: &self.config.workspace,
+                revision: expected,
+                book_name: &book_name,
+                book_sha256: &book_d.sha256,
+            },
+        )
+        .map_err(|(mut r, needs)| {
+            r.requirements = needs.iter().map(compose::Requirement::to_json).collect();
+            r
+        })
+    }
+
     pub fn handle(&self, incoming: &Incoming) -> Result<Reply, Refusal> {
         self.guard(incoming)?;
         let parts: Vec<&str> = incoming
@@ -176,11 +253,56 @@ impl App {
             ("GET", ["native", "revisions", n, "snapshot"]) => {
                 ok(200, self.repo.snapshot(&self.objects, parse_rev(n)?)?)
             }
+            ("GET", ["native", "documents"]) => {
+                let revision = self.revision_or_head(incoming)?;
+                let snapshot = self.repo.snapshot(&self.objects, revision)?;
+                let mut docs = Vec::new();
+                for (name, d) in snapshot["documents"].as_object().into_iter().flatten() {
+                    let d = Descriptor::from_json(d)?;
+                    let bytes = self.objects.get_bounded(&d, MAX_REQUEST_BYTES as u64)?;
+                    let schema = serde_json::from_slice::<Value>(&bytes)
+                        .ok()
+                        .and_then(|v| v.get("schema").and_then(Value::as_str).map(str::to_string));
+                    docs.push(json!({"name": name, "schema": schema, "bytes": d.bytes, "sha256": d.sha256}));
+                }
+                ok(200, json!({"revision": revision, "documents": docs}))
+            }
+            ("GET", ["native", "documents", name]) => {
+                let revision = self.revision_or_head(incoming)?;
+                let (_, bytes) = self.saved(revision, name)?;
+                ok(
+                    200,
+                    serde_json::from_slice(&bytes)
+                        .map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))?,
+                )
+            }
+            ("POST", ["native", "lifecycle", "compose"]) => {
+                let expected = header_int(incoming, "X-Expected-Revision")?.ok_or_else(|| {
+                    Refusal::new("MALFORMED_INPUT", "X-Expected-Revision is required")
+                })?;
+                let c = self.composed(incoming, expected)?;
+                ok(
+                    200,
+                    json!({"request": c.request, "request_sha256": crate::sha256_hex(&c.bytes),
+                        "bytes": c.bytes.len(), "revision": expected}),
+                )
+            }
+            ("GET", ["native", "lifecycle", "example"]) => ok(
+                200,
+                json!({
+                    "book": serde_json::from_str::<Value>(compose::EXAMPLE_BOOK).expect("example book"),
+                    "plan": serde_json::from_str::<Value>(compose::EXAMPLE_PLAN).expect("example plan"),
+                }),
+            ),
+            ("GET", ["native", "jobs", id, "receipt"]) => {
+                let (d, _) = self.published(id)?;
+                ok(200, publish::receipt(&self.objects, &d)?)
+            }
             ("PUT", ["native", "documents", name]) => {
                 let expected = header_int(incoming, "If-Match")?.ok_or_else(|| {
                     Refusal::new("MALFORMED_INPUT", "If-Match names the expected revision")
                 })?;
-                self.strict(incoming.body)?;
+                self.document(incoming.body)?;
                 let d = self.objects.put(incoming.body, "json")?;
                 let revision =
                     self.repo
@@ -239,6 +361,9 @@ impl App {
             None => self.config.default_deadline_seconds,
         };
         let raw: Vec<u8> = match query_param(incoming.query, "document") {
+            _ if query_param(incoming.query, "book").is_some() => {
+                self.composed(incoming, expected)?.bytes
+            }
             Some(name) => {
                 if !incoming.body.is_empty() {
                     return Err(Refusal::new(
@@ -326,7 +451,11 @@ pub fn serve(app: App, threads: usize) -> Result<(), String> {
 fn respond(app: &App, request: &mut tiny_http::Request) -> Reply {
     let refusal = |r: Refusal| Reply {
         status: status_for(r.code),
-        body: json!({"code": r.code, "detail": r.detail}),
+        body: if r.requirements.is_empty() {
+            json!({"code": r.code, "detail": r.detail})
+        } else {
+            json!({"code": r.code, "detail": r.detail, "requirements": r.requirements})
+        },
     };
     if request.body_length().is_some_and(|n| n > MAX_REQUEST_BYTES) {
         return refusal(Refusal::new("BODY_TOO_LARGE", "request body exceeds 8 MiB"));

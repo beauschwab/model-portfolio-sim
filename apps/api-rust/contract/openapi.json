@@ -1,6 +1,78 @@
 {
   "components": {
     "schemas": {
+      "AccountingFact": {
+        "properties": {
+          "consideration": {
+            "type": "number"
+          },
+          "economic_allocation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "effective_ordinal": {
+            "type": "integer"
+          },
+          "formal_relationship_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lot_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "realized": {
+            "type": "number"
+          },
+          "removed_carrying": {
+            "type": "number"
+          },
+          "retained_quantity": {
+            "type": "number"
+          },
+          "settlement_ordinal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "lot_id",
+          "quantity",
+          "retained_quantity",
+          "effective_ordinal",
+          "settlement_ordinal",
+          "consideration",
+          "removed_carrying",
+          "realized",
+          "economic_allocation_ids",
+          "formal_relationship_ids"
+        ],
+        "type": "object"
+      },
+      "ActionLot": {
+        "properties": {
+          "lot_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lot_id",
+          "quantity"
+        ],
+        "type": "object"
+      },
       "Admission": {
         "properties": {
           "deadline_at": {
@@ -67,6 +139,277 @@
         ],
         "type": "object"
       },
+      "BookAccount": {
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "cash": {
+            "type": "number"
+          },
+          "equity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "account_id",
+          "cash",
+          "equity"
+        ],
+        "type": "object"
+      },
+      "BookFacility": {
+        "properties": {
+          "access_policy": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "commitment": {
+            "type": "number"
+          },
+          "drawn": {
+            "type": "number"
+          },
+          "expiry_ordinal": {
+            "type": "integer"
+          },
+          "facility_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_id",
+          "provider",
+          "commitment",
+          "drawn",
+          "expiry_ordinal"
+        ],
+        "type": "object"
+      },
+      "BookLot": {
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "accounting_category": {
+            "type": "string"
+          },
+          "acquisition_ordinal": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "security",
+              "loan",
+              "derivative",
+              "funding"
+            ],
+            "type": "string"
+          },
+          "lot_id": {
+            "type": "string"
+          },
+          "original_cost": {
+            "type": "number"
+          },
+          "original_effective_yield": {
+            "type": "number"
+          },
+          "original_oas": {
+            "type": "number"
+          },
+          "outside_encumbrance": {
+            "type": "number"
+          },
+          "position_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "source_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot_id",
+          "position_id",
+          "account_id",
+          "kind",
+          "accounting_category",
+          "quantity",
+          "original_cost"
+        ],
+        "type": "object"
+      },
+      "BookMarginAgreement": {
+        "properties": {
+          "agreement_id": {
+            "type": "string"
+          },
+          "counterparty": {
+            "type": "string"
+          },
+          "initial_margin": {
+            "type": "string"
+          },
+          "lot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "opening_collateral": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "segregation": {
+            "type": "string"
+          },
+          "settlement_lag_days": {
+            "type": "integer"
+          },
+          "vm_at_termination": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "counterparty",
+          "settlement_lag_days",
+          "initial_margin",
+          "segregation",
+          "vm_at_termination",
+          "lot_ids"
+        ],
+        "type": "object"
+      },
+      "BookPledge": {
+        "properties": {
+          "agreement_id": {
+            "type": "string"
+          },
+          "haircut": {
+            "type": "number"
+          },
+          "holder": {
+            "type": "string"
+          },
+          "lot_id": {
+            "type": "string"
+          },
+          "pledge_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pledge_id",
+          "lot_id",
+          "agreement_id",
+          "holder",
+          "quantity",
+          "haircut"
+        ],
+        "type": "object"
+      },
+      "BookRecords": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/BookAccount"
+            },
+            "type": "array"
+          },
+          "as_of_ordinal": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "facilities": {
+            "items": {
+              "$ref": "#/components/schemas/BookFacility"
+            },
+            "type": "array"
+          },
+          "formal_relationships": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "funding_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/FundingAllocation"
+            },
+            "type": "array"
+          },
+          "hedge_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/HedgeAllocation"
+            },
+            "type": "array"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/BookLot"
+            },
+            "type": "array"
+          },
+          "margin_agreements": {
+            "items": {
+              "$ref": "#/components/schemas/BookMarginAgreement"
+            },
+            "type": "array"
+          },
+          "monetary_unit": {
+            "type": "string"
+          },
+          "obligations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pledges": {
+            "items": {
+              "$ref": "#/components/schemas/BookPledge"
+            },
+            "type": "array"
+          },
+          "settlement_policy": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entity",
+          "currency",
+          "monetary_unit",
+          "as_of_ordinal",
+          "accounts",
+          "lots"
+        ],
+        "type": "object"
+      },
       "Cancelled": {
         "properties": {
           "cancelled": {
@@ -75,6 +418,30 @@
         },
         "required": [
           "cancelled"
+        ],
+        "type": "object"
+      },
+      "Composition": {
+        "properties": {
+          "bytes": {
+            "type": "integer"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "request_sha256": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request",
+          "request_sha256",
+          "bytes",
+          "revision"
         ],
         "type": "object"
       },
@@ -106,6 +473,116 @@
         ],
         "type": "object"
       },
+      "DocumentEntry": {
+        "properties": {
+          "bytes": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "schema",
+          "bytes",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "DocumentList": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentEntry"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision",
+          "documents"
+        ],
+        "type": "object"
+      },
+      "EventReceipt": {
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "ordinal": {
+            "type": "integer"
+          },
+          "phase": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          }
+        },
+        "required": [
+          "event_id",
+          "ordinal",
+          "phase",
+          "status"
+        ],
+        "type": "object"
+      },
+      "EventStatus": {
+        "enum": [
+          "settled",
+          "failed",
+          "blocked"
+        ],
+        "type": "string"
+      },
+      "FundingAllocation": {
+        "properties": {
+          "allocation_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "attributed_lot_id": {
+            "type": "string"
+          },
+          "funding_lot_id": {
+            "type": "string"
+          },
+          "instruction": {
+            "$ref": "#/components/schemas/FundingTreatment"
+          }
+        },
+        "required": [
+          "allocation_id",
+          "funding_lot_id",
+          "attributed_lot_id",
+          "amount",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "FundingTreatment": {
+        "enum": [
+          "repay",
+          "retain",
+          "replace"
+        ],
+        "type": "string"
+      },
       "Health": {
         "properties": {
           "engine": {
@@ -135,6 +612,120 @@
           "native_schema",
           "fault_injection"
         ],
+        "type": "object"
+      },
+      "HedgeAllocation": {
+        "properties": {
+          "allocation_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "exposure_lot_id": {
+            "type": "string"
+          },
+          "formal_relationship_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hedge_lot_id": {
+            "type": "string"
+          },
+          "risk_basis": {
+            "type": "string"
+          },
+          "unwind_treatment": {
+            "$ref": "#/components/schemas/HedgeTreatment"
+          }
+        },
+        "required": [
+          "allocation_id",
+          "exposure_lot_id",
+          "hedge_lot_id",
+          "amount",
+          "unwind_treatment"
+        ],
+        "type": "object"
+      },
+      "HedgeTreatment": {
+        "enum": [
+          "terminate",
+          "retain",
+          "offset",
+          "rebalance"
+        ],
+        "type": "string"
+      },
+      "Instructions": {
+        "properties": {
+          "facility_draws": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "facility_repayments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "financings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "hedge_entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "initial_margin": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "purchases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "repayments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "sales": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "terminations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [],
         "type": "object"
       },
       "Job": {
@@ -248,8 +839,328 @@
         ],
         "type": "object"
       },
+      "LifecycleAction": {
+        "properties": {
+          "accounting_treatment": {
+            "enum": [
+              "economic",
+              "formal"
+            ],
+            "type": "string"
+          },
+          "action_id": {
+            "type": "string"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "effective_ordinal": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "acquisition",
+              "unwind",
+              "offset",
+              "rebalance",
+              "refinance"
+            ],
+            "type": "string"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/ActionLot"
+            },
+            "type": "array"
+          },
+          "policy": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "settlement_ordinal": {
+            "type": "integer"
+          },
+          "trade_ordinal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action_id",
+          "kind",
+          "trade_ordinal",
+          "effective_ordinal",
+          "settlement_ordinal",
+          "lots",
+          "policy",
+          "accounting_treatment"
+        ],
+        "type": "object"
+      },
+      "LifecycleExample": {
+        "properties": {
+          "book": {
+            "$ref": "#/components/schemas/SavedBook"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/LifecyclePlan"
+          }
+        },
+        "required": [
+          "book",
+          "plan"
+        ],
+        "type": "object"
+      },
+      "LifecyclePlan": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/LifecycleAction"
+            },
+            "type": "array"
+          },
+          "funding_instructions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FundingTreatment"
+            },
+            "type": "object"
+          },
+          "hedge_treatments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HedgeTreatment"
+            },
+            "type": "object"
+          },
+          "instructions": {
+            "$ref": "#/components/schemas/Instructions"
+          },
+          "schema": {
+            "enum": [
+              "liquidity-plan-1"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "actions",
+          "instructions"
+        ],
+        "type": "object"
+      },
+      "LifecycleReceipt": {
+        "properties": {
+          "accounting_facts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountingFact"
+            },
+            "type": "array"
+          },
+          "cash_bridge_reconciled": {
+            "type": "boolean"
+          },
+          "closing_cash": {
+            "type": "number"
+          },
+          "collateral_conserved": {
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventReceipt"
+            },
+            "type": "array"
+          },
+          "fees_expensed": {
+            "type": "number"
+          },
+          "formal_hedge_accounting": {
+            "type": "boolean"
+          },
+          "gross_derivative_assets": {
+            "type": "number"
+          },
+          "gross_derivative_liabilities": {
+            "type": "number"
+          },
+          "inventory_conserved": {
+            "type": "boolean"
+          },
+          "open_claims": {
+            "type": "boolean"
+          },
+          "opening_cash": {
+            "type": "number"
+          },
+          "posted_im": {
+            "type": "number"
+          },
+          "posted_vm": {
+            "type": "number"
+          },
+          "realized": {
+            "type": "number"
+          },
+          "received_im_custody": {
+            "type": "number"
+          },
+          "received_vm": {
+            "type": "number"
+          },
+          "settled_cash_movements": {
+            "type": "number"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LiquidityStep"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "opening_cash",
+          "closing_cash",
+          "settled_cash_movements",
+          "posted_vm",
+          "received_vm",
+          "posted_im",
+          "received_im_custody",
+          "fees_expensed",
+          "realized",
+          "open_claims",
+          "events",
+          "steps",
+          "accounting_facts",
+          "formal_hedge_accounting"
+        ],
+        "type": "object"
+      },
+      "LiquidityStep": {
+        "properties": {
+          "cash_after": {
+            "type": "number"
+          },
+          "cash_movement": {
+            "type": "number"
+          },
+          "depends_on": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "derivative_assets_after": {
+            "type": "number"
+          },
+          "derivative_liabilities_after": {
+            "type": "number"
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "facility_drawn_after": {
+            "type": "number"
+          },
+          "facility_undrawn_after": {
+            "type": "number"
+          },
+          "ordinal": {
+            "type": "integer"
+          },
+          "pending_payable_after": {
+            "type": "number"
+          },
+          "pending_receivable_after": {
+            "type": "number"
+          },
+          "phase": {
+            "type": "integer"
+          },
+          "pledged_quantity_after": {
+            "type": "number"
+          },
+          "posted_im_after": {
+            "type": "number"
+          },
+          "posted_vm_after": {
+            "type": "number"
+          },
+          "received_im_custody_after": {
+            "type": "number"
+          },
+          "received_vm_after": {
+            "type": "number"
+          },
+          "restricted_cash_after": {
+            "type": "number"
+          },
+          "security_quantity_after": {
+            "type": "number"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          },
+          "usable_cash_after": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "event_id",
+          "ordinal",
+          "phase",
+          "status",
+          "depends_on",
+          "cash_movement",
+          "cash_after",
+          "restricted_cash_after",
+          "usable_cash_after",
+          "facility_drawn_after",
+          "facility_undrawn_after",
+          "pledged_quantity_after",
+          "security_quantity_after",
+          "posted_vm_after",
+          "received_vm_after",
+          "posted_im_after",
+          "received_im_custody_after",
+          "pending_receivable_after",
+          "pending_payable_after",
+          "derivative_assets_after",
+          "derivative_liabilities_after"
+        ],
+        "type": "object"
+      },
       "Manifest": {
         "additionalProperties": true,
+        "type": "object"
+      },
+      "ProducerReceipt": {
+        "properties": {
+          "workflow": {
+            "properties": {
+              "model_schema": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "string"
+              },
+              "source_receipt": {
+                "$ref": "#/components/schemas/SourceReceipt"
+              }
+            },
+            "required": [
+              "schema",
+              "model_schema",
+              "source_receipt"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "workflow"
+        ],
         "type": "object"
       },
       "Refusal": {
@@ -259,11 +1170,36 @@
           },
           "detail": {
             "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "type": "array"
           }
         },
         "required": [
           "code",
           "detail"
+        ],
+        "type": "object"
+      },
+      "Requirement": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "fix": {
+            "type": "string"
+          },
+          "record": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record",
+          "detail",
+          "fix"
         ],
         "type": "object"
       },
@@ -305,6 +1241,82 @@
         ],
         "type": "object"
       },
+      "SavedBook": {
+        "properties": {
+          "dated": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "hedge_contracts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/BookRecords"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioHorizon"
+            },
+            "type": "array"
+          },
+          "schema": {
+            "enum": [
+              "liquidity-book-1"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "dated",
+          "plan",
+          "hedge_contracts",
+          "scenarios"
+        ],
+        "type": "object"
+      },
+      "SavedDocument": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "ScenarioHorizon": {
+        "properties": {
+          "horizon_end_ordinal": {
+            "type": "integer"
+          },
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "horizon_end_ordinal"
+        ],
+        "type": "object"
+      },
+      "ScenarioJournal": {
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/LifecycleReceipt"
+          },
+          "scenario_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "account_id",
+          "receipt"
+        ],
+        "type": "object"
+      },
       "Snapshot": {
         "properties": {
           "documents": {
@@ -324,6 +1336,45 @@
           "schema",
           "revision",
           "documents"
+        ],
+        "type": "object"
+      },
+      "SourceReceipt": {
+        "properties": {
+          "disclosure": {
+            "type": "string"
+          },
+          "formal_hedge_accounting": {
+            "type": "boolean"
+          },
+          "hedge_entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "journals": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioJournal"
+            },
+            "type": "array"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "plan_sha256",
+          "formal_hedge_accounting",
+          "journals"
         ],
         "type": "object"
       },
@@ -373,7 +1424,99 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/native/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Saved documents of a revision (default head) with their schemas"
+      }
+    },
     "/native/documents/{name}": {
+      "get": {
+        "operationId": "document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "One saved document, reread with its checksum"
+      },
       "put": {
         "operationId": "commitDocument",
         "parameters": [
@@ -650,6 +1793,49 @@
         "summary": "The completed publication manifest, reread and checksum-verified"
       }
     },
+    "/native/jobs/{id}/receipt": {
+      "get": {
+        "operationId": "producerReceipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProducerReceipt"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The independently verified producer receipt of a publication: events, liquidity steps and accounting facts"
+      }
+    },
     "/native/jobs/{id}/tables/{table}": {
       "get": {
         "operationId": "tablePage",
@@ -717,6 +1903,111 @@
         "summary": "One bounded page of a published table"
       }
     },
+    "/native/lifecycle/compose": {
+      "post": {
+        "operationId": "composeLifecyclePlan",
+        "parameters": [
+          {
+            "description": "Workspace revision the submission was prepared against; a stale value is refused.",
+            "in": "header",
+            "name": "X-Expected-Revision",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "book",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plan",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Raw strict JSON; the bytes are stored and hashed exactly as sent.",
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Composition"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compose a saved book (?book=) and a plan (?plan= or the body) into a request, or list every mapping requirement"
+      }
+    },
+    "/native/lifecycle/example": {
+      "get": {
+        "operationId": "lifecycleExample",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleExample"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The worked unwind as a saved book and an unwind plan"
+      }
+    },
     "/native/lifecycle/runs": {
       "post": {
         "operationId": "submitLifecycleRun",
@@ -751,6 +2042,22 @@
           {
             "in": "query",
             "name": "document",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "book",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plan",
             "required": false,
             "schema": {
               "type": "string"

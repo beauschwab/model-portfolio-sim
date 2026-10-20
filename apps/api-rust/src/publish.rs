@@ -132,6 +132,7 @@ pub fn write(
         chunk_refs.push(objects.put(c, "bin")?.to_json());
     }
     let mut tables: Vec<(String, Vec<Value>, usize)> = Vec::new();
+    let mut header: Option<Descriptor> = None;
     let mut lines = 0usize;
     for line in std::str::from_utf8(stream)
         .map_err(|_| Refusal::new("STREAM_LAYOUT", "stream is not UTF-8"))?
@@ -141,6 +142,11 @@ pub fn write(
         lines += 1;
         let value: Value =
             serde_json::from_str(line).map_err(|e| Refusal::new("STREAM_LAYOUT", e.to_string()))?;
+        if let Some(w) = value.get("workflow") {
+            // The verified producer receipt, for views that read it without the whole stream.
+            header = Some(put_json(objects, &json!({"workflow": w}))?);
+            continue;
+        }
         let Some(table) = value.get("table").and_then(Value::as_str) else {
             continue;
         };
@@ -168,6 +174,7 @@ pub fn write(
         },
         "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
         "verification": {"verifier": a.verifier, "receipt": serde_json::to_value(receipt).expect("receipt")},
+        "header": header.map(|d| d.to_json()),
         "stream": {"bytes": stream.len(), "sha256": crate::sha256_hex(stream), "lines": lines, "chunks": chunk_refs},
         "tables": tables.iter().map(|(t, segs, rows)| json!({"table": t, "rows": rows, "segments": segs})).collect::<Vec<_>>(),
         "raw_sha256": crate::sha256_hex(raw),
@@ -223,6 +230,20 @@ pub fn reread(objects: &Objects, d: &Descriptor, expected: &Value) -> Result<Rec
             "persisted stream identity differs",
         ));
     }
+    if let Some(h) = m.get("header").filter(|h| !h.is_null()) {
+        let bytes = objects.get_bounded(&Descriptor::from_json(h)?, MAX_PAGE_BYTES)?;
+        let stored: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+        let first = std::str::from_utf8(&stream)
+            .ok()
+            .and_then(|t| t.lines().find(|l| !l.trim().is_empty()))
+            .and_then(|l| serde_json::from_str::<Value>(l).ok());
+        if first.as_ref() != Some(&stored) {
+            return Err(Refusal::new(
+                "REREAD_MISMATCH",
+                "persisted producer receipt differs from the stream",
+            ));
+        }
+    }
     for table in m["tables"].as_array().into_iter().flatten() {
         for seg in table["segments"].as_array().into_iter().flatten() {
             if let Some(dict) = seg.get("dictionary").filter(|v| !v.is_null()) {
@@ -242,6 +263,17 @@ pub fn reread(objects: &Objects, d: &Descriptor, expected: &Value) -> Result<Rec
         ));
     }
     Ok(receipt)
+}
+
+/// The verified producer receipt of a publication (its workflow header).
+pub fn receipt(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let m = load_manifest(objects, d)?;
+    let h = m
+        .get("header")
+        .filter(|h| !h.is_null())
+        .ok_or_else(|| Refusal::new("NOT_FOUND", "this publication has no producer receipt"))?;
+    let bytes = objects.get_bounded(&Descriptor::from_json(h)?, MAX_PAGE_BYTES)?;
+    serde_json::from_slice(&bytes).map_err(storage)
 }
 
 /// One bounded page of a published table: only the pages overlapping the window are read.

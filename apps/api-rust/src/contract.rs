@@ -48,7 +48,22 @@ pub const ROUTES: &[Route] = &[
         headers: &[EXPECTED,
             Header { name: "Idempotency-Key", required: false, description: "Repeated keys return the original job for identical input." },
             Header { name: "X-Deadline-Seconds", required: false, description: "Original deadline from admission, within [1, 3600] (the native execution bound); retries never reset it." }],
-        query: &["document"], body: Some("raw-json"), status: 202, response: "Admission" },
+        query: &["document", "book", "plan"], body: Some("raw-json"), status: 202, response: "Admission" },
+    Route { method: "post", path: "/native/lifecycle/compose", operation: "composeLifecyclePlan",
+        summary: "Compose a saved book (?book=) and a plan (?plan= or the body) into a request, or list every mapping requirement",
+        headers: &[EXPECTED], query: &["book", "plan"], body: Some("raw-json"), status: 200, response: "Composition" },
+    Route { method: "get", path: "/native/lifecycle/example", operation: "lifecycleExample",
+        summary: "The worked unwind as a saved book and an unwind plan",
+        headers: &[], query: &[], body: None, status: 200, response: "LifecycleExample" },
+    Route { method: "get", path: "/native/documents", operation: "listDocuments",
+        summary: "Saved documents of a revision (default head) with their schemas",
+        headers: &[], query: &["revision"], body: None, status: 200, response: "DocumentList" },
+    Route { method: "get", path: "/native/documents/{name}", operation: "document",
+        summary: "One saved document, reread with its checksum",
+        headers: &[], query: &["revision"], body: None, status: 200, response: "SavedDocument" },
+    Route { method: "get", path: "/native/jobs/{id}/receipt", operation: "producerReceipt",
+        summary: "The independently verified producer receipt of a publication: events, liquidity steps and accounting facts",
+        headers: &[], query: &[], body: None, status: 200, response: "ProducerReceipt" },
     Route { method: "get", path: "/native/jobs", operation: "listJobs", summary: "Native job metadata, newest first",
         headers: &[], query: &["offset", "limit"], body: None, status: 200, response: "JobList" },
     Route { method: "get", path: "/native/jobs/{id}", operation: "job", summary: "A freshly built job view (never authority)",
@@ -75,8 +90,112 @@ pub fn schemas() -> Value {
         "key": {"type": "string"}, "sha256": {"type": "string"}, "bytes": {"type": "integer"},
         "format": {"type": "string", "enum": ["json", "parquet", "bin"]}}),
     );
-    json!({
-        "Refusal": obj(&["code", "detail"], json!({"code": {"type": "string"}, "detail": {"type": "string"}})),
+    let r = |name: &str| json!({"$ref": format!("#/components/schemas/{name}")});
+    let list = |name: &str| json!({"type": "array", "items": {"$ref": format!("#/components/schemas/{name}")}});
+    let s = json!({"type": "string"});
+    let n = json!({"type": "number"});
+    let i = json!({"type": "integer"});
+    let b = json!({"type": "boolean"});
+    let any_obj = json!({"type": "object", "additionalProperties": true});
+    let objects =
+        json!({"type": "array", "items": {"type": "object", "additionalProperties": true}});
+    let lifecycle = json!({
+        "Requirement": obj(&["record", "detail", "fix"], json!({"record": s, "detail": s, "fix": s})),
+        "DocumentEntry": obj(&["name", "schema", "bytes", "sha256"], json!({
+            "name": s, "schema": {"type": ["string", "null"]}, "bytes": i, "sha256": s})),
+        "DocumentList": obj(&["revision", "documents"], json!({"revision": i, "documents": list("DocumentEntry")})),
+        "SavedDocument": {"type": "object", "additionalProperties": true},
+        "LifecycleExample": obj(&["book", "plan"], json!({"book": r("SavedBook"), "plan": r("LifecyclePlan")})),
+        "Composition": obj(&["request", "request_sha256", "bytes", "revision"], json!({
+            "request": any_obj, "request_sha256": s, "bytes": i, "revision": i})),
+        "BookLot": obj(&["lot_id", "position_id", "account_id", "kind", "accounting_category", "quantity", "original_cost"], json!({
+            "lot_id": s, "position_id": s, "source_id": s, "account_id": s,
+            "kind": {"type": "string", "enum": ["security", "loan", "derivative", "funding"]},
+            "accounting_category": s, "quantity": n, "acquisition_ordinal": i, "original_cost": n,
+            "original_effective_yield": n, "original_oas": n, "outside_encumbrance": n})),
+        "BookAccount": obj(&["account_id", "cash", "equity"], json!({"account_id": s, "cash": n, "equity": n})),
+        "HedgeAllocation": obj(&["allocation_id", "exposure_lot_id", "hedge_lot_id", "amount", "unwind_treatment"], json!({
+            "allocation_id": s, "exposure_lot_id": s, "hedge_lot_id": s, "amount": n, "risk_basis": s,
+            "unwind_treatment": r("HedgeTreatment"), "formal_relationship_id": {"type": ["string", "null"]}})),
+        "FundingAllocation": obj(&["allocation_id", "funding_lot_id", "attributed_lot_id", "amount", "instruction"], json!({
+            "allocation_id": s, "funding_lot_id": s, "attributed_lot_id": s, "amount": n,
+            "instruction": r("FundingTreatment")})),
+        "BookPledge": obj(&["pledge_id", "lot_id", "agreement_id", "holder", "quantity", "haircut"], json!({
+            "pledge_id": s, "lot_id": s, "agreement_id": s, "holder": s, "quantity": n, "haircut": n})),
+        "BookMarginAgreement": obj(&["agreement_id", "counterparty", "settlement_lag_days", "initial_margin", "segregation", "vm_at_termination", "lot_ids"], json!({
+            "agreement_id": s, "counterparty": s, "settlement_lag_days": i, "initial_margin": s,
+            "segregation": s, "vm_at_termination": s, "lot_ids": {"type": "array", "items": s},
+            "opening_collateral": any_obj})),
+        "BookFacility": obj(&["facility_id", "provider", "commitment", "drawn", "expiry_ordinal"], json!({
+            "facility_id": s, "provider": s, "commitment": n, "drawn": n, "access_policy": any_obj, "expiry_ordinal": i})),
+        "BookRecords": obj(&["entity", "currency", "monetary_unit", "as_of_ordinal", "accounts", "lots"], json!({
+            "entity": s, "currency": s, "monetary_unit": s, "as_of_ordinal": i, "settlement_policy": any_obj,
+            "sources": objects, "accounts": list("BookAccount"), "lots": list("BookLot"),
+            "hedge_allocations": list("HedgeAllocation"), "funding_allocations": list("FundingAllocation"),
+            "pledges": list("BookPledge"), "margin_agreements": list("BookMarginAgreement"),
+            "facilities": list("BookFacility"), "formal_relationships": objects, "obligations": objects})),
+        "ScenarioHorizon": obj(&["scenario_id", "horizon_end_ordinal"], json!({"scenario_id": s, "horizon_end_ordinal": i})),
+        "SavedBook": obj(&["schema", "dated", "plan", "hedge_contracts", "scenarios"], json!({
+            "schema": {"type": "string", "enum": ["liquidity-book-1"]}, "dated": any_obj, "plan": r("BookRecords"),
+            "hedge_contracts": objects, "scenarios": list("ScenarioHorizon")})),
+        "HedgeTreatment": {"type": "string", "enum": ["terminate", "retain", "offset", "rebalance"]},
+        "FundingTreatment": {"type": "string", "enum": ["repay", "retain", "replace"]},
+        "ActionLot": obj(&["lot_id", "quantity"], json!({"lot_id": s, "quantity": n})),
+        "LifecycleAction": obj(&["action_id", "kind", "trade_ordinal", "effective_ordinal", "settlement_ordinal", "lots", "policy", "accounting_treatment"], json!({
+            "action_id": s,
+            "kind": {"type": "string", "enum": ["acquisition", "unwind", "offset", "rebalance", "refinance"]},
+            "trade_ordinal": i, "effective_ordinal": i, "settlement_ordinal": i, "lots": list("ActionLot"),
+            "policy": any_obj, "accounting_treatment": {"type": "string", "enum": ["economic", "formal"]},
+            "depends_on": {"type": "array", "items": s}})),
+        "Instructions": obj(&[], json!({
+            "purchases": objects, "financings": objects, "facility_draws": objects, "repayments": objects,
+            "sales": objects, "hedge_entries": objects, "terminations": objects,
+            "facility_repayments": objects, "initial_margin": objects})),
+        "LifecyclePlan": obj(&["schema", "actions", "instructions"], json!({
+            "schema": {"type": "string", "enum": ["liquidity-plan-1"]}, "actions": list("LifecycleAction"),
+            "instructions": r("Instructions"),
+            "hedge_treatments": {"type": "object", "additionalProperties": r("HedgeTreatment")},
+            "funding_instructions": {"type": "object", "additionalProperties": r("FundingTreatment")}})),
+        "EventStatus": {"type": "string", "enum": ["settled", "failed", "blocked"]},
+        "EventReceipt": obj(&["event_id", "ordinal", "phase", "status"], json!({
+            "event_id": s, "ordinal": i, "phase": i, "status": r("EventStatus")})),
+        "LiquidityStep": obj(&["event_id", "ordinal", "phase", "status", "depends_on", "cash_movement", "cash_after",
+                "restricted_cash_after", "usable_cash_after", "facility_drawn_after", "facility_undrawn_after",
+                "pledged_quantity_after", "security_quantity_after", "posted_vm_after", "received_vm_after",
+                "posted_im_after", "received_im_custody_after", "pending_receivable_after", "pending_payable_after",
+                "derivative_assets_after", "derivative_liabilities_after"], json!({
+            "event_id": s, "ordinal": i, "phase": i, "status": r("EventStatus"), "depends_on": {"type": "array", "items": s},
+            "cash_movement": n, "cash_after": n, "restricted_cash_after": n, "usable_cash_after": n,
+            "facility_drawn_after": n, "facility_undrawn_after": n, "pledged_quantity_after": n,
+            "security_quantity_after": n, "posted_vm_after": n, "received_vm_after": n, "posted_im_after": n,
+            "received_im_custody_after": n, "pending_receivable_after": n, "pending_payable_after": n,
+            "derivative_assets_after": n, "derivative_liabilities_after": n})),
+        "AccountingFact": obj(&["kind", "lot_id", "quantity", "retained_quantity", "effective_ordinal", "settlement_ordinal",
+                "consideration", "removed_carrying", "realized", "economic_allocation_ids", "formal_relationship_ids"], json!({
+            "kind": s, "lot_id": s, "quantity": n, "retained_quantity": n, "effective_ordinal": i,
+            "settlement_ordinal": i, "consideration": n, "removed_carrying": n, "realized": n,
+            "economic_allocation_ids": {"type": "array", "items": s},
+            "formal_relationship_ids": {"type": "array", "items": s}})),
+        "LifecycleReceipt": obj(&["opening_cash", "closing_cash", "settled_cash_movements", "posted_vm", "received_vm",
+                "posted_im", "received_im_custody", "fees_expensed", "realized", "open_claims", "events", "steps",
+                "accounting_facts", "formal_hedge_accounting"], json!({
+            "opening_cash": n, "closing_cash": n, "settled_cash_movements": n, "gross_derivative_assets": n,
+            "gross_derivative_liabilities": n, "posted_vm": n, "received_vm": n, "posted_im": n,
+            "received_im_custody": n, "fees_expensed": n, "realized": n, "cash_bridge_reconciled": b,
+            "inventory_conserved": b, "collateral_conserved": b, "open_claims": b,
+            "events": list("EventReceipt"), "steps": list("LiquidityStep"),
+            "accounting_facts": list("AccountingFact"), "formal_hedge_accounting": b})),
+        "ScenarioJournal": obj(&["scenario_id", "account_id", "receipt"], json!({
+            "scenario_id": s, "account_id": s, "receipt": r("LifecycleReceipt")})),
+        "SourceReceipt": obj(&["schema", "plan_sha256", "formal_hedge_accounting", "journals"], json!({
+            "schema": s, "stage": s, "plan_sha256": s, "formal_hedge_accounting": b, "disclosure": s,
+            "hedge_entries": objects, "journals": list("ScenarioJournal")})),
+        "ProducerReceipt": obj(&["workflow"], json!({"workflow": obj(&["schema", "model_schema", "source_receipt"], json!({
+            "schema": s, "model_schema": s, "source_receipt": r("SourceReceipt")}))})),
+    });
+    let mut base = json!({
+        "Refusal": obj(&["code", "detail"], json!({"code": {"type": "string"}, "detail": {"type": "string"},
+            "requirements": {"type": "array", "items": {"$ref": "#/components/schemas/Requirement"}}})),
         "Descriptor": descriptor,
         "Health": obj(&["ok", "engine", "epoch", "native_schema", "fault_injection"], json!({
             "ok": {"type": "boolean"}, "engine": {"type": "string", "enum": ["rust", "legacy"]},
@@ -119,7 +238,12 @@ pub fn schemas() -> Value {
         "TablePage": obj(&["table", "offset", "limit", "total", "rows"], json!({
             "table": {"type": "string"}, "offset": {"type": "integer"}, "limit": {"type": "integer"},
             "total": {"type": "integer"}, "rows": {"type": "array", "items": {"type": "object", "additionalProperties": true}}})),
-    })
+    });
+    let schemas = base.as_object_mut().expect("schemas");
+    for (k, v) in lifecycle.as_object().expect("lifecycle schemas") {
+        schemas.insert(k.clone(), v.clone());
+    }
+    base
 }
 
 pub fn openapi() -> Value {
@@ -144,10 +268,10 @@ pub fn openapi() -> Value {
             );
         }
         for q in r.query {
-            let schema = if *q == "document" {
-                json!({"type": "string"})
-            } else {
+            let schema = if ["offset", "limit", "revision"].contains(q) {
                 json!({"type": "integer"})
+            } else {
+                json!({"type": "string"})
             };
             parameters.push(json!({"name": q, "in": "query", "required": false, "schema": schema}));
         }

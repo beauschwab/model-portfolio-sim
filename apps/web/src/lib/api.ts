@@ -340,3 +340,60 @@ export function errorText(error: unknown): string {
   } catch { /* not JSON: fall through */ }
   return body;
 }
+
+/* Rust workbench service (apps/api-rust), proxied same-origin at /native. Types are generated from
+   the Rust contract (native-api.generated.ts); no Python service takes part in these calls. */
+import type { Admission, Composition, DocumentList, Job as NativeJob, JobSummary, LifecycleExample,
+  LifecyclePlan, Manifest, ProducerReceipt, Requirement, RevisionHead, SavedBook, TablePage } from './native-api.generated';
+
+/** A Rust service refusal; mapping refusals list each requirement and its fix. */
+export class NativeError extends Error {
+  constructor(public status: number, public code: string, detail: string, public requirements: Requirement[] = []) {
+    super(`${code}: ${detail}`);
+  }
+}
+
+async function native<T>(path: string, init?: RequestInit & { revision?: number; key?: string; ifMatch?: number }): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (init?.revision !== undefined) headers["X-Expected-Revision"] = String(init.revision);
+  if (init?.ifMatch !== undefined) headers["If-Match"] = String(init.ifMatch);
+  if (init?.key) headers["Idempotency-Key"] = init.key;
+  const r = await fetch(path, { ...init, headers });
+  const text = await r.text();
+  const body = text ? JSON.parse(text) : null;
+  if (!r.ok) throw new NativeError(r.status, body?.code ?? String(r.status), body?.detail ?? text, body?.requirements ?? []);
+  return body as T;
+}
+const q = (params: Record<string, string | number | undefined>) =>
+  new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString();
+
+export const nativeApi = {
+  head: () => native<RevisionHead>('/native/revisions/head'),
+  example: () => native<LifecycleExample>('/native/lifecycle/example'),
+  documents: (revision?: number) => native<DocumentList>(`/native/documents?${q({ revision })}`),
+  book: (name: string, revision?: number) => native<SavedBook>(`/native/documents/${encodeURIComponent(name)}?${q({ revision })}`),
+  plan: (name: string, revision?: number) => native<LifecyclePlan>(`/native/documents/${encodeURIComponent(name)}?${q({ revision })}`),
+  save: (name: string, document: SavedBook | LifecyclePlan, ifMatch: number) =>
+    native<RevisionHead>(`/native/documents/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify(document), ifMatch }),
+  compose: (book: string, plan: LifecyclePlan, revision: number) =>
+    native<Composition>(`/native/lifecycle/compose?${q({ book })}`, { method: 'POST', body: JSON.stringify(plan), revision }),
+  submit: (book: string, plan: LifecyclePlan, revision: number, key?: string) =>
+    native<Admission>(`/native/lifecycle/runs?${q({ book })}`, { method: 'POST', body: JSON.stringify(plan), revision, key }),
+  jobs: (limit = 20) => native<JobSummary[]>(`/native/jobs?${q({ limit })}`),
+  job: (id: string) => native<NativeJob>(`/native/jobs/${encodeURIComponent(id)}`),
+  cancel: (id: string) => native<{ cancelled: boolean }>(`/native/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+  receipt: (id: string) => native<ProducerReceipt>(`/native/jobs/${encodeURIComponent(id)}/receipt`),
+  manifest: (id: string) => native<Manifest>(`/native/jobs/${encodeURIComponent(id)}/manifest`),
+  table: (id: string, table: string, offset = 0, limit = 100) =>
+    native<TablePage>(`/native/jobs/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}?${q({ offset, limit })}`),
+};
+
+/** Waits for a native job to leave the queue (done, error or cancelled). */
+export async function awaitNativeJob(id: string, onTick?: (j: NativeJob) => void, ms = 750): Promise<NativeJob> {
+  for (;;) {
+    const j = await nativeApi.job(id);
+    onTick?.(j);
+    if (j.status === 'native_done' || j.status === 'native_error' || j.status === 'native_cancelled') return j;
+    await new Promise(r => setTimeout(r, ms));
+  }
+}

@@ -260,6 +260,34 @@ pub struct EventReceipt {
     pub phase: u32,
     pub status: EventStatus,
 }
+/// The account's liquidity state after one event, in execution order. Usable cash excludes
+/// received VM held under segregation; undrawn facility capacity is capacity, never cash; posted
+/// margin and pledged securities are restricted collateral until their settled return or
+/// release; unpaid termination consideration is a pending receipt or payment.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LiquidityStep {
+    pub event_id: String,
+    pub ordinal: i32,
+    pub phase: u32,
+    pub status: EventStatus,
+    pub depends_on: Vec<String>,
+    pub cash_movement: f64,
+    pub cash_after: f64,
+    pub restricted_cash_after: f64,
+    pub usable_cash_after: f64,
+    pub facility_drawn_after: f64,
+    pub facility_undrawn_after: f64,
+    pub pledged_quantity_after: f64,
+    pub security_quantity_after: f64,
+    pub posted_vm_after: f64,
+    pub received_vm_after: f64,
+    pub posted_im_after: f64,
+    pub received_im_custody_after: f64,
+    pub pending_receivable_after: f64,
+    pub pending_payable_after: f64,
+    pub derivative_assets_after: f64,
+    pub derivative_liabilities_after: f64,
+}
 /// Sale and termination facts for the ASC 815 owner. Basis, OCI and reclassification remain
 /// that owner's decisions under its reviewed rules; nothing here is an accounting entry.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -296,6 +324,8 @@ pub struct Receipt {
     /// does not extinguish them.
     pub open_claims: bool,
     pub events: Vec<EventReceipt>,
+    /// One liquidity step per event, in the same order as `events`.
+    pub steps: Vec<LiquidityStep>,
     pub accounting_facts: Vec<AccountingFact>,
     pub formal_hedge_accounting: bool,
 }
@@ -324,6 +354,10 @@ fn money(x: f64, what: &str) -> Result<f64, Refusal> {
             format!("{what} must be finite and within the monetary domain"),
         ))
     }
+}
+/// A reported amount: an exactly zero stock is reported as +0.0, never as a negated -0.0.
+fn unsigned(x: f64) -> f64 {
+    x + 0.
 }
 fn near(a: f64, b: f64) -> bool {
     (a - b).abs() <= 1e-9_f64.max(1e-12 * a.abs().max(b.abs()))
@@ -417,6 +451,17 @@ impl Book {
             lines,
         });
         Ok(())
+    }
+    fn stock(&self, kind: Kind) -> f64 {
+        let book = if kind.memo() {
+            &self.custody
+        } else {
+            &self.financial
+        };
+        book.iter()
+            .filter(|((k, _), _)| *k == kind)
+            .map(|(_, v)| v)
+            .sum()
     }
     fn available(&self, lot: &PositionLot) -> f64 {
         self.owned.get(&lot.lot_id).copied().unwrap_or(0.)
@@ -1426,11 +1471,14 @@ pub fn replay(
         .iter()
         .map(|f| (f.facility_id.as_str(), f.drawn))
         .collect();
+    let commitment: f64 = r.facilities.iter().map(|f| f.commitment).sum();
+    let mut steps = Vec::new();
     let mut cursor = 0;
     let mut sequence = 0u32;
     for ordinal in asof..=end {
         while cursor < events.len() && events[cursor].ordinal == ordinal {
             let e = &events[cursor];
+            let cash_before = book.cash;
             sequence += 1;
             let status = if e.state == InstructionState::Failed {
                 EventStatus::Failed
@@ -1842,6 +1890,36 @@ pub fn replay(
                 phase: e.phase,
                 status,
             });
+            let drawn_total: f64 = drawn.values().sum();
+            steps.push(LiquidityStep {
+                event_id: e.id.clone(),
+                ordinal,
+                phase: e.phase,
+                status,
+                depends_on: e.depends_on.clone(),
+                cash_movement: unsigned(book.cash - cash_before),
+                cash_after: unsigned(book.cash),
+                restricted_cash_after: unsigned(book.restricted),
+                usable_cash_after: unsigned(book.cash - book.restricted),
+                facility_drawn_after: unsigned(drawn_total),
+                facility_undrawn_after: unsigned(commitment - drawn_total),
+                pledged_quantity_after: unsigned(book.pledged.values().sum()),
+                security_quantity_after: unsigned(
+                    account_lots
+                        .iter()
+                        .filter(|l| l.kind == LotKind::Security)
+                        .map(|l| book.owned.get(&l.lot_id).copied().unwrap_or(0.))
+                        .sum(),
+                ),
+                posted_vm_after: unsigned(book.stock(Kind::PostedVm)),
+                received_vm_after: unsigned(-book.stock(Kind::ReceivedVm)),
+                posted_im_after: unsigned(book.stock(Kind::PostedIm)),
+                received_im_custody_after: unsigned(book.stock(Kind::CustodyAsset)),
+                pending_receivable_after: unsigned(book.stock(Kind::UnpaidReceivable)),
+                pending_payable_after: unsigned(-book.stock(Kind::UnpaidPayable)),
+                derivative_assets_after: unsigned(book.stock(Kind::DerivativeAsset)),
+                derivative_liabilities_after: unsigned(-book.stock(Kind::DerivativeLiability)),
+            });
             cursor += 1;
         }
         daily.push(book.closing(ordinal, &account_lots));
@@ -1894,6 +1972,7 @@ pub fn replay(
         collateral_conserved: collateral,
         open_claims,
         events: receipts,
+        steps,
         accounting_facts: facts,
         formal_hedge_accounting: false,
     };

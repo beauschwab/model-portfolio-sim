@@ -38,6 +38,32 @@ pub fn executable_sha256(path: &Path) -> Result<String, Refusal> {
     Ok(crate::hex(&h.finalize()))
 }
 
+/// A native admission refusal (`CODE: detail` on stderr) keeps the native code, so a refused plan
+/// reports why (for example `INSUFFICIENT_SETTLEMENT_LIQUIDITY` or `FORMAL_OWNER_REQUIRED`);
+/// anything else is a process failure.
+pub fn native_refusal(status: &str, stderr: &str) -> Refusal {
+    let line = stderr
+        .lines()
+        .rev()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("")
+        .trim();
+    if let Some((code, detail)) = line.split_once(": ") {
+        if !code.is_empty()
+            && code.len() <= 64
+            && code.bytes().all(|c| c.is_ascii_uppercase() || c == b'_')
+        {
+            let mut r = Refusal::new("NATIVE_REFUSED", detail);
+            r.detail = format!("{code}: {detail}");
+            return r;
+        }
+    }
+    Refusal::new(
+        "NATIVE_FAILED",
+        format!("native process exited with {status}: {stderr}"),
+    )
+}
+
 pub fn executable_name(path: &Path) -> String {
     path.file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -327,10 +353,7 @@ impl Worker {
                 if !status.success() {
                     let _ = err_reader.join();
                     let tail = String::from_utf8_lossy(&err.lock().expect("stderr")).into_owned();
-                    break Some(Refusal::new(
-                        "NATIVE_FAILED",
-                        format!("native process exited with {status}: {tail}"),
-                    ));
+                    break Some(native_refusal(&status.to_string(), &tail));
                 }
                 break None;
             }
