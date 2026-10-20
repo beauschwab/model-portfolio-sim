@@ -136,3 +136,15 @@ def test_swap_marker_must_match_template_kind():
         lib['units'][3].pop('kind')
     with run_context(RunConfig(compute_backend='rust')), pytest.raises(ValueError, match='swap unit and template kind'):
         optimizer.optimize_balance_sheet(scenarios, max_total_assets=0., cash_budget=0.)
+
+
+@pytest.mark.parametrize('change', ['designation', 'kind'])
+@pytest.mark.parametrize('backend', ['python', 'rust'])
+def test_strategy_units_never_carry_accounting_eligibility(change, backend):
+    if backend == 'rust': native_decision()
+    scenarios = swap_scenarios()
+    for lib, _ in scenarios:
+        if change == 'designation': lib['units'][3]['designation'] = 'fair_value_hedge'
+        else: lib['units'][3]['kind'] = 'fair_value_hedge'
+    with run_context(RunConfig(compute_backend=backend)), pytest.raises(ValueError, match='not admitted|unknown field'):
+        optimizer.optimize_balance_sheet(scenarios, max_total_assets=0., cash_budget=0.)
