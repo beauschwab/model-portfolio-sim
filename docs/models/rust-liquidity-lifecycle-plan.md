@@ -1,7 +1,7 @@
 # Rust liquidity and trading book lifecycle implementation plan
 
-Status: stage A delivered as an opt-in contract ([liquidity-lifecycle-contract.md](liquidity-lifecycle-contract.md));
-stages B to I remain proposed implementation. This plan connects new instruments, hedges,
+Status: stages A to C delivered as an opt-in contract ([liquidity-lifecycle-contract.md](liquidity-lifecycle-contract.md));
+stages D to I remain proposed implementation. This plan connects new instruments, hedges,
 financing, margin and collateral to one chronological simulation, with particular
 attention to full and partial trading-book unwinds. It specifies implementation
 work and acceptance gates; the proposed schemas and services are not delivered

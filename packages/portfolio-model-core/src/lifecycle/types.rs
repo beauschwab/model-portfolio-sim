@@ -179,6 +179,17 @@ pub struct MarginAgreement {
     pub calendar: Revision,
     /// Derivative lots in the agreement's legal scope.
     pub lot_ids: Vec<String>,
+    /// Collateral already exchanged at the opening under this agreement.
+    #[serde(default)]
+    pub opening_collateral: Option<OpeningCollateral>,
+}
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpeningCollateral {
+    pub posted_vm: f64,
+    pub received_vm: f64,
+    pub posted_im: f64,
+    pub received_im_custody: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

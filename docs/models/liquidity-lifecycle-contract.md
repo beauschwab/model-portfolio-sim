@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stage A)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to C)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -111,9 +111,139 @@ Tests are in `packages/portfolio-model-core/tests/lifecycle.rs` unless noted.
 | Bounded admission | Record and byte bounds | `admission_is_bounded` |
 | Decision preflight | Refusal before financial generation | `workflows::lifecycle::tests` in the Decision crate |
 
-## Not in this stage
+## Stage B: native acquisition replay (#44)
 
-Opening balance-sheet reconciliation from carrying values, native acquisition and unwind
-coordination, voluntary funding and derivative exits, margin recalculation, the shared journal, the
-independent Rust verifier, the Rust API and worker, saved-book adoption, long-term policies,
-prepared allocations and scale are stages B to I (#44 to #51).
+Stage B replays a security purchase, its financing advance and pledge, a hedge entry with cash
+variation margin, and supplied exact initial margin, and posts the result in the existing daily
+Sim beside a reviewed dated backbook. Code: `portfolio-model-core/src/lifecycle/acquisition.rs`
+(engine) and `journal.rs` (shared kinds), `portfolio-ledger-native/src/owners/lifecycle.rs` and
+`replay/daily/lifecycle_hooks.rs` (owner), and the Decision coordinator
+`workflows/lifecycle/acquisition.rs`, exposed by the `portfolio-model-ledger` process as schema
+`liquidity-lifecycle-1`. All code and tests are Rust.
+
+### Request
+
+`{schema, dated, plan, acquisitions[], hedge_contracts[]}`: the reviewed `dated-ledger-1`
+backbook, the stage A plan (admitted from its own bytes), one acquisition block per dated run,
+and the raw swap contract for every hedge entry. Every plan account is a dated account with the
+same opening cash and equity, so the opening is posted once by the Sim.
+
+| Instruction | Fields | Rule |
+|---|---|---|
+| Security purchase | new security lot, reviewed quote, trade and settlement dates, clean price per 100, accrued interest, fees, delivery versus payment | The lot's original cost must equal clean cost plus fees. Carrying is face plus a book adjustment of cost less face: no purchase-price gain is manufactured. Accrued interest is a receivable; fees are expensed. |
+| Financing advance | new funding lot, advance date, principal, plan pledge | Principal equals the lot quantity and is advanced once; an opening contract is never advanced again. The pledge must secure that lot and deliver an owned, unencumbered quantity. |
+| Hedge entry | new derivative lot, margin agreement, entry date, upfront consideration, VM terms (thresholds, minimum transfer) | The clean value is priced natively from the raw swap at the entry date. Upfront consideration must equal it, so no day-one gain or loss exists. Exposure beyond a threshold is called at entry and settles after the agreement's lag as posted or received VM. |
+| Supplied initial margin | agreement, portfolio lot ids, scenario, date, posted and received requirement, review | Bound to the exact live portfolio, scenario and entry date, else `MARGIN_REFRESH_REQUIRED`. Posted IM is cash to a posted-IM asset; received IM is custody memo only. |
+
+Reservation (trade date), obligation creation and settlement are separate: intents post on the
+settlement day in phase order (advance, purchase, pledge, entry, VM, IM). Cash may never go
+negative after an event (`INSUFFICIENT_SETTLEMENT_LIQUIDITY`), a pledge needs owned unencumbered
+inventory (`INVENTORY_UNAVAILABLE`), and no cash plug or emergency facility is invented.
+
+Received VM under a segregated agreement reduces usable cash once, in the daily closing; the GL
+keeps the gross received stock. Under a reusable agreement it is usable.
+
+### Journal
+
+Kinds and GLs: `cash`, `opening_equity`, `asset_principal`, `book_adjustment`,
+`dated_interest_receivable`, `funding_principal`, `derivative_asset`, `derivative_liability`,
+`derivative_posted_vm_asset`, `derivative_received_vm_liability`, `derivative_posted_im_asset`,
+`pnl:lifecycle_fees`, and the custody memo pair. Instruments are namespaced `@lifecycle:<lot or
+agreement id>`; a dated position cannot alias one. The owner reconciles its book to the engine's
+daily closings every day, and the Sim's daily balance-sheet identity includes the lifecycle
+stocks. Lineage rows: `lifecycle_journal_lineage` and `lifecycle_custody_journal`.
+
+The engine's receipt reports the cash bridge, inventory and collateral conservation, gross
+derivative stocks and fees; the process header carries the native entry valuations with their
+pricing source and the plan's SHA-256.
+
+### Hand fixture
+
+Opening cash 100 (the dated account). Day 1: a 95 repo advance; a bond bought at 99.5 clean plus
+0.5 accrued and 0.25 fees for a 100 lot (cost 100.25); the bond pledged to the repo; a payer swap
+priced at -4 and entered for -4 upfront; 3 IM posted and 2 received in custody. Day 2: 4 VM posted.
+Cash 100 → 195 → 94.75 → 98.75 → 95.75 → 91.75. Assets less liabilities fall by exactly the fee.
+Tests: `portfolio-model-core/tests/lifecycle_acquisition.rs` (engine) and
+`portfolio-decision-native/tests/lifecycle_acquisition.rs` (coordinator, shared Sim and the
+native process).
+
+### Not in stage B
+
+Formal hedge accounting of an acquisition refuses with `FORMAL_OWNER_REQUIRED`: the
+`hedge-accounting-1` intents are not yet bound to this journal, and there is no fallback to
+undesignated treatment. Unwinds, voluntary exits and offsets are stage C below; post-entry
+derivative marks and coupons, dynamic IM and the independent Rust verifier are later stages. The acquisition is one Physical plan: the same intents post in every
+dated run, and the supplied IM must be bound per scenario.
+
+## Stage C: unwinds, voluntary exits and settlement dependencies (#45)
+
+Stage C extends the execution engine and the same coordinator, owner and process entry. An
+execution block may now also carry sales, funding repayments, derivative terminations and bridge
+facility draws and repayments. Every instruction has an optional `instruction_id` (defaults are
+`sale:<lot>:<date>`, `repay:<lot>:<date>`, `terminate:<lot>`, `draw:<facility>:<date>`,
+`facility_repay:<facility>:<date>`, `purchase:<lot>`, `advance:<lot>`, `entry:<lot>`), a
+`depends_on` list and a `state` (`pending` or `failed`).
+
+| Instruction | Fields | Rule |
+|---|---|---|
+| Security sale | lot, quantity, quote, trade and settlement dates, clean price, accrued, fees, mechanism | Delivers only owned, released, unencumbered quantity (`INVENTORY_UNAVAILABLE` otherwise). Removes face and book adjustment pro rata; realized gain or loss is consideration less removed carrying, and marks already in earnings are never counted again. The surviving quantity keeps the lot's original anchors. |
+| Funding repayment | lot, date, principal, actual accrued interest, break cost, consent, pledge releases | Full or partial. Accrued interest and break cost are expensed with the principal. Each release is a separate event that depends on the repayment; maturity is never shortened in place. |
+| Derivative termination | lot, agreement, effective and settlement dates, consideration source (`model_clean_value` or `execution_quote`), fees, consent | Rights stop at the effective date: carrying is removed, consideration plus the contractual cash due that day becomes an unpaid receivable or payable, and consideration less carrying is realized. The claim settles on the settlement date. Under `return_separately` existing VM returns after the lag; under `apply_against_consideration` it is netted at settlement exactly once and never returned. |
+| Facility draw and repayment | facility, date, amount | Within the facility's commitment and expiry; repayments cannot exceed the drawn amount. |
+| Offset | a hedge entry with `offsets_lot_id` | A second contract. The original lot, its carrying, rights and margins survive; nothing is extinguished. |
+
+Initial margin binds to every population change: an entry or termination on a date needs a
+supplied requirement for the exact live portfolio of the agreement after the change
+(`MARGIN_REFRESH_REQUIRED`). Proportional release is never assumed. When the scope empties, its
+posted IM returns after the lag following the last termination settlement.
+
+### Settlement replay
+
+Events of a day run in phases: advances and draws, repayments, releases, delivery versus payment,
+pledge delivery, derivative entry and termination, facility repayment, VM, IM. Dependencies must
+name known events earlier in that order (`SETTLEMENT_ORDER`). An event whose dependency did not
+settle is blocked; a `failed` instruction does not settle. Nothing that settled is undone: a failed
+sale leaves the settled bridge debt, the released bond and the unterminated swap exactly as they
+are. Cash still never goes negative; the plan is refused at the first obligation it cannot fund.
+
+A reporting cutoff does not extinguish outstanding claims: the receipt's `open_claims` flags
+unsettled termination claims and collateral not yet returned, and the stocks stay on the closing.
+
+### Accounting facts for #35
+
+Each sale, partial sale and termination emits a fact: lot, quantity sold and retained, effective
+and settlement dates, consideration, removed carrying, realized amount, and the economic
+allocations and formal relationship ids that touch the lot. The ASC 815 owner decides basis
+disposal, retained-basis amortization, OCI and reclassification under its reviewed rules; this
+engine posts none of them, and a termination's cash alone never forces OCI recycling. Formal
+treatment of an executed action still refuses with `FORMAL_OWNER_REQUIRED`.
+
+### Hand fixture
+
+The plan's worked unwind. Opening cash 0, bond carrying 100 pledged to a 95 repo, swap liability
+4, posted VM 2 and posted IM 3 (equity 6). Day 1 in phase order: 95 bridge draw; repo repaid
+(depends on the draw) and the bond released; the bond sold for 100 (depends on the release); the
+swap terminated at its native value −4 and settled the same day; the bridge repaid (depends on the
+sale). Day 2: VM 2 and IM 3 return. Cash 0 → 1 → 6, no gain or loss.
+
+- Without the bridge the repayment is refused at cash 0, before the pledged bond could be
+  delivered; selling the pledged bond first is `INVENTORY_UNAVAILABLE`.
+- VM applied against consideration pays 2 at settlement and returns nothing: cash 3 → 6.
+- A failed sale blocks the bridge repayment and the termination; the bridge debt, the released
+  bond, the swap and its collateral remain.
+- An execution quote of −4.5 realizes −0.5; a coupon due on the termination date joins the claim
+  with its sign, including negative amounts.
+- A later settlement date leaves the −4 payable open until it settles; a horizon before the
+  returns leaves VM and IM open.
+- A partial sale of 40 retains 60 on the original anchors; an offset is a second contract.
+
+Tests: `portfolio-model-core/tests/lifecycle_execution.rs` (engine, 10 cases) and the
+`worked_unwind_*` and `unwind_without_the_bridge_*` cases of
+`portfolio-decision-native/tests/lifecycle_acquisition.rs` (shared Sim and native process, with
+the swap priced natively at the termination date).
+
+## Not in stages A to C
+
+Post-entry derivative marks and coupons, dynamic IM, the independent Rust verifier, the Rust API
+and worker, saved-book adoption, long-term policies, prepared allocations and scale are stages D
+to I (#46 to #51).
