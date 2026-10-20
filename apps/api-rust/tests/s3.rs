@@ -1,5 +1,5 @@
 //! Selected S3 publication (feature `s3`): set `TEST_S3_ENDPOINT` and `TEST_S3_BUCKET` (an
-//! existing bucket) plus the usual AWS credential variables. CI uses MinIO.
+//! existing bucket) plus the usual AWS credential variables. CI uses moto's S3 server.
 mod common;
 use common::*;
 use std::time::Duration;

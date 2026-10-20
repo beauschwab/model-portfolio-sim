@@ -144,3 +144,36 @@ fn a_restarted_worker_retries_without_resetting_the_deadline_and_an_expired_job_
         );
     }
 }
+
+#[test]
+fn a_worker_that_loses_its_lease_recovers_its_own_abandoned_attempt() {
+    for backend in backends() {
+        let env = Env::new(backend, "relost");
+        env.ready();
+        let api = env.api();
+        let id = api.submit(0, None, REQUEST.as_bytes(), Some("600")).body["job_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let w = env.worker(&[("STUB_SLEEP_MS", "2500")]);
+        wait_for("attempt 1", Duration::from_secs(30), || {
+            job(&api, &id)["status"] == "native_running"
+        });
+        // Another holder takes the lease briefly: the worker's renewal fails mid-run.
+        let mut p = env.scope();
+        p.push(workbench_native::sql::Sql::Float(
+            workbench_native::now() + 1.,
+        ));
+        env.exec(
+            "UPDATE workspaces SET owner = 'intruder', lease_until = $3 WHERE tenant = $1 AND workspace = $2",
+            &p,
+        );
+        let log = finish(w, Duration::from_secs(120));
+        let view = job(&api, &id);
+        // The same process retakes the lease under a new tenure and reruns its own attempt.
+        assert_eq!(view["status"], "native_done", "{log}\n{view}");
+        assert_eq!(view["attempt"], 2, "{log}");
+        assert!(log.contains("LEASE_LOST"), "{log}");
+        assert_eq!(env.publications(), 1);
+    }
+}

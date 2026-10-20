@@ -50,22 +50,20 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       TEST_POSTGRES_URL: postgresql://workbench_test:local_test_only@localhost:5432/workbench_test
-      TEST_S3_ENDPOINT: http://127.0.0.1:9000
+      TEST_S3_ENDPOINT: http://127.0.0.1:5000
       TEST_S3_BUCKET: workbench-native-test
-      AWS_ACCESS_KEY_ID: local_test_only
-      AWS_SECRET_ACCESS_KEY: local_test_only_secret
+      AWS_ACCESS_KEY_ID: testing
+      AWS_SECRET_ACCESS_KEY: testing
       AWS_REGION: us-east-1
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.93.1
-      - name: Start MinIO and create the test bucket
+      # The MinIO images are no longer published on Docker Hub; moto's S3 server is used instead.
+      - name: Start an S3-compatible server and create the test bucket
         run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=$AWS_ACCESS_KEY_ID -e MINIO_ROOT_PASSWORD=$AWS_SECRET_ACCESS_KEY \
-            minio/minio:latest server /data
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
-          docker run --rm --network host --entrypoint sh minio/mc:latest -c \
-            "mc alias set local http://127.0.0.1:9000 $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY && mc mb local/$TEST_S3_BUCKET"
+          docker run -d --name s3 -p 5000:5000 motoserver/moto:latest
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:5000/ -o /dev/null && break; sleep 1; done
+          curl -sf -X PUT http://127.0.0.1:5000/$TEST_S3_BUCKET
       # PostgreSQL and SQLite for every scenario, and selected S3 publication.
       - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features s3,fault-injection
 

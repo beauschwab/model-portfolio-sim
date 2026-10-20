@@ -48,7 +48,13 @@ pub struct Worker {
     pub config: Config,
     pub repo: Repo,
     pub objects: Objects,
-    pub owner: String,
+}
+
+/// A fresh lease identity. Every lease tenure uses its own, so an attempt this process abandoned
+/// after losing its lease is requeued (the claim requeues running work of any other owner) when
+/// the process takes the lease again.
+fn tenure_owner() -> String {
+    format!("rust:{}", uuid::Uuid::new_v4().simple())
 }
 
 /// Outcomes that discard this attempt's output without recording anything: the job belongs to
@@ -67,7 +73,6 @@ impl Worker {
         let repo = Repo::new(db, &config.tenant, &config.workspace);
         let objects = Objects::open(&config.artifact_url, &config.tenant, &config.workspace)?;
         Ok(Worker {
-            owner: format!("rust:{}", uuid::Uuid::new_v4().simple()),
             config,
             repo,
             objects,
@@ -78,8 +83,9 @@ impl Worker {
     /// queue is empty, after releasing a lease it still owns.
     pub fn run(&self, exit_when_idle: bool, stop: &AtomicBool) -> Result<(), String> {
         let mut idle_rounds = 0;
+        let mut owner = tenure_owner();
         while !stop.load(Ordering::SeqCst) {
-            let epoch = match self.repo.acquire(&self.owner, self.config.lease_seconds) {
+            let epoch = match self.repo.acquire(&owner, self.config.lease_seconds) {
                 Ok(Some(epoch)) => epoch,
                 Ok(None) | Err(_) => {
                     idle_rounds += 1;
@@ -91,10 +97,7 @@ impl Worker {
                 }
             };
             idle_rounds = 0;
-            eprintln!(
-                "worker {} holds the workspace lease (epoch {epoch})",
-                self.owner
-            );
+            eprintln!("worker {owner} holds the workspace lease (epoch {epoch})");
             let lost = Arc::new(AtomicBool::new(false));
             let done = Arc::new(AtomicBool::new(false));
             let heartbeat = {
@@ -102,7 +105,7 @@ impl Worker {
                 let db_url = self.config.database_url.clone();
                 let (tenant, workspace) =
                     (self.config.tenant.clone(), self.config.workspace.clone());
-                let owner = self.owner.clone();
+                let owner = owner.clone();
                 let seconds = self.config.lease_seconds;
                 std::thread::spawn(move || {
                     let Ok(db) = crate::sql::Db::open(&db_url) else {
@@ -125,7 +128,7 @@ impl Worker {
             };
             let mut drained = false;
             while !lost.load(Ordering::SeqCst) && !stop.load(Ordering::SeqCst) {
-                match self.repo.claim(&self.owner, epoch) {
+                match self.repo.claim(&owner, epoch) {
                     Ok(Some(claim)) => self.execute(&claim, &lost),
                     Ok(None) => {
                         if exit_when_idle {
@@ -142,14 +145,16 @@ impl Worker {
             }
             done.store(true, Ordering::SeqCst);
             let _ = heartbeat.join();
-            if !lost.load(Ordering::SeqCst) {
-                let _ = self.repo.release(&self.owner);
+            if lost.load(Ordering::SeqCst) {
+                owner = tenure_owner();
+            } else {
+                let _ = self.repo.release(&owner);
             }
             if drained {
                 return Ok(());
             }
         }
-        let _ = self.repo.release(&self.owner);
+        let _ = self.repo.release(&owner);
         Ok(())
     }
 

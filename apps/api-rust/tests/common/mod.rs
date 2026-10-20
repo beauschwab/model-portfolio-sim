@@ -39,7 +39,9 @@ pub struct Env {
     pub extra: Vec<(String, String)>,
 }
 
-pub fn stub_producer() -> PathBuf {
+/// The stub producer example. A filtered run (`cargo test --test live`) does not build examples,
+/// so callers that replace the producer do not need it.
+pub fn stub_producer() -> Option<PathBuf> {
     let exe = std::env::current_exe().expect("test exe");
     let debug = exe
         .parent()
@@ -51,8 +53,7 @@ pub fn stub_producer() -> PathBuf {
         "stub_producer"
     };
     let path = debug.join("examples").join(name);
-    assert!(path.exists(), "build examples first: {}", path.display());
-    path
+    path.exists().then_some(path)
 }
 
 impl Env {
@@ -75,7 +76,9 @@ impl Env {
         } else {
             "portfolio-model-ledger"
         });
-        std::fs::copy(stub_producer(), &ledger).unwrap();
+        if let Some(stub) = stub_producer() {
+            std::fs::copy(stub, &ledger).unwrap();
+        }
         Env {
             artifacts: dir.join("artifacts"),
             dir,
@@ -107,7 +110,7 @@ impl Env {
             .env("WORKBENCH_WORKSPACE_ID", &self.workspace)
             .env("WORKBENCH_API_TOKEN", TOKEN)
             .env("PORTFOLIO_MODEL_LEDGER_EXE", &self.ledger)
-            .env("WORKBENCH_LEASE_SECONDS", "2");
+            .env("WORKBENCH_LEASE_SECONDS", "3");
         for (k, v) in &self.extra {
             c.env(k, v);
         }
