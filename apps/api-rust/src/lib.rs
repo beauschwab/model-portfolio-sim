@@ -7,6 +7,9 @@
 //! re-verifies them, and publishes only in a final transaction fenced by the lease, the attempt
 //! token, cancellation, the routing epoch, the immutable authority row and the original deadline.
 //! It contains no financial calculation and no Python.
+// The HTTP contract tables are large `json!` literals.
+#![recursion_limit = "512"]
+pub mod compose;
 pub mod config;
 pub mod contract;
 pub mod fault;
@@ -48,6 +51,8 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 pub struct Refusal {
     pub code: &'static str,
     pub detail: String,
+    /// Actionable mapping requirements, when the refusal lists them.
+    pub requirements: Vec<serde_json::Value>,
 }
 
 impl Refusal {
@@ -55,6 +60,7 @@ impl Refusal {
         Refusal {
             code,
             detail: detail.into(),
+            requirements: Vec::new(),
         }
     }
 }

@@ -240,3 +240,38 @@ fn the_verifier_process_round_trips_files_without_python() {
     assert_eq!(out.status.code(), Some(1));
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn liquidity_steps_are_recomputed_and_tampered_steps_are_refused() {
+    let l = lines();
+    let steps = &l[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]["steps"];
+    let draw = steps
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["event_id"] == "draw")
+        .unwrap();
+    assert_eq!(draw["cash_movement"], 95.0);
+    // An altered amount, a reordered step and undrawn capacity reported as cash are refused.
+    let mut a = lines();
+    a[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]["steps"][1]["usable_cash_after"] =
+        json!(95.0);
+    assert!(refused(REQUEST, &join(&a)).contains("liquidity step"));
+    let mut b = lines();
+    b[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]["steps"]
+        .as_array_mut()
+        .unwrap()
+        .swap(0, 1);
+    assert!(refused(REQUEST, &join(&b)).contains("liquidity step"));
+    let mut c = lines();
+    let step = &mut c[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]["steps"][6];
+    let undrawn = step["facility_undrawn_after"].as_f64().unwrap();
+    step["cash_after"] = json!(step["cash_after"].as_f64().unwrap() + undrawn);
+    assert!(refused(REQUEST, &join(&c)).contains("cash_after"));
+    let mut d = lines();
+    d[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]["steps"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    assert!(refused(REQUEST, &join(&d)).contains("step count"));
+}

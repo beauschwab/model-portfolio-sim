@@ -1,4 +1,4 @@
-//! `workbench-native api | worker [--exit-when-idle] | admin <command> | contract <kind>`.
+//! `workbench-native api | worker [--exit-when-idle] | dev | admin <command> | contract <kind>`.
 use std::sync::atomic::AtomicBool;
 use workbench_native::{
     config::Config, contract, http, migrate, objects::Objects, repo::Repo, sql::Db,
@@ -8,6 +8,7 @@ fn usage() -> ! {
     eprintln!(
         "usage: workbench-native api [--threads N]\n\
          \x20      workbench-native worker [--exit-when-idle]\n\
+         \x20      workbench-native dev   (native workspace, API and worker in one process)\n\
          \x20      workbench-native admin migrate | init | status | cutover --to rust|legacy [--actor NAME]\n\
          \x20      workbench-native contract openapi|typescript"
     );
@@ -44,6 +45,26 @@ fn run(args: &[String]) -> Result<(), String> {
                 .and_then(|t| t.parse().ok())
                 .unwrap_or(4);
             http::serve(http::App::new(Config::from_env()?)?, threads)
+        }
+        Some("dev") => {
+            // Local development and browser tests: one process prepares a native workspace and
+            // runs the leased worker beside the API. Deployments run `api` and `worker` apart.
+            let config = Config::from_env()?;
+            let objects = Objects::open(&config.artifact_url, &config.tenant, &config.workspace)?;
+            let repo = repo(&config)?;
+            repo.initialize(&objects, "native-dev")
+                .map_err(|r| r.to_string())?;
+            if let Err(r) = repo.cutover("rust", "native-dev") {
+                eprintln!("workspace stays on its current route: {r}");
+            }
+            let worker = workbench_native::worker::Worker::new(config.clone())?;
+            std::thread::spawn(move || {
+                let stop = AtomicBool::new(false);
+                if let Err(e) = worker.run(false, &stop) {
+                    eprintln!("worker stopped: {e}");
+                }
+            });
+            http::serve(http::App::new(config)?, 4)
         }
         Some("worker") => {
             let worker = workbench_native::worker::Worker::new(Config::from_env()?)?;

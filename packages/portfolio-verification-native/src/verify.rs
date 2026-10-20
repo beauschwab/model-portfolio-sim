@@ -318,6 +318,45 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
                     ));
                 }
             }
+            let steps = r
+                .get("steps")
+                .and_then(Value::as_array)
+                .ok_or("receipt liquidity steps")?;
+            if steps.len() != expected.steps.len() {
+                return Err("liquidity step count differs from the independent replay".into());
+            }
+            for (got, want) in steps.iter().zip(&expected.steps) {
+                let depends: Vec<&str> = got
+                    .get("depends_on")
+                    .and_then(Value::as_array)
+                    .ok_or("step dependencies")?
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect();
+                if s(got, "event_id")? != want.event_id
+                    || got.get("ordinal").and_then(Value::as_i64) != Some(want.ordinal)
+                    || got.get("phase").and_then(Value::as_u64) != Some(u64::from(want.phase))
+                    || s(got, "status")? != want.status
+                    || depends
+                        != want
+                            .depends_on
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                {
+                    return Err(format!(
+                        "liquidity step `{}` identity, order or status differs from the independent replay",
+                        want.event_id
+                    ));
+                }
+                for (field, value) in &want.amounts {
+                    money(
+                        &format!("liquidity step `{}` {field}", want.event_id),
+                        f(got, field)?,
+                        *value,
+                    )?;
+                }
+            }
             let facts = r
                 .get("accounting_facts")
                 .and_then(Value::as_array)
