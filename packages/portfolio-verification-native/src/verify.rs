@@ -357,6 +357,72 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
                     )?;
                 }
             }
+            // Stage G: the business-plan mode, every funding decision and every monthly report.
+            if r.get("business_plan_mode").and_then(Value::as_str) != expected.mode.as_deref() {
+                return Err("business plan mode differs from the independent replay".into());
+            }
+            let decisions = r
+                .get("policy_decisions")
+                .and_then(Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            if decisions.len() != expected.decisions.len() {
+                return Err("policy decision count differs from the independent replay".into());
+            }
+            for (got, want) in decisions.iter().zip(&expected.decisions) {
+                if s(got, "decision_id")? != want.decision_id
+                    || got.get("ordinal").and_then(Value::as_i64) != Some(want.ordinal)
+                    || s(got, "kind")? != want.kind
+                    || s(got, "facility_id")? != want.facility_id
+                    || got.get("generation").and_then(Value::as_u64)
+                        != Some(u64::from(want.generation))
+                    || s(got, "trigger")? != want.trigger
+                {
+                    return Err(format!(
+                        "policy decision `{}` differs from the independent replay",
+                        want.decision_id
+                    ));
+                }
+                for (field, value) in &want.amounts {
+                    money(
+                        &format!("policy decision `{}` {field}", want.decision_id),
+                        f(got, field)?,
+                        *value,
+                    )?;
+                }
+            }
+            match (r.get("monthly"), &expected.monthly) {
+                (None, None) => {}
+                (Some(Value::Array(got)), Some(want)) => {
+                    if got.len() != want.len() {
+                        return Err(
+                            "monthly report count differs from the independent replay".into()
+                        );
+                    }
+                    for (g, w) in got.iter().zip(want) {
+                        if s(g, "month")? != w.month
+                            || g.get("first_ordinal").and_then(Value::as_i64)
+                                != Some(w.first_ordinal)
+                            || g.get("last_ordinal").and_then(Value::as_i64) != Some(w.last_ordinal)
+                        {
+                            return Err(format!("monthly report {} calendar differs", w.month));
+                        }
+                        for (field, count) in &w.counts {
+                            if g.get(*field).and_then(Value::as_u64) != Some(*count) {
+                                return Err(format!("monthly report {} {field} differs", w.month));
+                            }
+                        }
+                        for (field, value) in &w.amounts {
+                            money(
+                                &format!("monthly report {} {field}", w.month),
+                                f(g, field)?,
+                                *value,
+                            )?;
+                        }
+                    }
+                }
+                _ => return Err("monthly reports differ from the independent replay".into()),
+            }
             let facts = r
                 .get("accounting_facts")
                 .and_then(Value::as_array)

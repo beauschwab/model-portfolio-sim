@@ -321,3 +321,27 @@ fn a_live_run_verifies_independently_and_a_tampered_stream_does_not() {
     );
     assert!(portfolio_verification_native::verify(UNWIND.as_bytes(), tampered.as_bytes()).is_err());
 }
+
+const POLICY: &str = include_str!(
+    "../../portfolio-verification-native/tests/fixtures/lifecycle-policy.request.json"
+);
+
+#[test]
+fn a_live_policy_mode_run_verifies_independently() {
+    let bytes = Arc::new(Mutex::new(Vec::new()));
+    run(POLICY.as_bytes(), Box::new(Capture(bytes.clone()))).unwrap();
+    let stream = bytes.lock().unwrap().clone();
+    let receipt = portfolio_verification_native::verify(POLICY.as_bytes(), &stream).unwrap();
+    assert!(receipt.verified);
+    let header: Value =
+        serde_json::from_slice(stream.split(|b| *b == b'\n').next().unwrap()).unwrap();
+    let r = &header["workflow"]["source_receipt"]["journals"][0]["receipt"];
+    let kinds: Vec<&str> = r["policy_decisions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["draw", "renewal", "renewal", "maturity_repayment"]);
+    assert_eq!(r["business_plan_mode"], json!("policy"));
+}

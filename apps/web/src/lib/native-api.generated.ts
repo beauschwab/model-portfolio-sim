@@ -107,6 +107,11 @@ export type BookRecords = {
   sources?: Record<string, unknown>[];
 };
 
+export type BusinessPlan = {
+  funding_policy?: FundingPolicy;
+  mode: "runoff" | "schedule" | "policy";
+};
+
 export type Cancelled = {
   cancelled: boolean;
 };
@@ -152,6 +157,13 @@ export type FundingAllocation = {
   attributed_lot_id: string;
   funding_lot_id: string;
   instruction: FundingTreatment;
+};
+
+export type FundingPolicy = {
+  facilities: PolicyFacility[];
+  minimum_usable_cash: number;
+  policy: Record<string, unknown>;
+  repay_surplus?: boolean;
 };
 
 export type FundingTreatment = "repay" | "retain" | "replace";
@@ -232,10 +244,12 @@ export type LifecycleAction = {
 export type LifecycleExample = {
   book: SavedBook;
   plan: LifecyclePlan;
+  policy_plan: LifecyclePlan;
 };
 
 export type LifecyclePlan = {
   actions: LifecycleAction[];
+  business_plan?: BusinessPlan;
   funding_instructions?: Record<string, FundingTreatment>;
   hedge_treatments?: Record<string, HedgeTreatment>;
   instructions: Instructions;
@@ -244,6 +258,7 @@ export type LifecyclePlan = {
 
 export type LifecycleReceipt = {
   accounting_facts: AccountingFact[];
+  business_plan_mode?: "runoff" | "schedule" | "policy";
   cash_bridge_reconciled?: boolean;
   closing_cash: number;
   collateral_conserved?: boolean;
@@ -253,8 +268,10 @@ export type LifecycleReceipt = {
   gross_derivative_assets?: number;
   gross_derivative_liabilities?: number;
   inventory_conserved?: boolean;
+  monthly?: MonthlyReport[];
   open_claims: boolean;
   opening_cash: number;
+  policy_decisions?: PolicyDecision[];
   posted_im: number;
   posted_vm: number;
   realized: number;
@@ -289,6 +306,62 @@ export type LiquidityStep = {
 };
 
 export type Manifest = Record<string, unknown>;
+
+export type MonthlyReport = {
+  blocked_events: number;
+  cash_in: number;
+  cash_out: number;
+  closing_cash: number;
+  closing_facility_drawn: number;
+  closing_pledged_quantity: number;
+  closing_posted_margin: number;
+  closing_security_quantity: number;
+  closing_usable_cash: number;
+  events: number;
+  failed_events: number;
+  fees: number;
+  first_ordinal: number;
+  interest_expense: number;
+  last_ordinal: number;
+  margin_posted: number;
+  margin_returned: number;
+  minimum_usable_cash: number;
+  month: string;
+  net_cash: number;
+  opening_cash: number;
+  policy_decisions: number;
+  realized: number;
+};
+
+export type PlanRenewal = {
+  max_generations: number;
+  tenor_days: number;
+  windows: PlanWindow[];
+};
+
+export type PlanWindow = {
+  from_ordinal: number;
+  to_ordinal: number;
+};
+
+export type PolicyDecision = {
+  amount: number;
+  decision_id: string;
+  facility_id: string;
+  generation: number;
+  kind: "draw" | "surplus_repayment" | "renewal" | "maturity_repayment";
+  need: number;
+  ordinal: number;
+  trigger: string;
+  usable_cash_after: number;
+  usable_cash_before: number;
+};
+
+export type PolicyFacility = {
+  access: PlanWindow[];
+  facility_id: string;
+  renewal?: PlanRenewal;
+};
 
 export type ProducerReceipt = {
   workflow: {

@@ -20,6 +20,8 @@ pub const MAPPING_REQUIRED: &str = "LIFECYCLE_MAPPING_REQUIRED";
 /// The plan's worked unwind as a saved book and an unwind plan (served as a reviewed example).
 pub const EXAMPLE_BOOK: &str = include_str!("../tests/fixtures/lifecycle-book.json");
 pub const EXAMPLE_PLAN: &str = include_str!("../tests/fixtures/lifecycle-plan.json");
+/// The same unwind with the bridge left to a reviewed funding policy (stage G).
+pub const EXAMPLE_POLICY_PLAN: &str = include_str!("../tests/fixtures/lifecycle-policy-plan.json");
 
 const BOOK_FIELDS: [&str; 5] = ["schema", "dated", "plan", "hedge_contracts", "scenarios"];
 /// Plan records a saved book supplies; actions and revision bindings come from composition.
@@ -41,13 +43,15 @@ const BOOK_PLAN_FIELDS: [&str; 15] = [
     "formal_relationships",
     "obligations",
 ];
-const PLAN_FIELDS: [&str; 5] = [
+const PLAN_FIELDS: [&str; 6] = [
     "schema",
     "actions",
     "instructions",
     "hedge_treatments",
     "funding_instructions",
+    "business_plan",
 ];
+const PLAN_MODES: [&str; 3] = ["runoff", "schedule", "policy"];
 pub const INSTRUCTION_KINDS: [&str; 9] = [
     "purchases",
     "financings",
@@ -172,6 +176,17 @@ pub fn parse_plan(bytes: &[u8]) -> Result<Value, Refusal> {
             }
         }
     }
+    if let Some(bp) = plan.get("business_plan") {
+        if !bp
+            .get("mode")
+            .and_then(Value::as_str)
+            .is_some_and(|m| PLAN_MODES.contains(&m))
+        {
+            return Err(malformed(
+                "a business plan has mode runoff, schedule or policy",
+            ));
+        }
+    }
     for (key, allowed) in [
         ("hedge_treatments", &HEDGE_TREATMENTS[..]),
         ("funding_instructions", &FUNDING_INSTRUCTIONS[..]),
@@ -219,12 +234,41 @@ pub fn requirements(book: &Value, plan: &Value) -> Vec<Requirement> {
     let facilities = ids("facilities", "facility_id");
     let ins = &plan["instructions"];
     let actions = array(plan, "actions");
-    if actions.is_empty() {
+    let mode = plan
+        .get("business_plan")
+        .and_then(|b| b.get("mode"))
+        .and_then(Value::as_str)
+        .unwrap_or("schedule");
+    if mode == "runoff" {
+        let scheduled: usize = INSTRUCTION_KINDS.iter().map(|k| array(ins, k).len()).sum();
+        if scheduled > 0 || !actions.is_empty() {
+            need(
+                "business plan".into(),
+                "runoff executes no actions, but the plan has actions or instructions".into(),
+                "clear the actions and instructions, or select the schedule or policy mode".into(),
+            );
+        }
+    } else if actions.is_empty() {
         need(
             "plan".into(),
             "the plan has no actions".into(),
             "add an acquisition or unwind action naming its lots and quantities".into(),
         );
+    }
+    if let Some(p) = plan
+        .get("business_plan")
+        .and_then(|b| b.get("funding_policy"))
+    {
+        for f in array(p, "facilities") {
+            let id = text(f, "facility_id");
+            if !facilities.contains(id) {
+                need(
+                    "funding policy".into(),
+                    format!("facility `{id}` is not in the saved book"),
+                    "name a saved facility with declared access windows".into(),
+                );
+            }
+        }
     }
     // Lots each action touches, with the quantity (full or partial).
     let mut touched: BTreeMap<String, f64> = BTreeMap::new();
@@ -459,6 +503,9 @@ pub fn compose(
                 "horizon_end_ordinal".into(),
                 s["horizon_end_ordinal"].clone(),
             );
+            if let Some(bp) = plan.get("business_plan") {
+                block.insert("business_plan".into(), bp.clone());
+            }
             for kind in INSTRUCTION_KINDS {
                 if let Some(list) = plan["instructions"].get(kind) {
                     let mut list = list.clone();

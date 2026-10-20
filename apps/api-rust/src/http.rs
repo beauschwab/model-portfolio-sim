@@ -292,6 +292,7 @@ impl App {
                 json!({
                     "book": serde_json::from_str::<Value>(compose::EXAMPLE_BOOK).expect("example book"),
                     "plan": serde_json::from_str::<Value>(compose::EXAMPLE_PLAN).expect("example plan"),
+                    "policy_plan": serde_json::from_str::<Value>(compose::EXAMPLE_POLICY_PLAN).expect("example policy plan"),
                 }),
             ),
             ("GET", ["native", "jobs", id, "receipt"]) => {

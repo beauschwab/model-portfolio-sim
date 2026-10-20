@@ -248,3 +248,35 @@ fn saved_documents_compose_over_http_and_unknown_fields_are_refused() {
         (400, Some("MALFORMED_INPUT"))
     );
 }
+
+const POLICY_PLAN: &str = include_str!("fixtures/lifecycle-policy-plan.json");
+
+#[test]
+fn business_plans_compose_into_every_scenario_and_their_gaps_are_listed() {
+    let policy = compose::parse_plan(POLICY_PLAN.as_bytes()).unwrap();
+    let composed = compose::compose(&book(), &policy, &binding())
+        .unwrap()
+        .request;
+    for block in composed["acquisitions"].as_array().unwrap() {
+        assert_eq!(block["business_plan"]["mode"], "policy");
+        assert!(block["facility_draws"].as_array().unwrap().is_empty());
+    }
+    let mut runoff = plan();
+    runoff["business_plan"] = json!({"mode": "runoff"});
+    assert!(needs(&runoff)
+        .iter()
+        .any(|x| x.starts_with("business plan | runoff executes no actions")));
+    let mut unknown = policy.clone();
+    unknown["business_plan"]["funding_policy"]["facilities"][0]["facility_id"] = json!("missing");
+    assert!(needs(&unknown)
+        .iter()
+        .any(|x| x.contains("facility `missing` is not in the saved book")));
+    let mut bad = policy.clone();
+    bad["business_plan"]["mode"] = json!("perpetual");
+    assert_eq!(
+        compose::parse_plan(&serde_json::to_vec(&bad).unwrap())
+            .unwrap_err()
+            .code,
+        "MALFORMED_INPUT"
+    );
+}

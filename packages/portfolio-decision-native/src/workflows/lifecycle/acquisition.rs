@@ -95,6 +95,7 @@ fn empty_block(asof: i32) -> AcquisitionRequest {
         facility_draws: vec![],
         facility_repayments: vec![],
         initial_margin: vec![],
+        business_plan: None,
     }
 }
 

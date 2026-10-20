@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to F)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to G)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -345,7 +345,65 @@ Not in stage F: a formal ASC 815 lane inside the lifecycle (formal plans are ref
 of every instruction field outside the JSON editor, and saved books mapped from the Python product
 books (their frames carry no lot-level funding, pledge or margin records).
 
-## Not in stages A to F
+## Stage G: business-plan modes and monthly reporting (#49)
 
-Post-entry derivative marks and coupons, dynamic IM, long-term policies, prepared allocations and
-scale are stages G to I (#49 to #51).
+Each execution block may select `business_plan`. Without it, the block runs the supplied schedule
+exactly as in stages B and C, and the receipt bytes are unchanged.
+
+| Mode | Behavior |
+|---|---|
+| `runoff` | No actions or instructions; only contractual events of the dated source move. A runoff block with instructions is refused. |
+| `schedule` | The supplied instructions, as before, plus monthly reports. |
+| `policy` | The supplied instructions plus decisions of one reviewed `funding_policy`. |
+
+A funding policy names a minimum usable cash, facilities in draw order with declared access windows
+(Physical business assumptions, separate from market states and original OAS/CRN), optional
+renewal per facility, and whether surplus repays drawn facilities at the end of each day.
+
+| Rule | Behavior |
+|---|---|
+| Information prefix | A decision is taken inside the chronological replay, when a payment is about to settle: it sees settled cash, restricted cash (from received VM balances), live facility balances and that payment, never a later outcome. Changing a later settlement (for example the margin settlement lag) leaves earlier decisions unchanged; a failed or blocked leg changes the state later decisions see. |
+| Draws | Only inside an access window and before the facility's current expiry, up to its headroom, in policy order. A need no accessible facility covers is not invented: the payment is refused with `INSUFFICIENT_SETTLEMENT_LIQUIDITY`. |
+| Surplus repayment | End of day, last facility first, down to the floor. |
+| Renewal | At a generation's expiry, a declared renewal window and the generation bound (at most 24) permit a replacement generation (`<facility>~g<n>`): one intent moves the balance to the new instrument and a `funding_replacement` accounting fact reaches the ASC 815 owner. Otherwise the balance is repaid from usable cash (other accessible facilities may fund it) or refused. No perpetual facility, prefunding by a future receipt or horizon payoff is synthesized; an unexpired balance at the horizon stays a liability. |
+| Scope | A policy facility cannot also carry scheduled draws or repayments (`UNSUPPORTED_POLICY`). |
+
+Every decision is a receipt record (`policy_decisions`: kind, facility, generation, amount, trigger,
+usable cash before and after, the need it covered) and its own liquidity step, settled before the
+payment it funds.
+
+Monthly reports (`monthly`) cover every calendar month from the as-of month to the horizon month. Each
+records opening and closing cash, cash in and out, net cash, interest and fees, realized results, margin
+posted and returned, closing facility drawn, posted margin, pledged and owned securities, event,
+failed, blocked and decision counts, and the minimum usable cash after any event. A positive month-end
+balance therefore cannot hide an intra-month shortfall. The engine refuses its own output unless the
+monthly net cash sums to the dated cash movements, each month opens at the prior close and the last
+month closes at the closing cash.
+
+The stage D verifier replays the policy independently. It parses the business plan itself and applies
+its own funding rule, renewals, maturities and surplus repayments in an explicit day loop. It
+aggregates months with its own calendar conversion and compares every decision, policy step,
+replacement fact and monthly field. A tampered decision, an extra decision, an altered monthly minimum,
+a dropped replacement fact or a changed raw access window is refused.
+
+Composition accepts `business_plan` in a `liquidity-plan-1` document and copies it into every scenario
+block. A runoff plan with actions or instructions, or a funding policy naming a facility the saved book
+lacks, is a mapping requirement. The workbench panel selects the mode, the floor, surplus repayment and
+each facility's access window, and shows Funding decisions and Monthly tabs. The worked example adds a
+policy plan.
+
+Tests: `portfolio-model-core/tests/lifecycle_policy.rs` (worked unwind under the policy, information
+prefix, failed-leg feedback, access, bounded renewal and maturity, runoff and mode rules, monthly
+reconciliation), the verifier's policy tamper test on a frozen live stream, the Decision crate's live
+policy run piped into the verifier, the service composition and live policy tests, and the browser
+test.
+
+Not in stage G: policies beyond funding (purchases, sales or hedge rebalancing chosen by rule), forecast
+occurrence, delay and cancellation facts for cash-flow hedges, portfolio-layer quantity and breach
+facts, and accrued funding costs on policy facilities (policy draws and repayments carry principal
+only). The published forecast routes are unchanged and are not inputs to this lane.
+
+## Not in stages A to G
+
+Post-entry derivative marks and coupons, dynamic IM, prepared allocations and scale are stages H and
+I (#50 and #51).
