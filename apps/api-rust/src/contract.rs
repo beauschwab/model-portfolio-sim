@@ -55,6 +55,18 @@ pub const ROUTES: &[Route] = &[
     Route { method: "get", path: "/native/lifecycle/example", operation: "lifecycleExample",
         summary: "The worked unwind as a saved book and an unwind plan",
         headers: &[], query: &[], body: None, status: 200, response: "LifecycleExample" },
+    Route { method: "post", path: "/native/lifecycle/allocations", operation: "submitAllocation",
+        summary: "Admit a durable liquidity-allocation-1 run over reviewed package plans of a saved book (?book=)",
+        headers: &[EXPECTED,
+            Header { name: "Idempotency-Key", required: false, description: "Repeated keys return the original job for identical input." },
+            Header { name: "X-Deadline-Seconds", required: false, description: "Original deadline from admission, within [1, 3600]." }],
+        query: &["book"], body: Some("raw-json"), status: 202, response: "Admission" },
+    Route { method: "get", path: "/native/jobs/{id}/allocation", operation: "allocation",
+        summary: "A published allocation: prepared coefficients, attempts, outcome and whether the plan is validated",
+        headers: &[], query: &[], body: None, status: 200, response: "AllocationView" },
+    Route { method: "post", path: "/native/jobs/{id}/allocation/evaluate", operation: "evaluateAllocation",
+        summary: "Coefficient-only estimate for a package selection (no pricing, never validated)",
+        headers: &[], query: &[], body: Some("raw-json"), status: 200, response: "AllocationEstimate" },
     Route { method: "get", path: "/native/documents", operation: "listDocuments",
         summary: "Saved documents of a revision (default head) with their schemas",
         headers: &[], query: &["revision"], body: None, status: 200, response: "DocumentList" },
@@ -105,6 +117,46 @@ pub fn schemas() -> Value {
             "name": s, "schema": {"type": ["string", "null"]}, "bytes": i, "sha256": s})),
         "DocumentList": obj(&["revision", "documents"], json!({"revision": i, "documents": list("DocumentEntry")})),
         "SavedDocument": {"type": "object", "additionalProperties": true},
+        "AllocationPackage": obj(&["plan"], json!({"plan": s, "group": s})),
+        "AllocationRequest": obj(&["packages"], json!({
+            "packages": list("AllocationPackage"), "minimum_usable_cash": n,
+            "objective": r("AllocationObjective"), "max_refinements": i})),
+        "AllocationObjective": {"type": "string", "enum": ["worst_case_external_nii", "worst_case_total_earnings"]},
+        "PackageCoefficients": obj(&["external_nii", "trading_pnl", "funding_cost", "usable_cash_deterioration"], json!({
+            "external_nii": n, "trading_pnl": n, "funding_cost": n, "usable_cash_deterioration": n})),
+        "PreparedPackage": obj(&["package_id", "group", "review", "request_sha256", "eligible", "refusal", "coefficients"], json!({
+            "package_id": s, "group": s, "review": any_obj, "request_sha256": s, "eligible": b,
+            "refusal": {"type": ["string", "null"]},
+            "coefficients": {"type": "object", "additionalProperties": r("PackageCoefficients")}})),
+        "AllocationMeasures": obj(&["external_nii", "trading_pnl", "funding_cost", "minimum_usable_cash"], json!({
+            "external_nii": n, "trading_pnl": n, "funding_cost": n, "minimum_usable_cash": n})),
+        "AllocationViolation": obj(&["scenario_id", "ordinal", "event_id", "measure", "value", "limit", "detail"], json!({
+            "scenario_id": {"type": ["string", "null"]}, "ordinal": {"type": ["integer", "null"]},
+            "event_id": {"type": ["string", "null"]}, "measure": s, "value": {"type": ["number", "null"]},
+            "limit": {"type": ["number", "null"]}, "detail": s})),
+        "AllocationAttempt": obj(&["selection", "estimate", "exact", "violation"], json!({
+            "selection": {"type": "array", "items": s},
+            "estimate": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": true}},
+            "exact": {"type": ["object", "null"], "additionalProperties": r("AllocationMeasures")},
+            "violation": {"$ref": "#/components/schemas/AllocationViolation", "nullable": true}})),
+        "AllocationReceipt": obj(&["schema", "identity_sha256", "objective", "minimum_usable_cash", "scenarios", "base",
+                "base_daily_minimum", "packages", "attempts", "outcome", "violation", "selected", "exact_replay_passed"], json!({
+            "schema": s, "identity_sha256": s, "objective": r("AllocationObjective"), "minimum_usable_cash": n,
+            "scenarios": {"type": "array", "items": s},
+            "base": {"type": "object", "additionalProperties": r("AllocationMeasures")},
+            "base_daily_minimum": {"type": "object", "additionalProperties": n},
+            "packages": list("PreparedPackage"), "attempts": list("AllocationAttempt"),
+            "outcome": {"type": "string", "enum": ["validated", "estimate_infeasible", "exhausted"]},
+            "violation": {"$ref": "#/components/schemas/AllocationViolation", "nullable": true},
+            "selected": {"type": ["array", "null"], "items": s},
+            "exact_replay_passed": b, "combined_request": {"type": ["object", "null"], "additionalProperties": true}, "disclosure": s})),
+        "AllocationView": obj(&["validated", "allocation"], json!({"validated": b, "allocation": r("AllocationReceipt")})),
+        "AllocationEstimate": obj(&["selection", "objective", "worst_case_objective", "minimum_usable_cash",
+                "within_usable_cash_bound", "scenarios", "status", "validated"], json!({
+            "selection": {"type": "array", "items": s}, "objective": r("AllocationObjective"),
+            "worst_case_objective": n, "minimum_usable_cash": n, "within_usable_cash_bound": b,
+            "scenarios": {"type": "object", "additionalProperties": {"type": "object", "additionalProperties": true}},
+            "status": {"type": "string", "enum": ["estimate"]}, "validated": b, "disclosure": s})),
         "LifecycleExample": obj(&["book", "plan", "policy_plan"], json!({"book": r("SavedBook"), "plan": r("LifecyclePlan"), "policy_plan": r("LifecyclePlan")})),
         "PlanWindow": obj(&["from_ordinal", "to_ordinal"], json!({"from_ordinal": i, "to_ordinal": i})),
         "PlanRenewal": obj(&["max_generations", "tenor_days", "windows"], json!({
@@ -332,7 +384,12 @@ pub fn openapi() -> Value {
 
 fn ts_type(schema: &Value) -> String {
     if let Some(r) = schema.get("$ref").and_then(Value::as_str) {
-        return r.rsplit('/').next().unwrap_or("unknown").to_string();
+        let name = r.rsplit('/').next().unwrap_or("unknown").to_string();
+        return if schema.get("nullable") == Some(&Value::Bool(true)) {
+            format!("{name} | null")
+        } else {
+            name
+        };
     }
     if let Some(values) = schema.get("enum").and_then(Value::as_array) {
         return values

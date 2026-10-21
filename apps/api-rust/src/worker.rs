@@ -213,7 +213,8 @@ impl Worker {
                 "the job view differs from its immutable admission record",
             ));
         }
-        if a.schema != crate::LIFECYCLE_SCHEMA || a.verifier != crate::VERIFIER {
+        let known = a.schema == crate::LIFECYCLE_SCHEMA || a.schema == crate::allocation::SCHEMA;
+        if !known || a.verifier != crate::VERIFIER {
             return Err(Refusal::new(
                 "UNSUPPORTED_SCHEMA",
                 "this worker cannot verify the admitted schema",
@@ -250,12 +251,16 @@ impl Worker {
             claim,
             json!({"stage": "verifying", "pct": 60, "attempt": claim.attempt}),
         )?;
+        if a.schema == crate::allocation::SCHEMA {
+            return self.allocation(claim, exe, &raw, &stream);
+        }
         let receipt = verify(&raw, &stream).map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
         self.repo.progress(
             claim,
             json!({"stage": "publishing", "pct": 75, "attempt": claim.attempt}),
         )?;
-        let (manifest, value) = publish::write(&self.objects, claim, &raw, &stream, &receipt)?;
+        let (manifest, value) =
+            publish::write(&self.objects, claim, &raw, &stream, &receipt, None)?;
         publish::reread(&self.objects, &manifest, &value)?;
         if executable_sha256(exe)? != a.executable_sha256 {
             return Err(Refusal::new(
@@ -268,6 +273,72 @@ impl Worker {
             "manifest": manifest.to_json(),
             "stream_sha256": value["stream"]["sha256"],
             "receipt": value["verification"]["receipt"],
+            "persisted_verification": true,
+        });
+        self.repo.publish(claim, &manifest, result)
+    }
+
+    /// An allocation: the producer's receipt line, then (only for a passed exact replay) the replay
+    /// stream. The merge is recomputed independently and the stream verified before anything is
+    /// marked validated; an unvalidated allocation still publishes its receipt and violation.
+    fn allocation(
+        &self,
+        claim: &Claim,
+        exe: &Path,
+        raw: &[u8],
+        stream: &[u8],
+    ) -> Result<(), Refusal> {
+        let layout = |d: String| Refusal::new("STREAM_LAYOUT", d);
+        let cut = stream
+            .iter()
+            .position(|b| *b == b'\n')
+            .ok_or_else(|| layout("allocation receipt line missing".into()))?;
+        let head: serde_json::Value =
+            serde_json::from_slice(&stream[..cut]).map_err(|e| layout(e.to_string()))?;
+        let receipt = head
+            .get("allocation")
+            .cloned()
+            .ok_or_else(|| layout("allocation receipt missing".into()))?;
+        let rest = &stream[cut + 1..];
+        let request: serde_json::Value = serde_json::from_slice(raw)
+            .map_err(|e| Refusal::new("MALFORMED_INPUT", e.to_string()))?;
+        let combined = crate::allocation::check(&request, &receipt, rest)?;
+        self.repo.progress(
+            claim,
+            json!({"stage": "publishing", "pct": 75, "attempt": claim.attempt}),
+        )?;
+        let (inner, inner_value) = match &combined {
+            Some(bytes) => {
+                let verified =
+                    verify(bytes, rest).map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
+                let d = self.objects.put(bytes, "json")?;
+                let (m, v) =
+                    publish::write(&self.objects, claim, bytes, rest, &verified, Some(&d))?;
+                (Some(m), Some(v))
+            }
+            None => (None, None),
+        };
+        let (manifest, value) = publish::write_allocation(
+            &self.objects,
+            claim,
+            &receipt,
+            combined.is_some(),
+            inner.as_ref(),
+        )?;
+        publish::reread_allocation(&self.objects, &manifest, &value, inner_value.as_ref())?;
+        if executable_sha256(exe)? != claim.authority.executable_sha256 {
+            return Err(Refusal::new(
+                "EXECUTABLE_CHANGED",
+                "the native executable changed during the run",
+            ));
+        }
+        fault::pause("final_io");
+        let result = json!({
+            "manifest": manifest.to_json(),
+            "allocation": true,
+            "validated": combined.is_some(),
+            "outcome": receipt["outcome"],
+            "selected": receipt["selected"],
             "persisted_verification": true,
         });
         self.repo.publish(claim, &manifest, result)

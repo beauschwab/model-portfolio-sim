@@ -30,7 +30,11 @@ pub fn status_for(code: &str) -> u16 {
     match code {
         "NOT_FOUND" => 404,
         "MALFORMED_INPUT" => 400,
-        "UNSUPPORTED_SCHEMA" | compose::MAPPING_REQUIRED | "BOUND_EXCEEDED" => 422,
+        "UNSUPPORTED_SCHEMA"
+        | compose::MAPPING_REQUIRED
+        | "BOUND_EXCEEDED"
+        | "INELIGIBLE_PACKAGE" => 422,
+        "PREPARATION_STALE" => 409,
         "BODY_TOO_LARGE" => 413,
         "UNAUTHORIZED" => 401,
         "CROSS_ORIGIN" => 403,
@@ -297,7 +301,33 @@ impl App {
             ),
             ("GET", ["native", "jobs", id, "receipt"]) => {
                 let (d, _) = self.published(id)?;
+                let d = publish::lifecycle_of(&self.objects, &d)?;
                 ok(200, publish::receipt(&self.objects, &d)?)
+            }
+            ("POST", ["native", "lifecycle", "allocations"]) => self.allocate(incoming),
+            ("GET", ["native", "jobs", id, "allocation"]) => {
+                let (d, _) = self.published(id)?;
+                ok(200, publish::allocation(&self.objects, &d)?)
+            }
+            ("POST", ["native", "jobs", id, "allocation", "evaluate"]) => {
+                let (d, _) = self.published(id)?;
+                let published = publish::allocation(&self.objects, &d)?;
+                self.fresh(id)?;
+                let body = portfolio_verification_native::raw::parse(incoming.body, 64 * 1024)
+                    .map_err(|e| Refusal::new("MALFORMED_INPUT", e))?;
+                let selection: Vec<String> = body["selection"]
+                    .as_array()
+                    .ok_or_else(|| {
+                        Refusal::new("MALFORMED_INPUT", "`selection` lists package ids")
+                    })?
+                    .iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect();
+                let floor = body.get("minimum_usable_cash").and_then(Value::as_f64);
+                ok(
+                    200,
+                    crate::allocation::evaluate(&published["allocation"], &selection, floor)?,
+                )
             }
             ("PUT", ["native", "documents", name]) => {
                 let expected = header_int(incoming, "If-Match")?.ok_or_else(|| {
@@ -326,6 +356,7 @@ impl App {
             }
             ("GET", ["native", "jobs", id, "tables", table]) => {
                 let (d, _) = self.published(id)?;
+                let d = publish::lifecycle_of(&self.objects, &d)?;
                 let offset = query_int(incoming.query, "offset", 0)?;
                 let limit = query_int(incoming.query, "limit", 100)?;
                 if offset < 0 || limit < 1 {
@@ -385,12 +416,132 @@ impl App {
             None => incoming.body.to_vec(),
         };
         self.strict(&raw)?;
-        let d = self.objects.put(&raw, "json")?;
+        self.admit(incoming, crate::LIFECYCLE_SCHEMA, &raw, expected, deadline)
+    }
+
+    fn deadline(&self, incoming: &Incoming) -> Result<f64, Refusal> {
+        match (incoming.header)("X-Deadline-Seconds") {
+            Some(v) => v
+                .trim()
+                .parse::<f64>()
+                .ok()
+                .filter(|x| x.is_finite())
+                .ok_or_else(|| {
+                    Refusal::new("MALFORMED_INPUT", "X-Deadline-Seconds is not a number")
+                }),
+            None => Ok(self.config.default_deadline_seconds),
+        }
+    }
+
+    /// `POST /native/lifecycle/allocations?book=`: reviewed packages (saved plans and groups), the
+    /// usable-cash floor, the objective and the refinement bound, composed at the expected revision.
+    fn allocate(&self, incoming: &Incoming) -> Result<Reply, Refusal> {
+        let expected = header_int(incoming, "X-Expected-Revision")?
+            .ok_or_else(|| Refusal::new("MALFORMED_INPUT", "X-Expected-Revision is required"))?;
+        let deadline = self.deadline(incoming)?;
+        let book_name = query_param(incoming.query, "book")
+            .ok_or_else(|| Refusal::new("MALFORMED_INPUT", "`book` names a saved book"))?;
+        let (book_d, book_bytes) = self.saved(expected, &book_name)?;
+        let book = compose::parse_book(&book_bytes)?;
+        let (packages, constraints) = crate::allocation::parse_body(incoming.body)?;
+        let docs = packages
+            .into_iter()
+            .map(|(name, group)| {
+                let (d, bytes) = self.saved(expected, &name)?;
+                Ok(crate::allocation::PackageDoc {
+                    plan: compose::parse_plan(&bytes)?,
+                    name,
+                    group,
+                    sha256: d.sha256,
+                })
+            })
+            .collect::<Result<Vec<_>, Refusal>>()?;
+        let binding = compose::Binding {
+            workspace: &self.config.workspace,
+            revision: expected,
+            book_name: &book_name,
+            book_sha256: &book_d.sha256,
+        };
+        let raw = crate::allocation::compose_request(&book, &binding, &docs, constraints)?;
+        if raw.len() > MAX_REQUEST_BYTES {
+            return Err(Refusal::new(
+                "BOUND_EXCEEDED",
+                "the allocation request exceeds 8 MiB",
+            ));
+        }
+        self.admit(
+            incoming,
+            crate::allocation::SCHEMA,
+            &raw,
+            expected,
+            deadline,
+        )
+    }
+
+    /// Prepared coefficients are valid only for the documents they were prepared from: any change
+    /// of the saved book or a package plan at the head revision requires a new allocation.
+    fn fresh(&self, id: &str) -> Result<(), Refusal> {
+        let view = self.repo.job(id)?;
+        let raw_d = Descriptor::from_json(&view["authority"]["raw"])?;
+        let raw: Value =
+            serde_json::from_slice(&self.objects.get_bounded(&raw_d, MAX_REQUEST_BYTES as u64)?)
+                .map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))?;
+        let head = self
+            .repo
+            .head()?
+            .ok_or_else(|| Refusal::new("NOT_INITIALIZED", "workspace has not been initialized"))?;
+        let snapshot = self.repo.snapshot(&self.objects, head)?;
+        let current = |name: &str| {
+            snapshot["documents"][name]["sha256"]
+                .as_str()
+                .map(str::to_string)
+        };
+        let book = &raw["base"]["plan"]["saved_book_revision"];
+        let book_name = book["id"].as_str().unwrap_or("");
+        let book_sha = book["revision"]
+            .as_str()
+            .and_then(|r| r.split_once(':'))
+            .map(|(_, s)| s.to_string());
+        let mut stale = Vec::new();
+        if current(book_name) != book_sha {
+            stale.push(format!("saved book `{book_name}`"));
+        }
+        for p in raw["packages"].as_array().into_iter().flatten() {
+            let name = p["package_id"].as_str().unwrap_or("");
+            let sha = p["review"]["revision"]
+                .as_str()
+                .and_then(|r| r.split_once(':'))
+                .map(|(_, s)| s.to_string());
+            if current(name) != sha {
+                stale.push(format!("plan `{name}`"));
+            }
+        }
+        if !stale.is_empty() {
+            return Err(Refusal::new(
+                "PREPARATION_STALE",
+                format!(
+                    "{} changed since this allocation was prepared; submit a new allocation",
+                    stale.join(", ")
+                ),
+            ));
+        }
+        Ok(())
+    }
+
+    fn admit(
+        &self,
+        incoming: &Incoming,
+        schema: &'static str,
+        raw: &[u8],
+        expected: i64,
+        deadline: f64,
+    ) -> Result<Reply, Refusal> {
+        let d = self.objects.put(raw, "json")?;
         let exe = &self.config.ledger_exe;
         let sha = crate::worker::executable_sha256(exe)?;
         let key = (incoming.header)("Idempotency-Key");
         let admission = self.repo.admit(&Submission {
-            schema: crate::LIFECYCLE_SCHEMA,
+            schema,
             raw: &d,
             expected_revision: expected,
             deadline_seconds: deadline,

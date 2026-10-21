@@ -9,6 +9,7 @@
 //! It contains no financial calculation and no Python.
 // The HTTP contract tables are large `json!` literals.
 #![recursion_limit = "512"]
+pub mod allocation;
 pub mod compose;
 pub mod config;
 pub mod contract;

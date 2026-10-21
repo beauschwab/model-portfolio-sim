@@ -163,12 +163,23 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
                 x.scenario_id
             )
         })?;
-        if scenario.plan_key != plan_sha256 {
+        // Rows that exist must name this plan; a run with no lifecycle postings (holding the book,
+        // runoff) has none, and the expected-intents comparison below requires exactly that.
+        let has_rows = !scenario.lineage.is_empty() || !scenario.custody.is_empty();
+        if has_rows && scenario.plan_key != plan_sha256 {
             return Err("lifecycle rows name another plan".into());
         }
         scenarios.push(x.scenario_id.clone());
+        // Without lifecycle rows the account is the plan's single account.
+        let row_account = if has_rows {
+            scenario.account.clone()
+        } else if plan.accounts.len() == 1 {
+            plan.accounts[0].account_id.clone()
+        } else {
+            return Err("stage D verifies one lifecycle account per scenario".into());
+        };
         for account in &plan.accounts {
-            if account.account_id != scenario.account {
+            if account.account_id != row_account {
                 return Err("stage D verifies one lifecycle account per scenario".into());
             }
             let raw_account = raw_accounts

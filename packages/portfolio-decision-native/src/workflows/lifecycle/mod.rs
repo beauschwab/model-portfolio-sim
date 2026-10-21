@@ -2,6 +2,7 @@
 //! runs admission before any financial generation. Stage B (issue #44) is `acquisition`: native
 //! acquisition replay through the Risk swap pricer, the model-core engine and the ledger owner.
 pub mod acquisition;
+pub mod allocation;
 
 use portfolio_model_core::lifecycle::{self, Admitted, Refusal};
 use serde_json::{json, Value};

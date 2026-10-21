@@ -197,3 +197,115 @@ fn a_policy_plan_runs_and_publishes_verified_decisions_and_monthly_reports() {
     assert_eq!(r["monthly"][0]["minimum_usable_cash"], 0.0);
     assert_eq!(r["closing_cash"], 6.0);
 }
+
+#[test]
+fn an_allocation_is_validated_only_after_exact_replay_and_independent_verification() {
+    let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
+        eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; live allocation test skipped");
+        return;
+    };
+    let env = Env::new(Backend::Sqlite, "liveallocation");
+    std::fs::copy(&exe, &env.ledger).unwrap();
+    env.ready();
+    let api = env.api();
+    let example = api.get("/native/lifecycle/example").body;
+    let mut above = example["plan"].clone();
+    above["instructions"]["sales"][0]["clean_price_per_100"] = serde_json::json!(101.0);
+    let mut rev = 0;
+    for (name, doc) in [
+        ("desk-book", &example["book"]),
+        ("at-par", &example["plan"]),
+        ("above-par", &above),
+    ] {
+        let r = api.call(
+            "PUT",
+            &format!("/native/documents/{name}"),
+            &[("If-Match", &rev.to_string())],
+            &serde_json::to_vec(doc).unwrap(),
+        );
+        assert_eq!(r.status, 201, "{:?}", r.body);
+        rev += 1;
+    }
+    let submit = |body: serde_json::Value| {
+        let r = api.call(
+            "POST",
+            "/native/lifecycle/allocations?book=desk-book",
+            &[("X-Expected-Revision", &rev.to_string())],
+            &serde_json::to_vec(&body).unwrap(),
+        );
+        assert_eq!(r.status, 202, "{:?}", r.body);
+        r.body["job_id"].as_str().unwrap().to_string()
+    };
+    let packages = serde_json::json!([{"plan": "at-par", "group": "bond"}, {"plan": "above-par", "group": "bond"}]);
+    let good = submit(
+        serde_json::json!({"packages": packages, "objective": "worst_case_total_earnings", "minimum_usable_cash": 0.0}),
+    );
+    let unreachable = submit(serde_json::json!({"packages": packages, "minimum_usable_cash": 7.0}));
+    let log = finish(env.worker(&[]), Duration::from_secs(300));
+
+    let view = api.get(&format!("/native/jobs/{good}")).body;
+    assert_eq!(view["status"], "native_done", "{log}\n{view}");
+    assert_eq!(view["result"]["validated"], true);
+    let a = api.get(&format!("/native/jobs/{good}/allocation")).body;
+    assert_eq!(a["validated"], true);
+    assert_eq!(
+        a["allocation"]["selected"],
+        serde_json::json!(["above-par"])
+    );
+    // The validated plan reopens as a lifecycle publication.
+    let receipt = api.get(&format!("/native/jobs/{good}/receipt")).body;
+    assert_eq!(
+        receipt["workflow"]["source_receipt"]["journals"][0]["receipt"]["realized"],
+        1.0
+    );
+    assert!(api
+        .get(&format!("/native/jobs/{good}/tables/journal?limit=5"))
+        .body["rows"]
+        .as_array()
+        .is_some());
+    // Coefficient-only evaluation: an estimate, never a validated plan.
+    let e = api.call(
+        "POST",
+        &format!("/native/jobs/{good}/allocation/evaluate"),
+        &[],
+        br#"{"selection": ["at-par"]}"#,
+    );
+    assert_eq!(
+        (e.status, e.body["validated"].as_bool()),
+        (200, Some(false)),
+        "{:?}",
+        e.body
+    );
+    assert_eq!(e.body["status"], "estimate");
+
+    let failed = api.get(&format!("/native/jobs/{unreachable}")).body;
+    assert_eq!(failed["status"], "native_done", "{log}");
+    assert_eq!(failed["result"]["validated"], false);
+    assert_eq!(failed["result"]["outcome"], "estimate_infeasible");
+    assert_eq!(
+        api.get(&format!("/native/jobs/{unreachable}/tables/journal"))
+            .body["code"],
+        "NOT_PUBLISHED"
+    );
+
+    // A changed package invalidates the preparation for evaluation.
+    let r = api.call(
+        "PUT",
+        "/native/documents/above-par",
+        &[("If-Match", &rev.to_string())],
+        &serde_json::to_vec(&example["plan"]).unwrap(),
+    );
+    assert_eq!(r.status, 201);
+    let stale = api.call(
+        "POST",
+        &format!("/native/jobs/{good}/allocation/evaluate"),
+        &[],
+        br#"{"selection": ["at-par"]}"#,
+    );
+    assert_eq!(
+        (stale.status, stale.body["code"].as_str()),
+        (409, Some("PREPARATION_STALE")),
+        "{:?}",
+        stale.body
+    );
+}

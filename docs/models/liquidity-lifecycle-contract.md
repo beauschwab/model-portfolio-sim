@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to G)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to H)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -403,7 +403,43 @@ occurrence, delay and cancellation facts for cash-flow hedges, portfolio-layer q
 facts, and accrued funding costs on policy facilities (policy draws and repayments carry principal
 only). The published forecast routes are unchanged and are not inputs to this lane.
 
-## Not in stages A to G
+## Stage H: prepared allocation over reviewed packages (#50)
 
-Post-entry derivative marks and coupons, dynamic IM, prepared allocations and scale are stages H and
-I (#50 and #51).
+`liquidity-allocation-1` chooses among reviewed discrete action packages and validates only an exact
+replay.
+
+| Step | Behavior |
+|---|---|
+| Composition | `POST /native/lifecycle/allocations?book=` names saved plans as packages (each in a group), a usable-cash floor, the objective and a refinement bound (at most 8). The service composes the hold baseline (the saved book, no actions, runoff) and one request per package, each bound to the saved book and plan revisions. |
+| Preparation | The native process replays the baseline and every package alone, exactly. Per scenario it records each package's change in external NII (dated recognition), trading P&L (realized on exits), settlement and funding cost (fees and funding interest), and its worst daily deterioration of the minimum usable cash. A package whose replay refuses, for example a formal plan (`FORMAL_OWNER_REQUIRED`), is ineligible and never approximated. |
+| Selection | A HiGHS MIP chooses at most one package per group to maximize the worst-case estimate of the objective: `worst_case_external_nii` (the existing objective) or the explicitly selected `worst_case_total_earnings` (external NII plus trading P&L less funding cost). The usable-cash constraint is conservative within the linear estimate: the baseline minimum plus the sum of the selected deteriorations must reach the floor. |
+| Exact replay | The selected packages are merged structurally (one book, concatenated actions and instructions) and replayed exactly. The producer passes a candidate only if it runs and every scenario's minimum usable cash after any event reaches the floor. |
+| Refinement | A failed candidate is excluded by an exact combinatorial cut (that selection only) and the problem is re-solved, up to the bound. No linearized margin or netting cut is made. |
+| Outcome | `validated`; `estimate_infeasible` (no selection meets the bound: the binding scenario, the baseline's worst date and event, and the floor); or `exhausted` (each attempt's exact violation: scenario, date, event, measure, value and limit). Unvalidated allocations publish their receipt and no plan. |
+| Independent check | The worker recomputes the merge of the selection from the admitted package requests with its own implementation and requires it to equal the request the producer replayed. It then verifies that replay's stream with the stage D verifier. Only then is the allocation marked validated, with the replay published as a lifecycle publication that pages and reopens like any run. |
+| Evaluation | `POST /native/jobs/{id}/allocation/evaluate` adds prepared coefficients for a selection and an optional floor. It calls no pricer, replays nothing and always reports `estimate`, never `validated`. A changed saved book or package plan at the head revision refuses it with `PREPARATION_STALE`. |
+
+The verifier now also verifies a run with no lifecycle postings, such as holding the book or runoff. Its
+rows must name the plan only when rows exist, and the plan's single account stands in for the account
+of absent rows.
+
+Tests: `portfolio-decision-native/tests/lifecycle_allocation.rs` covers these cases:
+- the profitable package is selected and verifies, and the formal package is ineligible;
+- an unreachable floor reports its binding scenario;
+- an uncombinable pair is cut exactly and the next best package validates, while zero refinements exhaust;
+- holding is a validated plan when best;
+- merging is structural and reproduces the original unwind.
+
+The service's `tests/allocation.rs` covers the independent merge check and coefficient-only evaluation.
+The live service test covers a validated publication, the replay reopening, evaluation, staleness and an
+unreachable floor. The browser test runs an allocation, a what-if and an unreachable floor.
+
+Not in stage H: continuous or partial package quantities in the solver (a partial exit is its own
+package), nonlinear margin or netting refinements, durable reuse of a prepared allocation for a new solve
+(a constraint change is evaluated interactively; a new solve is a new allocation), retained capital
+coefficients, and formal ASC 815 candidates (they need the #35 durable assessment).
+
+## Not in stages A to H
+
+Post-entry derivative marks and coupons, dynamic IM, broader accounting scope and combined scale are
+stage I (#51).

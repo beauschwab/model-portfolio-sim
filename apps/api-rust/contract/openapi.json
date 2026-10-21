@@ -96,6 +96,323 @@
         ],
         "type": "object"
       },
+      "AllocationAttempt": {
+        "properties": {
+          "estimate": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "exact": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AllocationMeasures"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "selection": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "violation": {
+            "$ref": "#/components/schemas/AllocationViolation",
+            "nullable": true
+          }
+        },
+        "required": [
+          "selection",
+          "estimate",
+          "exact",
+          "violation"
+        ],
+        "type": "object"
+      },
+      "AllocationEstimate": {
+        "properties": {
+          "disclosure": {
+            "type": "string"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "objective": {
+            "$ref": "#/components/schemas/AllocationObjective"
+          },
+          "scenarios": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "selection": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "estimate"
+            ],
+            "type": "string"
+          },
+          "validated": {
+            "type": "boolean"
+          },
+          "within_usable_cash_bound": {
+            "type": "boolean"
+          },
+          "worst_case_objective": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "selection",
+          "objective",
+          "worst_case_objective",
+          "minimum_usable_cash",
+          "within_usable_cash_bound",
+          "scenarios",
+          "status",
+          "validated"
+        ],
+        "type": "object"
+      },
+      "AllocationMeasures": {
+        "properties": {
+          "external_nii": {
+            "type": "number"
+          },
+          "funding_cost": {
+            "type": "number"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "trading_pnl": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "external_nii",
+          "trading_pnl",
+          "funding_cost",
+          "minimum_usable_cash"
+        ],
+        "type": "object"
+      },
+      "AllocationObjective": {
+        "enum": [
+          "worst_case_external_nii",
+          "worst_case_total_earnings"
+        ],
+        "type": "string"
+      },
+      "AllocationPackage": {
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "type": "object"
+      },
+      "AllocationReceipt": {
+        "properties": {
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationAttempt"
+            },
+            "type": "array"
+          },
+          "base": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AllocationMeasures"
+            },
+            "type": "object"
+          },
+          "base_daily_minimum": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "combined_request": {
+            "additionalProperties": true,
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "disclosure": {
+            "type": "string"
+          },
+          "exact_replay_passed": {
+            "type": "boolean"
+          },
+          "identity_sha256": {
+            "type": "string"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "objective": {
+            "$ref": "#/components/schemas/AllocationObjective"
+          },
+          "outcome": {
+            "enum": [
+              "validated",
+              "estimate_infeasible",
+              "exhausted"
+            ],
+            "type": "string"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/PreparedPackage"
+            },
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "violation": {
+            "$ref": "#/components/schemas/AllocationViolation",
+            "nullable": true
+          }
+        },
+        "required": [
+          "schema",
+          "identity_sha256",
+          "objective",
+          "minimum_usable_cash",
+          "scenarios",
+          "base",
+          "base_daily_minimum",
+          "packages",
+          "attempts",
+          "outcome",
+          "violation",
+          "selected",
+          "exact_replay_passed"
+        ],
+        "type": "object"
+      },
+      "AllocationRequest": {
+        "properties": {
+          "max_refinements": {
+            "type": "integer"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "objective": {
+            "$ref": "#/components/schemas/AllocationObjective"
+          },
+          "packages": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationPackage"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "packages"
+        ],
+        "type": "object"
+      },
+      "AllocationView": {
+        "properties": {
+          "allocation": {
+            "$ref": "#/components/schemas/AllocationReceipt"
+          },
+          "validated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "validated",
+          "allocation"
+        ],
+        "type": "object"
+      },
+      "AllocationViolation": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "measure": {
+            "type": "string"
+          },
+          "ordinal": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scenario_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "scenario_id",
+          "ordinal",
+          "event_id",
+          "measure",
+          "value",
+          "limit",
+          "detail"
+        ],
+        "type": "object"
+      },
       "Authority": {
         "properties": {
           "admitted_at": {
@@ -1307,6 +1624,29 @@
         ],
         "type": "object"
       },
+      "PackageCoefficients": {
+        "properties": {
+          "external_nii": {
+            "type": "number"
+          },
+          "funding_cost": {
+            "type": "number"
+          },
+          "trading_pnl": {
+            "type": "number"
+          },
+          "usable_cash_deterioration": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "external_nii",
+          "trading_pnl",
+          "funding_cost",
+          "usable_cash_deterioration"
+        ],
+        "type": "object"
+      },
       "PlanRenewal": {
         "properties": {
           "max_generations": {
@@ -1415,6 +1755,48 @@
         "required": [
           "facility_id",
           "access"
+        ],
+        "type": "object"
+      },
+      "PreparedPackage": {
+        "properties": {
+          "coefficients": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PackageCoefficients"
+            },
+            "type": "object"
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "group": {
+            "type": "string"
+          },
+          "package_id": {
+            "type": "string"
+          },
+          "refusal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "request_sha256": {
+            "type": "string"
+          },
+          "review": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "package_id",
+          "group",
+          "review",
+          "request_sha256",
+          "eligible",
+          "refusal",
+          "coefficients"
         ],
         "type": "object"
       },
@@ -1989,6 +2371,103 @@
         "summary": "A freshly built job view (never authority)"
       }
     },
+    "/native/jobs/{id}/allocation": {
+      "get": {
+        "operationId": "allocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A published allocation: prepared coefficients, attempts, outcome and whether the plan is validated"
+      }
+    },
+    "/native/jobs/{id}/allocation/evaluate": {
+      "post": {
+        "operationId": "evaluateAllocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Raw strict JSON; the bytes are stored and hashed exactly as sent.",
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationEstimate"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Coefficient-only estimate for a package selection (no pricing, never validated)"
+      }
+    },
     "/native/jobs/{id}/cancel": {
       "post": {
         "operationId": "cancelJob",
@@ -2183,6 +2662,87 @@
           }
         ],
         "summary": "One bounded page of a published table"
+      }
+    },
+    "/native/lifecycle/allocations": {
+      "post": {
+        "operationId": "submitAllocation",
+        "parameters": [
+          {
+            "description": "Workspace revision the submission was prepared against; a stale value is refused.",
+            "in": "header",
+            "name": "X-Expected-Revision",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repeated keys return the original job for identical input.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Original deadline from admission, within [1, 3600].",
+            "in": "header",
+            "name": "X-Deadline-Seconds",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "book",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "Raw strict JSON; the bytes are stored and hashed exactly as sent.",
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Admission"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Refusal"
+                }
+              }
+            },
+            "description": "Refusal"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Admit a durable liquidity-allocation-1 run over reviewed package plans of a saved book (?book=)"
       }
     },
     "/native/lifecycle/compose": {

@@ -13,6 +13,7 @@ use portfolio_verification_native::{verify, Receipt, MAX_REQUEST_BYTES, MAX_STRE
 use serde_json::{json, Map, Value};
 
 pub const MANIFEST_SCHEMA: &str = "native-lifecycle-publication-1";
+pub const ALLOCATION_SCHEMA: &str = "native-allocation-publication-1";
 pub const CHUNK_BYTES: usize = 4 * 1024 * 1024;
 pub const PAGE_ROWS: usize = 1000;
 pub const MAX_MANIFEST_BYTES: u64 = 16 * 1024 * 1024;
@@ -126,6 +127,7 @@ pub fn write(
     raw: &[u8],
     stream: &[u8],
     receipt: &Receipt,
+    verified_request: Option<&Descriptor>,
 ) -> Result<(Descriptor, Value), Refusal> {
     let mut chunk_refs = Vec::new();
     for c in chunks(stream) {
@@ -169,7 +171,7 @@ pub fn write(
         "job_id": claim.job_id,
         "attempt": claim.attempt,
         "source": {
-            "schema": a.schema, "raw": a.raw.to_json(), "admitted_revision": a.admitted_revision,
+            "schema": a.schema, "raw": verified_request.unwrap_or(&a.raw).to_json(), "admitted_revision": a.admitted_revision,
             "admitted_at": a.admitted_at, "deadline_at": a.deadline_at, "authority_sha256": claim.authority_sha256,
         },
         "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
@@ -181,6 +183,104 @@ pub fn write(
     });
     let d = put_json(objects, &manifest)?;
     Ok((d, manifest))
+}
+
+/// An allocation publication: the producer's allocation receipt, whether the plan is validated
+/// (exact replay passed and its stream verified independently) and, if so, the inner lifecycle
+/// publication of that replay.
+pub fn write_allocation(
+    objects: &Objects,
+    claim: &Claim,
+    receipt: &Value,
+    validated: bool,
+    lifecycle: Option<&Descriptor>,
+) -> Result<(Descriptor, Value), Refusal> {
+    let a = &claim.authority;
+    let allocation = put_json(objects, &json!({"allocation": receipt}))?;
+    let manifest = json!({
+        "schema": ALLOCATION_SCHEMA,
+        "job_id": claim.job_id,
+        "attempt": claim.attempt,
+        "source": {
+            "schema": a.schema, "raw": a.raw.to_json(), "admitted_revision": a.admitted_revision,
+            "admitted_at": a.admitted_at, "deadline_at": a.deadline_at, "authority_sha256": claim.authority_sha256,
+        },
+        "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
+        "allocation": allocation.to_json(),
+        "validated": validated,
+        "lifecycle": lifecycle.map(Descriptor::to_json),
+    });
+    let d = put_json(objects, &manifest)?;
+    Ok((d, manifest))
+}
+
+/// Rereads an allocation publication and, when it carries one, its inner lifecycle publication.
+pub fn reread_allocation(
+    objects: &Objects,
+    d: &Descriptor,
+    expected: &Value,
+    inner: Option<&Value>,
+) -> Result<(), Refusal> {
+    let m = load_any(objects, d)?;
+    if &m != expected {
+        return Err(Refusal::new(
+            "REREAD_MISMATCH",
+            "reread allocation manifest differs",
+        ));
+    }
+    objects.get_bounded(&Descriptor::from_json(&m["allocation"])?, MAX_PAGE_BYTES)?;
+    match (m.get("lifecycle").filter(|v| !v.is_null()), inner) {
+        (Some(l), Some(value)) => {
+            reread(objects, &Descriptor::from_json(l)?, value)?;
+        }
+        (None, None) => {}
+        _ => {
+            return Err(Refusal::new(
+                "REREAD_MISMATCH",
+                "allocation lifecycle publication differs",
+            ))
+        }
+    }
+    Ok(())
+}
+
+/// Either publication manifest.
+pub fn load_any(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let bytes = objects.get_bounded(d, MAX_MANIFEST_BYTES)?;
+    let m: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+    if m["schema"] != MANIFEST_SCHEMA && m["schema"] != ALLOCATION_SCHEMA {
+        return Err(Refusal::new(
+            "STORAGE_ERROR",
+            "unsupported publication manifest",
+        ));
+    }
+    Ok(m)
+}
+
+/// The lifecycle publication behind a manifest: itself, or a validated allocation's replay.
+pub fn lifecycle_of(objects: &Objects, d: &Descriptor) -> Result<Descriptor, Refusal> {
+    let m = load_any(objects, d)?;
+    if m["schema"] == MANIFEST_SCHEMA {
+        return Ok(d.clone());
+    }
+    match m.get("lifecycle").filter(|v| !v.is_null()) {
+        Some(l) => Descriptor::from_json(l).map_err(Refusal::from),
+        None => Err(Refusal::new(
+            "NOT_PUBLISHED",
+            "this allocation has no validated plan to show",
+        )),
+    }
+}
+
+/// The allocation receipt of an allocation publication, with its validated flag.
+pub fn allocation(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let m = load_any(objects, d)?;
+    if m["schema"] != ALLOCATION_SCHEMA {
+        return Err(Refusal::new("NOT_FOUND", "this job is not an allocation"));
+    }
+    let bytes = objects.get_bounded(&Descriptor::from_json(&m["allocation"])?, MAX_PAGE_BYTES)?;
+    let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+    Ok(json!({"validated": m["validated"], "allocation": v["allocation"]}))
 }
 
 pub fn load_manifest(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
