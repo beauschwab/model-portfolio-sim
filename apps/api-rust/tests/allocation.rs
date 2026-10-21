@@ -88,3 +88,26 @@ fn evaluation_adds_prepared_coefficients_and_never_validates() {
         "MALFORMED_INPUT"
     );
 }
+
+#[test]
+fn one_im_recomputation_per_agreement_and_date_serves_every_merged_package() {
+    let with = |id: &str, dates: &[i64]| {
+        let mut v = request(id, 1);
+        v["acquisitions"][0]["dynamic_margin"] = json!(dates
+            .iter()
+            .map(|d| json!({"agreement_id": "csa", "ordinal": d}))
+            .collect::<Vec<_>>());
+        v
+    };
+    let (a, b) = (with("a", &[1]), with("b", &[1, 2]));
+    let merged = merge(&request("base", 0), &[&a, &b]).unwrap();
+    assert_eq!(
+        merged["acquisitions"][0]["dynamic_margin"],
+        json!([{"agreement_id": "csa", "ordinal": 1}, {"agreement_id": "csa", "ordinal": 2}])
+    );
+    // Other instructions still concatenate in package order.
+    assert_eq!(
+        merged["acquisitions"][0]["sales"],
+        json!([{"instruction_id": "a"}, {"instruction_id": "b"}])
+    );
+}

@@ -240,6 +240,40 @@ pub struct AcquisitionRequest {
     /// Stage G business-plan mode. Absent means the supplied schedule, as in stages B and C.
     #[serde(default)]
     pub business_plan: Option<BusinessPlan>,
+    /// Stage I: research-method IM recomputations on the live portfolio of an agreement.
+    #[serde(default)]
+    pub dynamic_margin: Vec<DynamicMargin>,
+}
+
+/// One IM recomputation date of a research-sensitivity agreement.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DynamicMargin {
+    pub agreement_id: String,
+    pub ordinal: i32,
+}
+
+/// Native bucket sensitivities of one derivative lot on one date (never caller supplied): the
+/// clean-value change for a one basis point zero-rate bump of each bucket's discount points.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Sensitivity {
+    pub lot_id: String,
+    pub ordinal: i32,
+    pub buckets: Vec<f64>,
+}
+
+/// One research-method IM recomputation, with the population and inputs it used.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MarginCall {
+    pub event_id: String,
+    pub agreement_id: String,
+    pub ordinal: i32,
+    pub live_lot_ids: Vec<String>,
+    /// Signed bucket sensitivities summed over the live legal portfolio.
+    pub sensitivities: Vec<f64>,
+    pub requirement: f64,
+    pub posted_change: f64,
+    pub received_change: f64,
 }
 
 /// Native-derived value of a derivative lot at a date (never caller supplied): the clean value
@@ -344,6 +378,9 @@ pub struct Receipt {
     /// Calendar-month reports reconciled to the dated events (business-plan modes only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monthly: Option<Vec<MonthlyReport>>,
+    /// Research-method IM recomputations (stage I).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub margin_calls: Vec<MarginCall>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AcquisitionJournal {
@@ -832,6 +869,7 @@ enum Body<'a> {
     Draw(&'a FacilityDraw, &'a Facility),
     FacilityRepay(&'a FacilityRepayment, &'a Facility),
     Im(&'a SuppliedInitialMargin, &'a MarginAgreement),
+    DynamicIm(&'a MarginAgreement),
 }
 struct Event<'a> {
     id: String,
@@ -888,6 +926,17 @@ pub fn replay(
     plan: &Admitted,
     acq: &AcquisitionRequest,
     hedges: &[ResolvedHedge],
+    account_id: &str,
+) -> Result<AcquisitionJournal, Refusal> {
+    replay_with_margin(plan, acq, hedges, &[], account_id)
+}
+
+/// The replay with native bucket sensitivities for research-method IM recomputations.
+pub fn replay_with_margin(
+    plan: &Admitted,
+    acq: &AcquisitionRequest,
+    hedges: &[ResolvedHedge],
+    sensitivities: &[Sensitivity],
     account_id: &str,
 ) -> Result<AcquisitionJournal, Refusal> {
     let r = &plan.request;
@@ -1554,6 +1603,39 @@ pub fn replay(
             ),
         )?;
     }
+    // Stage I: research-method IM recomputations on the actually live portfolio.
+    let mut dynamic_dates: BTreeSet<(&str, i32)> = BTreeSet::new();
+    for dm in &acq.dynamic_margin {
+        let a = agreement(&dm.agreement_id, "dynamic margin")?;
+        if a.initial_margin != InitialMarginMode::ResearchSensitivity {
+            return Err(unsupported(format!(
+                "agreement `{}` does not select the research sensitivity IM method",
+                dm.agreement_id
+            )));
+        }
+        within(dm.ordinal, "dynamic margin")?;
+        if !dynamic_dates.insert((dm.agreement_id.as_str(), dm.ordinal)) {
+            return Err(Refusal::new(
+                DUPLICATE_IDENTITY,
+                format!(
+                    "agreement `{}` recomputes IM twice on {}",
+                    dm.agreement_id, dm.ordinal
+                ),
+            ));
+        }
+        push(
+            &mut ids,
+            &mut events,
+            event(
+                format!("dynamic_im:{}:{}", dm.agreement_id, dm.ordinal),
+                dm.ordinal,
+                PHASE_IM,
+                Vec::new(),
+                InstructionState::Pending,
+                Body::DynamicIm(a),
+            ),
+        )?;
+    }
     // Every population change in a legal scope needs a requirement bound to the exact live
     // portfolio, scenario and date. Proportional release is never assumed.
     let mut changes: BTreeSet<(&str, i32)> = BTreeSet::new();
@@ -1565,6 +1647,14 @@ pub fn replay(
     }
     for (agreement_id, ordinal) in &changes {
         let a = agreements[agreement_id];
+        if a.initial_margin == InitialMarginMode::ResearchSensitivity {
+            if !dynamic_dates.contains(&(*agreement_id, *ordinal)) {
+                return Err(Refusal::new(MARGIN_REFRESH_REQUIRED, format!(
+                    "agreement `{agreement_id}` changes population on {ordinal}: a research-method IM recomputation on that date is required"
+                )));
+            }
+            continue;
+        }
         if a.initial_margin != InitialMarginMode::SuppliedRequirements {
             continue;
         }
@@ -1848,6 +1938,7 @@ pub fn replay(
     let mut facts = Vec::new();
     let mut settled: HashSet<String> = HashSet::new();
     let mut steps = Vec::new();
+    let mut margin_calls: Vec<MarginCall> = Vec::new();
     let opening_state = book.step(
         "opening",
         asof,
@@ -2281,6 +2372,87 @@ pub fn replay(
                             received_im -= custody;
                         }
                     }
+                    Body::DynamicIm(a) => {
+                        let m = a.margin_method.as_ref().expect("admitted research method");
+                        let n = m.bucket_upper_days.len();
+                        let live: Vec<&str> = a
+                            .lot_ids
+                            .iter()
+                            .map(String::as_str)
+                            .filter(|l| derivative_carrying.contains_key(l))
+                            .collect();
+                        let mut s = vec![0.; n];
+                        for lot in &live {
+                            let found = sensitivities
+                                .iter()
+                                .find(|x| x.lot_id == *lot && x.ordinal == ordinal)
+                                .filter(|x| x.buckets.len() == n)
+                                .ok_or_else(|| Refusal::new(MARGIN_REFRESH_REQUIRED, format!(
+                                    "`{id}`: live lot `{lot}` has no native sensitivity on {ordinal}"
+                                )))?;
+                            for (t, v) in s.iter_mut().zip(&found.buckets) {
+                                *t += v;
+                            }
+                        }
+                        let mut q = 0.;
+                        for b in 0..n {
+                            for c in 0..n {
+                                q += m.risk_weights[b]
+                                    * s[b]
+                                    * m.correlations[b][c]
+                                    * m.risk_weights[c]
+                                    * s[c];
+                            }
+                        }
+                        let requirement = unsigned(q.max(0.).sqrt());
+                        let received_target = if m.two_way { requirement } else { 0. };
+                        if received_target > 0. && a.segregation != Segregation::Segregated {
+                            return Err(unsupported(format!(
+                                "`{id}`: two-way IM is received only into segregated custody"
+                            )));
+                        }
+                        let posted_change =
+                            requirement - book.balance(Kind::PostedIm, &a.agreement_id);
+                        if posted_change != 0. {
+                            book.post(
+                                id,
+                                ordinal,
+                                phase,
+                                sequence,
+                                vec![
+                                    (Kind::PostedIm, &a.agreement_id, posted_change),
+                                    (Kind::Cash, "", -posted_change),
+                                ],
+                            )?;
+                            posted_im += posted_change;
+                        }
+                        let received_change =
+                            received_target - book.balance(Kind::CustodyAsset, &a.agreement_id);
+                        if received_change != 0. {
+                            sequence += 1;
+                            book.post(
+                                &format!("{id}:custody"),
+                                ordinal,
+                                phase,
+                                sequence,
+                                vec![
+                                    (Kind::CustodyAsset, &a.agreement_id, received_change),
+                                    (Kind::CustodyObligation, &a.agreement_id, -received_change),
+                                ],
+                            )?;
+                            received_im += received_change;
+                        }
+                        margin_calls.push(MarginCall {
+                            event_id: id.to_string(),
+                            agreement_id: a.agreement_id.clone(),
+                            ordinal,
+                            live_lot_ids: live.iter().map(|l| l.to_string()).collect(),
+                            sensitivities: s.iter().map(|v| unsigned(*v)).collect(),
+                            requirement,
+                            posted_change: unsigned(posted_change),
+                            received_change: unsigned(received_change),
+                        });
+                    }
                     Body::Im(im, a) => {
                         if im.posted_requirement > 0. {
                             book.post(
@@ -2470,6 +2642,7 @@ pub fn replay(
         business_plan_mode: plan_mode,
         policy_decisions: std::mem::take(&mut book.decisions),
         monthly,
+        margin_calls,
     };
     if !(cash_bridge && inventory && collateral) {
         return Err(unsupported(

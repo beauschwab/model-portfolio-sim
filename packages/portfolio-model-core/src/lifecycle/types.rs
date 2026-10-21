@@ -151,7 +151,30 @@ pub struct Pledge {
 pub enum InitialMarginMode {
     None,
     SuppliedRequirements,
+    /// Stage I: the versioned research sensitivity method, recomputed on the live portfolio.
+    ResearchSensitivity,
 }
+
+/// `research-sensitivity-im-1`: a reviewed research method, not ISDA SIMM or a provider model.
+/// Each live derivative lot's clean value is bumped by one basis point of continuously
+/// compounded zero rate (act/365) at the exact discount points of each tenor bucket; signed
+/// bucket sensitivities are summed over the live legal portfolio (so offsets net) and the
+/// requirement is sqrt(max(0, sum_b sum_c RW_b s_b rho_bc RW_c s_c)).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MarginMethod {
+    pub method: String,
+    pub revision: String,
+    /// Inclusive upper bounds of the tenor buckets, in days from the valuation date, increasing.
+    pub bucket_upper_days: Vec<i32>,
+    pub risk_weights: Vec<f64>,
+    pub correlations: Vec<Vec<f64>>,
+    /// Both parties post the requirement; received IM is segregated custody.
+    pub two_way: bool,
+    pub review: Revision,
+}
+pub const RESEARCH_IM_METHOD: &str = "research-sensitivity-im-1";
+pub const MAX_MARGIN_BUCKETS: usize = 16;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Segregation {
@@ -182,6 +205,9 @@ pub struct MarginAgreement {
     /// Collateral already exchanged at the opening under this agreement.
     #[serde(default)]
     pub opening_collateral: Option<OpeningCollateral>,
+    /// Required with, and only with, the research sensitivity mode.
+    #[serde(default)]
+    pub margin_method: Option<MarginMethod>,
 }
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

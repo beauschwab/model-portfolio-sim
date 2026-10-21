@@ -25,6 +25,7 @@ const RESULT_TABS = [
   { id: 'collateral', label: 'Collateral and facilities' },
   { id: 'facts', label: 'Accounting facts' },
   { id: 'decisions', label: 'Funding decisions' },
+  { id: 'margin', label: 'Margin calls' },
   { id: 'monthly', label: 'Monthly' },
   ...TABLES,
 ];
@@ -32,7 +33,7 @@ const labelOf = (id: string) => RESULT_TABS.find(t => t.id === id)?.label ?? id;
 const INSTRUCTION_LABELS: Record<string, string> = {
   purchases: 'Purchase', financings: 'Financing advance', facility_draws: 'Facility draw', repayments: 'Funding repayment',
   sales: 'Security sale', hedge_entries: 'Hedge entry', terminations: 'Derivative termination',
-  facility_repayments: 'Facility repayment', initial_margin: 'Initial margin',
+  facility_repayments: 'Facility repayment', initial_margin: 'Initial margin', dynamic_margin: 'IM recomputation',
 };
 
 // Proleptic Gregorian day ordinals as in the engine (2000-01-01 is 730120).
@@ -148,7 +149,7 @@ export default function LiquidityLifecycle() {
     } };
   });
   const planned = useMemo(() => Object.entries(plan?.instructions ?? {}).flatMap(([kind, list]) => (list as Json[] ?? []).map(i => ({
-    status: 'planned', instruction: i.instruction_id ?? (kind === 'initial_margin' ? `im:${i.agreement_id}` : kind), kind: INSTRUCTION_LABELS[kind] ?? kind,
+    status: 'planned', instruction: i.instruction_id ?? (kind === 'initial_margin' ? `im:${i.agreement_id}` : kind === 'dynamic_margin' ? `dynamic_im:${i.agreement_id}` : kind), kind: INSTRUCTION_LABELS[kind] ?? kind,
     lot: i.lot_id ?? i.facility_id ?? i.agreement_id ?? '',
     date: iso(i.settlement_ordinal ?? i.repayment_ordinal ?? i.ordinal ?? i.effective_ordinal),
     amount: money(i.amount ?? i.principal ?? i.quantity ?? i.posted_requirement),
@@ -244,6 +245,12 @@ export default function LiquidityLifecycle() {
     date: iso(d.ordinal), decision: words(d.kind), facility: d.facility_id, generation: String(d.generation),
     amount: money(d.amount), trigger: d.trigger, 'usable cash before': money(d.usable_cash_before),
     'usable cash after': money(d.usable_cash_after), 'need covered': d.kind === 'draw' ? money(d.need) : '',
+  }));
+  // Research-method IM: the live population, its netted bucket sensitivities and the reset.
+  const marginRows = (journal?.receipt.margin_calls ?? []).map(c => ({
+    date: iso(c.ordinal), agreement: c.agreement_id, 'live lots': c.live_lot_ids.join(', ') || 'none',
+    'net bucket sensitivities': c.sensitivities.map(v => money(v)).join(' / '), requirement: money(c.requirement),
+    'posted change': money(c.posted_change), 'received (custody) change': money(c.received_change),
   }));
   const monthlyRows = (journal?.receipt.monthly ?? []).map(m => ({
     month: m.month, 'opening cash': money(m.opening_cash), 'cash in': money(m.cash_in), 'cash out': money(m.cash_out),
@@ -469,6 +476,10 @@ export default function LiquidityLifecycle() {
       <div {...tabPanelProps('lifecycle-results', labelOf('facts'), labelOf(tab))}>{tab === 'facts' && <DataTable rows={factRows} />}</div>
       <div {...tabPanelProps('lifecycle-results', labelOf('decisions'), labelOf(tab))}>{tab === 'decisions' && (decisionRows.length ? <DataTable rows={decisionRows} />
         : <p className="text-xs text-paper-faint">No funding policy ran: the supplied schedule executed as given.</p>)}</div>
+      <div {...tabPanelProps('lifecycle-results', labelOf('margin'), labelOf(tab))}>{tab === 'margin' && (marginRows.length ? <div className="space-y-1">
+        <p className="text-xs text-paper-faint">research-sensitivity-im-1 is a reviewed research method, not ISDA SIMM or a provider model. Sensitivities are native one-basis-point discount bucket changes of each live swap, netted across the agreement.</p>
+        <DataTable rows={marginRows} /></div>
+        : <p className="text-xs text-paper-faint">No research-method IM recomputation ran: IM followed the supplied requirements.</p>)}</div>
       <div {...tabPanelProps('lifecycle-results', labelOf('monthly'), labelOf(tab))}>{tab === 'monthly' && (monthlyRows.length ? <DataTable rows={monthlyRows} />
         : <p className="text-xs text-paper-faint">Monthly reports are produced when a business plan mode is selected.</p>)}</div>
       {TABLES.map(t => <div key={t.id} {...tabPanelProps('lifecycle-results', labelOf(t.id), labelOf(tab))}>{tab === t.id && (pages[t.id] ? <div className="space-y-1">

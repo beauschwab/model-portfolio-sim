@@ -62,6 +62,34 @@ pub struct Agreement {
     pub lot_ids: Vec<String>,
     #[serde(default)]
     pub opening_collateral: Option<OpeningCollateral>,
+    #[serde(default)]
+    pub margin_method: Option<MethodIn>,
+}
+/// The research IM method as the raw plan states it (stage I).
+#[derive(Debug, Clone, Deserialize)]
+pub struct MethodIn {
+    pub method: String,
+    pub bucket_upper_days: Vec<i64>,
+    pub risk_weights: Vec<f64>,
+    pub correlations: Vec<Vec<f64>>,
+    pub two_way: bool,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct DynamicIn {
+    pub agreement_id: String,
+    pub ordinal: i64,
+}
+/// An independently recomputed research-method IM call.
+#[derive(Debug, Clone)]
+pub struct Call {
+    pub event_id: String,
+    pub agreement_id: String,
+    pub ordinal: i64,
+    pub live_lot_ids: Vec<String>,
+    pub sensitivities: Vec<f64>,
+    pub requirement: f64,
+    pub posted_change: f64,
+    pub received_change: f64,
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct Facility {
@@ -229,6 +257,8 @@ pub struct Execution {
     pub initial_margin: Vec<Im>,
     #[serde(default)]
     pub business_plan: Option<PlanIn>,
+    #[serde(default)]
+    pub dynamic_margin: Vec<DynamicIn>,
 }
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct WindowIn {
@@ -331,6 +361,7 @@ pub struct Expected {
     pub mode: Option<String>,
     pub decisions: Vec<Decision>,
     pub monthly: Option<Vec<Month>>,
+    pub calls: Vec<Call>,
     pub facts: Vec<Fact>,
     pub posted_vm: f64,
     pub received_vm: f64,
@@ -390,6 +421,7 @@ enum Body<'a> {
     VmReturn(&'a Agreement),
     ImReturn(&'a Agreement),
     Im(&'a Im, &'a Agreement),
+    DynamicIm(&'a Agreement, &'a MethodIn),
 }
 struct Event<'a> {
     id: String,
@@ -732,6 +764,7 @@ pub fn replay(
     plan: &Plan,
     acq: &Execution,
     valuations: &HashMap<(String, i64), Valuation>,
+    sensitivities: &HashMap<(String, i64), Vec<f64>>,
     account_id: &str,
 ) -> Result<Expected, String> {
     let account = plan
@@ -1069,6 +1102,37 @@ pub fn replay(
             },
         )?;
     }
+    // Research-method IM recomputations on the live legal portfolio.
+    let mut dynamic: BTreeSet<(&str, i64)> = BTreeSet::new();
+    for d in &acq.dynamic_margin {
+        let a = agreements
+            .get(d.agreement_id.as_str())
+            .copied()
+            .ok_or("independent replay: unknown agreement")?;
+        let m = match (a.initial_margin.as_str(), &a.margin_method) {
+            ("research_sensitivity", Some(m)) if m.method == "research-sensitivity-im-1" => m,
+            _ => {
+                return Err(
+                    "independent replay: dynamic IM needs the research sensitivity method".into(),
+                )
+            }
+        };
+        if !dynamic.insert((&d.agreement_id, d.ordinal)) {
+            return Err("independent replay: IM recomputed twice on one date".into());
+        }
+        push(
+            &mut ids,
+            &mut events,
+            Event {
+                id: format!("dynamic_im:{}:{}", d.agreement_id, d.ordinal),
+                ordinal: d.ordinal,
+                phase: 9,
+                depends_on: vec![],
+                failed: false,
+                body: Body::DynamicIm(a, m),
+            },
+        )?;
+    }
     // Supplied IM: scope and requirement bound to each population change; the methodology
     // behind the amounts is not certified here.
     let mut changes: BTreeSet<(&str, i64)> = BTreeSet::new();
@@ -1080,6 +1144,12 @@ pub fn replay(
     }
     for (agreement_id, ordinal) in &changes {
         let a = agreements[agreement_id];
+        if a.initial_margin == "research_sensitivity" {
+            if !dynamic.contains(&(*agreement_id, *ordinal)) {
+                return Err(format!("independent replay: agreement `{agreement_id}` changes population on {ordinal} without an IM recomputation"));
+            }
+            continue;
+        }
         if a.initial_margin != "supplied_requirements" {
             continue;
         }
@@ -1309,6 +1379,7 @@ pub fn replay(
     let mut statuses = Vec::new();
     let mut steps = Vec::new();
     let mut facts = Vec::new();
+    let mut calls: Vec<Call> = Vec::new();
     let (mut fees, mut realized) = (0., 0.);
     if let Some(e) = events.iter().find(|e| e.ordinal < asof || e.ordinal > end) {
         return Err(format!(
@@ -1696,6 +1767,99 @@ pub fn replay(
                             received_im -= c;
                         }
                     }
+                    Body::DynamicIm(a, m) => {
+                        let n = m.bucket_upper_days.len();
+                        if m.risk_weights.len() != n || m.correlations.len() != n {
+                            return Err("independent replay: malformed IM method".into());
+                        }
+                        let live: Vec<String> = a
+                            .lot_ids
+                            .iter()
+                            .filter(|l| carrying.contains_key(l.as_str()))
+                            .cloned()
+                            .collect();
+                        let mut total = vec![0.; n];
+                        for l in &live {
+                            let s = sensitivities
+                                .get(&(l.clone(), e.ordinal))
+                                .filter(|s| s.len() == n)
+                                .ok_or_else(|| format!("independent replay: live lot `{l}` has no sensitivity on {}", e.ordinal))?;
+                            for (t, v) in total.iter_mut().zip(s) {
+                                *t += v;
+                            }
+                        }
+                        // Weighted sensitivities, then the correlated quadratic form.
+                        let ws: Vec<f64> = total
+                            .iter()
+                            .zip(&m.risk_weights)
+                            .map(|(s, w)| s * w)
+                            .collect();
+                        let mut q = 0.;
+                        for (b, row) in m.correlations.iter().enumerate() {
+                            for (c, rho) in row.iter().enumerate() {
+                                q += ws[b] * rho * ws[c];
+                            }
+                        }
+                        let requirement = if q > 0. { q.sqrt() } else { 0. };
+                        let posted_change =
+                            requirement - book.balance("posted_im", &a.agreement_id);
+                        if posted_change != 0. {
+                            book.post(
+                                id,
+                                e.ordinal,
+                                false,
+                                &[
+                                    ("posted_im", &a.agreement_id, posted_change),
+                                    ("cash", "", -posted_change),
+                                ],
+                            )?;
+                            posted_im += posted_change;
+                        }
+                        let target = if m.two_way { requirement } else { 0. };
+                        if target > 0. && a.segregation != "segregated" {
+                            return Err(
+                                "independent replay: received IM under a non-segregated agreement"
+                                    .into(),
+                            );
+                        }
+                        let held = custody.get(&a.agreement_id).copied().unwrap_or(0.);
+                        let received_change = target - held;
+                        if received_change != 0. {
+                            book.intents.push(Intent {
+                                event_id: format!("{id}:custody"),
+                                ordinal: e.ordinal,
+                                memo: true,
+                                postings: vec![
+                                    (
+                                        gl("custody_asset").into(),
+                                        instrument("custody_asset", &a.agreement_id),
+                                        received_change,
+                                    ),
+                                    (
+                                        gl("custody_obligation").into(),
+                                        instrument("custody_obligation", &a.agreement_id),
+                                        -received_change,
+                                    ),
+                                ],
+                            });
+                            if target > 0. {
+                                custody.insert(a.agreement_id.clone(), target);
+                            } else {
+                                custody.remove(&a.agreement_id);
+                            }
+                            received_im += received_change;
+                        }
+                        calls.push(Call {
+                            event_id: id.to_string(),
+                            agreement_id: a.agreement_id.clone(),
+                            ordinal: e.ordinal,
+                            live_lot_ids: live,
+                            sensitivities: total,
+                            requirement,
+                            posted_change,
+                            received_change,
+                        });
+                    }
                     Body::Im(im, a) => {
                         if im.posted_requirement > 0. {
                             book.post(
@@ -1868,6 +2032,7 @@ pub fn replay(
         mode,
         decisions: std::mem::take(&mut book.decisions),
         monthly,
+        calls,
         facts,
         posted_vm,
         received_vm,

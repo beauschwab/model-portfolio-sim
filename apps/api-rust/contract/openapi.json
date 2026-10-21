@@ -579,6 +579,10 @@
             },
             "type": "array"
           },
+          "margin_method": {
+            "additionalProperties": true,
+            "type": "object"
+          },
           "opening_collateral": {
             "additionalProperties": true,
             "type": "object"
@@ -1023,6 +1027,13 @@
       },
       "Instructions": {
         "properties": {
+          "dynamic_margin": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
           "facility_draws": {
             "items": {
               "additionalProperties": true,
@@ -1366,6 +1377,12 @@
           "inventory_conserved": {
             "type": "boolean"
           },
+          "margin_calls": {
+            "items": {
+              "$ref": "#/components/schemas/MarginCall"
+            },
+            "type": "array"
+          },
           "monthly": {
             "items": {
               "$ref": "#/components/schemas/MonthlyReport"
@@ -1523,6 +1540,51 @@
       },
       "Manifest": {
         "additionalProperties": true,
+        "type": "object"
+      },
+      "MarginCall": {
+        "properties": {
+          "agreement_id": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "live_lot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ordinal": {
+            "type": "integer"
+          },
+          "posted_change": {
+            "type": "number"
+          },
+          "received_change": {
+            "type": "number"
+          },
+          "requirement": {
+            "type": "number"
+          },
+          "sensitivities": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_id",
+          "agreement_id",
+          "ordinal",
+          "live_lot_ids",
+          "sensitivities",
+          "requirement",
+          "posted_change",
+          "received_change"
+        ],
         "type": "object"
       },
       "MonthlyReport": {
@@ -2021,6 +2083,13 @@
           "journals": {
             "items": {
               "$ref": "#/components/schemas/ScenarioJournal"
+            },
+            "type": "array"
+          },
+          "margin_sensitivities": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
             },
             "type": "array"
           },

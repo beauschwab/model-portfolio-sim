@@ -173,6 +173,10 @@ pub fn schemas() -> Value {
             "kind": {"type": "string", "enum": ["draw", "surplus_repayment", "renewal", "maturity_repayment"]},
             "facility_id": s, "generation": i, "amount": n, "trigger": s,
             "usable_cash_before": n, "usable_cash_after": n, "need": n})),
+        "MarginCall": obj(&["event_id", "agreement_id", "ordinal", "live_lot_ids", "sensitivities", "requirement",
+                "posted_change", "received_change"], json!({
+            "event_id": s, "agreement_id": s, "ordinal": i, "live_lot_ids": {"type": "array", "items": s},
+            "sensitivities": {"type": "array", "items": n}, "requirement": n, "posted_change": n, "received_change": n})),
         "MonthlyReport": obj(&["month", "first_ordinal", "last_ordinal", "events", "failed_events", "blocked_events",
                 "policy_decisions", "opening_cash", "cash_in", "cash_out", "net_cash", "closing_cash", "minimum_usable_cash",
                 "closing_usable_cash", "closing_facility_drawn", "interest_expense", "fees", "realized", "margin_posted",
@@ -201,7 +205,7 @@ pub fn schemas() -> Value {
         "BookMarginAgreement": obj(&["agreement_id", "counterparty", "settlement_lag_days", "initial_margin", "segregation", "vm_at_termination", "lot_ids"], json!({
             "agreement_id": s, "counterparty": s, "settlement_lag_days": i, "initial_margin": s,
             "segregation": s, "vm_at_termination": s, "lot_ids": {"type": "array", "items": s},
-            "opening_collateral": any_obj})),
+            "opening_collateral": any_obj, "margin_method": any_obj})),
         "BookFacility": obj(&["facility_id", "provider", "commitment", "drawn", "expiry_ordinal"], json!({
             "facility_id": s, "provider": s, "commitment": n, "drawn": n, "access_policy": any_obj, "expiry_ordinal": i})),
         "BookRecords": obj(&["entity", "currency", "monetary_unit", "as_of_ordinal", "accounts", "lots"], json!({
@@ -226,7 +230,7 @@ pub fn schemas() -> Value {
         "Instructions": obj(&[], json!({
             "purchases": objects, "financings": objects, "facility_draws": objects, "repayments": objects,
             "sales": objects, "hedge_entries": objects, "terminations": objects,
-            "facility_repayments": objects, "initial_margin": objects})),
+            "facility_repayments": objects, "initial_margin": objects, "dynamic_margin": objects})),
         "LifecyclePlan": obj(&["schema", "actions", "instructions"], json!({
             "schema": {"type": "string", "enum": ["liquidity-plan-1"]}, "actions": list("LifecycleAction"),
             "instructions": r("Instructions"),
@@ -263,12 +267,13 @@ pub fn schemas() -> Value {
             "events": list("EventReceipt"), "steps": list("LiquidityStep"),
             "accounting_facts": list("AccountingFact"), "formal_hedge_accounting": b,
             "business_plan_mode": {"type": "string", "enum": ["runoff", "schedule", "policy"]},
-            "policy_decisions": list("PolicyDecision"), "monthly": list("MonthlyReport")})),
+            "policy_decisions": list("PolicyDecision"), "monthly": list("MonthlyReport"),
+            "margin_calls": list("MarginCall")})),
         "ScenarioJournal": obj(&["scenario_id", "account_id", "receipt"], json!({
             "scenario_id": s, "account_id": s, "receipt": r("LifecycleReceipt")})),
         "SourceReceipt": obj(&["schema", "plan_sha256", "formal_hedge_accounting", "journals"], json!({
             "schema": s, "stage": s, "plan_sha256": s, "formal_hedge_accounting": b, "disclosure": s,
-            "hedge_entries": objects, "journals": list("ScenarioJournal")})),
+            "hedge_entries": objects, "journals": list("ScenarioJournal"), "margin_sensitivities": objects})),
         "ProducerReceipt": obj(&["workflow"], json!({"workflow": obj(&["schema", "model_schema", "source_receipt"], json!({
             "schema": s, "model_schema": s, "source_receipt": r("SourceReceipt")}))})),
     });

@@ -52,7 +52,7 @@ const PLAN_FIELDS: [&str; 6] = [
     "business_plan",
 ];
 const PLAN_MODES: [&str; 3] = ["runoff", "schedule", "policy"];
-pub const INSTRUCTION_KINDS: [&str; 9] = [
+pub const INSTRUCTION_KINDS: [&str; 10] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -62,6 +62,7 @@ pub const INSTRUCTION_KINDS: [&str; 9] = [
     "terminations",
     "facility_repayments",
     "initial_margin",
+    "dynamic_margin",
 ];
 const HEDGE_TREATMENTS: [&str; 4] = ["terminate", "retain", "offset", "rebalance"];
 const FUNDING_INSTRUCTIONS: [&str; 3] = ["repay", "retain", "replace"];

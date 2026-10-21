@@ -147,6 +147,7 @@ export type BookMarginAgreement = {
   counterparty: string;
   initial_margin: string;
   lot_ids: string[];
+  margin_method?: Record<string, unknown>;
   opening_collateral?: Record<string, unknown>;
   segregation: string;
   settlement_lag_days: number;
@@ -262,6 +263,7 @@ export type HedgeAllocation = {
 export type HedgeTreatment = "terminate" | "retain" | "offset" | "rebalance";
 
 export type Instructions = {
+  dynamic_margin?: Record<string, unknown>[];
   facility_draws?: Record<string, unknown>[];
   facility_repayments?: Record<string, unknown>[];
   financings?: Record<string, unknown>[];
@@ -341,6 +343,7 @@ export type LifecycleReceipt = {
   gross_derivative_assets?: number;
   gross_derivative_liabilities?: number;
   inventory_conserved?: boolean;
+  margin_calls?: MarginCall[];
   monthly?: MonthlyReport[];
   open_claims: boolean;
   opening_cash: number;
@@ -379,6 +382,17 @@ export type LiquidityStep = {
 };
 
 export type Manifest = Record<string, unknown>;
+
+export type MarginCall = {
+  agreement_id: string;
+  event_id: string;
+  live_lot_ids: string[];
+  ordinal: number;
+  posted_change: number;
+  received_change: number;
+  requirement: number;
+  sensitivities: number[];
+};
 
 export type MonthlyReport = {
   blocked_events: number;
@@ -517,6 +531,7 @@ export type SourceReceipt = {
   formal_hedge_accounting: boolean;
   hedge_entries?: Record<string, unknown>[];
   journals: ScenarioJournal[];
+  margin_sensitivities?: Record<string, unknown>[];
   plan_sha256: string;
   schema: string;
   stage?: string;

@@ -400,18 +400,20 @@ pub fn page(
     let total = entry["rows"].as_u64().unwrap_or(0) as usize;
     let end = (offset + limit).min(total);
     let mut rows = Vec::new();
+    // The producer interns labels once per run: each segment stores only the entries added since
+    // the previous one, and its indices address the dictionary accumulated in segment order.
+    let mut accumulated: Vec<Value> = Vec::new();
     for seg in entry["segments"].as_array().into_iter().flatten() {
+        let seg_start = seg["offset"].as_u64().unwrap_or(0) as usize;
+        if seg_start >= end {
+            break;
+        }
         let dictionary = match seg.get("dictionary").filter(|v| !v.is_null()) {
             Some(dd) if seg["layout"] == "columns" => {
-                let seg_start = seg["offset"].as_u64().unwrap_or(0) as usize;
-                let seg_end = seg_start + seg["rows"].as_u64().unwrap_or(0) as usize;
-                if seg_end <= offset || seg_start >= end {
-                    None
-                } else {
-                    let bytes = objects.get_bounded(&Descriptor::from_json(dd)?, MAX_PAGE_BYTES)?;
-                    let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
-                    Some(v["dictionary"].clone())
-                }
+                let bytes = objects.get_bounded(&Descriptor::from_json(dd)?, MAX_PAGE_BYTES)?;
+                let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+                accumulated.extend(v["dictionary"].as_array().cloned().unwrap_or_default());
+                Some(&accumulated)
             }
             _ => None,
         };

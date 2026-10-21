@@ -145,6 +145,89 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
             }
         }
     }
+    // Stage I: research-method sensitivities recomputed from the raw contracts with the independent
+    // swap equation on bumped discount points, and the native ones checked against them.
+    let mut sensitivities: HashMap<(String, i64), Vec<f64>> = HashMap::new();
+    for x in &executions {
+        for d in &x.dynamic_margin {
+            let Some(m) = plan
+                .margin_agreements
+                .iter()
+                .find(|a| a.agreement_id == d.agreement_id)
+                .and_then(|a| a.margin_method.as_ref().map(|m| (a, m)))
+            else {
+                continue; // the replay refuses it
+            };
+            let (a, m) = m;
+            for lot_id in &a.lot_ids {
+                if sensitivities.contains_key(&(lot_id.clone(), d.ordinal)) {
+                    continue;
+                }
+                let Some(lot) = plan.lots.iter().find(|l| &l.lot_id == lot_id) else {
+                    continue;
+                };
+                let Some(contract) = contracts.iter().find(|c| {
+                    c.get("lot_id").and_then(Value::as_str) == Some(lot_id.as_str())
+                        && c.get("swap")
+                            .and_then(|s| s.get("asof_ordinal"))
+                            .and_then(Value::as_i64)
+                            == Some(d.ordinal)
+                }) else {
+                    continue; // a live lot without a contract is refused by the replay
+                };
+                let swap_value = contract.get("swap").ok_or("contract lacks its swap")?;
+                if lot.kind != "derivative"
+                    || swap_value.get("position_id").and_then(Value::as_str)
+                        != Some(lot.position_id.as_str())
+                {
+                    return Err(format!(
+                        "swap contract for `{lot_id}` prices another position"
+                    ));
+                }
+                sensitivities.insert(
+                    (lot_id.clone(), d.ordinal),
+                    swap::bucket_sensitivities(swap_value, &m.bucket_upper_days)?,
+                );
+            }
+        }
+    }
+    let native = receipt
+        .get("margin_sensitivities")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if native.len() != sensitivities.len() {
+        return Err("native margin sensitivities differ from the independent set".into());
+    }
+    for n in &native {
+        let key = (
+            s(n, "lot_id")?.to_string(),
+            n.get("ordinal")
+                .and_then(Value::as_i64)
+                .ok_or("sensitivity ordinal")?,
+        );
+        let want = sensitivities.get(&key).ok_or_else(|| {
+            format!(
+                "native sensitivity of `{}` on {} has no independent counterpart",
+                key.0, key.1
+            )
+        })?;
+        let got = n
+            .get("buckets")
+            .and_then(Value::as_array)
+            .ok_or("sensitivity buckets")?;
+        if got.len() != want.len()
+            || got
+                .iter()
+                .zip(want)
+                .any(|(g, w)| !g.as_f64().is_some_and(|g| near(g, *w)))
+        {
+            return Err(format!(
+                "native sensitivity of `{}` on {} differs from the independent equation",
+                key.0, key.1
+            ));
+        }
+    }
     // Typed identity of the opening cash: bits, not tolerance.
     let raw_accounts = plan_value
         .get("accounts")
@@ -202,7 +285,8 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
                     )
                 })?;
             let r = journal.get("receipt").ok_or("journal receipt")?;
-            let expected = expect::replay(&plan, x, &valuations, &account.account_id)?;
+            let expected =
+                expect::replay(&plan, x, &valuations, &sensitivities, &account.account_id)?;
             if raw::bits(raw_account.get("cash").ok_or("raw cash")?, "opening cash")?
                 != f(r, "opening_cash")?.to_bits()
                 || expected.opening_cash_bits != f(r, "opening_cash")?.to_bits()
@@ -367,6 +451,62 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
                         *value,
                     )?;
                 }
+            }
+            // Stage I: every research-method IM call, its live population and its inputs.
+            let got_calls = r
+                .get("margin_calls")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            if got_calls.len() != expected.calls.len() {
+                return Err("margin call count differs from the independent replay".into());
+            }
+            for (g, w) in got_calls.iter().zip(&expected.calls) {
+                let live: Vec<&str> = g
+                    .get("live_lot_ids")
+                    .and_then(Value::as_array)
+                    .ok_or("margin call population")?
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect();
+                let sens = g
+                    .get("sensitivities")
+                    .and_then(Value::as_array)
+                    .ok_or("margin call sensitivities")?;
+                if s(g, "event_id")? != w.event_id
+                    || s(g, "agreement_id")? != w.agreement_id
+                    || g.get("ordinal").and_then(Value::as_i64) != Some(w.ordinal)
+                    || live
+                        != w.live_lot_ids
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                    || sens.len() != w.sensitivities.len()
+                    || sens
+                        .iter()
+                        .zip(&w.sensitivities)
+                        .any(|(a, b)| !a.as_f64().is_some_and(|a| near(a, *b)))
+                {
+                    return Err(format!(
+                        "margin call `{}` differs from the independent replay",
+                        w.event_id
+                    ));
+                }
+                money(
+                    &format!("{} requirement", w.event_id),
+                    f(g, "requirement")?,
+                    w.requirement,
+                )?;
+                money(
+                    &format!("{} posted change", w.event_id),
+                    f(g, "posted_change")?,
+                    w.posted_change,
+                )?;
+                money(
+                    &format!("{} received change", w.event_id),
+                    f(g, "received_change")?,
+                    w.received_change,
+                )?;
             }
             // Stage G: the business-plan mode, every funding decision and every monthly report.
             if r.get("business_plan_mode").and_then(Value::as_str) != expected.mode.as_deref() {
