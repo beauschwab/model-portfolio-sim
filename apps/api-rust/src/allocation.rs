@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 
 pub const SCHEMA: &str = "liquidity-allocation-1";
 pub const MAX_PACKAGES: usize = 32;
-const KINDS: [&str; 9] = [
+const KINDS: [&str; 10] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -25,6 +25,7 @@ const KINDS: [&str; 9] = [
     "terminations",
     "facility_repayments",
     "initial_margin",
+    "dynamic_margin",
 ];
 const OBJECTIVES: [&str; 2] = ["worst_case_external_nii", "worst_case_total_earnings"];
 
@@ -191,7 +192,12 @@ pub fn merge(base: &Value, selected: &[&Value]) -> Result<Value, String> {
                         .entry(k)
                         .or_insert(json!([]));
                     if let Some(list) = slot.as_array_mut() {
-                        list.extend(extra.iter().cloned());
+                        for x in extra {
+                            // One recomputation of an agreement on a date serves every package.
+                            if k != "dynamic_margin" || !list.contains(x) {
+                                list.push(x.clone());
+                            }
+                        }
                     }
                 }
             }

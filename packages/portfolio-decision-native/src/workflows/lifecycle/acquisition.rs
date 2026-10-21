@@ -11,7 +11,9 @@ use portfolio_ledger_native::{
 };
 use portfolio_model_core::lifecycle::{
     self,
-    acquisition::{self as engine, AcquisitionJournal, AcquisitionRequest, ResolvedHedge},
+    acquisition::{
+        self as engine, AcquisitionJournal, AcquisitionRequest, ResolvedHedge, Sensitivity,
+    },
     journal::Kind,
     Admitted, LotKind, Revision,
 };
@@ -66,6 +68,9 @@ pub struct Receipt {
     pub plan_sha256: String,
     pub hedge_entries: Vec<HedgeValuation>,
     pub journals: Vec<JournalReceipt>,
+    /// Stage I: native bucket sensitivities behind every research-method IM recomputation.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub margin_sensitivities: Vec<Sensitivity>,
     pub formal_hedge_accounting: bool,
     pub disclosure: &'static str,
 }
@@ -76,6 +81,7 @@ pub struct Prepared {
     pub plan_sha256: String,
     pub hedge_entries: Vec<HedgeValuation>,
     pub journals: Vec<AcquisitionJournal>,
+    pub margin_sensitivities: Vec<Sensitivity>,
 }
 
 fn refused(r: lifecycle::Refusal) -> String {
@@ -96,7 +102,96 @@ fn empty_block(asof: i32) -> AcquisitionRequest {
         facility_repayments: vec![],
         initial_margin: vec![],
         business_plan: None,
+        dynamic_margin: vec![],
     }
+}
+
+/// The swap with every discount point in bucket `b` bumped by one basis point of continuously
+/// compounded act/365 zero rate. The anchor (exactly one at asof) is unchanged.
+fn bumped(swap: &SwapRequest, upper: &[i32], b: usize) -> SwapRequest {
+    let mut s = swap.clone();
+    let asof = s.discount_curve.asof_ordinal;
+    for p in &mut s.discount_curve.points {
+        let days = p.ordinal - asof;
+        let bucket = upper
+            .iter()
+            .position(|u| days <= *u)
+            .unwrap_or(upper.len() - 1);
+        if bucket == b && days > 0 {
+            p.discount_factor *= (-0.0001 * f64::from(days) / 365.).exp();
+        }
+    }
+    s
+}
+
+/// Native research-method sensitivities of each priced derivative lot of an agreement on each
+/// recomputation date: s_b = PV(bucket b bumped) - PV(base), clean value from the entity's side.
+/// Lots without a contract priced that day are omitted; the engine refuses any that are live.
+fn margin_sensitivities(
+    plan: &Admitted,
+    acquisitions: &[AcquisitionRequest],
+    contracts: &[HedgeContract],
+) -> Result<Vec<Sensitivity>, String> {
+    let p = &plan.request;
+    let mut dates: BTreeSet<(&str, i32)> = BTreeSet::new();
+    for acq in acquisitions {
+        for dm in &acq.dynamic_margin {
+            dates.insert((dm.agreement_id.as_str(), dm.ordinal));
+        }
+    }
+    let mut out: Vec<Sensitivity> = Vec::new();
+    for (agreement_id, ordinal) in dates {
+        let Some(a) = p
+            .margin_agreements
+            .iter()
+            .find(|a| a.agreement_id == agreement_id)
+        else {
+            continue; // the engine names the unknown agreement
+        };
+        let Some(m) = a.margin_method.as_ref() else {
+            continue; // the engine refuses a non-research agreement
+        };
+        for lot_id in &a.lot_ids {
+            portfolio_compute_control::checkpoint()?;
+            let Some(lot) = p.lots.iter().find(|l| &l.lot_id == lot_id) else {
+                continue;
+            };
+            if lot.kind != LotKind::Derivative
+                || out
+                    .iter()
+                    .any(|s| &s.lot_id == lot_id && s.ordinal == ordinal)
+            {
+                continue;
+            }
+            let Some(contract) = contracts
+                .iter()
+                .find(|c| &c.lot_id == lot_id && c.swap.asof_ordinal == ordinal)
+            else {
+                continue;
+            };
+            let swap = &contract.swap;
+            if swap.position_id != lot.position_id
+                || swap.currency != p.currency
+                || swap.monetary_unit != p.monetary_unit
+            {
+                return Err(format!(
+                    "LIFECYCLE_MAPPING_REQUIRED: swap contract for `{lot_id}` must price the lot's position in the plan currency"
+                ));
+            }
+            let base = swaps::value_swap(swap)?.clean_value;
+            let mut buckets = Vec::with_capacity(m.bucket_upper_days.len());
+            for b in 0..m.bucket_upper_days.len() {
+                let v = swaps::value_swap(&bumped(swap, &m.bucket_upper_days, b))?.clean_value;
+                buckets.push(v - base);
+            }
+            out.push(Sensitivity {
+                lot_id: lot_id.clone(),
+                ordinal,
+                buckets,
+            });
+        }
+    }
+    Ok(out)
 }
 
 pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
@@ -216,6 +311,8 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
             pricing_source,
         });
     }
+    let margin_sensitivities =
+        margin_sensitivities(&plan, &request.acquisitions, &request.hedge_contracts)?;
     // This owner's opening stocks (opening lots and collateral) enter the admitted balance sheet.
     let mut native_opening: Vec<NativeOpening> = Vec::new();
     for a in &p.accounts {
@@ -262,7 +359,16 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
         }
         for a in &p.accounts {
             portfolio_compute_control::checkpoint()?;
-            journals.push(engine::replay(&plan, acq, &resolved, &a.account_id).map_err(refused)?);
+            journals.push(
+                engine::replay_with_margin(
+                    &plan,
+                    acq,
+                    &resolved,
+                    &margin_sensitivities,
+                    &a.account_id,
+                )
+                .map_err(refused)?,
+            );
         }
     }
     Ok(Prepared {
@@ -271,6 +377,7 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
         plan_sha256,
         hedge_entries,
         journals,
+        margin_sensitivities,
     })
 }
 
@@ -337,6 +444,9 @@ fn sources(prepared: &Prepared) -> Vec<owner::Source<'_>> {
         .collect()
 }
 
+/// Runs without research-method IM keep their original disclosure bytes.
+const DYNAMIC_DISCLOSURE: &str = "Native acquisition and unwind replay with research-method dynamic IM. Purchases carry cost; financing advances post once with their pledge; hedge entries carry the native clean value; cash VM settles after the agreement lag. Research-method IM (research-sensitivity-im-1, a reviewed research method, not ISDA SIMM or a provider model) is recomputed at each declared date on the actually live legal portfolio from native one-basis-point discount-bucket sensitivities of each live swap: signed sensitivities net across offsetting trades, the requirement is the correlated weighted norm, posted IM resets to it with cash and two-way received IM is segregated custody memo only. A population change without a recomputation, or a live lot without a native sensitivity, refuses. Floating projection is held to the contract's supplied rate path. Settlement is gated by declared dependencies; intents post once in the shared daily Sim beside the dated backbook. Undesignated economic treatment only.";
+
 pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, String> {
     let prepared = prepare(bytes)?;
     let sources = sources(&prepared);
@@ -349,10 +459,19 @@ pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, S
         journals: prepared
             .journals
             .iter()
-            .map(|j| JournalReceipt { account_id: j.account_id.clone(), scenario_id: j.scenario_id.clone(), receipt: j.receipt.clone() })
+            .map(|j| JournalReceipt {
+                account_id: j.account_id.clone(),
+                scenario_id: j.scenario_id.clone(),
+                receipt: j.receipt.clone(),
+            })
             .collect(),
+        margin_sensitivities: prepared.margin_sensitivities.clone(),
         formal_hedge_accounting: false,
-        disclosure: "Native acquisition and unwind replay. Purchases carry cost (no par gain); financing advances post once with their pledge; hedge entries carry the native clean value with equal upfront consideration; cash VM settles after the agreement lag and supplied exact IM binds to the live portfolio, with received IM as custody memo. Sales remove carrying pro rata and realize consideration less carrying; voluntary repayments carry actual accrued and break costs and release pledges; terminations stop rights at the effective date, hold consideration and due cash as an unpaid claim until settlement, and return or apply VM exactly once; bridge facilities draw and repay within their commitment. Settlement is gated by declared dependencies: a failed leg blocks its dependents and nothing settled is undone. Intents post once in the shared daily Sim beside the dated backbook. Undesignated economic treatment only: sale and termination facts are reported for the ASC 815 owner, which posts no basis or OCI here. Post-entry derivative marks and coupons, dynamic margin, the independent Rust verifier and the Rust service are later stages.",
+        disclosure: if !prepared.margin_sensitivities.is_empty() {
+            DYNAMIC_DISCLOSURE
+        } else {
+            "Native acquisition and unwind replay. Purchases carry cost (no par gain); financing advances post once with their pledge; hedge entries carry the native clean value with equal upfront consideration; cash VM settles after the agreement lag and supplied exact IM binds to the live portfolio, with received IM as custody memo. Sales remove carrying pro rata and realize consideration less carrying; voluntary repayments carry actual accrued and break costs and release pledges; terminations stop rights at the effective date, hold consideration and due cash as an unpaid claim until settlement, and return or apply VM exactly once; bridge facilities draw and repay within their commitment. Settlement is gated by declared dependencies: a failed leg blocks its dependents and nothing settled is undone. Intents post once in the shared daily Sim beside the dated backbook. Undesignated economic treatment only: sale and termination facts are reported for the ASC 815 owner, which posts no basis or OCI here. Post-entry derivative marks and coupons, dynamic margin, the independent Rust verifier and the Rust service are later stages."
+        },
     };
     serde_json::to_writer(
         &mut output,

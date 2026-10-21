@@ -309,3 +309,173 @@ fn an_allocation_is_validated_only_after_exact_replay_and_independent_verificati
         stale.body
     );
 }
+
+/// The unwind with an offsetting receiver under `research-sensitivity-im-1`, recomputed on the
+/// termination date, and the dated backbook loan replicated to `n` positions (each funded by
+/// opening equity, in both the backbook and the plan account).
+fn research_scaled(n: usize) -> serde_json::Value {
+    use serde_json::json;
+    let mut v: serde_json::Value = serde_json::from_str(REQUEST).unwrap();
+    for l in v["plan"]["lots"].as_array_mut().unwrap() {
+        if l["lot_id"] == "offset-lot" {
+            l["acquisition_ordinal"] = json!(738800);
+        }
+    }
+    let a = &mut v["plan"]["margin_agreements"][0];
+    a["initial_margin"] = json!("research_sensitivity");
+    a["margin_method"] = json!({"method": "research-sensitivity-im-1", "revision": "r1",
+        "bucket_upper_days": [365, 3650], "risk_weights": [5000.0, 5000.0],
+        "correlations": [[1.0, 0.3], [0.3, 1.0]], "two_way": false,
+        "review": {"id": "im-method-review", "revision": "r1"}});
+    for acq in v["acquisitions"].as_array_mut().unwrap() {
+        acq["initial_margin"] = json!([]);
+        acq["dynamic_margin"] = json!([{"agreement_id": "swap-csa", "ordinal": 738887}]);
+    }
+    let mut offset = v["hedge_contracts"][0].clone();
+    offset["lot_id"] = json!("offset-lot");
+    offset["swap"]["position_id"] = json!("swap-offset");
+    offset["swap"]["side"] = json!("receiver");
+    v["hedge_contracts"].as_array_mut().unwrap().push(offset);
+    // Replicate the backbook loan.
+    let d = &mut v["dated"];
+    let base = d["specification"]["positions"][0].clone();
+    let id = base["id"].as_str().unwrap().to_string();
+    let owner = d["dated"]["owners"][0].clone();
+    let of = |list: &serde_json::Value| -> Vec<serde_json::Value> {
+        list.as_array()
+            .unwrap()
+            .iter()
+            .filter(|x| x["position_id"] == id.as_str())
+            .cloned()
+            .collect()
+    };
+    let (events, cover, plans) = (
+        of(&d["dated"]["sources"][0]["schedule"]["events"]),
+        of(&d["dated"]["sources"][0]["coverage"]),
+        of(&d["dated"]["accrual_plans"]),
+    );
+    let (mut po, mut ow, mut ev, mut co, mut pl) = (vec![], vec![], vec![], vec![], vec![]);
+    for i in 0..n {
+        let pid = if i == 0 {
+            id.clone()
+        } else {
+            format!("{id}-{i:06}")
+        };
+        let with = |x: &serde_json::Value, k: &str| {
+            let mut x = x.clone();
+            x[k] = json!(pid);
+            x
+        };
+        po.push(with(&base, "id"));
+        ow.push(with(&owner, "position_id"));
+        ev.extend(events.iter().map(|e| with(e, "position_id")));
+        co.extend(cover.iter().map(|c| with(c, "position_id")));
+        pl.extend(plans.iter().map(|p| with(p, "position_id")));
+    }
+    ev.sort_by(|a, b| {
+        (a["payment_ordinal"].as_i64(), a["position_id"].as_str())
+            .cmp(&(b["payment_ordinal"].as_i64(), b["position_id"].as_str()))
+    });
+    d["specification"]["positions"] = json!(po);
+    d["dated"]["owners"] = json!(ow);
+    d["dated"]["sources"][0]["schedule"]["events"] = json!(ev);
+    d["dated"]["sources"][0]["coverage"] = json!(co);
+    d["dated"]["accrual_plans"] = json!(pl);
+    let added = (n - 1) as f64 * base["balance"].as_f64().unwrap();
+    let equity = d["specification"]["accounts"][0]["equity"]
+        .as_f64()
+        .unwrap()
+        + added;
+    d["specification"]["accounts"][0]["equity"] = json!(equity);
+    v["plan"]["accounts"][0]["equity"] = json!(equity);
+    v
+}
+
+/// Stage I scale harness: the research-IM unwind through the whole service at increasing backbook
+/// sizes, recording the producer's measured peak RSS, input, stream bytes and wall time. Sizes
+/// come from `WORKBENCH_SCALE_POSITIONS` (comma separated; default `1,64`). Every run must verify
+/// and publish; a size beyond the 8 MiB lifecycle request bound must be refused at admission.
+#[test]
+fn research_im_runs_record_measured_resources_at_each_scale() {
+    let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
+        eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; scale harness skipped");
+        return;
+    };
+    let sizes: Vec<usize> = std::env::var("WORKBENCH_SCALE_POSITIONS")
+        .unwrap_or_else(|_| "1,64".into())
+        .split(',')
+        .map(|s| s.trim().parse().unwrap())
+        .collect();
+    let backend = backends().remove(0);
+    let env = Env::new(backend, "scale");
+    std::fs::copy(&exe, &env.ledger).unwrap();
+    env.ready();
+    let api = env.api();
+    for n in &sizes {
+        let body = serde_json::to_vec(&research_scaled(*n)).unwrap();
+        let head = api.get("/native/revisions/head").body["revision"]
+            .as_i64()
+            .unwrap();
+        let admitted = api.submit(head, Some(&format!("scale-{n}")), &body, Some("1800"));
+        if body.len() > portfolio_verification_native::MAX_REQUEST_BYTES {
+            assert_eq!(admitted.status, 413, "{n}: {}", admitted.body);
+            eprintln!(
+                "SCALE positions={n} input_bytes={} refused=request_bound",
+                body.len()
+            );
+            continue;
+        }
+        let id = admitted.body["job_id"].as_str().unwrap().to_string();
+        let log = finish(env.worker(&[]), Duration::from_secs(1800));
+        let view = api.get(&format!("/native/jobs/{id}")).body;
+        // Beyond the 256 MiB stream bound the watchdog stops the producer and nothing publishes.
+        if view["status"] == "native_error"
+            && view["detail"]
+                .as_str()
+                .is_some_and(|d| d.contains("STREAM_BOUND"))
+        {
+            assert_eq!(view["published"], false, "{view}");
+            eprintln!(
+                "SCALE positions={n} input_bytes={} refused=stream_bound",
+                body.len()
+            );
+            continue;
+        }
+        assert_eq!(view["status"], "native_done", "{n}: {log}\n{view}");
+        assert_eq!(view["result"]["receipt"]["verified"], true);
+        let r = &view["result"]["resources"];
+        assert_eq!(r["input_bytes"].as_u64().unwrap() as usize, body.len());
+        assert!(r["stream_bytes"].as_u64().unwrap() > 0);
+        if cfg!(any(windows, target_os = "linux")) {
+            assert!(r["peak_rss_bytes"].as_u64().unwrap() > 0, "{r}");
+        }
+        // The last journal row decodes through the dictionary accumulated over every segment.
+        let total = api
+            .get(&format!("/native/jobs/{id}/tables/journal?limit=1"))
+            .body["total"]
+            .as_u64()
+            .unwrap();
+        let last = api
+            .get(&format!(
+                "/native/jobs/{id}/tables/journal?offset={}&limit=1",
+                total - 1
+            ))
+            .body;
+        let row = &last["rows"][0];
+        assert!(
+            row["event"].is_string() && row["gl_account"].is_string(),
+            "{last}"
+        );
+        let lifecycle = api
+            .get(&format!(
+                "/native/jobs/{id}/tables/lifecycle_journal_lineage?limit=1000"
+            ))
+            .body;
+        assert!(lifecycle["total"].as_u64().unwrap() > 0);
+        eprintln!(
+            "SCALE positions={n} input_bytes={} stream_bytes={} peak_rss_bytes={} worker_peak_rss_bytes={} rss_method={} wall_ms={} transactions_verified={} journal_rows={total}",
+            r["input_bytes"], r["stream_bytes"], r["peak_rss_bytes"], r["worker_lifetime_peak_rss_bytes"], r["rss_method"], r["wall_ms"],
+            view["result"]["receipt"]["transactions_verified"]
+        );
+    }
+}

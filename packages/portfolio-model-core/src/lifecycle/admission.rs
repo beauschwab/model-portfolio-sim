@@ -439,6 +439,66 @@ pub fn validate(r: &LifecycleRequest) -> Result<(), Refusal> {
         text(&a.counterparty, "counterparty")?;
         revision(&a.legal_review, "legal review")?;
         revision(&a.calendar, "calendar")?;
+        match (a.initial_margin, &a.margin_method) {
+            (InitialMarginMode::ResearchSensitivity, Some(m)) => {
+                if m.method != RESEARCH_IM_METHOD {
+                    return Err(Refusal::new(
+                        UNSUPPORTED_POLICY,
+                        format!(
+                            "IM method `{}` is not implemented; only {RESEARCH_IM_METHOD}",
+                            m.method
+                        ),
+                    ));
+                }
+                text(&m.revision, "IM method revision")?;
+                revision(&m.review, "IM method review")?;
+                let n = m.bucket_upper_days.len();
+                if n == 0 || n > MAX_MARGIN_BUCKETS {
+                    return Err(malformed(format!(
+                        "an IM method has 1 to {MAX_MARGIN_BUCKETS} buckets"
+                    )));
+                }
+                if m.bucket_upper_days.windows(2).any(|w| w[0] >= w[1])
+                    || m.bucket_upper_days[0] <= 0
+                {
+                    return Err(malformed(
+                        "IM bucket bounds must be positive and increasing",
+                    ));
+                }
+                if m.risk_weights.len() != n
+                    || m.risk_weights.iter().any(|w| !w.is_finite() || *w < 0.)
+                {
+                    return Err(malformed(
+                        "one finite nonnegative risk weight per IM bucket",
+                    ));
+                }
+                if m.correlations.len() != n
+                    || m.correlations.iter().any(|row| row.len() != n)
+                    || (0..n).any(|i| m.correlations[i][i] != 1.)
+                    || (0..n).any(|i| {
+                        (0..n).any(|j| {
+                            let c = m.correlations[i][j];
+                            !c.is_finite() || c.abs() > 1. || c != m.correlations[j][i]
+                        })
+                    })
+                {
+                    return Err(malformed(
+                        "IM correlations are a symmetric bucket matrix with unit diagonal and entries in [-1, 1]",
+                    ));
+                }
+            }
+            (InitialMarginMode::ResearchSensitivity, None) => {
+                return Err(malformed(
+                    "the research sensitivity IM mode needs its reviewed method",
+                ));
+            }
+            (_, Some(_)) => {
+                return Err(malformed(
+                    "an IM method is selected only with the research sensitivity mode",
+                ));
+            }
+            (_, None) => {}
+        }
         if let Some(c) = &a.opening_collateral {
             for (v, what) in [
                 (c.posted_vm, "posted VM"),

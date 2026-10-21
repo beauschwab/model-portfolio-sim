@@ -66,6 +66,9 @@ pub fn parse(bytes: &[u8]) -> Result<Stream, String> {
     let mut header = None;
     let mut scenarios: BTreeMap<String, Scenario> = BTreeMap::new();
     let mut lineage_rows: Vec<(String, Value)> = Vec::new();
+    // Journal labels are interned once per run: each journal chunk carries only the entries added
+    // since the previous chunk, and its indices address the accumulated dictionary.
+    let mut dictionary: Vec<String> = Vec::new();
     let mut custody_rows: Vec<(String, Value)> = Vec::new();
     let mut complete = false;
     let mut lines = 0usize;
@@ -140,10 +143,18 @@ pub fn parse(bytes: &[u8]) -> Result<Stream, String> {
                 }
             }
             "journal" => {
-                let dictionary = value
+                for entry in value
                     .get("dictionary")
                     .and_then(Value::as_array)
-                    .ok_or("journal dictionary missing")?;
+                    .ok_or("journal dictionary missing")?
+                {
+                    dictionary.push(
+                        entry
+                            .as_str()
+                            .ok_or("journal dictionary entry is not text")?
+                            .to_string(),
+                    );
+                }
                 let columns = value.get("columns").ok_or("journal columns missing")?;
                 let col = |name: &str| -> Result<&Vec<Value>, String> {
                     columns
@@ -155,9 +166,8 @@ pub fn parse(bytes: &[u8]) -> Result<Stream, String> {
                     let index = v.as_u64().ok_or("journal label index")? as usize;
                     dictionary
                         .get(index)
-                        .and_then(Value::as_str)
-                        .map(str::to_string)
-                        .ok_or_else(|| "journal dictionary index out of range".into())
+                        .cloned()
+                        .ok_or_else(|| "journal dictionary index out of range".to_string())
                 };
                 let (tx, sc, day, ev, gl, id, val) = (
                     col("transaction_number")?,

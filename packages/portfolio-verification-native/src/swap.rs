@@ -128,6 +128,36 @@ pub fn value(swap: &Value) -> Result<Valuation, String> {
     })
 }
 
+/// Research-method bucket sensitivities: the clean-value change when every discount point after
+/// the as-of date in a bucket (first bound at or above its day count, else the last) is scaled by
+/// exp(-0.0001 * days / 365), one basis point of continuously compounded act/365 zero rate.
+pub fn bucket_sensitivities(swap: &Value, upper: &[i64]) -> Result<Vec<f64>, String> {
+    let base = value(swap)?.clean_value;
+    let asof = i(swap, "asof_ordinal")?;
+    let mut out = Vec::with_capacity(upper.len());
+    for b in 0..upper.len() {
+        let mut bumped = swap.clone();
+        let points = bumped
+            .get_mut("discount_curve")
+            .and_then(|c| c.get_mut("points"))
+            .and_then(Value::as_array_mut)
+            .ok_or("discount points missing")?;
+        for p in points.iter_mut() {
+            let days = i(p, "ordinal")? - asof;
+            let bucket = upper
+                .iter()
+                .position(|u| days <= *u)
+                .unwrap_or(upper.len() - 1);
+            if bucket == b && days > 0 {
+                let d = f(p, "discount_factor")? * (-0.0001 * days as f64 / 365.).exp();
+                p["discount_factor"] = Value::from(d);
+            }
+        }
+        out.push(value(&bumped)?.clean_value - base);
+    }
+    Ok(out)
+}
+
 pub fn check(swap: &Value, clean_value: f64, due_cash: f64) -> Result<(), String> {
     let v = value(swap)?;
     if !near(v.clean_value, clean_value) || !near(v.due_cash, due_cash) {

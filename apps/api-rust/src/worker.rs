@@ -20,6 +20,87 @@ use std::time::{Duration, Instant};
 
 pub const MAX_STDERR_BYTES: usize = 64 * 1024;
 
+/// How the producer's peak resident memory is measured on this platform. On Windows the peak
+/// working set is read from the child handle at exit (exact). On Linux the high-water mark
+/// (`VmHWM`) is sampled every watchdog tick while the child lives, so it is a lower bound that
+/// can miss growth in the last tick. Elsewhere it is not measured.
+#[cfg(windows)]
+pub const RSS_METHOD: &str = "windows_peak_working_set_at_exit";
+#[cfg(target_os = "linux")]
+pub const RSS_METHOD: &str = "linux_vmhwm_sampled_lower_bound";
+#[cfg(not(any(windows, target_os = "linux")))]
+pub const RSS_METHOD: &str = "unavailable";
+
+#[cfg(windows)]
+fn peak_rss(child: &std::process::Child) -> Option<u64> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::ProcessStatus::{
+        GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+    };
+    let size = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+    // SAFETY: a zeroed counters struct is valid; the handle stays owned by `child` for the call.
+    let mut c: PROCESS_MEMORY_COUNTERS = unsafe { std::mem::zeroed() };
+    c.cb = size;
+    let ok = unsafe { GetProcessMemoryInfo(child.as_raw_handle() as _, &mut c, size) };
+    (ok != 0).then_some(c.PeakWorkingSetSize as u64)
+}
+#[cfg(target_os = "linux")]
+fn peak_rss(child: &std::process::Child) -> Option<u64> {
+    let status = std::fs::read_to_string(format!("/proc/{}/status", child.id())).ok()?;
+    let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
+    let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kb * 1024)
+}
+#[cfg(not(any(windows, target_os = "linux")))]
+fn peak_rss(_: &std::process::Child) -> Option<u64> {
+    None
+}
+
+/// The worker process's own lifetime peak resident memory (it buffers the bounded stream and runs
+/// the independent verification and publication), exact on Windows and Linux.
+#[cfg(windows)]
+fn own_peak_rss() -> Option<u64> {
+    use windows_sys::Win32::System::ProcessStatus::{
+        GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+    };
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+    let size = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+    // SAFETY: a zeroed counters struct is valid; the pseudo handle needs no closing.
+    let mut c: PROCESS_MEMORY_COUNTERS = unsafe { std::mem::zeroed() };
+    c.cb = size;
+    let ok = unsafe { GetProcessMemoryInfo(GetCurrentProcess(), &mut c, size) };
+    (ok != 0).then_some(c.PeakWorkingSetSize as u64)
+}
+#[cfg(target_os = "linux")]
+fn own_peak_rss() -> Option<u64> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
+    let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kb * 1024)
+}
+#[cfg(not(any(windows, target_os = "linux")))]
+fn own_peak_rss() -> Option<u64> {
+    None
+}
+
+/// Measured resources of one producer run, recorded in the job result (stage I).
+pub struct Resources {
+    pub peak_rss_bytes: Option<u64>,
+    pub input_bytes: usize,
+    pub stream_bytes: usize,
+    pub wall_ms: u64,
+}
+impl Resources {
+    pub fn to_json(&self) -> serde_json::Value {
+        json!({
+            "peak_rss_bytes": self.peak_rss_bytes, "rss_method": RSS_METHOD,
+            "input_bytes": self.input_bytes, "stream_bytes": self.stream_bytes,
+            "stream_bound_bytes": MAX_STREAM_BYTES, "wall_ms": self.wall_ms,
+            "worker_lifetime_peak_rss_bytes": own_peak_rss(),
+        })
+    }
+}
+
 pub fn executable_sha256(path: &Path) -> Result<String, Refusal> {
     use sha2::{Digest, Sha256};
     let mut file = std::fs::File::open(path)
@@ -246,13 +327,13 @@ impl Worker {
             claim,
             json!({"stage": "native", "pct": 10, "attempt": claim.attempt}),
         )?;
-        let stream = self.native(claim, exe, &raw, lost)?;
+        let (stream, resources) = self.native(claim, exe, &raw, lost)?;
         self.repo.progress(
             claim,
             json!({"stage": "verifying", "pct": 60, "attempt": claim.attempt}),
         )?;
         if a.schema == crate::allocation::SCHEMA {
-            return self.allocation(claim, exe, &raw, &stream);
+            return self.allocation(claim, exe, &raw, &stream, &resources);
         }
         let receipt = verify(&raw, &stream).map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
         self.repo.progress(
@@ -274,6 +355,7 @@ impl Worker {
             "stream_sha256": value["stream"]["sha256"],
             "receipt": value["verification"]["receipt"],
             "persisted_verification": true,
+            "resources": resources.to_json(),
         });
         self.repo.publish(claim, &manifest, result)
     }
@@ -287,6 +369,7 @@ impl Worker {
         exe: &Path,
         raw: &[u8],
         stream: &[u8],
+        resources: &Resources,
     ) -> Result<(), Refusal> {
         let layout = |d: String| Refusal::new("STREAM_LAYOUT", d);
         let cut = stream
@@ -340,6 +423,7 @@ impl Worker {
             "outcome": receipt["outcome"],
             "selected": receipt["selected"],
             "persisted_verification": true,
+            "resources": resources.to_json(),
         });
         self.repo.publish(claim, &manifest, result)
     }
@@ -353,7 +437,8 @@ impl Worker {
         exe: &Path,
         raw: &[u8],
         lost: &AtomicBool,
-    ) -> Result<Vec<u8>, Refusal> {
+    ) -> Result<(Vec<u8>, Resources), Refusal> {
+        let started = Instant::now();
         let mut child = Command::new(exe)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -416,7 +501,14 @@ impl Worker {
             })
         };
         let mut last_check = Instant::now();
+        let mut peak: Option<u64> = None;
+        let mut sample = |child: &std::process::Child| {
+            if let Some(v) = peak_rss(child) {
+                peak = Some(peak.map_or(v, |p| p.max(v)));
+            }
+        };
         let stopped: Option<Refusal> = loop {
+            sample(&child);
             if let Some(status) = child
                 .try_wait()
                 .map_err(|e| Refusal::new("NATIVE_FAILED", e.to_string()))?
@@ -426,6 +518,8 @@ impl Worker {
                     let tail = String::from_utf8_lossy(&err.lock().expect("stderr")).into_owned();
                     break Some(native_refusal(&status.to_string(), &tail));
                 }
+                // On Windows the exited child's handle still reports its exact peak.
+                sample(&child);
                 break None;
             }
             let reason = if now() >= claim.authority.deadline_at {
@@ -478,6 +572,12 @@ impl Worker {
             ));
         }
         let out = std::mem::take(&mut *out.lock().expect("stdout"));
-        Ok(out)
+        let resources = Resources {
+            peak_rss_bytes: peak,
+            input_bytes: raw.len(),
+            stream_bytes: out.len(),
+            wall_ms: started.elapsed().as_millis() as u64,
+        };
+        Ok((out, resources))
     }
 }

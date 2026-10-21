@@ -84,6 +84,9 @@ test('a saved book is mapped, run, verified, published, explained and reopened t
   await panel.getByRole('tab', { name: 'Funding decisions', exact: true }).click();
   await expect(panel.getByRole('tabpanel')).toContainText('repay-repo');
   await expect(panel.getByRole('tabpanel')).toContainText('surplus repayment');
+  // The worked agreement uses supplied requirements: no research-method recomputation is claimed.
+  await panel.getByRole('tab', { name: 'Margin calls', exact: true }).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('No research-method IM recomputation ran');
   await panel.getByRole('tab', { name: 'Monthly', exact: true }).click();
   await expect(panel.getByRole('tabpanel')).toContainText('2024-01');
   await panel.getByRole('region', { name: 'Lifecycle results' }).screenshot({ path: test.info().outputPath('monthly.png') });

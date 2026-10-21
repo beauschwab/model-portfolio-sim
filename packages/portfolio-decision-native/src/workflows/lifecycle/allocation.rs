@@ -30,7 +30,7 @@ pub const SCHEMA: &str = "liquidity-allocation-1";
 pub const MAX_PACKAGES: usize = 32;
 pub const MAX_REFINEMENTS: u32 = 8;
 pub const MAX_BYTES: usize = 32 * 1024 * 1024;
-const INSTRUCTION_KINDS: [&str; 9] = [
+const INSTRUCTION_KINDS: [&str; 10] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -40,6 +40,7 @@ const INSTRUCTION_KINDS: [&str; 9] = [
     "terminations",
     "facility_repayments",
     "initial_margin",
+    "dynamic_margin",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -321,10 +322,13 @@ pub fn merge(base: &Value, selected: &[&Value]) -> Result<Value, String> {
                         .ok_or("block")?
                         .entry(k)
                         .or_insert_with(|| json!([]));
-                    entry
-                        .as_array_mut()
-                        .ok_or("instruction list")?
-                        .extend(list.iter().cloned());
+                    let into = entry.as_array_mut().ok_or("instruction list")?;
+                    for x in list {
+                        // One IM recomputation of an agreement on a date serves every package.
+                        if k != "dynamic_margin" || !into.contains(x) {
+                            into.push(x.clone());
+                        }
+                    }
                 }
             }
         }

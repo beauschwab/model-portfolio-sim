@@ -1,4 +1,4 @@
-# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to H)
+# Liquidity lifecycle contract (`liquidity-lifecycle-1`, stages A to I)
 
 Stage A of the [Rust liquidity lifecycle plan](rust-liquidity-lifecycle-plan.md), issue
 [#43](https://github.com/beauschwab/model-portfolio-sim/issues/43). This stage defines the typed
@@ -439,7 +439,92 @@ package), nonlinear margin or netting refinements, durable reuse of a prepared a
 (a constraint change is evaluated interactively; a new solve is a new allocation), retained capital
 coefficients, and formal ASC 815 candidates (they need the #35 durable assessment).
 
-## Not in stages A to H
+## Stage I: research-method dynamic IM and measured scale (#51)
 
-Post-entry derivative marks and coupons, dynamic IM, broader accounting scope and combined scale are
-stage I (#51).
+An agreement can select `initial_margin: "research_sensitivity"` with a reviewed
+`margin_method`. This replaces the supplied requirements for that agreement. The only implemented
+method is `research-sensitivity-im-1`. It is a research method. It is not ISDA SIMM, a CCP model or
+a provider model, and nothing infers that any of those has been met.
+
+| Step | Behavior |
+|---|---|
+| Method | Admission requires the method id, a revision and a review identity. It also requires 1 to 16 positive, increasing bucket bounds in days, one finite nonnegative risk weight per bucket, and a symmetric correlation matrix with unit diagonal and entries in [-1, 1]. A method under another mode, or the mode without a method, refuses. |
+| Dates | Each execution block lists `dynamic_margin` dates per agreement. Every population change of a research agreement (an entry or a termination) needs a recomputation on that date, or it refuses with `MARGIN_REFRESH_REQUIRED`. A duplicate date refuses. Supplied requirements cannot be mixed in. |
+| Population | The recomputation runs in the IM phase after the day's entries and terminations. It uses the agreement's lots that are actually live, meaning they still carry a derivative balance. A failed or blocked termination leaves its lot live. |
+| Sensitivities | The coordinator prices each live swap natively: its clean value, then its clean value with every discount point in one bucket scaled by exp(-0.0001 · days / 365). That is one basis point of continuously compounded act/365 zero rate. The sensitivity is the difference. Floating projection stays on the contract's supplied rate path. A live lot without a contract priced that day refuses with `MARGIN_REFRESH_REQUIRED`. Sensitivities are never caller supplied. |
+| Requirement | Signed bucket sensitivities are summed over the live portfolio, so offsets net. The requirement is sqrt(max(0, Σ_b Σ_c RW_b s_b ρ_bc RW_c s_c)). |
+| Postings | Posted IM resets to the requirement with cash. A two-way method also sets received IM to the requirement, as a custody memo only. It is never cash and never usable, and only a segregated agreement can receive it. |
+| Receipt | Each call reports its live lots, netted sensitivities, requirement and posted and received changes (`margin_calls`). The source receipt lists every native sensitivity (`margin_sensitivities`). Runs without a research agreement keep their original receipt and disclosure bytes. |
+| Independent check | The stage D verifier recomputes every sensitivity from the raw contracts. It uses its own swap equation on bumped JSON discount points and requires the native set to match. It then replays the live population from its own carrying state, the requirement and the postings, and compares every margin call. |
+| Workbench | Saved plans may carry `dynamic_margin` instructions, and agreements may carry `margin_method`. Results gain a Margin calls tab. Allocation merges keep one recomputation per agreement and date across packages. |
+
+Removing an offset raises the remaining requirement. In the worked unwind with an offsetting
+receiver, the two swaps net exactly when the termination fails, so IM returns from the opening 3 to
+0. When the payer terminates, the receiver alone requires 5000 × 4 × (1 − e^(−1e−4·10/365)) ≈
+0.0548.
+
+### Measured resources
+
+The worker now records each producer run's resources in the job result (`resources`):
+- peak RSS;
+- input and stream bytes, and the stream bound;
+- wall time;
+- the worker process's own lifetime peak RSS.
+
+On Windows the producer's peak working set is read from its handle at exit, which is exact. On Linux
+`VmHWM` is sampled at every watchdog tick, which gives a lower bound. The worker's own peak covers
+buffering the bounded stream, independent verification and publication.
+
+Measured on Windows 11 with the release decision binary
+`fb09e47f6d1bf011552c84e9fa9e620cc80fac11d3b36d3d0c1d5226dbcddd1a`. Each row is the research-IM unwind
+with the dated backbook loan replicated N times, through the whole service on SQLite and local
+objects. Each run was verified and published. The command, from `apps/api-rust`:
+
+```
+WORKBENCH_TEST_LEDGER_EXE=<exe> WORKBENCH_SCALE_POSITIONS=1,64,512,2048,5000,6000,7000,9000 cargo test --release --test live research_im -- --nocapture
+```
+
+| Backbook positions | Input | Stream | Journal rows | Producer peak RSS | Worker peak RSS | Producer wall |
+|---|---|---|---|---|---|---|
+| 1 | 12 KB | 0.13 MB | 172 | 11 MB | 10 MB | 0.9 s |
+| 64 | 74 KB | 2.8 MB | 8,236 | 41 MB | 32 MB | 0.05 s |
+| 512 | 0.51 MB | 22 MB | 65,580 | 58 MB | 81 MB | 0.33 s |
+| 2,048 | 2.0 MB | 90 MB | 262,188 | 94 MB | 238 MB | 1.3 s |
+| 5,000 | 4.9 MB | 219 MB | 640,044 | 136 MB | 656 MB | 3.0 s |
+| 6,000 | 5.9 MB | 263 MB | 768,044 | 157 MB | 688 MB | 3.5 s |
+| 7,000 | 6.9 MB | over 256 MiB | | | | stopped: `STREAM_BOUND`, nothing published |
+| 9,000 | 8.8 MB | | | | | refused at admission: 413 |
+
+The binding limit is the 256 MiB stream bound. The 8 MiB lifecycle request bound follows close behind.
+
+The harness found and fixed a correctness defect. Above 16,384 journal rows the ledger emits several
+journal chunks. Each chunk carries only the dictionary entries added since the previous chunk, and
+its indices address the accumulated dictionary. The verifier read each chunk's dictionary alone and
+refused correct runs. The service's journal pager read each stored segment's dictionary alone, so
+later pages could fail or decode the wrong labels. Both now accumulate the dictionary in order.
+Stored publications are unchanged and now page correctly.
+
+Tests:
+- `portfolio-model-core/tests/lifecycle_margin.rs`: offset removal raises IM; refresh required
+  without a date or a live sensitivity; method validation; two-way custody only when segregated.
+- `portfolio-decision-native/tests/lifecycle_margin.rs`: native sensitivities, both outcomes
+  verified independently, a tampered requirement refused, and refusals.
+- `apps/api-rust/tests/allocation.rs`: merged recomputations deduplicated.
+- `apps/api-rust/tests/live.rs`: the scale harness. A size over the request bound must be refused,
+  and one over the stream bound must publish nothing.
+
+Not in stage I:
+- complete 60,000-position acceptance with active mixed owners and graph, credit and solver
+  activity in the same run. The lifecycle route is bounded by its 8 MiB request and 256 MiB stream,
+  and needs the hash-referenced streamed transport of the hedge acceptance tier.
+- ISDA SIMM, CCP and provider methods, and calibrated risk weights or correlations.
+- curve sensitivity of the floating projection.
+- VM thresholds under recomputed IM.
+- the #35 liability-layer, HTM, FX and net-investment, and amendment lanes. They are never inferred
+  from economic capability.
+- empirical, accounting-standard and regulatory acceptance under #25 and #35.
+
+## Not in stages A to I
+
+Post-entry derivative marks and coupons, and the items listed under stage I, remain open under
+#51, #35 and #25.
