@@ -227,6 +227,39 @@ pub struct Execution {
     pub facility_repayments: Vec<FacilityMove>,
     #[serde(default)]
     pub initial_margin: Vec<Im>,
+    #[serde(default)]
+    pub business_plan: Option<PlanIn>,
+}
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct WindowIn {
+    pub from_ordinal: i64,
+    pub to_ordinal: i64,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct RenewalIn {
+    pub max_generations: u32,
+    pub tenor_days: i64,
+    pub windows: Vec<WindowIn>,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct PolicyFacilityIn {
+    pub facility_id: String,
+    pub access: Vec<WindowIn>,
+    #[serde(default)]
+    pub renewal: Option<RenewalIn>,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct FundingPolicyIn {
+    pub minimum_usable_cash: f64,
+    pub facilities: Vec<PolicyFacilityIn>,
+    #[serde(default)]
+    pub repay_surplus: bool,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct PlanIn {
+    pub mode: String,
+    #[serde(default)]
+    pub funding_policy: Option<FundingPolicyIn>,
 }
 
 /// A confirmed native valuation of a derivative lot at a date.
@@ -266,6 +299,26 @@ pub struct Step {
     /// (field, value) in the native field order.
     pub amounts: Vec<(&'static str, f64)>,
 }
+/// An independently replayed funding decision.
+#[derive(Debug, Clone)]
+pub struct Decision {
+    pub decision_id: String,
+    pub ordinal: i64,
+    pub kind: &'static str,
+    pub facility_id: String,
+    pub generation: u32,
+    pub trigger: String,
+    pub amounts: Vec<(&'static str, f64)>,
+}
+/// An independently aggregated calendar month.
+#[derive(Debug, Clone)]
+pub struct Month {
+    pub month: String,
+    pub first_ordinal: i64,
+    pub last_ordinal: i64,
+    pub counts: Vec<(&'static str, u64)>,
+    pub amounts: Vec<(&'static str, f64)>,
+}
 #[derive(Debug, Clone)]
 pub struct Expected {
     pub opening_cash_bits: u64,
@@ -275,6 +328,9 @@ pub struct Expected {
     pub cash_movements: f64,
     pub events: Vec<(String, &'static str)>,
     pub steps: Vec<Step>,
+    pub mode: Option<String>,
+    pub decisions: Vec<Decision>,
+    pub monthly: Option<Vec<Month>>,
     pub facts: Vec<Fact>,
     pub posted_vm: f64,
     pub received_vm: f64,
@@ -344,13 +400,255 @@ struct Event<'a> {
     body: Body<'a>,
 }
 
+struct Fac {
+    id: String,
+    commitment: f64,
+    expiry: i64,
+    generation: u32,
+}
+struct Policy {
+    floor: f64,
+    order: Vec<String>,
+    access: BTreeMap<String, Vec<WindowIn>>,
+    renewal: BTreeMap<String, RenewalIn>,
+    repay_surplus: bool,
+    count: u32,
+}
 struct Book {
     financial: BTreeMap<(String, String), f64>,
     cash: f64,
     moved: f64,
     intents: Vec<Intent>,
+    drawn: BTreeMap<String, f64>,
+    facs: Vec<Fac>,
+    segregated: Vec<String>,
+    policy: Option<Policy>,
+    /// Policy actions taken since the loop last collected them: (status entry, step).
+    log: Vec<((String, &'static str), Step)>,
+    decisions: Vec<Decision>,
+    replacements: Vec<Fact>,
+    /// (pledged, owned securities, IM in custody) before the current event.
+    pre: (f64, f64, f64),
+    phase: u32,
+}
+fn inside(windows: &[WindowIn], ordinal: i64) -> bool {
+    windows
+        .iter()
+        .any(|w| w.from_ordinal <= ordinal && ordinal <= w.to_ordinal)
+}
+fn gen_id(id: &str, generation: u32) -> String {
+    if generation <= 1 {
+        id.to_string()
+    } else {
+        format!("{id}~g{generation}")
+    }
 }
 impl Book {
+    fn restricted(&self) -> f64 {
+        self.segregated
+            .iter()
+            .map(|a| -self.balance("received_vm", a))
+            .sum()
+    }
+    fn total(&self, name: &str) -> f64 {
+        self.financial
+            .iter()
+            .filter(|((g, _), _)| g == gl(name))
+            .map(|(_, v)| v)
+            .sum()
+    }
+    fn fac(&self, id: &str) -> &Fac {
+        self.facs.iter().find(|f| f.id == id).expect("facility")
+    }
+    fn undrawn(&self, ordinal: i64) -> f64 {
+        self.facs
+            .iter()
+            .filter(|f| ordinal < f.expiry)
+            .map(|f| f.commitment - self.drawn.get(&f.id).copied().unwrap_or(0.))
+            .sum()
+    }
+    /// The liquidity amounts of a step, in the native field order. `inventory` supplies the
+    /// pledged quantity, owned securities and custody IM.
+    fn amounts(
+        &self,
+        ordinal: i64,
+        cash_before: f64,
+        inventory: (f64, f64, f64),
+    ) -> Vec<(&'static str, f64)> {
+        let restricted = self.restricted();
+        let drawn: f64 = self.drawn.values().sum();
+        vec![
+            ("cash_movement", self.cash - cash_before),
+            ("cash_after", self.cash),
+            ("restricted_cash_after", restricted),
+            ("usable_cash_after", self.cash - restricted),
+            ("facility_drawn_after", drawn),
+            ("facility_undrawn_after", self.undrawn(ordinal)),
+            ("pledged_quantity_after", inventory.0),
+            ("security_quantity_after", inventory.1),
+            ("posted_vm_after", self.total("posted_vm")),
+            ("received_vm_after", -self.total("received_vm")),
+            ("posted_im_after", self.total("posted_im")),
+            ("received_im_custody_after", inventory.2),
+            ("pending_receivable_after", self.total("unpaid_receivable")),
+            ("pending_payable_after", -self.total("unpaid_payable")),
+            ("derivative_assets_after", self.total("derivative_asset")),
+            (
+                "derivative_liabilities_after",
+                -self.total("derivative_liability"),
+            ),
+        ]
+    }
+    /// The independent funding rule: before a payment settles, draw from facilities that are
+    /// accessible today and unexpired, in order, what keeps usable cash at the floor.
+    fn fund(&mut self, trigger: &str, ordinal: i64, delta: f64) -> Result<(), String> {
+        let (floor, order) = match &self.policy {
+            Some(p) => (p.floor, p.order.clone()),
+            None => return Ok(()),
+        };
+        let need = floor - (self.cash - self.restricted() + delta);
+        if need <= 1e-9 * floor.abs().max(1.) {
+            return Ok(());
+        }
+        let mut left = need;
+        for id in &order {
+            if left <= 1e-12 {
+                break;
+            }
+            let open = self
+                .policy
+                .as_ref()
+                .and_then(|p| p.access.get(id))
+                .is_some_and(|w| inside(w, ordinal));
+            let headroom = self.fac(id).commitment - self.drawn.get(id).copied().unwrap_or(0.);
+            if !open || ordinal >= self.fac(id).expiry {
+                continue;
+            }
+            let x = left.min(headroom);
+            if x <= 1e-12 {
+                continue;
+            }
+            self.act("draw", id, x, trigger, ordinal, need)?;
+            left -= x;
+        }
+        Ok(())
+    }
+    fn act(
+        &mut self,
+        kind: &'static str,
+        id: &str,
+        amount: f64,
+        trigger: &str,
+        ordinal: i64,
+        need: f64,
+    ) -> Result<(), String> {
+        let n = {
+            let p = self.policy.as_mut().expect("policy");
+            p.count += 1;
+            p.count
+        };
+        let decision = format!("policy_{kind}:{id}:{ordinal}:{n}");
+        let (cash_before, usable_before) = (self.cash, self.cash - self.restricted());
+        let generation = self.fac(id).generation;
+        let current = gen_id(id, generation);
+        let phase = self.phase;
+        match kind {
+            "draw" => {
+                *self.drawn.entry(id.to_string()).or_default() += amount;
+                self.raw(
+                    &decision,
+                    ordinal,
+                    &[
+                        ("cash", "", amount),
+                        ("funding_principal", &current, -amount),
+                    ],
+                )?;
+            }
+            "surplus_repayment" => {
+                *self.drawn.entry(id.to_string()).or_default() -= amount;
+                self.raw(
+                    &decision,
+                    ordinal,
+                    &[
+                        ("funding_principal", &current, amount),
+                        ("cash", "", -amount),
+                    ],
+                )?;
+            }
+            "maturity_repayment" => {
+                *self.drawn.entry(id.to_string()).or_default() -= amount;
+                self.post(
+                    &decision,
+                    ordinal,
+                    false,
+                    &[
+                        ("funding_principal", &current, amount),
+                        ("cash", "", -amount),
+                    ],
+                )?;
+            }
+            "renewal" => {
+                let tenor = self
+                    .policy
+                    .as_ref()
+                    .and_then(|p| p.renewal.get(id))
+                    .map_or(0, |r| r.tenor_days);
+                let next = gen_id(id, generation + 1);
+                if let Some(f) = self.facs.iter_mut().find(|f| f.id == id) {
+                    f.generation += 1;
+                    f.expiry += tenor;
+                }
+                self.raw(
+                    &decision,
+                    ordinal,
+                    &[
+                        ("funding_principal", &current, amount),
+                        ("funding_principal", &next, -amount),
+                    ],
+                )?;
+                self.replacements.push(Fact {
+                    kind: "funding_replacement",
+                    lot_id: next,
+                    quantity: amount,
+                    retained_quantity: amount,
+                    consideration: 0.,
+                    removed_carrying: 0.,
+                    realized: 0.,
+                    economic_allocation_ids: Vec::new(),
+                    formal_relationship_ids: Vec::new(),
+                });
+            }
+            _ => return Err("independent replay: unknown policy action".into()),
+        }
+        let usable_after = self.cash - self.restricted();
+        self.decisions.push(Decision {
+            decision_id: decision.clone(),
+            ordinal,
+            kind,
+            facility_id: id.to_string(),
+            generation: self.fac(id).generation,
+            trigger: trigger.to_string(),
+            amounts: vec![
+                ("amount", amount),
+                ("usable_cash_before", usable_before),
+                ("usable_cash_after", usable_after),
+                ("need", need),
+            ],
+        });
+        let amounts = self.amounts(ordinal, cash_before, self.pre);
+        self.log.push((
+            (decision.clone(), "settled"),
+            Step {
+                event_id: decision,
+                ordinal,
+                phase,
+                status: "settled",
+                depends_on: Vec::new(),
+                amounts,
+            },
+        ));
+        Ok(())
+    }
     fn balance(&self, name: &str, id: &str) -> f64 {
         self.financial
             .get(&(gl(name).to_string(), instrument(name, id)))
@@ -358,6 +656,22 @@ impl Book {
             .unwrap_or(0.)
     }
     fn post(
+        &mut self,
+        id: &str,
+        ordinal: i64,
+        memo: bool,
+        lines: &[(&str, &str, f64)],
+    ) -> Result<(), String> {
+        let delta: f64 = lines.iter().filter(|l| l.0 == "cash").map(|l| l.2).sum();
+        if !memo && delta < 0. && self.policy.is_some() {
+            self.fund(id, ordinal, delta)?;
+        }
+        self.raw_memo(id, ordinal, memo, lines)
+    }
+    fn raw(&mut self, id: &str, ordinal: i64, lines: &[(&str, &str, f64)]) -> Result<(), String> {
+        self.raw_memo(id, ordinal, false, lines)
+    }
+    fn raw_memo(
         &mut self,
         id: &str,
         ordinal: i64,
@@ -853,7 +1167,59 @@ pub fn replay(
         cash: account.cash,
         moved: 0.,
         intents: Vec::new(),
+        drawn: plan
+            .facilities
+            .iter()
+            .map(|f| (f.facility_id.clone(), f.drawn))
+            .collect(),
+        facs: plan
+            .facilities
+            .iter()
+            .map(|f| Fac {
+                id: f.facility_id.clone(),
+                commitment: f.commitment,
+                expiry: f.expiry_ordinal,
+                generation: 1,
+            })
+            .collect(),
+        segregated: plan
+            .margin_agreements
+            .iter()
+            .filter(|a| a.segregation == "segregated")
+            .map(|a| a.agreement_id.clone())
+            .collect(),
+        policy: None,
+        log: Vec::new(),
+        decisions: Vec::new(),
+        replacements: Vec::new(),
+        pre: (0., 0., 0.),
+        phase: 0,
     };
+    let mode = acq.business_plan.as_ref().map(|b| b.mode.clone());
+    if let Some(bp) = &acq.business_plan {
+        match (bp.mode.as_str(), &bp.funding_policy) {
+            ("runoff" | "schedule", None) => {}
+            ("policy", Some(p)) => {
+                book.policy = Some(Policy {
+                    floor: p.minimum_usable_cash,
+                    order: p.facilities.iter().map(|f| f.facility_id.clone()).collect(),
+                    access: p
+                        .facilities
+                        .iter()
+                        .map(|f| (f.facility_id.clone(), f.access.clone()))
+                        .collect(),
+                    renewal: p
+                        .facilities
+                        .iter()
+                        .filter_map(|f| f.renewal.clone().map(|r| (f.facility_id.clone(), r)))
+                        .collect(),
+                    repay_surplus: p.repay_surplus,
+                    count: 0,
+                });
+            }
+            _ => return Err("independent replay: unsupported business plan".into()),
+        }
+    }
     let mut owned: BTreeMap<String, f64> = BTreeMap::new();
     let mut pledged: BTreeMap<String, f64> = BTreeMap::new();
     let mut pledge_left: BTreeMap<String, f64> = BTreeMap::new();
@@ -939,450 +1305,526 @@ pub fn replay(
         }
         (e, f)
     };
-    let mut drawn: HashMap<&str, f64> = plan
-        .facilities
-        .iter()
-        .map(|f| (f.facility_id.as_str(), f.drawn))
-        .collect();
     let mut settled: BTreeSet<String> = BTreeSet::new();
     let mut statuses = Vec::new();
     let mut steps = Vec::new();
-    let commitment: f64 = plan.facilities.iter().map(|f| f.commitment).sum();
     let mut facts = Vec::new();
     let (mut fees, mut realized) = (0., 0.);
-    for e in &events {
-        let cash_before = book.cash;
-        if e.ordinal < asof || e.ordinal > end {
-            return Err(format!(
-                "independent replay: `{}` is outside the horizon",
-                e.id
-            ));
+    if let Some(e) = events.iter().find(|e| e.ordinal < asof || e.ordinal > end) {
+        return Err(format!(
+            "independent replay: `{}` is outside the horizon",
+            e.id
+        ));
+    }
+    let security_ids: Vec<String> = plan
+        .lots
+        .iter()
+        .filter(|l| l.kind == "security" && l.account_id == account_id)
+        .map(|l| l.lot_id.clone())
+        .collect();
+    let inventory = |owned: &BTreeMap<String, f64>,
+                     pledged: &BTreeMap<String, f64>,
+                     custody: &BTreeMap<String, f64>| {
+        (
+            pledged.values().sum::<f64>(),
+            security_ids
+                .iter()
+                .map(|l| owned.get(l).copied().unwrap_or(0.))
+                .sum::<f64>(),
+            custody.values().sum::<f64>(),
+        )
+    };
+    let opening_amounts = book.amounts(asof, book.cash, inventory(&owned, &pledged, &custody));
+    for ordinal in asof..=end {
+        // Start of day: renew or repay facility generations expiring today.
+        book.pre = inventory(&owned, &pledged, &custody);
+        book.phase = 0;
+        if let Some(order) = book.policy.as_ref().map(|p| p.order.clone()) {
+            for id in &order {
+                let (expiry, generation) = (book.fac(id).expiry, book.fac(id).generation);
+                if expiry != ordinal {
+                    continue;
+                }
+                let drawn = book.drawn.get(id).copied().unwrap_or(0.);
+                let renew = book
+                    .policy
+                    .as_ref()
+                    .and_then(|p| p.renewal.get(id))
+                    .is_some_and(|r| generation < r.max_generations && inside(&r.windows, ordinal));
+                if renew {
+                    book.act("renewal", id, drawn, "start_of_day", ordinal, 0.)?;
+                } else if drawn > 1e-12 {
+                    book.act("maturity_repayment", id, drawn, "start_of_day", ordinal, 0.)?;
+                }
+            }
         }
-        let status = if e.failed {
-            "failed"
-        } else if !e.depends_on.iter().all(|d| settled.contains(d)) {
-            "blocked"
-        } else {
-            let id = e.id.as_str();
-            match &e.body {
-                Body::Advance(f) => book.post(
-                    id,
-                    e.ordinal,
-                    false,
-                    &[
-                        ("cash", "", f.principal),
-                        ("funding_principal", &f.lot_id, -f.principal),
-                    ],
-                )?,
-                Body::Draw(d) => {
-                    let f = facilities[d.facility_id.as_str()];
-                    let used = drawn.get_mut(d.facility_id.as_str()).expect("facility");
-                    if d.amount > f.commitment - *used + 1e-9 || d.ordinal > f.expiry_ordinal {
-                        return Err(format!("independent replay: `{id}` exceeds the facility"));
-                    }
-                    *used += d.amount;
-                    book.post(
+        for (status, step) in book.log.drain(..) {
+            statuses.push(status);
+            steps.push(step);
+        }
+        for e in events.iter().filter(|e| e.ordinal == ordinal) {
+            let cash_before = book.cash;
+            book.pre = inventory(&owned, &pledged, &custody);
+            book.phase = e.phase;
+            let status = if e.failed {
+                "failed"
+            } else if !e.depends_on.iter().all(|d| settled.contains(d)) {
+                "blocked"
+            } else {
+                let id = e.id.as_str();
+                match &e.body {
+                    Body::Advance(f) => book.post(
                         id,
                         e.ordinal,
                         false,
                         &[
-                            ("cash", "", d.amount),
-                            ("funding_principal", &d.facility_id, -d.amount),
+                            ("cash", "", f.principal),
+                            ("funding_principal", &f.lot_id, -f.principal),
                         ],
-                    )?;
-                }
-                Body::FacilityRepay(r) => {
-                    let used = drawn.get_mut(r.facility_id.as_str()).expect("facility");
-                    if r.amount > *used + 1e-9 {
-                        return Err(format!("independent replay: `{id}` repays more than drawn"));
+                    )?,
+                    Body::Draw(d) => {
+                        let f = facilities[d.facility_id.as_str()];
+                        let used = book.drawn.get(&d.facility_id).copied().unwrap_or(0.);
+                        if d.amount > f.commitment - used + 1e-9 || d.ordinal > f.expiry_ordinal {
+                            return Err(format!("independent replay: `{id}` exceeds the facility"));
+                        }
+                        *book.drawn.entry(d.facility_id.clone()).or_default() += d.amount;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("cash", "", d.amount),
+                                ("funding_principal", &d.facility_id, -d.amount),
+                            ],
+                        )?;
                     }
-                    *used -= r.amount;
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("funding_principal", &r.facility_id, r.amount),
-                            ("cash", "", -r.amount),
-                        ],
-                    )?;
-                }
-                Body::Repayment(r) => {
-                    if r.principal > -book.balance("funding_principal", &r.lot_id) + 1e-9 {
-                        return Err(format!(
-                            "independent replay: `{id}` repays more than outstanding"
-                        ));
+                    Body::FacilityRepay(r) => {
+                        let used = book.drawn.get(&r.facility_id).copied().unwrap_or(0.);
+                        if r.amount > used + 1e-9 {
+                            return Err(format!(
+                                "independent replay: `{id}` repays more than drawn"
+                            ));
+                        }
+                        *book.drawn.entry(r.facility_id.clone()).or_default() -= r.amount;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("funding_principal", &r.facility_id, r.amount),
+                                ("cash", "", -r.amount),
+                            ],
+                        )?;
                     }
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("funding_principal", &r.lot_id, r.principal),
-                            ("interest", &r.lot_id, r.accrued_interest),
-                            ("fees", &r.lot_id, r.break_cost),
+                    Body::Repayment(r) => {
+                        if r.principal > -book.balance("funding_principal", &r.lot_id) + 1e-9 {
+                            return Err(format!(
+                                "independent replay: `{id}` repays more than outstanding"
+                            ));
+                        }
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("funding_principal", &r.lot_id, r.principal),
+                                ("interest", &r.lot_id, r.accrued_interest),
+                                ("fees", &r.lot_id, r.break_cost),
+                                (
+                                    "cash",
+                                    "",
+                                    -(r.principal + r.accrued_interest + r.break_cost),
+                                ),
+                            ],
+                        )?;
+                        fees += r.break_cost;
+                    }
+                    Body::Release(p, q) => {
+                        let left = pledge_left
+                            .get_mut(&p.pledge_id)
+                            .ok_or("independent replay: release of an undelivered pledge")?;
+                        if *q > *left + 1e-9 {
+                            return Err(format!(
+                                "independent replay: `{id}` releases more than pledged"
+                            ));
+                        }
+                        *left -= q;
+                        *pledged.entry(p.lot_id.clone()).or_default() -= q;
+                    }
+                    Body::Purchase(p, l) => {
+                        let cost = p.clean_price_per_100 / 100. * l.quantity;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("asset_principal", &l.lot_id, l.quantity),
+                                ("book_adjustment", &l.lot_id, cost - l.quantity),
+                                ("interest_receivable", &l.lot_id, p.accrued_interest),
+                                ("fees", &l.lot_id, p.fees),
+                                ("cash", "", -(cost + p.accrued_interest + p.fees)),
+                            ],
+                        )?;
+                        fees += p.fees;
+                        *owned.entry(l.lot_id.clone()).or_default() += l.quantity;
+                    }
+                    Body::Sale(s, l) => {
+                        let have = owned.get(&l.lot_id).copied().unwrap_or(0.);
+                        if s.quantity > available(&owned, &pledged, l) + 1e-9 {
+                            return Err(format!(
+                                "independent replay: `{id}` sells unavailable inventory"
+                            ));
+                        }
+                        let share = s.quantity / have;
+                        let principal = book.balance("asset_principal", &l.lot_id) * share;
+                        let adjustment = book.balance("book_adjustment", &l.lot_id) * share;
+                        let receivable = book.balance("interest_receivable", &l.lot_id) * share;
+                        let consideration = s.clean_price_per_100 / 100. * s.quantity;
+                        let removed = principal + adjustment;
+                        let gain = consideration - removed;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("cash", "", consideration + s.accrued_interest - s.fees),
+                                ("asset_principal", &l.lot_id, -principal),
+                                ("book_adjustment", &l.lot_id, -adjustment),
+                                ("interest_receivable", &l.lot_id, -receivable),
+                                ("interest", &l.lot_id, receivable - s.accrued_interest),
+                                ("fees", &l.lot_id, s.fees),
+                                ("realized", &l.lot_id, -gain),
+                            ],
+                        )?;
+                        fees += s.fees;
+                        realized += gain;
+                        *owned.entry(l.lot_id.clone()).or_default() -= s.quantity;
+                        let (ea, fr) = allocations(&l.lot_id);
+                        facts.push(Fact {
+                            kind: if near(s.quantity, have) {
+                                "sale"
+                            } else {
+                                "partial_sale"
+                            },
+                            lot_id: l.lot_id.clone(),
+                            quantity: s.quantity,
+                            retained_quantity: have - s.quantity,
+                            consideration,
+                            removed_carrying: removed,
+                            realized: gain,
+                            economic_allocation_ids: ea,
+                            formal_relationship_ids: fr,
+                        });
+                    }
+                    Body::Pledge(p) => {
+                        let l = lots[p.lot_id.as_str()];
+                        if p.quantity > available(&owned, &pledged, l) + 1e-9 {
+                            return Err(format!(
+                                "independent replay: `{id}` pledges unavailable inventory"
+                            ));
+                        }
+                        *pledged.entry(p.lot_id.clone()).or_default() += p.quantity;
+                        pledge_left.insert(p.pledge_id.clone(), p.quantity);
+                    }
+                    Body::Entry(h, clean) => {
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                (
+                                    if *clean >= 0. {
+                                        "derivative_asset"
+                                    } else {
+                                        "derivative_liability"
+                                    },
+                                    &h.lot_id,
+                                    *clean,
+                                ),
+                                ("cash", "", -h.upfront_consideration),
+                            ],
+                        )?;
+                        carrying.insert(h.lot_id.clone(), *clean);
+                    }
+                    Body::TerminationEffective(t, consideration, due) => {
+                        let c = carrying
+                            .remove(&t.lot_id)
+                            .ok_or("independent replay: termination of a lot that is not live")?;
+                        let claim = consideration + due;
+                        let gain = consideration - c;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                (
+                                    if c >= 0. {
+                                        "derivative_asset"
+                                    } else {
+                                        "derivative_liability"
+                                    },
+                                    &t.lot_id,
+                                    -c,
+                                ),
+                                (
+                                    if claim >= 0. {
+                                        "unpaid_receivable"
+                                    } else {
+                                        "unpaid_payable"
+                                    },
+                                    &t.lot_id,
+                                    claim,
+                                ),
+                                ("interest", &t.lot_id, -due),
+                                ("realized", &t.lot_id, -gain),
+                            ],
+                        )?;
+                        realized += gain;
+                        let (ea, fr) = allocations(&t.lot_id);
+                        let l = lots[t.lot_id.as_str()];
+                        facts.push(Fact {
+                            kind: "termination",
+                            lot_id: t.lot_id.clone(),
+                            quantity: l.quantity,
+                            retained_quantity: 0.,
+                            consideration: *consideration,
+                            removed_carrying: c,
+                            realized: gain,
+                            economic_allocation_ids: ea,
+                            formal_relationship_ids: fr,
+                        });
+                    }
+                    Body::TerminationSettle(t, a) => {
+                        let receivable = book.balance("unpaid_receivable", &t.lot_id);
+                        let payable = book.balance("unpaid_payable", &t.lot_id);
+                        let claim = receivable + payable;
+                        let mut lines: Vec<(&str, &str, f64)> = vec![
                             (
-                                "cash",
-                                "",
-                                -(r.principal + r.accrued_interest + r.break_cost),
-                            ),
-                        ],
-                    )?;
-                    fees += r.break_cost;
-                }
-                Body::Release(p, q) => {
-                    let left = pledge_left
-                        .get_mut(&p.pledge_id)
-                        .ok_or("independent replay: release of an undelivered pledge")?;
-                    if *q > *left + 1e-9 {
-                        return Err(format!(
-                            "independent replay: `{id}` releases more than pledged"
-                        ));
-                    }
-                    *left -= q;
-                    *pledged.entry(p.lot_id.clone()).or_default() -= q;
-                }
-                Body::Purchase(p, l) => {
-                    let cost = p.clean_price_per_100 / 100. * l.quantity;
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("asset_principal", &l.lot_id, l.quantity),
-                            ("book_adjustment", &l.lot_id, cost - l.quantity),
-                            ("interest_receivable", &l.lot_id, p.accrued_interest),
-                            ("fees", &l.lot_id, p.fees),
-                            ("cash", "", -(cost + p.accrued_interest + p.fees)),
-                        ],
-                    )?;
-                    fees += p.fees;
-                    *owned.entry(l.lot_id.clone()).or_default() += l.quantity;
-                }
-                Body::Sale(s, l) => {
-                    let have = owned.get(&l.lot_id).copied().unwrap_or(0.);
-                    if s.quantity > available(&owned, &pledged, l) + 1e-9 {
-                        return Err(format!(
-                            "independent replay: `{id}` sells unavailable inventory"
-                        ));
-                    }
-                    let share = s.quantity / have;
-                    let principal = book.balance("asset_principal", &l.lot_id) * share;
-                    let adjustment = book.balance("book_adjustment", &l.lot_id) * share;
-                    let receivable = book.balance("interest_receivable", &l.lot_id) * share;
-                    let consideration = s.clean_price_per_100 / 100. * s.quantity;
-                    let removed = principal + adjustment;
-                    let gain = consideration - removed;
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("cash", "", consideration + s.accrued_interest - s.fees),
-                            ("asset_principal", &l.lot_id, -principal),
-                            ("book_adjustment", &l.lot_id, -adjustment),
-                            ("interest_receivable", &l.lot_id, -receivable),
-                            ("interest", &l.lot_id, receivable - s.accrued_interest),
-                            ("fees", &l.lot_id, s.fees),
-                            ("realized", &l.lot_id, -gain),
-                        ],
-                    )?;
-                    fees += s.fees;
-                    realized += gain;
-                    *owned.entry(l.lot_id.clone()).or_default() -= s.quantity;
-                    let (ea, fr) = allocations(&l.lot_id);
-                    facts.push(Fact {
-                        kind: if near(s.quantity, have) {
-                            "sale"
-                        } else {
-                            "partial_sale"
-                        },
-                        lot_id: l.lot_id.clone(),
-                        quantity: s.quantity,
-                        retained_quantity: have - s.quantity,
-                        consideration,
-                        removed_carrying: removed,
-                        realized: gain,
-                        economic_allocation_ids: ea,
-                        formal_relationship_ids: fr,
-                    });
-                }
-                Body::Pledge(p) => {
-                    let l = lots[p.lot_id.as_str()];
-                    if p.quantity > available(&owned, &pledged, l) + 1e-9 {
-                        return Err(format!(
-                            "independent replay: `{id}` pledges unavailable inventory"
-                        ));
-                    }
-                    *pledged.entry(p.lot_id.clone()).or_default() += p.quantity;
-                    pledge_left.insert(p.pledge_id.clone(), p.quantity);
-                }
-                Body::Entry(h, clean) => {
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            (
-                                if *clean >= 0. {
-                                    "derivative_asset"
-                                } else {
-                                    "derivative_liability"
-                                },
-                                &h.lot_id,
-                                *clean,
-                            ),
-                            ("cash", "", -h.upfront_consideration),
-                        ],
-                    )?;
-                    carrying.insert(h.lot_id.clone(), *clean);
-                }
-                Body::TerminationEffective(t, consideration, due) => {
-                    let c = carrying
-                        .remove(&t.lot_id)
-                        .ok_or("independent replay: termination of a lot that is not live")?;
-                    let claim = consideration + due;
-                    let gain = consideration - c;
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            (
-                                if c >= 0. {
-                                    "derivative_asset"
-                                } else {
-                                    "derivative_liability"
-                                },
-                                &t.lot_id,
-                                -c,
-                            ),
-                            (
-                                if claim >= 0. {
+                                if receivable != 0. {
                                     "unpaid_receivable"
                                 } else {
                                     "unpaid_payable"
                                 },
                                 &t.lot_id,
-                                claim,
+                                -claim,
                             ),
-                            ("interest", &t.lot_id, -due),
-                            ("realized", &t.lot_id, -gain),
-                        ],
-                    )?;
-                    realized += gain;
-                    let (ea, fr) = allocations(&t.lot_id);
-                    let l = lots[t.lot_id.as_str()];
-                    facts.push(Fact {
-                        kind: "termination",
-                        lot_id: t.lot_id.clone(),
-                        quantity: l.quantity,
-                        retained_quantity: 0.,
-                        consideration: *consideration,
-                        removed_carrying: c,
-                        realized: gain,
-                        economic_allocation_ids: ea,
-                        formal_relationship_ids: fr,
-                    });
-                }
-                Body::TerminationSettle(t, a) => {
-                    let receivable = book.balance("unpaid_receivable", &t.lot_id);
-                    let payable = book.balance("unpaid_payable", &t.lot_id);
-                    let claim = receivable + payable;
-                    let mut lines: Vec<(&str, &str, f64)> = vec![
-                        (
-                            if receivable != 0. {
-                                "unpaid_receivable"
-                            } else {
-                                "unpaid_payable"
-                            },
-                            &t.lot_id,
-                            -claim,
-                        ),
-                        ("fees", &t.lot_id, t.fees),
-                    ];
-                    let mut cash = claim - t.fees;
-                    if a.vm_at_termination == "apply_against_consideration" {
+                            ("fees", &t.lot_id, t.fees),
+                        ];
+                        let mut cash = claim - t.fees;
+                        if a.vm_at_termination == "apply_against_consideration" {
+                            let posted = book.balance("posted_vm", &a.agreement_id);
+                            let received = -book.balance("received_vm", &a.agreement_id);
+                            lines.push(("posted_vm", &a.agreement_id, -posted));
+                            lines.push(("received_vm", &a.agreement_id, received));
+                            cash += posted - received;
+                            posted_vm -= posted;
+                            received_vm -= received;
+                        }
+                        lines.push(("cash", "", cash));
+                        book.post(id, e.ordinal, false, &lines)?;
+                        fees += t.fees;
+                    }
+                    Body::VmSettle(a, call) => {
+                        if *call > 0. {
+                            book.post(
+                                id,
+                                e.ordinal,
+                                false,
+                                &[
+                                    ("cash", "", *call),
+                                    ("received_vm", &a.agreement_id, -*call),
+                                ],
+                            )?;
+                            received_vm += call;
+                        } else {
+                            book.post(
+                                id,
+                                e.ordinal,
+                                false,
+                                &[("posted_vm", &a.agreement_id, -*call), ("cash", "", *call)],
+                            )?;
+                            posted_vm -= call;
+                        }
+                    }
+                    Body::VmReturn(a) => {
                         let posted = book.balance("posted_vm", &a.agreement_id);
                         let received = -book.balance("received_vm", &a.agreement_id);
-                        lines.push(("posted_vm", &a.agreement_id, -posted));
-                        lines.push(("received_vm", &a.agreement_id, received));
-                        cash += posted - received;
+                        book.post(
+                            id,
+                            e.ordinal,
+                            false,
+                            &[
+                                ("cash", "", posted - received),
+                                ("posted_vm", &a.agreement_id, -posted),
+                                ("received_vm", &a.agreement_id, received),
+                            ],
+                        )?;
                         posted_vm -= posted;
                         received_vm -= received;
                     }
-                    lines.push(("cash", "", cash));
-                    book.post(id, e.ordinal, false, &lines)?;
-                    fees += t.fees;
-                }
-                Body::VmSettle(a, call) => {
-                    if *call > 0. {
+                    Body::ImReturn(a) => {
+                        let posted = book.balance("posted_im", &a.agreement_id);
                         book.post(
                             id,
                             e.ordinal,
                             false,
                             &[
-                                ("cash", "", *call),
-                                ("received_vm", &a.agreement_id, -*call),
+                                ("cash", "", posted),
+                                ("posted_im", &a.agreement_id, -posted),
                             ],
                         )?;
-                        received_vm += call;
-                    } else {
-                        book.post(
-                            id,
-                            e.ordinal,
-                            false,
-                            &[("posted_vm", &a.agreement_id, -*call), ("cash", "", *call)],
-                        )?;
-                        posted_vm -= call;
+                        posted_im -= posted;
+                        if let Some(c) = custody.remove(&a.agreement_id) {
+                            book.intents.push(Intent {
+                                event_id: format!("{id}:custody"),
+                                ordinal: e.ordinal,
+                                memo: true,
+                                postings: vec![
+                                    (
+                                        gl("custody_asset").into(),
+                                        instrument("custody_asset", &a.agreement_id),
+                                        -c,
+                                    ),
+                                    (
+                                        gl("custody_obligation").into(),
+                                        instrument("custody_obligation", &a.agreement_id),
+                                        c,
+                                    ),
+                                ],
+                            });
+                            received_im -= c;
+                        }
                     }
-                }
-                Body::VmReturn(a) => {
-                    let posted = book.balance("posted_vm", &a.agreement_id);
-                    let received = -book.balance("received_vm", &a.agreement_id);
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("cash", "", posted - received),
-                            ("posted_vm", &a.agreement_id, -posted),
-                            ("received_vm", &a.agreement_id, received),
-                        ],
-                    )?;
-                    posted_vm -= posted;
-                    received_vm -= received;
-                }
-                Body::ImReturn(a) => {
-                    let posted = book.balance("posted_im", &a.agreement_id);
-                    book.post(
-                        id,
-                        e.ordinal,
-                        false,
-                        &[
-                            ("cash", "", posted),
-                            ("posted_im", &a.agreement_id, -posted),
-                        ],
-                    )?;
-                    posted_im -= posted;
-                    if let Some(c) = custody.remove(&a.agreement_id) {
-                        book.intents.push(Intent {
-                            event_id: format!("{id}:custody"),
-                            ordinal: e.ordinal,
-                            memo: true,
-                            postings: vec![
-                                (
-                                    gl("custody_asset").into(),
-                                    instrument("custody_asset", &a.agreement_id),
-                                    -c,
-                                ),
-                                (
-                                    gl("custody_obligation").into(),
-                                    instrument("custody_obligation", &a.agreement_id),
-                                    c,
-                                ),
-                            ],
-                        });
-                        received_im -= c;
-                    }
-                }
-                Body::Im(im, a) => {
-                    if im.posted_requirement > 0. {
-                        book.post(
-                            id,
-                            e.ordinal,
-                            false,
-                            &[
-                                ("posted_im", &a.agreement_id, im.posted_requirement),
-                                ("cash", "", -im.posted_requirement),
-                            ],
-                        )?;
-                        posted_im += im.posted_requirement;
-                    }
-                    if im.received_requirement > 0. {
-                        if a.segregation != "segregated" {
-                            return Err(
+                    Body::Im(im, a) => {
+                        if im.posted_requirement > 0. {
+                            book.post(
+                                id,
+                                e.ordinal,
+                                false,
+                                &[
+                                    ("posted_im", &a.agreement_id, im.posted_requirement),
+                                    ("cash", "", -im.posted_requirement),
+                                ],
+                            )?;
+                            posted_im += im.posted_requirement;
+                        }
+                        if im.received_requirement > 0. {
+                            if a.segregation != "segregated" {
+                                return Err(
                                 "independent replay: received IM under a non-segregated agreement"
                                     .into(),
                             );
+                            }
+                            book.intents.push(Intent {
+                                event_id: format!("{id}:custody"),
+                                ordinal: e.ordinal,
+                                memo: true,
+                                postings: vec![
+                                    (
+                                        gl("custody_asset").into(),
+                                        instrument("custody_asset", &a.agreement_id),
+                                        im.received_requirement,
+                                    ),
+                                    (
+                                        gl("custody_obligation").into(),
+                                        instrument("custody_obligation", &a.agreement_id),
+                                        -im.received_requirement,
+                                    ),
+                                ],
+                            });
+                            *custody.entry(a.agreement_id.clone()).or_default() +=
+                                im.received_requirement;
+                            received_im += im.received_requirement;
                         }
-                        book.intents.push(Intent {
-                            event_id: format!("{id}:custody"),
-                            ordinal: e.ordinal,
-                            memo: true,
-                            postings: vec![
-                                (
-                                    gl("custody_asset").into(),
-                                    instrument("custody_asset", &a.agreement_id),
-                                    im.received_requirement,
-                                ),
-                                (
-                                    gl("custody_obligation").into(),
-                                    instrument("custody_obligation", &a.agreement_id),
-                                    -im.received_requirement,
-                                ),
-                            ],
-                        });
-                        *custody.entry(a.agreement_id.clone()).or_default() +=
-                            im.received_requirement;
-                        received_im += im.received_requirement;
                     }
                 }
-            }
-            settled.insert(e.id.clone());
-            "settled"
-        };
-        statuses.push((e.id.clone(), status));
-        // Restricted cash: received VM held under a segregated agreement (independently from
-        // the received VM liability balances, not from a running counter).
-        let restricted: f64 = plan
-            .margin_agreements
-            .iter()
-            .filter(|a| a.segregation == "segregated")
-            .map(|a| -book.balance("received_vm", &a.agreement_id))
-            .sum();
-        let total = |name: &str| -> f64 {
-            book.financial
+                settled.insert(e.id.clone());
+                "settled"
+            };
+            let drawn_for_event: f64 = book
+                .log
                 .iter()
-                .filter(|((g, _), _)| g == gl(name))
-                .map(|(_, v)| v)
-                .sum()
-        };
-        let drawn_total: f64 = drawn.values().sum();
-        let securities: f64 = plan
-            .lots
-            .iter()
-            .filter(|l| l.kind == "security" && l.account_id == account_id)
-            .map(|l| owned.get(&l.lot_id).copied().unwrap_or(0.))
-            .sum();
-        steps.push(Step {
-            event_id: e.id.clone(),
-            ordinal: e.ordinal,
-            phase: e.phase,
-            status,
-            depends_on: e.depends_on.clone(),
-            amounts: vec![
-                ("cash_movement", book.cash - cash_before),
-                ("cash_after", book.cash),
-                ("restricted_cash_after", restricted),
-                ("usable_cash_after", book.cash - restricted),
-                ("facility_drawn_after", drawn_total),
-                ("facility_undrawn_after", commitment - drawn_total),
-                ("pledged_quantity_after", pledged.values().sum()),
-                ("security_quantity_after", securities),
-                ("posted_vm_after", total("posted_vm")),
-                ("received_vm_after", -total("received_vm")),
-                ("posted_im_after", total("posted_im")),
-                ("received_im_custody_after", custody.values().sum()),
-                ("pending_receivable_after", total("unpaid_receivable")),
-                ("pending_payable_after", -total("unpaid_payable")),
-                ("derivative_assets_after", total("derivative_asset")),
-                (
-                    "derivative_liabilities_after",
-                    -total("derivative_liability"),
-                ),
-            ],
-        });
+                .filter(|(_, s)| s.event_id.starts_with("policy_draw:"))
+                .map(|(_, s)| s.amounts[0].1)
+                .sum();
+            for (entry, step) in book.log.drain(..) {
+                statuses.push(entry);
+                steps.push(step);
+            }
+            let cash_before = cash_before + drawn_for_event;
+            statuses.push((e.id.clone(), status));
+            // Restricted cash: received VM held under a segregated agreement (independently from
+            // the received VM liability balances, not from a running counter).
+            let restricted: f64 = plan
+                .margin_agreements
+                .iter()
+                .filter(|a| a.segregation == "segregated")
+                .map(|a| -book.balance("received_vm", &a.agreement_id))
+                .sum();
+            let total = |name: &str| -> f64 {
+                book.financial
+                    .iter()
+                    .filter(|((g, _), _)| g == gl(name))
+                    .map(|(_, v)| v)
+                    .sum()
+            };
+            let drawn_total: f64 = book.drawn.values().sum();
+            let securities: f64 = plan
+                .lots
+                .iter()
+                .filter(|l| l.kind == "security" && l.account_id == account_id)
+                .map(|l| owned.get(&l.lot_id).copied().unwrap_or(0.))
+                .sum();
+            steps.push(Step {
+                event_id: e.id.clone(),
+                ordinal: e.ordinal,
+                phase: e.phase,
+                status,
+                depends_on: e.depends_on.clone(),
+                amounts: vec![
+                    ("cash_movement", book.cash - cash_before),
+                    ("cash_after", book.cash),
+                    ("restricted_cash_after", restricted),
+                    ("usable_cash_after", book.cash - restricted),
+                    ("facility_drawn_after", drawn_total),
+                    ("facility_undrawn_after", book.undrawn(e.ordinal)),
+                    ("pledged_quantity_after", pledged.values().sum()),
+                    ("security_quantity_after", securities),
+                    ("posted_vm_after", total("posted_vm")),
+                    ("received_vm_after", -total("received_vm")),
+                    ("posted_im_after", total("posted_im")),
+                    ("received_im_custody_after", custody.values().sum()),
+                    ("pending_receivable_after", total("unpaid_receivable")),
+                    ("pending_payable_after", -total("unpaid_payable")),
+                    ("derivative_assets_after", total("derivative_asset")),
+                    (
+                        "derivative_liabilities_after",
+                        -total("derivative_liability"),
+                    ),
+                ],
+            });
+        }
+        // End of day: repay drawn policy facilities, last first, from usable cash above the floor.
+        book.pre = inventory(&owned, &pledged, &custody);
+        book.phase = 10;
+        if let Some((floor, order, true)) = book
+            .policy
+            .as_ref()
+            .map(|p| (p.floor, p.order.clone(), p.repay_surplus))
+        {
+            for id in order.iter().rev() {
+                let surplus = book.cash - book.restricted() - floor;
+                let x = surplus.min(book.drawn.get(id).copied().unwrap_or(0.));
+                if x > 1e-9 * floor.abs().max(1.) {
+                    book.act("surplus_repayment", id, x, "end_of_day", ordinal, 0.)?;
+                }
+            }
+        }
+        for (status, step) in book.log.drain(..) {
+            statuses.push(status);
+            steps.push(step);
+        }
     }
     let stock_sum = |name: &str| -> f64 {
         book.financial
@@ -1403,6 +1845,18 @@ pub fn replay(
         .map(|(k, v)| (k.clone(), *v))
         .collect();
     let _ = &account.equity;
+    facts.append(&mut book.replacements);
+    let monthly = match &mode {
+        None => None,
+        Some(_) => Some(months(
+            &book.intents,
+            &steps,
+            account.cash,
+            &opening_amounts,
+            asof,
+            end,
+        )?),
+    };
     Ok(Expected {
         opening_cash_bits: account.cash.to_bits(),
         intents: book.intents,
@@ -1411,6 +1865,9 @@ pub fn replay(
         cash_movements: book.moved,
         events: statuses,
         steps,
+        mode,
+        decisions: std::mem::take(&mut book.decisions),
+        monthly,
         facts,
         posted_vm,
         received_vm,
@@ -1420,6 +1877,123 @@ pub fn replay(
         realized,
         open_claims,
     })
+}
+
+/// Calendar year and month of a proleptic Gregorian day ordinal (0001-01-01 is day 1), by the
+/// days-from-civil inversion on the Unix epoch (an independent calendar implementation).
+pub fn year_month(ordinal: i64) -> (i64, u32) {
+    let z = ordinal - 719_163 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    (year, month)
+}
+
+fn months(
+    intents: &[Intent],
+    steps: &[Step],
+    opening_cash: f64,
+    opening: &[(&'static str, f64)],
+    asof: i64,
+    end: i64,
+) -> Result<Vec<Month>, String> {
+    let get =
+        |a: &[(&'static str, f64)], k: &str| a.iter().find(|x| x.0 == k).map(|x| x.1).unwrap_or(0.);
+    let mut usable = get(opening, "usable_cash_after");
+    let mut drawn = get(opening, "facility_drawn_after");
+    let mut posted = get(opening, "posted_vm_after") + get(opening, "posted_im_after");
+    let mut pledged = get(opening, "pledged_quantity_after");
+    let mut securities = get(opening, "security_quantity_after");
+    let mut cash = opening_cash;
+    let mut out = Vec::new();
+    let mut first = asof;
+    while first <= end {
+        let key = year_month(first);
+        let mut last = first;
+        while last < end && year_month(last + 1) == key {
+            last += 1;
+        }
+        let within = |o: i64| first <= o && o <= last;
+        let (mut cash_in, mut cash_out, mut net) = (0., 0., 0.);
+        let (mut interest, mut fees, mut realized, mut posted_m, mut returned) =
+            (0., 0., 0., 0., 0.);
+        for i in intents.iter().filter(|i| within(i.ordinal) && !i.memo) {
+            for (g, _, d) in &i.postings {
+                match g.as_str() {
+                    "cash" => {
+                        if *d > 0. {
+                            cash_in += d;
+                        } else {
+                            cash_out -= d;
+                        }
+                        net += d;
+                    }
+                    "pnl:lifecycle_interest" => interest += d,
+                    "pnl:lifecycle_fees" => fees += d,
+                    "pnl:lifecycle_realized" => realized -= d,
+                    "derivative_posted_vm_asset" | "derivative_posted_im_asset" => {
+                        if *d > 0. {
+                            posted_m += d;
+                        } else {
+                            returned -= d;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        let opening_month = cash;
+        let mut minimum = usable;
+        let (mut events, mut failed, mut blocked, mut policy) = (0u64, 0u64, 0u64, 0u64);
+        for st in steps.iter().filter(|st| within(st.ordinal)) {
+            events += 1;
+            failed += u64::from(st.status == "failed");
+            blocked += u64::from(st.status == "blocked");
+            policy += u64::from(st.event_id.starts_with("policy_"));
+            usable = get(&st.amounts, "usable_cash_after");
+            minimum = minimum.min(usable);
+            drawn = get(&st.amounts, "facility_drawn_after");
+            posted = get(&st.amounts, "posted_vm_after") + get(&st.amounts, "posted_im_after");
+            pledged = get(&st.amounts, "pledged_quantity_after");
+            securities = get(&st.amounts, "security_quantity_after");
+        }
+        cash += net;
+        out.push(Month {
+            month: format!("{:04}-{:02}", key.0, key.1),
+            first_ordinal: first,
+            last_ordinal: last,
+            counts: vec![
+                ("events", events),
+                ("failed_events", failed),
+                ("blocked_events", blocked),
+                ("policy_decisions", policy),
+            ],
+            amounts: vec![
+                ("opening_cash", opening_month),
+                ("cash_in", cash_in),
+                ("cash_out", cash_out),
+                ("net_cash", net),
+                ("closing_cash", cash),
+                ("minimum_usable_cash", minimum),
+                ("closing_usable_cash", usable),
+                ("closing_facility_drawn", drawn),
+                ("interest_expense", interest),
+                ("fees", fees),
+                ("realized", realized),
+                ("margin_posted", posted_m),
+                ("margin_returned", returned),
+                ("closing_posted_margin", posted),
+                ("closing_pledged_quantity", pledged),
+                ("closing_security_quantity", securities),
+            ],
+        });
+        first = last + 1;
+    }
+    Ok(out)
 }
 
 pub fn plan_from(value: &Value) -> Result<Plan, String> {

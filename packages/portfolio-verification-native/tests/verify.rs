@@ -275,3 +275,52 @@ fn liquidity_steps_are_recomputed_and_tampered_steps_are_refused() {
         .pop();
     assert!(refused(REQUEST, &join(&d)).contains("step count"));
 }
+
+const POLICY_REQUEST: &str = include_str!("fixtures/lifecycle-policy.request.json");
+const POLICY_STREAM: &str = include_str!("fixtures/lifecycle-policy.stream.jsonl");
+
+fn policy_lines() -> Vec<Value> {
+    POLICY_STREAM
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect()
+}
+
+fn receipt_mut(l: &mut [Value]) -> &mut Value {
+    &mut l[0]["workflow"]["source_receipt"]["journals"][0]["receipt"]
+}
+
+#[test]
+fn a_policy_mode_stream_is_replayed_independently_and_tampering_is_refused() {
+    let receipt = verify(POLICY_REQUEST.as_bytes(), POLICY_STREAM.as_bytes()).unwrap();
+    assert!(receipt.verified);
+    let mut l = policy_lines();
+    receipt_mut(&mut l)["policy_decisions"][0]["amount"] = json!(94.0);
+    assert!(refused(POLICY_REQUEST, &join(&l)).contains("policy decision"));
+    let mut l = policy_lines();
+    let extra = receipt_mut(&mut l)["policy_decisions"][0].clone();
+    receipt_mut(&mut l)["policy_decisions"]
+        .as_array_mut()
+        .unwrap()
+        .push(extra);
+    assert!(refused(POLICY_REQUEST, &join(&l)).contains("policy decision count"));
+    let mut l = policy_lines();
+    receipt_mut(&mut l)["monthly"][0]["minimum_usable_cash"] = json!(6.0);
+    assert!(
+        refused(POLICY_REQUEST, &join(&l)).contains("monthly report 2024-01 minimum_usable_cash")
+    );
+    let mut l = policy_lines();
+    receipt_mut(&mut l)["accounting_facts"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    assert!(refused(POLICY_REQUEST, &join(&l)).contains("accounting fact count"));
+    // A narrower raw access window would have left the repo repayment unfunded.
+    let mut req: Value = serde_json::from_str(POLICY_REQUEST).unwrap();
+    for a in req["acquisitions"].as_array_mut().unwrap() {
+        a["business_plan"]["funding_policy"]["facilities"][0]["access"] =
+            json!([{"from_ordinal": 738900, "to_ordinal": 738916}]);
+    }
+    assert!(!refused(&serde_json::to_string(&req).unwrap(), POLICY_STREAM).is_empty());
+}

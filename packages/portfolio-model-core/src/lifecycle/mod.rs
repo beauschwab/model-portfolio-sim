@@ -4,6 +4,7 @@
 pub mod acquisition;
 pub mod admission;
 pub mod journal;
+pub mod policy;
 pub mod settlement;
 pub mod types;
 pub use admission::{admit, validate, Admitted};

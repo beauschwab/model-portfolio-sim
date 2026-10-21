@@ -24,6 +24,8 @@ const RESULT_TABS = [
   { id: 'obligations', label: 'Obligations' },
   { id: 'collateral', label: 'Collateral and facilities' },
   { id: 'facts', label: 'Accounting facts' },
+  { id: 'decisions', label: 'Funding decisions' },
+  { id: 'monthly', label: 'Monthly' },
   ...TABLES,
 ];
 const labelOf = (id: string) => RESULT_TABS.find(t => t.id === id)?.label ?? id;
@@ -35,6 +37,7 @@ const INSTRUCTION_LABELS: Record<string, string> = {
 
 // Proleptic Gregorian day ordinals as in the engine (2000-01-01 is 730120).
 const EPOCH = Date.UTC(2000, 0, 1), EPOCH_ORDINAL = 730120;
+const ordinalOf = (value: string) => Math.round((Date.parse(value + 'T00:00:00Z') - EPOCH) / 86400000) + EPOCH_ORDINAL;
 const iso = (ordinal: unknown) => typeof ordinal === 'number' ? new Date(EPOCH + (ordinal - EPOCH_ORDINAL) * 86400000).toISOString().slice(0, 10) : '';
 const money = (v: unknown) => typeof v === 'number' ? v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 const words = (v: unknown) => String(v ?? '').replaceAll('_', ' ');
@@ -99,7 +102,8 @@ export default function LiquidityLifecycle() {
     const example = await nativeApi.example();
     const head = await nativeApi.head();
     const afterBook = await nativeApi.save('worked-unwind-book', example.book, head.revision);
-    await nativeApi.save('worked-unwind-plan', example.plan, afterBook.revision);
+    const afterPlan = await nativeApi.save('worked-unwind-plan', example.plan, afterBook.revision);
+    await nativeApi.save('worked-unwind-policy-plan', example.policy_plan, afterPlan.revision);
     await refresh('worked-unwind-book', 'worked-unwind-plan');
   });
   const selectBook = (name: string) => guarded(async () => { setBookName(name); setBook(await nativeApi.book(name, revision)); setRequirements([]); setReady(''); });
@@ -123,6 +127,17 @@ export default function LiquidityLifecycle() {
   const affectedHedges = (records?.hedge_allocations ?? []).filter(h => touched.has(h.exposure_lot_id) || touched.has(h.hedge_lot_id));
   const affectedFunding = (records?.funding_allocations ?? []).filter(f => touched.has(f.attributed_lot_id));
   const formalSelected = (plan?.actions ?? []).some(a => a.accounting_treatment === 'formal');
+  const mode = plan?.business_plan?.mode ?? 'schedule';
+  const policy = plan?.business_plan?.funding_policy;
+  const setMode = (next: 'schedule' | 'runoff' | 'policy') => edit(d => {
+    if (next === 'schedule') { delete d.business_plan; return; }
+    if (next === 'runoff') { d.business_plan = { mode: 'runoff' }; return; }
+    const horizon = Math.max(...(book?.scenarios ?? []).map(sc => sc.horizon_end_ordinal), records?.as_of_ordinal ?? 0);
+    d.business_plan = { mode: 'policy', funding_policy: d.business_plan?.funding_policy ?? {
+      policy: { id: 'treasury-funding', revision: 'r1' }, minimum_usable_cash: 0, repay_surplus: true,
+      facilities: (records?.facilities ?? []).map(f => ({ facility_id: f.facility_id, access: [{ from_ordinal: records!.as_of_ordinal, to_ordinal: horizon }] })),
+    } };
+  });
   const planned = useMemo(() => Object.entries(plan?.instructions ?? {}).flatMap(([kind, list]) => (list as Json[] ?? []).map(i => ({
     status: 'planned', instruction: i.instruction_id ?? (kind === 'initial_margin' ? `im:${i.agreement_id}` : kind), kind: INSTRUCTION_LABELS[kind] ?? kind,
     lot: i.lot_id ?? i.facility_id ?? i.agreement_id ?? '',
@@ -192,6 +207,20 @@ export default function LiquidityLifecycle() {
     date: iso(s.ordinal), event: s.event_id, status: s.status,
     'pending receipt after': money(s.pending_receivable_after), 'pending payment after': money(s.pending_payable_after),
     'depends on': s.depends_on.join(', '),
+  }));
+  const decisionRows = (journal?.receipt.policy_decisions ?? []).map(d => ({
+    date: iso(d.ordinal), decision: words(d.kind), facility: d.facility_id, generation: String(d.generation),
+    amount: money(d.amount), trigger: d.trigger, 'usable cash before': money(d.usable_cash_before),
+    'usable cash after': money(d.usable_cash_after), 'need covered': d.kind === 'draw' ? money(d.need) : '',
+  }));
+  const monthlyRows = (journal?.receipt.monthly ?? []).map(m => ({
+    month: m.month, 'opening cash': money(m.opening_cash), 'cash in': money(m.cash_in), 'cash out': money(m.cash_out),
+    'net cash': money(m.net_cash), 'closing cash': money(m.closing_cash),
+    // The lowest usable cash after any event in the month: a positive close cannot hide a dip.
+    'minimum usable cash (any event)': money(m.minimum_usable_cash), 'closing usable cash': money(m.closing_usable_cash),
+    'facility drawn': money(m.closing_facility_drawn), 'interest and fees': money(m.interest_expense + m.fees),
+    'margin posted / returned': `${money(m.margin_posted)} / ${money(m.margin_returned)}`,
+    'funding decisions': String(m.policy_decisions), 'failed / blocked': `${m.failed_events} / ${m.blocked_events}`,
   }));
   const factRows = (journal?.receipt.accounting_facts ?? []).map(f => ({
     kind: f.kind, lot: f.lot_id, quantity: money(f.quantity), 'residual quantity': money(f.retained_quantity),
@@ -272,6 +301,30 @@ export default function LiquidityLifecycle() {
               onChange={v => edit(d => { d.funding_instructions = { ...(d.funding_instructions ?? {}) }; if (v) d.funding_instructions[f.allocation_id] = v as 'repay'; else delete d.funding_instructions[f.allocation_id]; })} /></Field>)
             : <p className="text-xs text-paper-faint">No funding allocation finances these lots.</p>}</div>
       </section>
+      <section aria-label="Business plan" className="space-y-2 rounded border border-line p-2">
+        <div className="eyebrow">Business plan</div>
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Mode"><Select label="Business plan mode" value={mode} options={['schedule', 'runoff', 'policy']} onChange={v => setMode(v as 'schedule' | 'runoff' | 'policy')} /></Field>
+          {policy && <>
+            <Field label="Minimum usable cash"><Input aria-label="Minimum usable cash" type="number" value={policy.minimum_usable_cash}
+              onChange={e => edit(d => { d.business_plan!.funding_policy!.minimum_usable_cash = Number(e.target.value); })} className="w-32" /></Field>
+            <label className="flex items-center gap-1 text-xs text-paper-dim"><input type="checkbox" aria-label="Repay surplus" checked={policy.repay_surplus ?? false}
+              onChange={e => edit(d => { d.business_plan!.funding_policy!.repay_surplus = e.target.checked; })} />Repay drawn facilities from surplus at the end of each day</label>
+          </>}
+        </div>
+        <p className="text-xs text-paper-faint">{mode === 'runoff' ? 'Runoff executes no actions: only contractual events move.'
+          : mode === 'policy' ? 'Each payment is funded from the cash, facilities and obligations known at that moment. Draws need a declared access window and an unexpired facility; renewal is bounded and explicit. No perpetual funding or horizon payoff is invented.'
+          : 'The supplied instructions run exactly as scheduled.'}</p>
+        {policy && <table className="text-xs"><tbody>{policy.facilities.map((f, fi) => <tr key={f.facility_id}>
+          <td className="pr-3">{f.facility_id}</td>
+          <td className="pr-3">access</td>
+          <td className="pr-1"><Input aria-label={`Access from for ${f.facility_id}`} type="date" value={iso(f.access[0]?.from_ordinal)}
+            onChange={e => edit(d => { d.business_plan!.funding_policy!.facilities[fi].access = [{ from_ordinal: ordinalOf(e.target.value), to_ordinal: f.access[0]?.to_ordinal ?? ordinalOf(e.target.value) }]; })} /></td>
+          <td className="pr-3"><Input aria-label={`Access to for ${f.facility_id}`} type="date" value={iso(f.access[0]?.to_ordinal)}
+            onChange={e => edit(d => { d.business_plan!.funding_policy!.facilities[fi].access = [{ from_ordinal: f.access[0]?.from_ordinal ?? ordinalOf(e.target.value), to_ordinal: ordinalOf(e.target.value) }]; })} /></td>
+          <td>{f.renewal ? `renews up to ${f.renewal.max_generations} generations of ${f.renewal.tenor_days} days` : 'no renewal'}</td>
+        </tr>)}</tbody></table>}
+      </section>
       <section aria-label="Planned obligations"><div className="eyebrow">Planned obligations</div><DataTable rows={planned} /></section>
       <Accordion id="lifecycle-instructions" title="Edit instructions (JSON)" summary="Sales, repayments with pledge releases, terminations, facility draws and repayments, supplied IM">
         <textarea aria-label="Instructions JSON" value={instructionText} onChange={e => editInstructions(e.target.value)} rows={16}
@@ -310,6 +363,7 @@ export default function LiquidityLifecycle() {
       {bridge && <p className="text-xs text-paper-dim" aria-label="Funding need">
         Facility draw <code>{bridge.event_id}</code> adds {money(bridge.cash_movement)} on {iso(bridge.ordinal)}; usable cash before it was {money(beforeBridge)}.
         {bridgeUsers.map(u => <span key={u.event_id}> <code>{u.event_id}</code> pays {money(-u.cash_movement)} and depends on it, leaving usable cash {money(u.usable_cash_after)}.</span>)}
+        {(journal?.receipt.policy_decisions ?? []).filter(d => d.kind === 'draw').map(d => <span key={d.decision_id}> The funding policy drew it for <code>{d.trigger}</code>, which needed {money(d.need)} with usable cash at {money(d.usable_cash_before)}.</span>)}
         {saleAfter && <> <code>{saleAfter.event_id}</code> settles only after {saleAfter.depends_on.join(', ')}.</>}
         {vmUsable && <> Posted VM returns on {iso(vmUsable.ordinal)}, raising usable cash to {money(vmUsable.usable_cash_after)}.</>}
         {imUsable && <> Posted IM returns on {iso(imUsable.ordinal)}, raising usable cash to {money(imUsable.usable_cash_after)}.</>}
@@ -329,6 +383,10 @@ export default function LiquidityLifecycle() {
         { measure: 'Residual securities / derivative assets / derivative liabilities', value: `${money(last.security_quantity_after)} / ${money(last.derivative_assets_after)} / ${money(last.derivative_liabilities_after)}` },
       ]} />}</div>
       <div {...tabPanelProps('lifecycle-results', labelOf('facts'), labelOf(tab))}>{tab === 'facts' && <DataTable rows={factRows} />}</div>
+      <div {...tabPanelProps('lifecycle-results', labelOf('decisions'), labelOf(tab))}>{tab === 'decisions' && (decisionRows.length ? <DataTable rows={decisionRows} />
+        : <p className="text-xs text-paper-faint">No funding policy ran: the supplied schedule executed as given.</p>)}</div>
+      <div {...tabPanelProps('lifecycle-results', labelOf('monthly'), labelOf(tab))}>{tab === 'monthly' && (monthlyRows.length ? <DataTable rows={monthlyRows} />
+        : <p className="text-xs text-paper-faint">Monthly reports are produced when a business plan mode is selected.</p>)}</div>
       {TABLES.map(t => <div key={t.id} {...tabPanelProps('lifecycle-results', labelOf(t.id), labelOf(tab))}>{tab === t.id && (pages[t.id] ? <div className="space-y-1">
         <div className="flex items-center justify-end gap-2 text-xs text-paper-dim">
           <span>{pages[t.id].offset + 1}–{Math.min(pages[t.id].offset + pages[t.id].rows.length, pages[t.id].total)} of {pages[t.id].total}</span>

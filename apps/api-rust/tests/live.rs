@@ -152,3 +152,48 @@ fn a_saved_book_runs_verifies_publishes_and_reopens_after_restart_through_rust_o
         assert_eq!(rows, total);
     }
 }
+
+#[test]
+fn a_policy_plan_runs_and_publishes_verified_decisions_and_monthly_reports() {
+    let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
+        eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; live policy test skipped");
+        return;
+    };
+    let env = Env::new(Backend::Sqlite, "livepolicy");
+    std::fs::copy(&exe, &env.ledger).unwrap();
+    env.ready();
+    let api = env.api();
+    let example = api.get("/native/lifecycle/example").body;
+    let put = |name: &str, doc: &serde_json::Value, rev: &str| {
+        api.call(
+            "PUT",
+            &format!("/native/documents/{name}"),
+            &[("If-Match", rev)],
+            &serde_json::to_vec(doc).unwrap(),
+        )
+    };
+    assert_eq!(put("desk-book", &example["book"], "0").status, 201);
+    assert_eq!(put("policy-plan", &example["policy_plan"], "1").status, 201);
+    let r = api.call(
+        "POST",
+        "/native/lifecycle/runs?book=desk-book&plan=policy-plan",
+        &[("X-Expected-Revision", "2")],
+        b"",
+    );
+    assert_eq!(r.status, 202, "{:?}", r.body);
+    let id = r.body["job_id"].as_str().unwrap().to_string();
+    let log = finish(env.worker(&[]), Duration::from_secs(300));
+    assert_eq!(
+        api.get(&format!("/native/jobs/{id}")).body["status"],
+        "native_done",
+        "{log}"
+    );
+    let receipt = api.get(&format!("/native/jobs/{id}/receipt")).body;
+    let r = &receipt["workflow"]["source_receipt"]["journals"][0]["receipt"];
+    assert_eq!(r["business_plan_mode"], "policy");
+    assert_eq!(r["policy_decisions"][0]["kind"], "draw");
+    assert_eq!(r["policy_decisions"][0]["trigger"], "repay-repo");
+    assert_eq!(r["policy_decisions"][1]["kind"], "surplus_repayment");
+    assert_eq!(r["monthly"][0]["minimum_usable_cash"], 0.0);
+    assert_eq!(r["closing_cash"], 6.0);
+}

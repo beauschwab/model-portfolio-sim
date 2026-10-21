@@ -73,6 +73,21 @@ test('a saved book is mapped, run, verified, published, explained and reopened t
   await expect(status).toContainText('NATIVE_REFUSED: FORMAL_OWNER_REQUIRED', { timeout: 120_000 });
   await expect(status).not.toContainText('verified and published');
 
+  // The same unwind under the reviewed funding policy: the bridge is drawn when the repo
+  // repayment settles and repaid from the surplus, and the month keeps its minimum usable cash.
+  await panel.getByLabel('Plan', { exact: true }).selectOption('worked-unwind-policy-plan');
+  await expect(panel.getByLabel('Business plan mode', { exact: true })).toHaveValue('policy');
+  await expect(panel.getByRole('region', { name: 'Business plan' })).toContainText('No perpetual funding');
+  await panel.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(status).toContainText('verified and published', { timeout: 120_000 });
+  await expect(panel.getByLabel('Funding need')).toContainText('The funding policy drew it for repay-repo, which needed 95.00 with usable cash at 0.00');
+  await panel.getByRole('tab', { name: 'Funding decisions', exact: true }).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('repay-repo');
+  await expect(panel.getByRole('tabpanel')).toContainText('surplus repayment');
+  await panel.getByRole('tab', { name: 'Monthly', exact: true }).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('2024-01');
+  await panel.getByRole('region', { name: 'Lifecycle results' }).screenshot({ path: test.info().outputPath('monthly.png') });
+
   // Reopen the published run after a reload, from storage.
   await page.reload();
   await page.getByRole('button', { name: 'Open Liquidity Lifecycle', exact: true }).click();

@@ -11,6 +11,10 @@
 //! intents or values.
 use super::admission::Admitted;
 use super::journal::{Closing, Intent, Inventory, Kind, Line};
+use super::policy::{
+    self, generation_instrument, BusinessPlan, MonthlyReport, PlanMode, PolicyDecision, Renewal,
+    Window,
+};
 use super::types::*;
 use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
@@ -233,6 +237,9 @@ pub struct AcquisitionRequest {
     pub facility_repayments: Vec<FacilityRepayment>,
     #[serde(default)]
     pub initial_margin: Vec<SuppliedInitialMargin>,
+    /// Stage G business-plan mode. Absent means the supplied schedule, as in stages B and C.
+    #[serde(default)]
+    pub business_plan: Option<BusinessPlan>,
 }
 
 /// Native-derived value of a derivative lot at a date (never caller supplied): the clean value
@@ -328,6 +335,15 @@ pub struct Receipt {
     pub steps: Vec<LiquidityStep>,
     pub accounting_facts: Vec<AccountingFact>,
     pub formal_hedge_accounting: bool,
+    /// The business-plan mode, when one was selected.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub business_plan_mode: Option<PlanMode>,
+    /// Funding-policy decisions in execution order (policy mode only).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub policy_decisions: Vec<PolicyDecision>,
+    /// Calendar-month reports reconciled to the dated events (business-plan modes only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monthly: Option<Vec<MonthlyReport>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AcquisitionJournal {
@@ -379,7 +395,35 @@ struct Book {
     pledged: BTreeMap<String, f64>,
     pledge_left: BTreeMap<String, f64>,
     intents: Vec<Intent>,
+    facilities: Vec<FacilityState>,
+    security_lots: Vec<String>,
+    segregated: Vec<String>,
+    policy: Option<PolicyRun>,
+    policy_log: Vec<(EventReceipt, LiquidityStep)>,
+    decisions: Vec<PolicyDecision>,
+    replacements: Vec<AccountingFact>,
+    /// Pledged quantity, owned securities and IM in custody before the current event: the
+    /// inventory a policy step reports while the event is still settling.
+    pre: (f64, f64, f64),
 }
+
+struct FacilityState {
+    id: String,
+    commitment: f64,
+    drawn: f64,
+    expiry: i32,
+    generation: u32,
+}
+
+struct PolicyRun {
+    floor: f64,
+    order: Vec<String>,
+    access: BTreeMap<String, Vec<Window>>,
+    renewal: BTreeMap<String, Renewal>,
+    repay_surplus: bool,
+    count: u32,
+}
+
 impl Book {
     fn balance(&self, kind: Kind, instrument: &str) -> f64 {
         let book = if kind.memo() {
@@ -391,7 +435,278 @@ impl Book {
             .copied()
             .unwrap_or(0.)
     }
+    /// Posts one event's lines. Under a funding policy, a payment that would leave usable cash
+    /// below the floor is funded first, from the state at this moment only.
     fn post(
+        &mut self,
+        event_id: &str,
+        ordinal: i32,
+        phase: u32,
+        sequence: u32,
+        lines: Vec<(Kind, &str, f64)>,
+    ) -> Result<(), Refusal> {
+        let delta: f64 = lines
+            .iter()
+            .filter(|l| l.0 == Kind::Cash)
+            .map(|l| l.2)
+            .sum();
+        if delta < 0. && self.policy.is_some() {
+            self.fund(event_id, ordinal, phase, sequence, delta)?;
+        }
+        self.apply(event_id, ordinal, phase, sequence, lines)
+    }
+    /// Received VM held under segregation, from the balances (not a running counter).
+    fn inventory_now(&self) -> (f64, f64, f64) {
+        (
+            self.pledged.values().sum(),
+            self.security_lots
+                .iter()
+                .map(|l| self.owned.get(l).copied().unwrap_or(0.))
+                .sum(),
+            self.stock(Kind::CustodyAsset),
+        )
+    }
+    fn restricted_now(&self) -> f64 {
+        self.segregated
+            .iter()
+            .map(|a| -self.balance(Kind::ReceivedVm, a))
+            .sum()
+    }
+    fn facility(&self, id: &str) -> &FacilityState {
+        self.facilities
+            .iter()
+            .find(|f| f.id == id)
+            .expect("facility")
+    }
+    fn facility_mut(&mut self, id: &str) -> &mut FacilityState {
+        self.facilities
+            .iter_mut()
+            .find(|f| f.id == id)
+            .expect("facility")
+    }
+    fn step(
+        &self,
+        event_id: &str,
+        ordinal: i32,
+        phase: u32,
+        status: EventStatus,
+        depends_on: Vec<String>,
+        cash_before: f64,
+    ) -> LiquidityStep {
+        let drawn_total: f64 = self.facilities.iter().map(|f| f.drawn).sum();
+        let undrawn: f64 = self
+            .facilities
+            .iter()
+            .filter(|f| ordinal < f.expiry)
+            .map(|f| f.commitment - f.drawn)
+            .sum();
+        LiquidityStep {
+            event_id: event_id.to_string(),
+            ordinal,
+            phase,
+            status,
+            depends_on,
+            cash_movement: unsigned(self.cash - cash_before),
+            cash_after: unsigned(self.cash),
+            restricted_cash_after: unsigned(self.restricted_now()),
+            usable_cash_after: unsigned(self.cash - self.restricted_now()),
+            facility_drawn_after: unsigned(drawn_total),
+            facility_undrawn_after: unsigned(undrawn),
+            pledged_quantity_after: unsigned(self.pledged.values().sum()),
+            security_quantity_after: unsigned(
+                self.security_lots
+                    .iter()
+                    .map(|l| self.owned.get(l).copied().unwrap_or(0.))
+                    .sum(),
+            ),
+            posted_vm_after: unsigned(self.stock(Kind::PostedVm)),
+            received_vm_after: unsigned(-self.stock(Kind::ReceivedVm)),
+            posted_im_after: unsigned(self.stock(Kind::PostedIm)),
+            received_im_custody_after: unsigned(self.stock(Kind::CustodyAsset)),
+            pending_receivable_after: unsigned(self.stock(Kind::UnpaidReceivable)),
+            pending_payable_after: unsigned(-self.stock(Kind::UnpaidPayable)),
+            derivative_assets_after: unsigned(self.stock(Kind::DerivativeAsset)),
+            derivative_liabilities_after: unsigned(-self.stock(Kind::DerivativeLiability)),
+        }
+    }
+    /// Draws from accessible policy facilities, in order, what a payment needs.
+    fn fund(
+        &mut self,
+        trigger: &str,
+        ordinal: i32,
+        phase: u32,
+        sequence: u32,
+        delta: f64,
+    ) -> Result<(), Refusal> {
+        let (floor, order) = match &self.policy {
+            Some(p) => (p.floor, p.order.clone()),
+            None => return Ok(()),
+        };
+        let usable = self.cash - self.restricted_now();
+        let need = floor - (usable + delta);
+        if need <= 1e-9 * floor.abs().max(1.) {
+            return Ok(());
+        }
+        let mut remaining = need;
+        for id in &order {
+            if remaining <= 1e-12 {
+                break;
+            }
+            let accessible = self
+                .policy
+                .as_ref()
+                .and_then(|p| p.access.get(id))
+                .is_some_and(|w| w.iter().any(|w| w.contains(ordinal)));
+            let f = self.facility(id);
+            if !accessible || ordinal >= f.expiry {
+                continue;
+            }
+            let x = remaining.min(f.commitment - f.drawn);
+            if x <= 1e-12 {
+                continue;
+            }
+            self.act("draw", id, x, trigger, ordinal, phase, sequence, need)?;
+            remaining -= x;
+        }
+        Ok(())
+    }
+    /// One policy action: its intent, its decision record and its liquidity step.
+    #[allow(clippy::too_many_arguments)]
+    fn act(
+        &mut self,
+        kind: &'static str,
+        facility_id: &str,
+        amount: f64,
+        trigger: &str,
+        ordinal: i32,
+        phase: u32,
+        sequence: u32,
+        need: f64,
+    ) -> Result<(), Refusal> {
+        let n = {
+            let p = self.policy.as_mut().expect("policy");
+            p.count += 1;
+            p.count
+        };
+        let id = format!("policy_{kind}:{facility_id}:{ordinal}:{n}");
+        let (cash_before, usable_before) = (self.cash, self.cash - self.restricted_now());
+        let generation = self.facility(facility_id).generation;
+        let current = generation_instrument(facility_id, generation);
+        match kind {
+            "draw" => {
+                self.facility_mut(facility_id).drawn += amount;
+                self.apply(
+                    &id,
+                    ordinal,
+                    phase,
+                    sequence,
+                    vec![
+                        (Kind::Cash, "", amount),
+                        (Kind::FundingPrincipal, &current, -amount),
+                    ],
+                )?;
+            }
+            "surplus_repayment" => {
+                self.facility_mut(facility_id).drawn -= amount;
+                self.apply(
+                    &id,
+                    ordinal,
+                    phase,
+                    sequence,
+                    vec![
+                        (Kind::FundingPrincipal, &current, amount),
+                        (Kind::Cash, "", -amount),
+                    ],
+                )?;
+            }
+            "maturity_repayment" => {
+                self.facility_mut(facility_id).drawn -= amount;
+                // Another accessible facility may fund the maturity; nothing else is invented.
+                self.post(
+                    &id,
+                    ordinal,
+                    phase,
+                    sequence,
+                    vec![
+                        (Kind::FundingPrincipal, &current, amount),
+                        (Kind::Cash, "", -amount),
+                    ],
+                )?;
+            }
+            "renewal" => {
+                let tenor = self
+                    .policy
+                    .as_ref()
+                    .and_then(|p| p.renewal.get(facility_id))
+                    .map_or(0, |r| r.tenor_days);
+                let next = generation_instrument(facility_id, generation + 1);
+                {
+                    let f = self.facility_mut(facility_id);
+                    f.generation += 1;
+                    f.expiry += tenor;
+                }
+                self.apply(
+                    &id,
+                    ordinal,
+                    phase,
+                    sequence,
+                    vec![
+                        (Kind::FundingPrincipal, &current, amount),
+                        (Kind::FundingPrincipal, &next, -amount),
+                    ],
+                )?;
+                self.replacements.push(AccountingFact {
+                    kind: "funding_replacement",
+                    lot_id: next,
+                    quantity: amount,
+                    retained_quantity: amount,
+                    effective_ordinal: ordinal,
+                    settlement_ordinal: ordinal,
+                    consideration: 0.,
+                    removed_carrying: 0.,
+                    realized: 0.,
+                    economic_allocation_ids: Vec::new(),
+                    formal_relationship_ids: Vec::new(),
+                });
+            }
+            _ => unreachable!("policy action kind"),
+        }
+        let usable_after = self.cash - self.restricted_now();
+        self.decisions.push(PolicyDecision {
+            decision_id: id.clone(),
+            ordinal,
+            kind,
+            facility_id: facility_id.to_string(),
+            generation: self.facility(facility_id).generation,
+            amount: unsigned(amount),
+            trigger: trigger.to_string(),
+            usable_cash_before: unsigned(usable_before),
+            usable_cash_after: unsigned(usable_after),
+            need: unsigned(need),
+        });
+        let mut step = self.step(
+            &id,
+            ordinal,
+            phase,
+            EventStatus::Settled,
+            Vec::new(),
+            cash_before,
+        );
+        step.pledged_quantity_after = unsigned(self.pre.0);
+        step.security_quantity_after = unsigned(self.pre.1);
+        step.received_im_custody_after = unsigned(self.pre.2);
+        self.policy_log.push((
+            EventReceipt {
+                event_id: id,
+                ordinal,
+                phase,
+                status: EventStatus::Settled,
+            },
+            step,
+        ));
+        Ok(())
+    }
+    fn apply(
         &mut self,
         event_id: &str,
         ordinal: i32,
@@ -1364,7 +1679,73 @@ pub fn replay(
         pledged: BTreeMap::new(),
         pledge_left: BTreeMap::new(),
         intents: Vec::new(),
+        facilities: r
+            .facilities
+            .iter()
+            .map(|f| FacilityState {
+                id: f.facility_id.clone(),
+                commitment: f.commitment,
+                drawn: f.drawn,
+                expiry: f.expiry_ordinal,
+                generation: 1,
+            })
+            .collect(),
+        security_lots: r
+            .lots
+            .iter()
+            .filter(|l| l.account_id == account_id && l.kind == LotKind::Security)
+            .map(|l| l.lot_id.clone())
+            .collect(),
+        segregated: r
+            .margin_agreements
+            .iter()
+            .filter(|a| a.segregation == Segregation::Segregated)
+            .map(|a| a.agreement_id.clone())
+            .collect(),
+        policy: None,
+        policy_log: Vec::new(),
+        decisions: Vec::new(),
+        replacements: Vec::new(),
+        pre: (0., 0., 0.),
     };
+    // Stage G: admit the business plan and arm the funding policy.
+    let plan_mode = acq.business_plan.as_ref().map(|b| b.mode);
+    if let Some(bp) = &acq.business_plan {
+        let facility_ids: Vec<&str> = r
+            .facilities
+            .iter()
+            .map(|f| f.facility_id.as_str())
+            .collect();
+        let scheduled: BTreeSet<&str> = acq
+            .facility_draws
+            .iter()
+            .map(|d| d.facility_id.as_str())
+            .chain(
+                acq.facility_repayments
+                    .iter()
+                    .map(|d| d.facility_id.as_str()),
+            )
+            .collect();
+        policy::validate(bp, &facility_ids, count, &scheduled, asof, end)?;
+        if let Some(p) = &bp.funding_policy {
+            book.policy = Some(PolicyRun {
+                floor: p.minimum_usable_cash,
+                order: p.facilities.iter().map(|f| f.facility_id.clone()).collect(),
+                access: p
+                    .facilities
+                    .iter()
+                    .map(|f| (f.facility_id.clone(), f.access.clone()))
+                    .collect(),
+                renewal: p
+                    .facilities
+                    .iter()
+                    .filter_map(|f| f.renewal.clone().map(|r| (f.facility_id.clone(), r)))
+                    .collect(),
+                repay_surplus: p.repay_surplus,
+                count: 0,
+            });
+        }
+    }
     let mut derivative_carrying: HashMap<&str, f64> = HashMap::new();
     let mut opening: Vec<(Kind, &str, f64)> = vec![(Kind::Cash, "", account.cash)];
     let (mut opening_assets, mut opening_liabilities) = (0., 0.);
@@ -1466,19 +1847,72 @@ pub fn replay(
     let mut receipts = Vec::new();
     let mut facts = Vec::new();
     let mut settled: HashSet<String> = HashSet::new();
-    let mut drawn: HashMap<&str, f64> = r
-        .facilities
-        .iter()
-        .map(|f| (f.facility_id.as_str(), f.drawn))
-        .collect();
-    let commitment: f64 = r.facilities.iter().map(|f| f.commitment).sum();
     let mut steps = Vec::new();
+    let opening_state = book.step(
+        "opening",
+        asof,
+        0,
+        EventStatus::Settled,
+        Vec::new(),
+        book.cash,
+    );
     let mut cursor = 0;
     let mut sequence = 0u32;
     for ordinal in asof..=end {
+        // Start of day: facility generations that expire today are renewed when a declared
+        // renewal window and the generation bound permit, or their balance is repaid.
+        book.pre = book.inventory_now();
+        if let Some(order) = book.policy.as_ref().map(|p| p.order.clone()) {
+            for id in &order {
+                let (expiry, generation, drawn) = {
+                    let f = book.facility(id);
+                    (f.expiry, f.generation, f.drawn)
+                };
+                if expiry != ordinal {
+                    continue;
+                }
+                sequence += 1;
+                let renewable = book
+                    .policy
+                    .as_ref()
+                    .and_then(|p| p.renewal.get(id))
+                    .is_some_and(|r| {
+                        generation < r.max_generations
+                            && r.windows.iter().any(|w| w.contains(ordinal))
+                    });
+                if renewable {
+                    book.act(
+                        "renewal",
+                        id,
+                        drawn,
+                        "start_of_day",
+                        ordinal,
+                        0,
+                        sequence,
+                        0.,
+                    )?;
+                } else if drawn > 1e-12 {
+                    book.act(
+                        "maturity_repayment",
+                        id,
+                        drawn,
+                        "start_of_day",
+                        ordinal,
+                        0,
+                        sequence,
+                        0.,
+                    )?;
+                }
+            }
+            for (receipt, step) in book.policy_log.drain(..) {
+                receipts.push(receipt);
+                steps.push(step);
+            }
+        }
         while cursor < events.len() && events[cursor].ordinal == ordinal {
             let e = &events[cursor];
             let cash_before = book.cash;
+            book.pre = book.inventory_now();
             sequence += 1;
             let status = if e.state == InstructionState::Failed {
                 EventStatus::Failed
@@ -1500,18 +1934,18 @@ pub fn replay(
                         )?;
                     }
                     Body::Draw(d, f) => {
-                        let used = drawn.get_mut(f.facility_id.as_str()).expect("facility");
-                        if d.amount > f.commitment - *used + 1e-9 * f.commitment.max(1.) {
+                        let used = book.facility(&f.facility_id).drawn;
+                        if d.amount > f.commitment - used + 1e-9 * f.commitment.max(1.) {
                             return Err(Refusal::new(
                                 INSUFFICIENT_SETTLEMENT_LIQUIDITY,
                                 format!(
                                     "`{id}` exceeds facility `{}` headroom {}",
                                     f.facility_id,
-                                    f.commitment - *used
+                                    f.commitment - used
                                 ),
                             ));
                         }
-                        *used += d.amount;
+                        book.facility_mut(&f.facility_id).drawn += d.amount;
                         book.post(
                             id,
                             ordinal,
@@ -1524,8 +1958,8 @@ pub fn replay(
                         )?;
                     }
                     Body::FacilityRepay(rp, f) => {
-                        let used = drawn.get_mut(f.facility_id.as_str()).expect("facility");
-                        if rp.amount > *used + 1e-9 {
+                        let used = book.facility(&f.facility_id).drawn;
+                        if rp.amount > used + 1e-9 {
                             return Err(Refusal::new(
                                 OVERALLOCATION,
                                 format!(
@@ -1534,7 +1968,7 @@ pub fn replay(
                                 ),
                             ));
                         }
-                        *used -= rp.amount;
+                        book.facility_mut(&f.facility_id).drawn -= rp.amount;
                         book.post(
                             id,
                             ordinal,
@@ -1884,43 +2318,66 @@ pub fn replay(
                 settled.insert(e.id.clone());
                 EventStatus::Settled
             };
+            // Policy funding taken for this event's payment settles before it.
+            for (receipt_entry, step) in book.policy_log.drain(..) {
+                receipts.push(receipt_entry);
+                steps.push(step);
+            }
             receipts.push(EventReceipt {
                 event_id: e.id.clone(),
                 ordinal,
                 phase: e.phase,
                 status,
             });
-            let drawn_total: f64 = drawn.values().sum();
-            steps.push(LiquidityStep {
-                event_id: e.id.clone(),
+            let cash_before_event = cash_before
+                + steps
+                    .iter()
+                    .rev()
+                    .take_while(|s: &&LiquidityStep| {
+                        s.event_id.starts_with("policy_draw:") && s.ordinal == ordinal
+                    })
+                    .map(|s| s.cash_movement)
+                    .sum::<f64>();
+            steps.push(book.step(
+                &e.id,
                 ordinal,
-                phase: e.phase,
+                e.phase,
                 status,
-                depends_on: e.depends_on.clone(),
-                cash_movement: unsigned(book.cash - cash_before),
-                cash_after: unsigned(book.cash),
-                restricted_cash_after: unsigned(book.restricted),
-                usable_cash_after: unsigned(book.cash - book.restricted),
-                facility_drawn_after: unsigned(drawn_total),
-                facility_undrawn_after: unsigned(commitment - drawn_total),
-                pledged_quantity_after: unsigned(book.pledged.values().sum()),
-                security_quantity_after: unsigned(
-                    account_lots
-                        .iter()
-                        .filter(|l| l.kind == LotKind::Security)
-                        .map(|l| book.owned.get(&l.lot_id).copied().unwrap_or(0.))
-                        .sum(),
-                ),
-                posted_vm_after: unsigned(book.stock(Kind::PostedVm)),
-                received_vm_after: unsigned(-book.stock(Kind::ReceivedVm)),
-                posted_im_after: unsigned(book.stock(Kind::PostedIm)),
-                received_im_custody_after: unsigned(book.stock(Kind::CustodyAsset)),
-                pending_receivable_after: unsigned(book.stock(Kind::UnpaidReceivable)),
-                pending_payable_after: unsigned(-book.stock(Kind::UnpaidPayable)),
-                derivative_assets_after: unsigned(book.stock(Kind::DerivativeAsset)),
-                derivative_liabilities_after: unsigned(-book.stock(Kind::DerivativeLiability)),
-            });
+                e.depends_on.clone(),
+                cash_before_event,
+            ));
             cursor += 1;
+        }
+        // End of day: repay drawn policy facilities, last drawn first, from usable cash above
+        // the floor.
+        book.pre = book.inventory_now();
+        if let Some((floor, order, true)) = book
+            .policy
+            .as_ref()
+            .map(|p| (p.floor, p.order.clone(), p.repay_surplus))
+        {
+            for id in order.iter().rev() {
+                let surplus = book.cash - book.restricted_now() - floor;
+                let drawn = book.facility(id).drawn;
+                let x = surplus.min(drawn);
+                if x > 1e-9 * floor.abs().max(1.) {
+                    sequence += 1;
+                    book.act(
+                        "surplus_repayment",
+                        id,
+                        x,
+                        "end_of_day",
+                        ordinal,
+                        10,
+                        sequence,
+                        0.,
+                    )?;
+                }
+            }
+            for (receipt, step) in book.policy_log.drain(..) {
+                receipts.push(receipt);
+                steps.push(step);
+            }
         }
         daily.push(book.closing(ordinal, &account_lots));
     }
@@ -1955,6 +2412,41 @@ pub fn replay(
         0.,
     ) || (derivative_carrying.is_empty()
         && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)));
+    // Stage G: renewals are replacement-debt facts for the ASC 815 owner; monthly reports are
+    // derived from the dated intents and steps and must reconcile to them exactly.
+    facts.append(&mut book.replacements);
+    let monthly = match plan_mode {
+        None => None,
+        Some(_) => {
+            let months = policy::monthly(
+                &book.intents,
+                &steps,
+                &policy::Opening {
+                    cash: account.cash,
+                    usable_cash: opening_state.usable_cash_after,
+                    facility_drawn: opening_state.facility_drawn_after,
+                    posted_margin: opening_state.posted_vm_after + opening_state.posted_im_after,
+                    pledged_quantity: opening_state.pledged_quantity_after,
+                    security_quantity: opening_state.security_quantity_after,
+                },
+                asof,
+                end,
+            )?;
+            let net: f64 = months.iter().map(|m| m.net_cash).sum();
+            let chained = months
+                .windows(2)
+                .all(|w| w[1].opening_cash == w[0].closing_cash);
+            let closes = months
+                .last()
+                .is_some_and(|m| near(m.closing_cash, book.cash));
+            if !(near(net, book.settled) && chained && closes) {
+                return Err(unsupported(
+                    "monthly reports do not reconcile to the dated cash movements".into(),
+                ));
+            }
+            Some(months)
+        }
+    };
     let receipt = Receipt {
         opening_cash: account.cash,
         closing_cash: book.cash,
@@ -1975,6 +2467,9 @@ pub fn replay(
         steps,
         accounting_facts: facts,
         formal_hedge_accounting: false,
+        business_plan_mode: plan_mode,
+        policy_decisions: std::mem::take(&mut book.decisions),
+        monthly,
     };
     if !(cash_bridge && inventory && collateral) {
         return Err(unsupported(

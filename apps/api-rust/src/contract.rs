@@ -105,7 +105,31 @@ pub fn schemas() -> Value {
             "name": s, "schema": {"type": ["string", "null"]}, "bytes": i, "sha256": s})),
         "DocumentList": obj(&["revision", "documents"], json!({"revision": i, "documents": list("DocumentEntry")})),
         "SavedDocument": {"type": "object", "additionalProperties": true},
-        "LifecycleExample": obj(&["book", "plan"], json!({"book": r("SavedBook"), "plan": r("LifecyclePlan")})),
+        "LifecycleExample": obj(&["book", "plan", "policy_plan"], json!({"book": r("SavedBook"), "plan": r("LifecyclePlan"), "policy_plan": r("LifecyclePlan")})),
+        "PlanWindow": obj(&["from_ordinal", "to_ordinal"], json!({"from_ordinal": i, "to_ordinal": i})),
+        "PlanRenewal": obj(&["max_generations", "tenor_days", "windows"], json!({
+            "max_generations": i, "tenor_days": i, "windows": list("PlanWindow")})),
+        "PolicyFacility": obj(&["facility_id", "access"], json!({
+            "facility_id": s, "access": list("PlanWindow"), "renewal": r("PlanRenewal")})),
+        "FundingPolicy": obj(&["policy", "minimum_usable_cash", "facilities"], json!({
+            "policy": any_obj, "minimum_usable_cash": n, "facilities": list("PolicyFacility"), "repay_surplus": b})),
+        "BusinessPlan": obj(&["mode"], json!({
+            "mode": {"type": "string", "enum": ["runoff", "schedule", "policy"]}, "funding_policy": r("FundingPolicy")})),
+        "PolicyDecision": obj(&["decision_id", "ordinal", "kind", "facility_id", "generation", "amount", "trigger",
+                "usable_cash_before", "usable_cash_after", "need"], json!({
+            "decision_id": s, "ordinal": i,
+            "kind": {"type": "string", "enum": ["draw", "surplus_repayment", "renewal", "maturity_repayment"]},
+            "facility_id": s, "generation": i, "amount": n, "trigger": s,
+            "usable_cash_before": n, "usable_cash_after": n, "need": n})),
+        "MonthlyReport": obj(&["month", "first_ordinal", "last_ordinal", "events", "failed_events", "blocked_events",
+                "policy_decisions", "opening_cash", "cash_in", "cash_out", "net_cash", "closing_cash", "minimum_usable_cash",
+                "closing_usable_cash", "closing_facility_drawn", "interest_expense", "fees", "realized", "margin_posted",
+                "margin_returned", "closing_posted_margin", "closing_pledged_quantity", "closing_security_quantity"], json!({
+            "month": s, "first_ordinal": i, "last_ordinal": i, "events": i, "failed_events": i, "blocked_events": i,
+            "policy_decisions": i, "opening_cash": n, "cash_in": n, "cash_out": n, "net_cash": n, "closing_cash": n,
+            "minimum_usable_cash": n, "closing_usable_cash": n, "closing_facility_drawn": n, "interest_expense": n,
+            "fees": n, "realized": n, "margin_posted": n, "margin_returned": n, "closing_posted_margin": n,
+            "closing_pledged_quantity": n, "closing_security_quantity": n})),
         "Composition": obj(&["request", "request_sha256", "bytes", "revision"], json!({
             "request": any_obj, "request_sha256": s, "bytes": i, "revision": i})),
         "BookLot": obj(&["lot_id", "position_id", "account_id", "kind", "accounting_category", "quantity", "original_cost"], json!({
@@ -154,6 +178,7 @@ pub fn schemas() -> Value {
         "LifecyclePlan": obj(&["schema", "actions", "instructions"], json!({
             "schema": {"type": "string", "enum": ["liquidity-plan-1"]}, "actions": list("LifecycleAction"),
             "instructions": r("Instructions"),
+            "business_plan": r("BusinessPlan"),
             "hedge_treatments": {"type": "object", "additionalProperties": r("HedgeTreatment")},
             "funding_instructions": {"type": "object", "additionalProperties": r("FundingTreatment")}})),
         "EventStatus": {"type": "string", "enum": ["settled", "failed", "blocked"]},
@@ -184,7 +209,9 @@ pub fn schemas() -> Value {
             "received_im_custody": n, "fees_expensed": n, "realized": n, "cash_bridge_reconciled": b,
             "inventory_conserved": b, "collateral_conserved": b, "open_claims": b,
             "events": list("EventReceipt"), "steps": list("LiquidityStep"),
-            "accounting_facts": list("AccountingFact"), "formal_hedge_accounting": b})),
+            "accounting_facts": list("AccountingFact"), "formal_hedge_accounting": b,
+            "business_plan_mode": {"type": "string", "enum": ["runoff", "schedule", "policy"]},
+            "policy_decisions": list("PolicyDecision"), "monthly": list("MonthlyReport")})),
         "ScenarioJournal": obj(&["scenario_id", "account_id", "receipt"], json!({
             "scenario_id": s, "account_id": s, "receipt": r("LifecycleReceipt")})),
         "SourceReceipt": obj(&["schema", "plan_sha256", "formal_hedge_accounting", "journals"], json!({

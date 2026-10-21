@@ -410,6 +410,25 @@
         ],
         "type": "object"
       },
+      "BusinessPlan": {
+        "properties": {
+          "funding_policy": {
+            "$ref": "#/components/schemas/FundingPolicy"
+          },
+          "mode": {
+            "enum": [
+              "runoff",
+              "schedule",
+              "policy"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
       "Cancelled": {
         "properties": {
           "cancelled": {
@@ -572,6 +591,32 @@
           "attributed_lot_id",
           "amount",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "FundingPolicy": {
+        "properties": {
+          "facilities": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyFacility"
+            },
+            "type": "array"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "policy": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "repay_surplus": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "policy",
+          "minimum_usable_cash",
+          "facilities"
         ],
         "type": "object"
       },
@@ -906,11 +951,15 @@
           },
           "plan": {
             "$ref": "#/components/schemas/LifecyclePlan"
+          },
+          "policy_plan": {
+            "$ref": "#/components/schemas/LifecyclePlan"
           }
         },
         "required": [
           "book",
-          "plan"
+          "plan",
+          "policy_plan"
         ],
         "type": "object"
       },
@@ -921,6 +970,9 @@
               "$ref": "#/components/schemas/LifecycleAction"
             },
             "type": "array"
+          },
+          "business_plan": {
+            "$ref": "#/components/schemas/BusinessPlan"
           },
           "funding_instructions": {
             "additionalProperties": {
@@ -959,6 +1011,14 @@
             },
             "type": "array"
           },
+          "business_plan_mode": {
+            "enum": [
+              "runoff",
+              "schedule",
+              "policy"
+            ],
+            "type": "string"
+          },
           "cash_bridge_reconciled": {
             "type": "boolean"
           },
@@ -989,11 +1049,23 @@
           "inventory_conserved": {
             "type": "boolean"
           },
+          "monthly": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyReport"
+            },
+            "type": "array"
+          },
           "open_claims": {
             "type": "boolean"
           },
           "opening_cash": {
             "type": "number"
+          },
+          "policy_decisions": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyDecision"
+            },
+            "type": "array"
           },
           "posted_im": {
             "type": "number"
@@ -1134,6 +1206,216 @@
       },
       "Manifest": {
         "additionalProperties": true,
+        "type": "object"
+      },
+      "MonthlyReport": {
+        "properties": {
+          "blocked_events": {
+            "type": "integer"
+          },
+          "cash_in": {
+            "type": "number"
+          },
+          "cash_out": {
+            "type": "number"
+          },
+          "closing_cash": {
+            "type": "number"
+          },
+          "closing_facility_drawn": {
+            "type": "number"
+          },
+          "closing_pledged_quantity": {
+            "type": "number"
+          },
+          "closing_posted_margin": {
+            "type": "number"
+          },
+          "closing_security_quantity": {
+            "type": "number"
+          },
+          "closing_usable_cash": {
+            "type": "number"
+          },
+          "events": {
+            "type": "integer"
+          },
+          "failed_events": {
+            "type": "integer"
+          },
+          "fees": {
+            "type": "number"
+          },
+          "first_ordinal": {
+            "type": "integer"
+          },
+          "interest_expense": {
+            "type": "number"
+          },
+          "last_ordinal": {
+            "type": "integer"
+          },
+          "margin_posted": {
+            "type": "number"
+          },
+          "margin_returned": {
+            "type": "number"
+          },
+          "minimum_usable_cash": {
+            "type": "number"
+          },
+          "month": {
+            "type": "string"
+          },
+          "net_cash": {
+            "type": "number"
+          },
+          "opening_cash": {
+            "type": "number"
+          },
+          "policy_decisions": {
+            "type": "integer"
+          },
+          "realized": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "first_ordinal",
+          "last_ordinal",
+          "events",
+          "failed_events",
+          "blocked_events",
+          "policy_decisions",
+          "opening_cash",
+          "cash_in",
+          "cash_out",
+          "net_cash",
+          "closing_cash",
+          "minimum_usable_cash",
+          "closing_usable_cash",
+          "closing_facility_drawn",
+          "interest_expense",
+          "fees",
+          "realized",
+          "margin_posted",
+          "margin_returned",
+          "closing_posted_margin",
+          "closing_pledged_quantity",
+          "closing_security_quantity"
+        ],
+        "type": "object"
+      },
+      "PlanRenewal": {
+        "properties": {
+          "max_generations": {
+            "type": "integer"
+          },
+          "tenor_days": {
+            "type": "integer"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/PlanWindow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "max_generations",
+          "tenor_days",
+          "windows"
+        ],
+        "type": "object"
+      },
+      "PlanWindow": {
+        "properties": {
+          "from_ordinal": {
+            "type": "integer"
+          },
+          "to_ordinal": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_ordinal",
+          "to_ordinal"
+        ],
+        "type": "object"
+      },
+      "PolicyDecision": {
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "decision_id": {
+            "type": "string"
+          },
+          "facility_id": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "draw",
+              "surplus_repayment",
+              "renewal",
+              "maturity_repayment"
+            ],
+            "type": "string"
+          },
+          "need": {
+            "type": "number"
+          },
+          "ordinal": {
+            "type": "integer"
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "usable_cash_after": {
+            "type": "number"
+          },
+          "usable_cash_before": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "decision_id",
+          "ordinal",
+          "kind",
+          "facility_id",
+          "generation",
+          "amount",
+          "trigger",
+          "usable_cash_before",
+          "usable_cash_after",
+          "need"
+        ],
+        "type": "object"
+      },
+      "PolicyFacility": {
+        "properties": {
+          "access": {
+            "items": {
+              "$ref": "#/components/schemas/PlanWindow"
+            },
+            "type": "array"
+          },
+          "facility_id": {
+            "type": "string"
+          },
+          "renewal": {
+            "$ref": "#/components/schemas/PlanRenewal"
+          }
+        },
+        "required": [
+          "facility_id",
+          "access"
+        ],
         "type": "object"
       },
       "ProducerReceipt": {
