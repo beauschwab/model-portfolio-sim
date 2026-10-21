@@ -44,16 +44,51 @@ fn money(what: &str, actual: f64, expected: f64) -> Result<(), String> {
     }
 }
 
+const RESEARCH_IM_DISCLOSURE: &str = "Independent Rust verification of the raw lifecycle request and the native stream: strict raw bytes, plan hash and typed opening identity; swap valuations and research-method IM bucket sensitivities recomputed from the raw contracts with independent equations; every lifecycle posting, including each IM recomputation over the live portfolio, re-derived from the raw instructions and matched in order against the lineage rows, the journal transactions and the closing stocks; receipt amounts, margin calls, statuses and accounting facts matched. research-sensitivity-im-1 is a research method; matching it does not certify ISDA SIMM, provider or regulatory methodology. This is source and journal verification, not empirical, accounting-standard or regulatory acceptance.";
+
 pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, String> {
+    crate::admit_request(request_bytes)?;
+    let stream = if stream_bytes.len() as u64 > crate::MAX_STREAM_BYTES as u64 {
+        let mut p = stream::Parser::new(crate::MAX_TIER_STREAM_BYTES);
+        p.bytes(stream_bytes)?;
+        p.finish()?
+    } else {
+        stream::parse(stream_bytes)?
+    };
+    verify_stream(request_bytes, stream)
+}
+
+/// Verifies a stream read incrementally (the large tier never holds it in memory).
+pub fn verify_reader(
+    request_bytes: &[u8],
+    mut reader: impl std::io::Read,
+) -> Result<Receipt, String> {
+    let (_, tier) = crate::admit_request(request_bytes)?;
+    let mut p = stream::Parser::new(crate::stream_bound(tier));
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        p.bytes(&buf[..n])?;
+    }
+    verify_stream(request_bytes, p.finish()?)
+}
+
+/// Verifies a parsed stream against the raw request.
+pub fn verify_stream(request_bytes: &[u8], stream: stream::Stream) -> Result<Receipt, String> {
     // Raw identity and typed normalization before any financial comparison.
-    let request = raw::parse(request_bytes, crate::MAX_REQUEST_BYTES)?;
+    let (request, tier) = crate::admit_request(request_bytes)?;
     if request.get("schema").and_then(Value::as_str) != Some(SCHEMA) {
         return Err("raw request does not select liquidity-lifecycle-1".into());
+    }
+    if stream.bytes > crate::stream_bound(tier) {
+        return Err("stream exceeds the bound of its tier".into());
     }
     let plan_value = request.get("plan").ok_or("raw request lacks its plan")?;
     let plan_bytes = serde_json::to_vec(plan_value).map_err(|e| e.to_string())?;
     let plan_sha256 = raw::sha256_hex(&plan_bytes);
-    let stream = stream::parse(stream_bytes)?;
     if stream.header.get("model_schema").and_then(Value::as_str) != Some(SCHEMA) {
         return Err("stream header does not name liquidity-lifecycle-1".into());
     }
@@ -613,6 +648,7 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
             }
         }
     }
+    let research_im = executions.iter().any(|x| !x.dynamic_margin.is_empty());
     if scenarios.len() != stream.scenarios.len() {
         return Err(
             "stream carries lifecycle rows for a scenario without an execution block".into(),
@@ -631,6 +667,11 @@ pub fn verify(request_bytes: &[u8], stream_bytes: &[u8]) -> Result<Receipt, Stri
         independent_equations: true,
         production_financial_crates: false,
         methodology_certified: false,
-        disclosure: "Independent Rust verification of the raw lifecycle request and the native stream: strict raw bytes, plan hash and typed opening identity; swap valuations recomputed from the raw contracts; every lifecycle posting re-derived from the raw instructions and matched in order against the lineage rows, the journal transactions and the closing stocks; receipt amounts, statuses and accounting facts matched. Supplied IM is checked for scope and binding, not for its methodology. This is source and journal verification, not empirical, accounting-standard or regulatory acceptance.",
+        // Runs without research-method IM keep their original receipt bytes.
+        disclosure: if research_im {
+            RESEARCH_IM_DISCLOSURE
+        } else {
+            "Independent Rust verification of the raw lifecycle request and the native stream: strict raw bytes, plan hash and typed opening identity; swap valuations recomputed from the raw contracts; every lifecycle posting re-derived from the raw instructions and matched in order against the lineage rows, the journal transactions and the closing stocks; receipt amounts, statuses and accounting facts matched. Supplied IM is checked for scope and binding, not for its methodology. This is source and journal verification, not empirical, accounting-standard or regulatory acceptance."
+        },
     })
 }

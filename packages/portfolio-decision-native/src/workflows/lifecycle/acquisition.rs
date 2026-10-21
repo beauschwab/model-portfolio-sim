@@ -27,6 +27,9 @@ use std::io::Write;
 
 pub const SCHEMA: &str = "liquidity-lifecycle-1";
 pub const MAX_BYTES: usize = 8 * 1024 * 1024;
+/// The explicit `acceptance_60000` tier admits larger raw requests (#51); output is streamed.
+pub const SCALE_TIER: &str = "acceptance_60000";
+pub const MAX_TIER_BYTES: usize = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -43,6 +46,8 @@ pub struct Request {
     pub acquisitions: Vec<AcquisitionRequest>,
     #[serde(default)]
     pub hedge_contracts: Vec<HedgeContract>,
+    #[serde(default)]
+    pub scale_tier: Option<String>,
 }
 
 /// Native valuation of a derivative lot at an entry or termination date.
@@ -72,6 +77,8 @@ pub struct Receipt {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub margin_sensitivities: Vec<Sensitivity>,
     pub formal_hedge_accounting: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scale_tier: Option<String>,
     pub disclosure: &'static str,
 }
 
@@ -82,6 +89,7 @@ pub struct Prepared {
     pub hedge_entries: Vec<HedgeValuation>,
     pub journals: Vec<AcquisitionJournal>,
     pub margin_sensitivities: Vec<Sensitivity>,
+    pub scale_tier: Option<String>,
 }
 
 fn refused(r: lifecycle::Refusal) -> String {
@@ -196,11 +204,27 @@ fn margin_sensitivities(
 
 pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
     portfolio_compute_control::checkpoint()?;
-    let original = strict_json::parse(bytes, MAX_BYTES)?;
+    let original = strict_json::parse(bytes, MAX_TIER_BYTES)?;
     let request: Request = serde_json::from_value(original).map_err(|e| e.to_string())?;
     if request.schema != SCHEMA {
         return Err("explicit liquidity-lifecycle-1 selection required".into());
     }
+    match request.scale_tier.as_deref() {
+        None if bytes.len() > MAX_BYTES => {
+            return Err(
+                "BOUND_EXCEEDED: a lifecycle request above 8 MiB selects the acceptance_60000 tier"
+                    .into(),
+            )
+        }
+        None => {}
+        Some(SCALE_TIER) => {}
+        Some(other) => {
+            return Err(format!(
+                "UNSUPPORTED_POLICY: scale tier `{other}` is not supported"
+            ))
+        }
+    }
+    let scale_tier = request.scale_tier.clone();
     let plan_bytes = serde_json::to_vec(&request.plan).map_err(|e| e.to_string())?;
     let plan = lifecycle::admit(&plan_bytes).map_err(refused)?;
     let plan_sha256 = format!("{:x}", Sha256::digest(&plan_bytes));
@@ -378,6 +402,7 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
         hedge_entries,
         journals,
         margin_sensitivities,
+        scale_tier,
     })
 }
 
@@ -467,6 +492,7 @@ pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, S
             .collect(),
         margin_sensitivities: prepared.margin_sensitivities.clone(),
         formal_hedge_accounting: false,
+        scale_tier: prepared.scale_tier.clone(),
         disclosure: if !prepared.margin_sensitivities.is_empty() {
             DYNAMIC_DISCLOSURE
         } else {

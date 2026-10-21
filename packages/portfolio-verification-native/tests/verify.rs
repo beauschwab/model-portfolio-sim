@@ -324,3 +324,45 @@ fn a_policy_mode_stream_is_replayed_independently_and_tampering_is_refused() {
     }
     assert!(!refused(&serde_json::to_string(&req).unwrap(), POLICY_STREAM).is_empty());
 }
+
+#[test]
+fn an_incremental_read_in_any_split_matches_the_whole_stream() {
+    let whole = verify(REQUEST.as_bytes(), STREAM.as_bytes()).unwrap();
+    // A reader that returns at most 7 bytes per call: lines arrive split across reads.
+    struct Trickle<'a>(&'a [u8]);
+    impl std::io::Read for Trickle<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let n = self.0.len().min(7).min(buf.len());
+            buf[..n].copy_from_slice(&self.0[..n]);
+            self.0 = &self.0[n..];
+            Ok(n)
+        }
+    }
+    let streamed = portfolio_verification_native::verify_reader(
+        REQUEST.as_bytes(),
+        Trickle(STREAM.as_bytes()),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&whole).unwrap(),
+        serde_json::to_value(&streamed).unwrap()
+    );
+}
+
+#[test]
+fn the_large_tier_is_explicit_and_bounded() {
+    use portfolio_verification_native::admit_request;
+    let mut v: Value = serde_json::from_str(REQUEST).unwrap();
+    // A request above 8 MiB without the tier refuses; with it, it is admitted.
+    v["padding"] = json!("x".repeat(9 * 1024 * 1024));
+    let big = serde_json::to_vec(&v).unwrap();
+    assert!(admit_request(&big)
+        .unwrap_err()
+        .contains("acceptance_60000"));
+    v["scale_tier"] = json!("acceptance_60000");
+    assert!(admit_request(&serde_json::to_vec(&v).unwrap()).unwrap().1);
+    v["scale_tier"] = json!("unbounded");
+    assert!(admit_request(&serde_json::to_vec(&v).unwrap())
+        .unwrap_err()
+        .contains("scale_tier"));
+}

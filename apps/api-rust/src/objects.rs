@@ -133,7 +133,13 @@ impl Objects {
                 let target = root.join(&key);
                 let parent = target.parent().expect("object key has a parent");
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-                if !target.exists() {
+                // Content addressing makes an intact existing object reusable. A damaged one (its
+                // bytes no longer hash to its key) is atomically replaced with the true bytes,
+                // which restores it without changing what any publication references.
+                let intact = std::fs::read(&target)
+                    .map(|b| b.len() == data.len() && crate::sha256_hex(&b) == digest)
+                    .unwrap_or(false);
+                if !intact {
                     let temp = parent.join(format!(".{}.{}.tmp", digest, uuid::Uuid::new_v4()));
                     let written = (|| -> std::io::Result<()> {
                         use std::io::Write;
@@ -149,7 +155,10 @@ impl Objects {
                     if let Err(e) = std::fs::rename(&temp, &target) {
                         let _ = std::fs::remove_file(&temp);
                         // A concurrent writer of the same content is fine; anything else is not.
-                        if !target.exists() {
+                        let now_intact = std::fs::read(&target)
+                            .map(|b| crate::sha256_hex(&b) == digest)
+                            .unwrap_or(false);
+                        if !now_intact {
                             return Err(format!("object publish failed: {e}"));
                         }
                     }

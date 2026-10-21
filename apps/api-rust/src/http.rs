@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::objects::{Descriptor, Objects};
 use crate::repo::{Repo, Submission};
 use crate::{compose, publish, Refusal};
-use portfolio_verification_native::MAX_REQUEST_BYTES;
+use portfolio_verification_native::{MAX_REQUEST_BYTES, MAX_TIER_REQUEST_BYTES};
 use serde_json::{json, Value};
 use std::io::Read;
 use std::sync::Arc;
@@ -138,8 +138,15 @@ impl App {
     }
 
     fn strict(&self, raw: &[u8]) -> Result<Value, Refusal> {
-        let value = portfolio_verification_native::raw::parse(raw, MAX_REQUEST_BYTES)
-            .map_err(|e| Refusal::new("MALFORMED_INPUT", e))?;
+        // At most 8 MiB, or 512 MiB with the explicit acceptance_60000 tier.
+        let (value, _) = portfolio_verification_native::admit_request(raw).map_err(|e| {
+            let code = if raw.len() > MAX_REQUEST_BYTES {
+                "BODY_TOO_LARGE"
+            } else {
+                "MALFORMED_INPUT"
+            };
+            Refusal::new(code, e)
+        })?;
         if value.get("schema").and_then(Value::as_str) != Some(crate::LIFECYCLE_SCHEMA) {
             return Err(Refusal::new(
                 "UNSUPPORTED_SCHEMA",
@@ -609,13 +616,26 @@ fn respond(app: &App, request: &mut tiny_http::Request) -> Reply {
             json!({"code": r.code, "detail": r.detail, "requirements": r.requirements})
         },
     };
-    if request.body_length().is_some_and(|n| n > MAX_REQUEST_BYTES) {
-        return refusal(Refusal::new("BODY_TOO_LARGE", "request body exceeds 8 MiB"));
+    let url = request.url().to_string();
+    // Only a raw lifecycle run may carry the explicit large tier; its tier is checked on
+    // admission, and every other body keeps the 8 MiB bound.
+    let large = request.method().as_str().eq_ignore_ascii_case("POST")
+        && url.split('?').next() == Some("/native/lifecycle/runs");
+    let limit = if large {
+        MAX_TIER_REQUEST_BYTES
+    } else {
+        MAX_REQUEST_BYTES
+    };
+    if request.body_length().is_some_and(|n| n > limit) {
+        return refusal(Refusal::new(
+            "BODY_TOO_LARGE",
+            "request body exceeds its bound",
+        ));
     }
     let mut body = Vec::new();
     if request
         .as_reader()
-        .take(MAX_REQUEST_BYTES as u64 + 1)
+        .take(limit as u64 + 1)
         .read_to_end(&mut body)
         .is_err()
     {
@@ -624,10 +644,12 @@ fn respond(app: &App, request: &mut tiny_http::Request) -> Reply {
             "request body could not be read",
         ));
     }
-    if body.len() > MAX_REQUEST_BYTES {
-        return refusal(Refusal::new("BODY_TOO_LARGE", "request body exceeds 8 MiB"));
+    if body.len() > limit {
+        return refusal(Refusal::new(
+            "BODY_TOO_LARGE",
+            "request body exceeds its bound",
+        ));
     }
-    let url = request.url().to_string();
     let (path, query) = url.split_once('?').unwrap_or((url.as_str(), ""));
     let method = request.method().as_str().to_ascii_uppercase();
     let headers: Vec<(String, String)> = request

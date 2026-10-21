@@ -9,10 +9,14 @@ use crate::config::Config;
 use crate::objects::{Descriptor, Objects};
 use crate::repo::{Claim, Repo};
 use crate::{fault, now, publish, Refusal};
-use portfolio_verification_native::{verify, MAX_REQUEST_BYTES, MAX_STREAM_BYTES};
+use portfolio_verification_native::{
+    admit_request, stream_bound, verify, verify_reader, MAX_STREAM_BYTES, MAX_TIER_REQUEST_BYTES,
+};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -83,11 +87,41 @@ fn own_peak_rss() -> Option<u64> {
     None
 }
 
+/// The producer's stream, spooled to a private temporary file as it arrives, with its exact byte
+/// count and SHA-256. Verification, publication and the persisted reread read it incrementally,
+/// so the worker never holds a large stream in memory. The file is removed when dropped.
+pub struct Spool {
+    path: PathBuf,
+    pub bytes: u64,
+    pub sha256: String,
+}
+impl Spool {
+    pub fn open(&self) -> Result<std::fs::File, Refusal> {
+        std::fs::File::open(&self.path).map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))
+    }
+    /// The whole stream, for routes whose stream stays within the default bound.
+    pub fn read_all(&self) -> Result<Vec<u8>, Refusal> {
+        if self.bytes > MAX_STREAM_BYTES as u64 {
+            return Err(Refusal::new(
+                "STREAM_BOUND",
+                "native output exceeds the stream bound",
+            ));
+        }
+        std::fs::read(&self.path).map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))
+    }
+}
+impl Drop for Spool {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 /// Measured resources of one producer run, recorded in the job result (stage I).
 pub struct Resources {
     pub peak_rss_bytes: Option<u64>,
     pub input_bytes: usize,
-    pub stream_bytes: usize,
+    pub stream_bytes: u64,
+    pub stream_bound: u64,
     pub wall_ms: u64,
 }
 impl Resources {
@@ -95,7 +129,7 @@ impl Resources {
         json!({
             "peak_rss_bytes": self.peak_rss_bytes, "rss_method": RSS_METHOD,
             "input_bytes": self.input_bytes, "stream_bytes": self.stream_bytes,
-            "stream_bound_bytes": MAX_STREAM_BYTES, "wall_ms": self.wall_ms,
+            "stream_bound_bytes": self.stream_bound, "wall_ms": self.wall_ms,
             "worker_lifetime_peak_rss_bytes": own_peak_rss(),
         })
     }
@@ -301,7 +335,9 @@ impl Worker {
                 "this worker cannot verify the admitted schema",
             ));
         }
-        let raw = self.objects.get_bounded(&a.raw, MAX_REQUEST_BYTES as u64)?;
+        let raw = self
+            .objects
+            .get_bounded(&a.raw, MAX_TIER_REQUEST_BYTES as u64)?;
         if crate::sha256_hex(&raw) != a.raw.sha256 {
             return Err(Refusal::new(
                 "AUTHORITY_MISMATCH",
@@ -327,22 +363,53 @@ impl Worker {
             claim,
             json!({"stage": "native", "pct": 10, "attempt": claim.attempt}),
         )?;
-        let (stream, resources) = self.native(claim, exe, &raw, lost)?;
+        // Only an explicit lifecycle `acceptance_60000` request has the large stream bound.
+        let tier = a.schema == crate::LIFECYCLE_SCHEMA
+            && admit_request(&raw)
+                .map_err(|e| Refusal::new("MALFORMED_INPUT", e))?
+                .1;
+        let (spool, resources) = self.native(claim, exe, &raw, lost, stream_bound(tier))?;
         self.repo.progress(
             claim,
             json!({"stage": "verifying", "pct": 60, "attempt": claim.attempt}),
         )?;
         if a.schema == crate::allocation::SCHEMA {
+            let stream = spool.read_all()?;
             return self.allocation(claim, exe, &raw, &stream, &resources);
         }
-        let receipt = verify(&raw, &stream).map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
+        let receipt = verify_reader(&raw, std::io::BufReader::new(spool.open()?))
+            .map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
         self.repo.progress(
             claim,
             json!({"stage": "publishing", "pct": 75, "attempt": claim.attempt}),
         )?;
-        let (manifest, value) =
-            publish::write(&self.objects, claim, &raw, &stream, &receipt, None)?;
+        let (manifest, value) = publish::write(
+            &self.objects,
+            claim,
+            &raw,
+            &mut spool.open()?,
+            &receipt,
+            None,
+        )?;
+        if value["stream"]["sha256"] != spool.sha256.as_str()
+            || value["stream"]["bytes"].as_u64() != Some(spool.bytes)
+        {
+            return Err(Refusal::new(
+                "REREAD_MISMATCH",
+                "the published stream differs from the producer's spooled output",
+            ));
+        }
+        self.repo.progress(
+            claim,
+            json!({"stage": "rereading", "pct": 85, "attempt": claim.attempt}),
+        )?;
+        fault::pause("reread");
         publish::reread(&self.objects, &manifest, &value)?;
+        // The reread passed: what remains is the fenced final publication.
+        self.repo.progress(
+            claim,
+            json!({"stage": "publishing", "pct": 95, "attempt": claim.attempt}),
+        )?;
         if executable_sha256(exe)? != a.executable_sha256 {
             return Err(Refusal::new(
                 "EXECUTABLE_CHANGED",
@@ -395,8 +462,15 @@ impl Worker {
                 let verified =
                     verify(bytes, rest).map_err(|e| Refusal::new("VERIFICATION_REFUSED", e))?;
                 let d = self.objects.put(bytes, "json")?;
-                let (m, v) =
-                    publish::write(&self.objects, claim, bytes, rest, &verified, Some(&d))?;
+                let mut reader = rest;
+                let (m, v) = publish::write(
+                    &self.objects,
+                    claim,
+                    bytes,
+                    &mut reader,
+                    &verified,
+                    Some(&d),
+                )?;
                 (Some(m), Some(v))
             }
             None => (None, None),
@@ -437,7 +511,8 @@ impl Worker {
         exe: &Path,
         raw: &[u8],
         lost: &AtomicBool,
-    ) -> Result<(Vec<u8>, Resources), Refusal> {
+        bound: u64,
+    ) -> Result<(Spool, Resources), Refusal> {
         let started = Instant::now();
         let mut child = Command::new(exe)
             .stdin(Stdio::piped())
@@ -459,26 +534,47 @@ impl Worker {
         let writer = std::thread::spawn(move || {
             let _ = stdin.write_all(&envelope);
         });
+        let dir = std::env::temp_dir().join("workbench-native-spool");
+        std::fs::create_dir_all(&dir).map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))?;
+        let path = dir.join(format!(
+            "{}-{}-{}.jsonl",
+            claim.job_id,
+            claim.attempt,
+            uuid::Uuid::new_v4().simple()
+        ));
+        let file = std::fs::File::create(&path)
+            .map_err(|e| Refusal::new("STORAGE_ERROR", e.to_string()))?;
+        // Owns the file from here: removed on every exit path.
+        let mut spool = Spool {
+            path,
+            bytes: 0,
+            sha256: String::new(),
+        };
         let overflow = Arc::new(AtomicBool::new(false));
-        let out = Arc::new(Mutex::new(Vec::new()));
         let reader = {
-            let (out, overflow) = (out.clone(), overflow.clone());
+            let overflow = overflow.clone();
             let mut stdout = child.stdout.take().expect("stdout");
-            std::thread::spawn(move || {
+            let mut file = std::io::BufWriter::with_capacity(1 << 20, file);
+            std::thread::spawn(move || -> Result<(u64, String), String> {
                 let mut buf = vec![0u8; 1 << 16];
+                let mut hasher = Sha256::new();
+                let mut total = 0u64;
                 loop {
                     match stdout.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            let mut o = out.lock().expect("stdout buffer");
-                            if o.len() + n > MAX_STREAM_BYTES {
+                            if total + n as u64 > bound {
                                 overflow.store(true, Ordering::SeqCst);
                                 break;
                             }
-                            o.extend_from_slice(&buf[..n]);
+                            hasher.update(&buf[..n]);
+                            file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+                            total += n as u64;
                         }
                     }
                 }
+                file.flush().map_err(|e| e.to_string())?;
+                Ok((total, crate::hex(&hasher.finalize())))
             })
         };
         let err = Arc::new(Mutex::new(Vec::new()));
@@ -561,7 +657,9 @@ impl Worker {
             std::thread::sleep(Duration::from_millis(25));
         };
         let _ = writer.join();
-        let _ = reader.join();
+        let spooled = reader
+            .join()
+            .map_err(|_| Refusal::new("STORAGE_ERROR", "the stream spool thread failed"))?;
         if let Some(r) = stopped {
             return Err(r);
         }
@@ -571,13 +669,16 @@ impl Worker {
                 "native output exceeds the stream bound",
             ));
         }
-        let out = std::mem::take(&mut *out.lock().expect("stdout"));
+        let (bytes, sha256) = spooled.map_err(|e| Refusal::new("STORAGE_ERROR", e))?;
+        spool.bytes = bytes;
+        spool.sha256 = sha256;
         let resources = Resources {
             peak_rss_bytes: peak,
             input_bytes: raw.len(),
-            stream_bytes: out.len(),
+            stream_bytes: bytes,
+            stream_bound: bound,
             wall_ms: started.elapsed().as_millis() as u64,
         };
-        Ok((out, resources))
+        Ok((spool, resources))
     }
 }
