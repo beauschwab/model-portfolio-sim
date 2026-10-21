@@ -88,6 +88,26 @@ test('a saved book is mapped, run, verified, published, explained and reopened t
   await expect(panel.getByRole('tabpanel')).toContainText('2024-01');
   await panel.getByRole('region', { name: 'Lifecycle results' }).screenshot({ path: test.info().outputPath('monthly.png') });
 
+  // Allocation over the two saved unwind plans: prepared alone, solved, replayed exactly and
+  // verified independently before it is shown as validated.
+  const allocation = panel.getByRole('region', { name: 'Allocation', exact: true });
+  for (const plan of ['worked-unwind-plan', 'worked-unwind-policy-plan']) {
+    await allocation.getByLabel(`Package ${plan}`, { exact: true }).check();
+    await allocation.getByLabel(`Group of ${plan}`, { exact: true }).fill('bond');
+  }
+  await allocation.getByRole('button', { name: 'Run allocation', exact: true }).click();
+  const result = allocation.getByLabel('Allocation result');
+  await expect(result).toContainText('validated: exact replay and independent verification passed', { timeout: 120_000 });
+  await expect(result).toContainText('Prepared packages');
+  await allocation.getByLabel('Estimate with worked-unwind-plan', { exact: true }).check();
+  await allocation.getByRole('button', { name: 'Estimate', exact: true }).click();
+  await expect(allocation.getByLabel('Allocation estimate')).toContainText('estimate, not validated');
+  await allocation.screenshot({ path: test.info().outputPath('allocation.png') });
+  await allocation.getByLabel('Allocation floor', { exact: true }).fill('7');
+  await allocation.getByRole('button', { name: 'Run allocation', exact: true }).click();
+  await expect(allocation.getByLabel('Allocation result')).toContainText('no validated plan (estimate infeasible)', { timeout: 120_000 });
+  await expect(allocation.getByRole('status')).toContainText('usable cash bound');
+
   // Reopen the published run after a reload, from storage.
   await page.reload();
   await page.getByRole('button', { name: 'Open Liquidity Lifecycle', exact: true }).click();

@@ -211,6 +211,11 @@ fn main() {
                         CompiledDatedLedger::compile(prepared.dated_request, 60000, 90000000)?;
                     daily::run_dated(compiled, Box::new(output))
                 }
+                Some("liquidity-allocation-1") => {
+                    use portfolio_decision_native::workflows::lifecycle::allocation;
+                    let bytes = serde_json::to_vec(request).map_err(|e| e.to_string())?;
+                    allocation::run(&bytes, Box::new(io::stdout())).map(|_| ())
+                }
                 Some("liquidity-lifecycle-1") => {
                     use portfolio_decision_native::workflows::lifecycle::acquisition;
                     let bytes = serde_json::to_vec(request).map_err(|e| e.to_string())?;

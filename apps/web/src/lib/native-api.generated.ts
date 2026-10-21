@@ -27,6 +27,79 @@ export type Admission = {
   revision: number;
 };
 
+export type AllocationAttempt = {
+  estimate: Record<string, Record<string, unknown>>;
+  exact: Record<string, AllocationMeasures> | null;
+  selection: string[];
+  violation: AllocationViolation | null;
+};
+
+export type AllocationEstimate = {
+  disclosure?: string;
+  minimum_usable_cash: number;
+  objective: AllocationObjective;
+  scenarios: Record<string, Record<string, unknown>>;
+  selection: string[];
+  status: "estimate";
+  validated: boolean;
+  within_usable_cash_bound: boolean;
+  worst_case_objective: number;
+};
+
+export type AllocationMeasures = {
+  external_nii: number;
+  funding_cost: number;
+  minimum_usable_cash: number;
+  trading_pnl: number;
+};
+
+export type AllocationObjective = "worst_case_external_nii" | "worst_case_total_earnings";
+
+export type AllocationPackage = {
+  group?: string;
+  plan: string;
+};
+
+export type AllocationReceipt = {
+  attempts: AllocationAttempt[];
+  base: Record<string, AllocationMeasures>;
+  base_daily_minimum: Record<string, number>;
+  combined_request?: Record<string, unknown> | null;
+  disclosure?: string;
+  exact_replay_passed: boolean;
+  identity_sha256: string;
+  minimum_usable_cash: number;
+  objective: AllocationObjective;
+  outcome: "validated" | "estimate_infeasible" | "exhausted";
+  packages: PreparedPackage[];
+  scenarios: string[];
+  schema: string;
+  selected: string[] | null;
+  violation: AllocationViolation | null;
+};
+
+export type AllocationRequest = {
+  max_refinements?: number;
+  minimum_usable_cash?: number;
+  objective?: AllocationObjective;
+  packages: AllocationPackage[];
+};
+
+export type AllocationView = {
+  allocation: AllocationReceipt;
+  validated: boolean;
+};
+
+export type AllocationViolation = {
+  detail: string;
+  event_id: string | null;
+  limit: number | null;
+  measure: string;
+  ordinal: number | null;
+  scenario_id: string | null;
+  value: number | null;
+};
+
 export type Authority = {
   admitted_at: number;
   admitted_revision: number;
@@ -333,6 +406,13 @@ export type MonthlyReport = {
   realized: number;
 };
 
+export type PackageCoefficients = {
+  external_nii: number;
+  funding_cost: number;
+  trading_pnl: number;
+  usable_cash_deterioration: number;
+};
+
 export type PlanRenewal = {
   max_generations: number;
   tenor_days: number;
@@ -361,6 +441,16 @@ export type PolicyFacility = {
   access: PlanWindow[];
   facility_id: string;
   renewal?: PlanRenewal;
+};
+
+export type PreparedPackage = {
+  coefficients: Record<string, PackageCoefficients>;
+  eligible: boolean;
+  group: string;
+  package_id: string;
+  refusal: string | null;
+  request_sha256: string;
+  review: Record<string, unknown>;
 };
 
 export type ProducerReceipt = {
@@ -449,6 +539,9 @@ export const nativeRoutes = {
   submitLifecycleRun: { method: "POST", path: "/native/lifecycle/runs", status: 202 },
   composeLifecyclePlan: { method: "POST", path: "/native/lifecycle/compose", status: 200 },
   lifecycleExample: { method: "GET", path: "/native/lifecycle/example", status: 200 },
+  submitAllocation: { method: "POST", path: "/native/lifecycle/allocations", status: 202 },
+  allocation: { method: "GET", path: "/native/jobs/{id}/allocation", status: 200 },
+  evaluateAllocation: { method: "POST", path: "/native/jobs/{id}/allocation/evaluate", status: 200 },
   listDocuments: { method: "GET", path: "/native/documents", status: 200 },
   document: { method: "GET", path: "/native/documents/{name}", status: 200 },
   producerReceipt: { method: "GET", path: "/native/jobs/{id}/receipt", status: 200 },
@@ -468,6 +561,9 @@ export interface NativeResponses {
   submitLifecycleRun: Admission;
   composeLifecyclePlan: Composition;
   lifecycleExample: LifecycleExample;
+  submitAllocation: Admission;
+  allocation: AllocationView;
+  evaluateAllocation: AllocationEstimate;
   listDocuments: DocumentList;
   document: SavedDocument;
   producerReceipt: ProducerReceipt;

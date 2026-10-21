@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { awaitNativeJob, NativeError, nativeApi } from '../lib/api';
-import type { DocumentEntry, Job, LifecyclePlan, LiquidityStep, ProducerReceipt, Requirement, SavedBook, TablePage } from '../lib/native-api.generated';
+import type { AllocationEstimate, AllocationObjective, AllocationView, AllocationViolation, DocumentEntry, Job, LifecyclePlan, LiquidityStep, ProducerReceipt, Requirement, SavedBook, TablePage } from '../lib/native-api.generated';
 import { Accordion, Badge, Button, Card, CardBody, CardHeader, DataTable, Input, Tabs, tabPanelProps, type Tone } from '../components/ui';
 
 /* Liquidity lifecycle workbench over the Rust service only (stage F, issue #48): a saved book, an
@@ -74,6 +74,15 @@ export default function LiquidityLifecycle() {
   const [pages, setPages] = useState<Record<string, TablePage>>({});
   const [instructionText, setInstructionText] = useState('');
   const generation = useRef(0);
+  // Stage H: allocation over reviewed package plans.
+  const [packages, setPackages] = useState<Record<string, { on: boolean; group: string }>>({});
+  const [floor, setFloor] = useState(0);
+  const [objective, setObjective] = useState<AllocationObjective>('worst_case_external_nii');
+  const [refinements, setRefinements] = useState(4);
+  const [allocationJob, setAllocationJob] = useState<Job>();
+  const [allocation, setAllocation] = useState<AllocationView>();
+  const [whatIf, setWhatIf] = useState<string[]>([]);
+  const [estimate, setEstimate] = useState<AllocationEstimate>();
 
   const guarded = async (work: (token: number) => Promise<void>) => {
     const token = ++generation.current; setBusy(true); setError('');
@@ -146,6 +155,29 @@ export default function LiquidityLifecycle() {
     'depends on': (i.depends_on ?? []).join(', '),
   }))), [plan]);
 
+  const planDocs = documents.filter(d => d.schema === PLAN).map(d => d.name);
+  const pkg = (name: string) => packages[name] ?? { on: false, group: name };
+  const runAllocation = () => guarded(async token => {
+    if (revision === undefined) return;
+    setAllocation(undefined); setEstimate(undefined); setWhatIf([]);
+    const chosen = planDocs.filter(n => pkg(n).on).map(n => ({ plan: n, group: pkg(n).group || n }));
+    const admitted = await nativeApi.allocate(bookName, { packages: chosen, minimum_usable_cash: floor, objective, max_refinements: refinements }, revision,
+      `allocation:${bookName}:${revision}:${Date.now()}`);
+    const done = await awaitNativeJob(admitted.job_id, j => { if (token === generation.current) setAllocationJob(j); });
+    if (done.status !== 'native_done') return;
+    const view = await nativeApi.allocation(done.id);
+    if (token !== generation.current) return;
+    setAllocation(view);
+    // A validated plan opens in the results below like any verified lifecycle run.
+    if (view.validated) await show(done.id, token);
+  });
+  const estimateSelection = () => guarded(async () => {
+    if (allocationJob) setEstimate(await nativeApi.evaluate(allocationJob.id, whatIf, floor));
+  });
+  const violationText = (v?: AllocationViolation | null) => v ? [
+    words(v.measure), v.scenario_id ? `in ${v.scenario_id}` : '', v.ordinal ? `on ${iso(v.ordinal)}` : '',
+    v.event_id ? `at ${v.event_id}` : '', v.value != null ? `: ${money(v.value)}` : '', v.limit != null ? `against ${money(v.limit)}` : '',
+  ].filter(Boolean).join(' ') + `. ${v.detail}` : '';
   const check = () => guarded(async () => {
     if (!plan || revision === undefined) return;
     setRequirements([]); setReady('');
@@ -338,6 +370,58 @@ export default function LiquidityLifecycle() {
         <Button disabled={busy || !bookName} onClick={() => void run()}>Run</Button>
       </div>
     </CardBody></Card>}
+
+    {records && planDocs.length > 0 && <section aria-label="Allocation"><Card><CardHeader title="Allocation" sub="Reviewed packages · prepared coefficients · exact replay before validation" /><CardBody className="space-y-3">
+      <p className="text-xs text-paper-faint">Each saved plan is a reviewed package. Preparation replays every package alone against holding the book; the solver chooses at most one package per group for the selected objective under a conservative usable-cash bound; only an exact replay of the merged packages, independently verified, is a validated plan. Estimates are never shown as validated.</p>
+      <table className="text-xs"><tbody>{planDocs.map(n => <tr key={n}>
+        <td className="pr-2"><input type="checkbox" aria-label={`Package ${n}`} checked={pkg(n).on} onChange={e => setPackages(p => ({ ...p, [n]: { ...pkg(n), on: e.target.checked } }))} /></td>
+        <td className="pr-3">{n}</td>
+        <td><Input aria-label={`Group of ${n}`} value={pkg(n).group} onChange={e => setPackages(p => ({ ...p, [n]: { ...pkg(n), group: e.target.value } }))} className="w-40" /></td>
+      </tr>)}</tbody></table>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Minimum usable cash"><Input aria-label="Allocation floor" type="number" value={floor} onChange={e => setFloor(Number(e.target.value))} className="w-28" /></Field>
+        <Field label="Objective"><Select label="Allocation objective" value={objective} options={['worst_case_external_nii', 'worst_case_total_earnings']} onChange={v => setObjective(v as AllocationObjective)} /></Field>
+        <Field label="Refinements"><Input aria-label="Refinements" type="number" min={0} max={8} value={refinements} onChange={e => setRefinements(Number(e.target.value))} className="w-20" /></Field>
+        <Button disabled={busy || !bookName || !planDocs.some(n => pkg(n).on)} onClick={() => void runAllocation()}>Run allocation</Button>
+      </div>
+      {allocationJob && !allocation && <p className="text-xs" aria-label="Allocation status">Allocation job {allocationJob.id}: {words(allocationJob.status.replace('native_', ''))}{allocationJob.detail ? ` · ${allocationJob.detail}` : ''}</p>}
+      {allocation && <div className="space-y-2" aria-label="Allocation result">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {allocation.validated ? <Badge tone="up">validated: exact replay and independent verification passed</Badge>
+            : <Badge tone="danger">no validated plan ({words(allocation.allocation.outcome)})</Badge>}
+          {allocation.allocation.selected && <span>Selected: {allocation.allocation.selected.length ? allocation.allocation.selected.join(', ') : 'hold (no package)'}</span>}
+        </div>
+        {allocation.allocation.violation && <p role="status" className="text-xs text-danger">{violationText(allocation.allocation.violation)}</p>}
+        <div className="eyebrow">Prepared packages</div>
+        <DataTable rows={allocation.allocation.packages.flatMap(p => allocation.allocation.scenarios.map(sc => ({
+          package: p.package_id, group: p.group, scenario: sc, eligible: p.eligible ? 'yes' : `no: ${p.refusal ?? ''}`,
+          'external NII change': money(p.coefficients[sc]?.external_nii), 'trading P&L change': money(p.coefficients[sc]?.trading_pnl),
+          'funding cost change': money(p.coefficients[sc]?.funding_cost), 'usable cash deterioration': money(p.coefficients[sc]?.usable_cash_deterioration),
+        })))} />
+        <div className="eyebrow">Attempts</div>
+        <DataTable rows={allocation.allocation.attempts.map((a, i) => ({
+          attempt: String(i + 1), selection: a.selection.length ? a.selection.join(', ') : 'hold',
+          'estimated usable cash bound': allocation.allocation.scenarios.map(sc => `${sc} ${money((a.estimate[sc] as Record<string, number> | undefined)?.minimum_usable_cash_bound)}`).join(' · '),
+          'exact minimum usable cash': a.exact ? allocation.allocation.scenarios.map(sc => `${sc} ${money(a.exact?.[sc]?.minimum_usable_cash)}`).join(' · ') : '',
+          result: a.violation ? violationText(a.violation) : 'passed',
+        }))} />
+        <div className="eyebrow">What if (coefficient-only estimate)</div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {allocation.allocation.packages.filter(p => p.eligible).map(p => <label key={p.package_id} className="flex items-center gap-1">
+            <input type="checkbox" aria-label={`Estimate with ${p.package_id}`} checked={whatIf.includes(p.package_id)}
+              onChange={e => setWhatIf(w => e.target.checked ? [...w, p.package_id] : w.filter(x => x !== p.package_id))} />{p.package_id}</label>)}
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void estimateSelection()}>Estimate</Button>
+        </div>
+        {estimate && <div aria-label="Allocation estimate" className="space-y-1">
+          <Badge tone="warning">estimate, not validated</Badge>
+          <DataTable rows={Object.entries(estimate.scenarios).map(([sc, v]) => ({
+            scenario: sc, 'external NII': money((v as Record<string, number>).external_nii), 'trading P&L': money((v as Record<string, number>).trading_pnl),
+            'funding cost': money((v as Record<string, number>).funding_cost), 'usable cash bound': money((v as Record<string, number>).minimum_usable_cash_bound),
+            'within floor': estimate.within_usable_cash_bound ? 'yes' : 'no',
+          }))} />
+        </div>}
+      </div>}
+    </CardBody></Card></section>}
 
     <Card><CardHeader title="Run" sub="Durable native job · original deadline · independent verification" /><CardBody className="space-y-2">
       <div className="flex flex-wrap items-end gap-2">

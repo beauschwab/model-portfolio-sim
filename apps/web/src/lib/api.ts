@@ -343,8 +343,8 @@ export function errorText(error: unknown): string {
 
 /* Rust workbench service (apps/api-rust), proxied same-origin at /native. Types are generated from
    the Rust contract (native-api.generated.ts); no Python service takes part in these calls. */
-import type { Admission, Composition, DocumentList, Job as NativeJob, JobSummary, LifecycleExample,
-  LifecyclePlan, Manifest, ProducerReceipt, Requirement, RevisionHead, SavedBook, TablePage } from './native-api.generated';
+import type { Admission, AllocationEstimate, AllocationRequest, AllocationView, Composition, DocumentList, Job as NativeJob,
+  JobSummary, LifecycleExample, LifecyclePlan, Manifest, ProducerReceipt, Requirement, RevisionHead, SavedBook, TablePage } from './native-api.generated';
 
 /** A Rust service refusal; mapping refusals list each requirement and its fix. */
 export class NativeError extends Error {
@@ -379,6 +379,12 @@ export const nativeApi = {
     native<Composition>(`/native/lifecycle/compose?${q({ book })}`, { method: 'POST', body: JSON.stringify(plan), revision }),
   submit: (book: string, plan: LifecyclePlan, revision: number, key?: string) =>
     native<Admission>(`/native/lifecycle/runs?${q({ book })}`, { method: 'POST', body: JSON.stringify(plan), revision, key }),
+  allocate: (book: string, body: AllocationRequest, revision: number, key?: string) =>
+    native<Admission>(`/native/lifecycle/allocations?${q({ book })}`, { method: 'POST', body: JSON.stringify(body), revision, key }),
+  allocation: (id: string) => native<AllocationView>(`/native/jobs/${encodeURIComponent(id)}/allocation`),
+  /** Coefficient-only estimate: no pricing, never a validated plan. */
+  evaluate: (id: string, selection: string[], minimum_usable_cash?: number) =>
+    native<AllocationEstimate>(`/native/jobs/${encodeURIComponent(id)}/allocation/evaluate`, { method: 'POST', body: JSON.stringify({ selection, minimum_usable_cash }) }),
   jobs: (limit = 20) => native<JobSummary[]>(`/native/jobs?${q({ limit })}`),
   job: (id: string) => native<NativeJob>(`/native/jobs/${encodeURIComponent(id)}`),
   cancel: (id: string) => native<{ cancelled: boolean }>(`/native/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
