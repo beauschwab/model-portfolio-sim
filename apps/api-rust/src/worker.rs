@@ -405,6 +405,11 @@ impl Worker {
         )?;
         fault::pause("reread");
         publish::reread(&self.objects, &manifest, &value)?;
+        // The reread passed: what remains is the fenced final publication.
+        self.repo.progress(
+            claim,
+            json!({"stage": "publishing", "pct": 95, "attempt": claim.attempt}),
+        )?;
         if executable_sha256(exe)? != a.executable_sha256 {
             return Err(Refusal::new(
                 "EXECUTABLE_CHANGED",
