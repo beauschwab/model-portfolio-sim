@@ -10,6 +10,7 @@ on:
       - 'apps/web/playwright.native.config.ts'
       - 'apps/api-rust/**'
       - 'packages/portfolio-verification-native/**'
+      - 'packages/portfolio-decision-native/src/workflows/lifecycle/**'
       - 'apps/web/src/lib/native-api.generated.ts'
       - 'apps/api/app/repository.py'
       - '.github/workflows/native-service.yml'
@@ -22,6 +23,7 @@ on:
       - 'apps/web/playwright.native.config.ts'
       - 'apps/api-rust/**'
       - 'packages/portfolio-verification-native/**'
+      - 'packages/portfolio-decision-native/src/workflows/lifecycle/**'
       - 'apps/web/src/lib/native-api.generated.ts'
       - 'apps/api/app/repository.py'
       - '.github/workflows/native-service.yml'
@@ -101,3 +103,26 @@ jobs:
         working-directory: apps/web
         env:
           WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger
+
+  # Issue #51: the explicit acceptance_60000 tier at 60,000 backbook positions with active
+  # research IM, then cancellation, deadline and stream/page tamper at 20,000, through the whole
+  # Rust service and the live producer. Each SCALE line records the measured resources.
+  scale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      # About 9 GB of spool, stream chunks and pages at 60,000 positions.
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL && df -h /
+      - uses: dtolnay/rust-toolchain@1.93.1
+      - run: sudo apt-get update && sudo apt-get install -y cmake libclang-dev
+      - run: cargo build --release --locked --manifest-path packages/portfolio-decision-native/Cargo.toml --bin portfolio-model-ledger
+      - run: cargo test --release --locked --features fault-injection --manifest-path apps/api-rust/Cargo.toml --test live research_im -- --nocapture
+        env:
+          WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger
+          WORKBENCH_SCALE_POSITIONS: 6000,7000,7000t,60000t
+      - run: cargo test --release --locked --features fault-injection --manifest-path apps/api-rust/Cargo.toml --test live the_large_tier -- --nocapture
+        env:
+          WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger
+          WORKBENCH_SCALE_FAULTS: '20000'
+      - run: df -h /

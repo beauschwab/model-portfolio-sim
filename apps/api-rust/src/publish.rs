@@ -9,8 +9,13 @@
 use crate::objects::{Descriptor, Objects};
 use crate::repo::Claim;
 use crate::Refusal;
-use portfolio_verification_native::{verify, Receipt, MAX_REQUEST_BYTES, MAX_STREAM_BYTES};
+use portfolio_verification_native::{
+    admit_request, stream::Parser, stream_bound, verify_stream, Receipt, MAX_LINE_BYTES,
+    MAX_TIER_REQUEST_BYTES,
+};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
+use std::io::{BufRead, BufReader, Read};
 
 pub const MANIFEST_SCHEMA: &str = "native-lifecycle-publication-1";
 pub const ALLOCATION_SCHEMA: &str = "native-allocation-publication-1";
@@ -32,6 +37,7 @@ fn storage(e: impl std::fmt::Display) -> Refusal {
     Refusal::new("STORAGE_ERROR", e.to_string())
 }
 
+#[cfg(test)]
 fn chunks(stream: &[u8]) -> Vec<&[u8]> {
     // Whole lines, at most CHUNK_BYTES each unless a single line is longer.
     let mut out = Vec::new();
@@ -120,27 +126,78 @@ fn segment(objects: &Objects, table: &str, offset: usize, line: &Value) -> Resul
     )
 }
 
-/// Writes every object, then the manifest; returns the manifest descriptor and its value.
+/// Packs whole stream lines into chunks of at most CHUNK_BYTES (a longer line is its own chunk),
+/// keeping every byte, exactly as `chunks` splits a stream held in memory.
+struct Chunker<'a> {
+    objects: &'a Objects,
+    buffer: Vec<u8>,
+    refs: Vec<Value>,
+}
+impl Chunker<'_> {
+    fn push(&mut self, line: &[u8]) -> Result<(), Refusal> {
+        if !self.buffer.is_empty() && self.buffer.len() + line.len() > CHUNK_BYTES {
+            self.flush()?;
+        }
+        self.buffer.extend_from_slice(line);
+        Ok(())
+    }
+    fn flush(&mut self) -> Result<(), Refusal> {
+        if !self.buffer.is_empty() {
+            let d = self.objects.put(&self.buffer, "bin")?;
+            self.refs.push(d.to_json());
+            self.buffer.clear();
+        }
+        Ok(())
+    }
+}
+
+/// Writes every object, then the manifest; returns the manifest descriptor and its value. The
+/// stream is read once, line by line, so memory is bounded by one line and one chunk.
 pub fn write(
     objects: &Objects,
     claim: &Claim,
     raw: &[u8],
-    stream: &[u8],
+    stream: &mut dyn Read,
     receipt: &Receipt,
     verified_request: Option<&Descriptor>,
 ) -> Result<(Descriptor, Value), Refusal> {
-    let mut chunk_refs = Vec::new();
-    for c in chunks(stream) {
-        chunk_refs.push(objects.put(c, "bin")?.to_json());
-    }
+    let mut chunker = Chunker {
+        objects,
+        buffer: Vec::new(),
+        refs: Vec::new(),
+    };
+    let mut hasher = Sha256::new();
+    let mut total = 0u64;
     let mut tables: Vec<(String, Vec<Value>, usize)> = Vec::new();
     let mut header: Option<Descriptor> = None;
     let mut lines = 0usize;
-    for line in std::str::from_utf8(stream)
-        .map_err(|_| Refusal::new("STREAM_LAYOUT", "stream is not UTF-8"))?
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-    {
+    let mut reader = BufReader::with_capacity(1 << 20, stream);
+    let mut raw_line = Vec::new();
+    loop {
+        raw_line.clear();
+        let n = (&mut reader)
+            .take(MAX_LINE_BYTES as u64 + 2)
+            .read_until(b'\n', &mut raw_line)
+            .map_err(storage)?;
+        if n == 0 {
+            break;
+        }
+        if raw_line.len() > MAX_LINE_BYTES + 1 {
+            return Err(Refusal::new(
+                "STREAM_LAYOUT",
+                "a stream line exceeds its bound",
+            ));
+        }
+        total += n as u64;
+        hasher.update(&raw_line);
+        chunker.push(&raw_line)?;
+        let body = raw_line.strip_suffix(b"\n").unwrap_or(&raw_line);
+        let body = body.strip_suffix(b"\r").unwrap_or(body);
+        let line = std::str::from_utf8(body)
+            .map_err(|_| Refusal::new("STREAM_LAYOUT", "stream is not UTF-8"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
         lines += 1;
         let value: Value =
             serde_json::from_str(line).map_err(|e| Refusal::new("STREAM_LAYOUT", e.to_string()))?;
@@ -165,6 +222,8 @@ pub fn write(
         tables[index].2 += seg["rows"].as_u64().unwrap_or(0) as usize;
         tables[index].1.push(seg);
     }
+    chunker.flush()?;
+    let chunk_refs = chunker.refs;
     let a = &claim.authority;
     let manifest = json!({
         "schema": MANIFEST_SCHEMA,
@@ -177,7 +236,7 @@ pub fn write(
         "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
         "verification": {"verifier": a.verifier, "receipt": serde_json::to_value(receipt).expect("receipt")},
         "header": header.map(|d| d.to_json()),
-        "stream": {"bytes": stream.len(), "sha256": crate::sha256_hex(stream), "lines": lines, "chunks": chunk_refs},
+        "stream": {"bytes": total, "sha256": crate::hex(&hasher.finalize()), "lines": lines, "chunks": chunk_refs},
         "tables": tables.iter().map(|(t, segs, rows)| json!({"table": t, "rows": rows, "segments": segs})).collect::<Vec<_>>(),
         "raw_sha256": crate::sha256_hex(raw),
     });
@@ -307,37 +366,47 @@ pub fn reread(objects: &Objects, d: &Descriptor, expected: &Value) -> Result<Rec
         ));
     }
     let raw_d = Descriptor::from_json(&m["source"]["raw"])?;
-    let raw = objects.get_bounded(&raw_d, MAX_REQUEST_BYTES as u64)?;
-    let mut stream = Vec::new();
+    let raw = objects.get_bounded(&raw_d, MAX_TIER_REQUEST_BYTES as u64)?;
+    let (_, tier) =
+        admit_request(&raw).map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    let bound = stream_bound(tier);
+    // Every chunk is reread, hashed and parsed in order; the stream is never held whole.
+    let mut parser = Parser::new(bound);
+    let mut hasher = Sha256::new();
+    let mut total = 0u64;
     for c in m["stream"]["chunks"]
         .as_array()
         .ok_or_else(|| Refusal::new("STORAGE_ERROR", "chunks missing"))?
     {
         let cd = Descriptor::from_json(c)?;
-        if stream.len() as u64 + cd.bytes > MAX_STREAM_BYTES as u64 {
+        if total + cd.bytes > bound {
             return Err(Refusal::new(
                 "STORAGE_ERROR",
                 "persisted stream exceeds its bound",
             ));
         }
-        stream.extend(objects.get_bounded(&cd, MAX_STREAM_BYTES as u64)?);
+        let bytes = objects.get_bounded(&cd, (CHUNK_BYTES + MAX_LINE_BYTES) as u64)?;
+        total += bytes.len() as u64;
+        hasher.update(&bytes);
+        parser
+            .bytes(&bytes)
+            .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
     }
-    if crate::sha256_hex(&stream) != m["stream"]["sha256"].as_str().unwrap_or("")
-        || Some(stream.len() as u64) != m["stream"]["bytes"].as_u64()
+    if crate::hex(&hasher.finalize()) != m["stream"]["sha256"].as_str().unwrap_or("")
+        || Some(total) != m["stream"]["bytes"].as_u64()
     {
         return Err(Refusal::new(
             "REREAD_MISMATCH",
             "persisted stream identity differs",
         ));
     }
+    let parsed = parser
+        .finish()
+        .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
     if let Some(h) = m.get("header").filter(|h| !h.is_null()) {
         let bytes = objects.get_bounded(&Descriptor::from_json(h)?, MAX_PAGE_BYTES)?;
         let stored: Value = serde_json::from_slice(&bytes).map_err(storage)?;
-        let first = std::str::from_utf8(&stream)
-            .ok()
-            .and_then(|t| t.lines().find(|l| !l.trim().is_empty()))
-            .and_then(|l| serde_json::from_str::<Value>(l).ok());
-        if first.as_ref() != Some(&stored) {
+        if stored != json!({"workflow": parsed.header}) {
             return Err(Refusal::new(
                 "REREAD_MISMATCH",
                 "persisted producer receipt differs from the stream",
@@ -354,8 +423,8 @@ pub fn reread(objects: &Objects, d: &Descriptor, expected: &Value) -> Result<Rec
             }
         }
     }
-    let receipt =
-        verify(&raw, &stream).map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    let receipt = verify_stream(&raw, parsed)
+        .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
     if serde_json::to_value(&receipt).expect("receipt") != m["verification"]["receipt"] {
         return Err(Refusal::new(
             "REREAD_MISMATCH",
@@ -474,5 +543,29 @@ mod tests {
         assert_eq!(parts.concat(), stream.as_bytes());
         assert!(parts.iter().all(|p| p.ends_with(b"\n")));
         assert!(parts.iter().all(|p| p.len() <= CHUNK_BYTES));
+    }
+
+    #[test]
+    fn line_packing_matches_the_in_memory_split() {
+        // Short lines, an over-long line and a final line without a break.
+        let mut stream = Vec::new();
+        for k in 0..40 {
+            stream.extend(vec![b'a' + (k % 26) as u8; 300_000 + k * 7919]);
+            stream.push(b'\n');
+        }
+        stream.extend(vec![b'z'; CHUNK_BYTES + 5]);
+        stream.push(b'\n');
+        stream.extend(b"tail");
+        let mut packed: Vec<Vec<u8>> = Vec::new();
+        let mut buffer: Vec<u8> = Vec::new();
+        for line in stream.split_inclusive(|b| *b == b'\n') {
+            if !buffer.is_empty() && buffer.len() + line.len() > CHUNK_BYTES {
+                packed.push(std::mem::take(&mut buffer));
+            }
+            buffer.extend_from_slice(line);
+        }
+        packed.push(buffer);
+        let reference: Vec<Vec<u8>> = chunks(&stream).into_iter().map(<[u8]>::to_vec).collect();
+        assert_eq!(packed, reference);
     }
 }

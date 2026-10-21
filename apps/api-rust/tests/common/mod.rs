@@ -250,10 +250,29 @@ impl Api {
         let _ = stream.read_to_end(&mut raw);
         let text = String::from_utf8_lossy(&raw).into_owned();
         let status: u16 = text.split_whitespace().nth(1).unwrap().parse().unwrap();
-        let body = text.split_once("\r\n\r\n").map(|(_, b)| b).unwrap_or("");
+        let (head, body) = text.split_once("\r\n\r\n").unwrap_or((&text, ""));
+        // Large responses use chunked transfer encoding.
+        let body = if head
+            .to_ascii_lowercase()
+            .contains("transfer-encoding: chunked")
+        {
+            let mut out = String::new();
+            let mut rest = body;
+            while let Some((size, tail)) = rest.split_once("\r\n") {
+                let n = usize::from_str_radix(size.trim(), 16).unwrap_or(0);
+                if n == 0 || tail.len() < n + 2 {
+                    break;
+                }
+                out.push_str(&tail[..n]);
+                rest = &tail[n + 2..];
+            }
+            out
+        } else {
+            body.to_string()
+        };
         Response {
             status,
-            body: serde_json::from_str(body).unwrap_or(Value::Null),
+            body: serde_json::from_str(&body).unwrap_or(Value::Null),
         }
     }
     pub fn get(&self, path: &str) -> Response {

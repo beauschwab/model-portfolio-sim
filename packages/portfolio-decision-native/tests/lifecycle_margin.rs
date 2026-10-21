@@ -124,3 +124,23 @@ fn research_im_refuses_without_a_recomputation_or_a_live_sensitivity() {
         "{err}"
     );
 }
+
+#[test]
+fn the_large_tier_is_explicit() {
+    // An unknown tier refuses; the explicit tier runs the same economics and records itself.
+    let mut v = research(true);
+    v["scale_tier"] = json!("unbounded");
+    let err = execute(&v).unwrap_err();
+    assert!(err.contains("UNSUPPORTED_POLICY"), "{err}");
+    v["scale_tier"] = json!("acceptance_60000");
+    let (tiered, _) = execute(&v).unwrap();
+    let (plain, _) = execute(&research(true)).unwrap();
+    assert_eq!(tiered["scale_tier"], "acceptance_60000");
+    assert!(plain.get("scale_tier").is_none());
+    assert_eq!(tiered["journals"], plain["journals"]);
+    // Without the tier a request above 8 MiB refuses before any financial work.
+    let mut big = research(true);
+    big["plan"]["note"] = json!("x".repeat(9 * 1024 * 1024));
+    let err = execute(&big).unwrap_err();
+    assert!(err.contains("BOUND_EXCEEDED"), "{err}");
+}

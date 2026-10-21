@@ -21,7 +21,11 @@ fn main() {
                 .get("request")
                 .and_then(|r| r.get("schema"))
                 .and_then(Value::as_str)
-                .is_some_and(|s| s == "saved-derivative-mixed-1" || s == "saved-hedge-mixed-1")
+                .is_some_and(|s| {
+                    s == "saved-derivative-mixed-1"
+                        || s == "saved-hedge-mixed-1"
+                        || s == "liquidity-lifecycle-1"
+                })
                 && value
                     .get("request")
                     .and_then(|r| r.get("scale_tier"))

@@ -313,7 +313,7 @@ fn an_allocation_is_validated_only_after_exact_replay_and_independent_verificati
 /// The unwind with an offsetting receiver under `research-sensitivity-im-1`, recomputed on the
 /// termination date, and the dated backbook loan replicated to `n` positions (each funded by
 /// opening equity, in both the backbook and the plan account).
-fn research_scaled(n: usize) -> serde_json::Value {
+fn research_scaled(n: usize, tier: bool) -> serde_json::Value {
     use serde_json::json;
     let mut v: serde_json::Value = serde_json::from_str(REQUEST).unwrap();
     for l in v["plan"]["lots"].as_array_mut().unwrap() {
@@ -388,36 +388,52 @@ fn research_scaled(n: usize) -> serde_json::Value {
         + added;
     d["specification"]["accounts"][0]["equity"] = json!(equity);
     v["plan"]["accounts"][0]["equity"] = json!(equity);
+    if tier {
+        v["scale_tier"] = json!("acceptance_60000");
+    }
     v
 }
 
 /// Stage I scale harness: the research-IM unwind through the whole service at increasing backbook
 /// sizes, recording the producer's measured peak RSS, input, stream bytes and wall time. Sizes
-/// come from `WORKBENCH_SCALE_POSITIONS` (comma separated; default `1,64`). Every run must verify
-/// and publish; a size beyond the 8 MiB lifecycle request bound must be refused at admission.
+/// come from `WORKBENCH_SCALE_POSITIONS` (comma separated; default `1,64`); a `t` suffix
+/// (`60000t`) selects the explicit `acceptance_60000` tier. Every run must verify and publish;
+/// without the tier a size beyond the 8 MiB request bound must be refused at admission and one
+/// beyond the 256 MiB stream bound must publish nothing.
 #[test]
 fn research_im_runs_record_measured_resources_at_each_scale() {
     let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
         eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; scale harness skipped");
         return;
     };
-    let sizes: Vec<usize> = std::env::var("WORKBENCH_SCALE_POSITIONS")
+    let sizes: Vec<(usize, bool)> = std::env::var("WORKBENCH_SCALE_POSITIONS")
         .unwrap_or_else(|_| "1,64".into())
         .split(',')
-        .map(|s| s.trim().parse().unwrap())
+        .map(|s| {
+            let s = s.trim();
+            match s.strip_suffix('t') {
+                Some(n) => (n.parse().unwrap(), true),
+                None => (s.parse().unwrap(), false),
+            }
+        })
         .collect();
     let backend = backends().remove(0);
     let env = Env::new(backend, "scale");
     std::fs::copy(&exe, &env.ledger).unwrap();
     env.ready();
     let api = env.api();
-    for n in &sizes {
-        let body = serde_json::to_vec(&research_scaled(*n)).unwrap();
+    for &(n, tier) in &sizes {
+        let body = serde_json::to_vec(&research_scaled(n, tier)).unwrap();
         let head = api.get("/native/revisions/head").body["revision"]
             .as_i64()
             .unwrap();
-        let admitted = api.submit(head, Some(&format!("scale-{n}")), &body, Some("1800"));
-        if body.len() > portfolio_verification_native::MAX_REQUEST_BYTES {
+        let admitted = api.submit(
+            head,
+            Some(&format!("scale-{n}-{tier}")),
+            &body,
+            Some("1800"),
+        );
+        if !tier && body.len() > portfolio_verification_native::MAX_REQUEST_BYTES {
             assert_eq!(admitted.status, 413, "{n}: {}", admitted.body);
             eprintln!(
                 "SCALE positions={n} input_bytes={} refused=request_bound",
@@ -473,9 +489,150 @@ fn research_im_runs_record_measured_resources_at_each_scale() {
             .body;
         assert!(lifecycle["total"].as_u64().unwrap() > 0);
         eprintln!(
-            "SCALE positions={n} input_bytes={} stream_bytes={} peak_rss_bytes={} worker_peak_rss_bytes={} rss_method={} wall_ms={} transactions_verified={} journal_rows={total}",
+            "SCALE positions={n} tier={tier} input_bytes={} stream_bytes={} peak_rss_bytes={} worker_peak_rss_bytes={} rss_method={} wall_ms={} transactions_verified={} journal_rows={total}",
             r["input_bytes"], r["stream_bytes"], r["peak_rss_bytes"], r["worker_lifetime_peak_rss_bytes"], r["rss_method"], r["wall_ms"],
             view["result"]["receipt"]["transactions_verified"]
         );
     }
+}
+
+fn spool_files(job: &str) -> Vec<std::path::PathBuf> {
+    std::fs::read_dir(std::env::temp_dir().join("workbench-native-spool"))
+        .map(|d| {
+            d.filter_map(Result::ok)
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.starts_with(job))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn files_with_extension(dir: &std::path::Path, ext: &str, out: &mut Vec<std::path::PathBuf>) {
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            files_with_extension(&path, ext, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some(ext) {
+            out.push(path);
+        }
+    }
+}
+
+/// Flips one byte in place: the file keeps its length, so only its checksum can catch it.
+fn flip(path: &std::path::Path) {
+    let mut bytes = std::fs::read(path).unwrap();
+    let k = bytes.len() / 2;
+    bytes[k] ^= 0x01;
+    std::fs::write(path, bytes).unwrap();
+}
+
+/// The large tier under failure (#51): cancellation and the original deadline stop a running
+/// producer, a stream chunk changed between publication and its persisted reread publishes
+/// nothing, and a published page changed afterwards refuses to page. Set
+/// `WORKBENCH_SCALE_FAULTS` to the backbook size (it runs with `acceptance_60000`); needs the
+/// `fault-injection` feature for the reread pause.
+#[test]
+fn the_large_tier_refuses_cancellation_deadline_and_tamper_at_scale() {
+    let (Ok(exe), Ok(n)) = (
+        std::env::var("WORKBENCH_TEST_LEDGER_EXE"),
+        std::env::var("WORKBENCH_SCALE_FAULTS"),
+    ) else {
+        eprintln!("WORKBENCH_TEST_LEDGER_EXE or WORKBENCH_SCALE_FAULTS not set; skipped");
+        return;
+    };
+    if !workbench_native::fault::ENABLED {
+        eprintln!("built without fault-injection; skipped");
+        return;
+    }
+    let n: usize = n.parse().unwrap();
+    let body = serde_json::to_vec(&research_scaled(n, true)).unwrap();
+    let env = Env::new(backends().remove(0), "scale-faults");
+    std::fs::copy(&exe, &env.ledger).unwrap();
+    env.ready();
+    let api = env.api();
+    let job = |id: &str| api.get(&format!("/native/jobs/{id}")).body;
+    let submit = |key: &str, deadline: &str| {
+        let head = api.get("/native/revisions/head").body["revision"]
+            .as_i64()
+            .unwrap();
+        api.submit(head, Some(key), &body, Some(deadline)).body["job_id"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+
+    // 1. A stream chunk changed after it is written and before the persisted reread.
+    let id = submit("tamper-chunk", "1800");
+    let w = env.worker(&[("WORKBENCH_FAULT_REREAD_MS", "4000")]);
+    wait_for("reread", Duration::from_secs(1800), || {
+        job(&id)["progress"]["stage"] == "rereading"
+    });
+    let mut chunks = Vec::new();
+    files_with_extension(&env.artifacts, "bin", &mut chunks);
+    assert!(!chunks.is_empty());
+    flip(&chunks[chunks.len() / 2]);
+    let log = finish(w, Duration::from_secs(1800));
+    let view = job(&id);
+    assert_eq!(view["published"], false, "{log}\n{view}");
+    assert_ne!(view["status"], "native_done", "{view}");
+    assert!(spool_files(&id).is_empty(), "the spool is removed");
+    eprintln!("SCALE_FAULT positions={n} chunk_tamper={}", view["detail"]);
+
+    // 2. Cancellation while the producer runs.
+    let id = submit("cancel", "1800");
+    let w = env.worker(&[]);
+    wait_for("native", Duration::from_secs(600), || {
+        job(&id)["progress"]["stage"] == "native"
+    });
+    let r = api.call("POST", &format!("/native/jobs/{id}/cancel"), &[], b"");
+    assert_eq!(r.body["cancelled"], true);
+    let log = finish(w, Duration::from_secs(600));
+    let view = job(&id);
+    assert_eq!(view["status"], "native_cancelled", "{log}\n{view}");
+    assert_eq!(view["published"], false);
+    assert!(spool_files(&id).is_empty(), "the spool is removed");
+    eprintln!("SCALE_FAULT positions={n} cancelled=true");
+
+    // 3. The original deadline passes while the producer runs.
+    let id = submit("deadline", "3");
+    let log = finish(env.worker(&[]), Duration::from_secs(600));
+    let view = job(&id);
+    assert_eq!(view["published"], false, "{log}\n{view}");
+    assert!(
+        view["detail"]
+            .as_str()
+            .is_some_and(|d| d.contains("DEADLINE")),
+        "{view}"
+    );
+    assert!(spool_files(&id).is_empty(), "the spool is removed");
+    eprintln!("SCALE_FAULT positions={n} deadline={}", view["detail"]);
+
+    // 4. A clean run publishes; a published page changed afterwards refuses to page.
+    let id = submit("clean", "1800");
+    let log = finish(env.worker(&[]), Duration::from_secs(1800));
+    let view = job(&id);
+    assert_eq!(view["status"], "native_done", "{log}\n{view}");
+    assert_eq!(view["result"]["receipt"]["verified"], true);
+    let first = api.get(&format!("/native/jobs/{id}/tables/journal?limit=1"));
+    assert_eq!(first.status, 200);
+    let manifest = api.get(&format!("/native/jobs/{id}/manifest")).body;
+    let journal = manifest["tables"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["table"] == "journal")
+        .unwrap();
+    let page = &journal["segments"][0]["pages"][0]["object"]["key"];
+    let path = env.artifacts.join(page.as_str().unwrap());
+    flip(&path);
+    let after = api.get(&format!("/native/jobs/{id}/tables/journal?limit=1"));
+    assert_ne!(after.status, 200, "{}", after.body);
+    eprintln!(
+        "SCALE_FAULT positions={n} clean_stream_bytes={} page_tamper={}",
+        view["result"]["resources"]["stream_bytes"], after.body
+    );
 }

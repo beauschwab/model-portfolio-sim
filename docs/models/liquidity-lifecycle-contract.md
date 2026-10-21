@@ -513,10 +513,81 @@ Tests:
 - `apps/api-rust/tests/live.rs`: the scale harness. A size over the request bound must be refused,
   and one over the stream bound must publish nothing.
 
+### Large tier (`acceptance_60000`)
+
+A raw lifecycle request can select `"scale_tier": "acceptance_60000"`. Without it, every bound,
+byte and receipt is unchanged. With it:
+
+| Limit | Default | Tier |
+|---|---|---|
+| Raw request | 8 MiB | 512 MiB (`POST /native/lifecycle/runs` only; any other tier value refuses) |
+| Producer stream | 256 MiB | 16 GiB |
+| One stream line | 256 MiB | 256 MiB |
+| Dated positions and work | 60,000 and 90 million | unchanged |
+
+The producer already streams its output, so the work is on the consuming side, and it applies to
+every run, not only the tier:
+- The worker spools the producer's stdout to a private temporary file as it arrives, hashing and
+  bounding it. The file is removed on every exit path, including cancellation and the deadline.
+- The independent verifier parses the stream incrementally (`stream::Parser`, `verify_reader`).
+  It keeps only lifecycle rows, lifecycle trial balance rows and lifecycle journal transactions,
+  so its memory follows lifecycle activity and one bounded line, not the backbook journal.
+- Publication reads the spool line by line. It packs whole lines into the same 4 MiB chunks as
+  before, which a test checks against the in-memory split, and pages tables as before.
+- The persisted reread hashes and parses each stored chunk in order. The stream is never held
+  whole.
+- The verifier binary reads `-` as standard input, so a producer can be piped straight into it.
+
+The tier changes no economics: the coordinator test checks that tiered and untiered journals are
+identical. The receipt records the tier.
+
+Two defects were found and fixed at this scale:
+- **Damaged objects.** Objects are content addressed, and the local store reused any existing
+  file without checking it. One damaged file therefore made every later run that produced the
+  same bytes fail with `artifact checksum mismatch`. A write now checks an existing object and
+  atomically restores a damaged one with its true bytes. A read of a damaged object still refuses.
+- **Chunked responses.** The test HTTP client did not decode chunked responses, which the server
+  uses above 32 KB.
+
+Measured on Windows 11 with release binaries; the decision binary is
+`962b9abd4642347081421d75a65453de735e4da2808c43ea613118da797d612c`. Each row was verified and
+published through the whole service, with the worker now streaming:
+
+| Backbook positions | Tier | Input | Stream | Journal rows | Producer peak RSS | Worker peak RSS | Producer wall |
+|---|---|---|---|---|---|---|---|
+| 512 | no | 0.51 MB | 22 MB | 65,580 | 58 MB | 43 MB (81 MB before streaming) | 1.2 s |
+| 7,000 | no | 6.9 MB | | | | | stopped: `STREAM_BOUND`, nothing published |
+| 7,000 | yes | 6.9 MB | 307 MB | 896,044 | 178 MB | 108 MB | 4.2 s |
+| 9,000 | no | 8.8 MB | | | | | refused at admission: 413 |
+| 9,000 | yes | 8.8 MB | 395 MB | 1,152,044 | 216 MB | 136 MB | 5.1 s |
+
+At 60,000 positions the request is 59 MB and the producer emits 2.67 GB in 34.8 s. Piped straight
+into the independent verifier (`portfolio-model-ledger < envelope | portfolio-lifecycle-verify raw -`),
+the whole run verifies in 40.0 s with nothing written to disk. That covers 1,576 stream lines and
+16 lifecycle intents and transactions. This machine had too little free disk for the whole
+service path at 60,000 positions: about 9 GB of spool, chunks and pages. That path runs in the
+`scale` CI job.
+
+Fault scenarios under the tier at 7,000 positions (`the_large_tier_refuses_cancellation_deadline_and_tamper_at_scale`,
+with the test-only `fault-injection` feature):
+
+| Scenario | Result |
+|---|---|
+| A stream chunk changed after publication wrote it and before the persisted reread | `STORAGE_ERROR: artifact checksum mismatch`, nothing published, spool removed |
+| Cancellation while the producer runs | `native_cancelled`, nothing published, spool removed |
+| The original 3-second deadline passes while the producer runs | `DEADLINE_EXPIRED`, nothing published, spool removed |
+| A published journal page changed afterwards | paging refuses with `STORAGE_ERROR: artifact checksum mismatch` |
+
+The `scale` CI job (`.github/workflows/native-service.yml`) runs the ladder `6000,7000,7000t,60000t`
+and the fault scenarios at 20,000 positions on a Linux runner, and prints a `SCALE` line per run.
+On Linux the producer's peak RSS is a sampled lower bound.
+
 Not in stage I:
 - complete 60,000-position acceptance with active mixed owners and graph, credit and solver
-  activity in the same run. The lifecycle route is bounded by its 8 MiB request and 256 MiB stream,
-  and needs the hash-referenced streamed transport of the hedge acceptance tier.
+  activity in the same run. The lifecycle tier runs 60,000 dated backbook positions with active
+  research IM, terminations, financing and facilities. The dated backbook is performing only:
+  credit and graph owners belong to other routes, and the allocation solver replays packages at
+  the default bounds.
 - ISDA SIMM, CCP and provider methods, and calibrated risk weights or correlations.
 - curve sensitivity of the floating projection.
 - VM thresholds under recomputed IM.
