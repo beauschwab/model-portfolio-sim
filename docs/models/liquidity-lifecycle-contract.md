@@ -565,8 +565,8 @@ At 60,000 positions the request is 59 MB and the producer emits 2.67 GB in 34.8 
 into the independent verifier (`portfolio-model-ledger < envelope | portfolio-lifecycle-verify raw -`),
 the whole run verifies in 40.0 s with nothing written to disk. That covers 1,576 stream lines and
 16 lifecycle intents and transactions. This machine had too little free disk for the whole
-service path at 60,000 positions: about 9 GB of spool, chunks and pages. That path runs in the
-`scale` CI job.
+service path at 60,000 positions: about 9 GB of spool, chunks and pages. The `scale` CI job below
+ran that path.
 
 Fault scenarios under the tier at 7,000 positions (`the_large_tier_refuses_cancellation_deadline_and_tamper_at_scale`,
 with the test-only `fault-injection` feature):
@@ -580,7 +580,32 @@ with the test-only `fault-injection` feature):
 
 The `scale` CI job (`.github/workflows/native-service.yml`) runs the ladder `6000,7000,7000t,60000t`
 and the fault scenarios at 20,000 positions on a Linux runner, and prints a `SCALE` line per run.
-On Linux the producer's peak RSS is a sampled lower bound.
+
+Its results at commit `e3e7690` (#121). There were two independent runs, GitHub Actions jobs
+119030927554 and 119030920093, both on `ubuntu-latest` with a release producer built in the job:
+
+| Backbook positions | Tier | Input | Stream | Journal rows | Producer peak RSS | Worker peak RSS | Producer wall |
+|---|---|---|---|---|---|---|---|
+| 6,000 | no | 5.9 MB | 263 MB | 768,044 | 173 to 174 MB | 96 to 97 MB | 4.7 to 5.4 s |
+| 7,000 | no | 6.9 MB | | | | | stopped: `STREAM_BOUND`, nothing published |
+| 7,000 | yes | 6.9 MB | 307 MB | 896,044 | 196 to 199 MB | 110 to 111 MB | 5.6 to 6.3 s |
+| 60,000 | yes | 59 MB | 2.67 GB | 7,680,044 | 1.55 GB | 880 MB | 97 to 102 s |
+
+Each 60,000-position run went through the whole service. The worker spooled and independently
+verified the stream, then wrote and reread every chunk and page and published. The four-row ladder
+took about 250 s per job. Free disk went from 104 GB to 102 GB.
+
+On Linux the producer's peak RSS is a sampled `VmHWM`, so it is a lower bound. The worker's figure
+is its own lifetime peak, read exactly at result time. It covers verification and publication, and
+grows with the accumulated journal dictionary and table segmentation.
+
+The same jobs repeated the four fault scenarios at 20,000 positions under the tier, with an 887 MB
+clean stream. Each one refused exactly as at 7,000 positions:
+- the chunk tamper and the page tamper with `artifact checksum mismatch`;
+- cancellation with `native_cancelled`;
+- the deadline with `DEADLINE_EXPIRED`.
+
+Nothing was published in any refused case.
 
 Not in stage I:
 - complete 60,000-position acceptance with active mixed owners and graph, credit and solver
