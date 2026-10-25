@@ -24,6 +24,7 @@ pub use cut_shape::{
 mod compatibility_tests;
 mod consumer_hooks;
 mod derivative_hooks;
+mod lifecycle_hooks;
 mod mortgage_hooks;
 use crate::reports::closing as report;
 #[derive(Clone, Copy)]
@@ -307,6 +308,8 @@ struct Sim<'a> {
     source_portfolio_cursors: Vec<usize>,
     derivatives: Option<&'a crate::owners::derivatives::Compiled<'a>>,
     derivative_state: Option<crate::owners::derivatives::Runtime>,
+    lifecycle: Option<&'a crate::owners::lifecycle::Compiled<'a>>,
+    lifecycle_state: Option<crate::owners::lifecycle::Runtime>,
     commercials: Option<&'a crate::owners::commercial::intents::Compiled<'a>>,
     commercial_state: Option<crate::owners::commercial::intents::Runtime>,
     margin_targets: HashMap<usize, Vec<(usize, f64)>>,
@@ -358,6 +361,7 @@ impl<'a> Sim<'a> {
         deposit_revisions: Option<&'a [crate::owners::deposits::revision::Revision]>,
         source_principals: Option<DepositPrincipalOwner<'a>>,
         derivatives: Option<&'a crate::owners::derivatives::Compiled<'a>>,
+        lifecycle: Option<&'a crate::owners::lifecycle::Compiled<'a>>,
         commercials: Option<&'a crate::owners::commercial::intents::Compiled<'a>>,
     ) -> R<Self> {
         let dated_state = dated
@@ -370,6 +374,9 @@ impl<'a> Sim<'a> {
         let n = spec.positions.len();
         let derivative_state = derivatives
             .map(|c| crate::owners::derivatives::Runtime::new(c, &scenario.name))
+            .transpose()?;
+        let lifecycle_state = lifecycle
+            .map(|c| crate::owners::lifecycle::Runtime::new(c, &scenario.name))
             .transpose()?;
         let consumer_state = consumers
             .map(|c| {
@@ -483,6 +490,8 @@ impl<'a> Sim<'a> {
             },
             derivatives,
             derivative_state,
+            lifecycle,
+            lifecycle_state,
             commercials,
             commercial_state: commercials.map(crate::owners::commercial::intents::Runtime::new),
             margin_targets: HashMap::new(),
@@ -659,6 +668,7 @@ impl<'a> Sim<'a> {
             || self.deposit_revisions.is_some()
             || self.source_principals.is_some()
             || self.derivatives.is_some()
+            || self.lifecycle.is_some()
             || self.dated.is_some_and(|s| s.acquisitions.is_some()))
             && self
                 .accounts
@@ -741,6 +751,7 @@ impl<'a> Sim<'a> {
                 }
             }
             e.extend(self.derivative_opening(a)?);
+            e.extend(self.lifecycle_opening(a)?);
             self.raw_post(0, a, "opening", e)?;
         }
         self.deposit_revision()?;
@@ -753,6 +764,7 @@ impl<'a> Sim<'a> {
         self.dated_settlements(0)?;
         self.source_principal_day(0)?;
         self.derivative_events(0)?;
+        self.lifecycle_events(0)?;
         if self.dated.is_some() || self.commercials.is_some() {
             self.close_day(0)
         } else {
@@ -969,6 +981,7 @@ impl<'a> Sim<'a> {
         }
         self.mortgage_expected(&mut expected)?;
         self.derivative_expected(&mut expected)?;
+        self.lifecycle_expected(&mut expected)?;
         self.commercial_expected(&mut expected)?;
         self.commercial_snapshots(day)?;
         for (k, v) in &self.gl {
@@ -1026,6 +1039,9 @@ impl<'a> Sim<'a> {
             liabilities += commercial_liabilities;
             assets += derivative_assets;
             liabilities += derivative_liabilities;
+            let (lifecycle_assets, lifecycle_liabilities) = self.lifecycle_gross(ai)?;
+            assets += lifecycle_assets;
+            liabilities += lifecycle_liabilities;
             let (
                 mut rwa,
                 mut hqla,
@@ -2802,6 +2818,7 @@ impl Sim<'_> {
             self.dated_settlements(day)?;
             self.source_principal_day(day)?;
             self.derivative_events(day)?;
+            self.lifecycle_events(day)?;
             if let Some(source) = self.streamed_flows {
                 for f in source.day(day, &self.spec.positions) {
                     self.cashflow(day, f)?;
@@ -3119,6 +3136,7 @@ fn run_internal(
         source_principals,
         derivatives,
         None,
+        None,
         output,
     )
 }
@@ -3132,6 +3150,7 @@ fn run_internal_selected(
     deposit_revisions: Option<&[crate::owners::deposits::revision::Revision]>,
     source_principals: Option<DepositPrincipalOwner<'_>>,
     derivatives: Option<&crate::owners::derivatives::Compiled<'_>>,
+    lifecycle: Option<&crate::owners::lifecycle::Compiled<'_>>,
     commercials: Option<&crate::owners::commercial::intents::Compiled<'_>>,
     output: Box<dyn Write + Send>,
 ) -> R<()> {
@@ -3186,6 +3205,7 @@ fn run_internal_selected(
             deposit_revisions,
             source_principals,
             derivatives,
+            lifecycle,
             commercials,
         )?
         .run_days()?;
@@ -3205,6 +3225,7 @@ fn run_internal_selected(
                 deposit_revisions,
                 source_principals,
                 derivatives,
+                lifecycle,
                 commercials,
             )?
             .run_days()?;
@@ -3275,6 +3296,28 @@ pub fn run_dated_with_derivatives(
     )
 }
 
+/// Native lifecycle acquisition intents (issue #44) adopted by the existing Sim: one opening,
+/// exclusive event owners and the shared GL. No derivative or other native owner joins here.
+pub fn run_dated_with_lifecycle(
+    dated: &crate::replay::dated::CompiledDatedLedger,
+    lifecycle: &crate::owners::lifecycle::Compiled<'_>,
+    output: Box<dyn Write + Send>,
+) -> R<()> {
+    run_internal_selected(
+        &dated.spec,
+        None,
+        Some(dated),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(lifecycle),
+        None,
+        output,
+    )
+}
+
 /// Two sealed native owners share the existing cash, GL and chronological Sim.
 /// The coordinator must admit aggregate source/replay budgets before either projection.
 pub fn run_dated_with_source_portfolio_and_derivatives(
@@ -3318,6 +3361,7 @@ pub fn run_with_commercial(
         spec,
         None,
         dated,
+        None,
         None,
         None,
         None,

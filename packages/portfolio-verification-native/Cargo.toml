@@ -1,0 +1,18 @@
+[package]
+name = "portfolio-verification-native"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Independent Rust verification of liquidity lifecycle sources and persisted journals"
+
+# This crate must never depend on a production financial crate: no Risk pricers, Decision
+# preparation or Ledger replay construct its expected values. The boundary is enforced by a test.
+[dependencies]
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["float_roundtrip"] }
+sha2 = "=0.10.9"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

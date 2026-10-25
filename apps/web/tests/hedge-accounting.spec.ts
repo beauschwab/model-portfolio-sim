@@ -9,6 +9,8 @@ test('hedge accounting designates, replays, pages and reopens a stored run',asyn
   const lower=panel.getByLabel('Assessment lower bound',{exact:true});
   await expect(lower).toHaveValue('0.8');
   await lower.fill('0.79');
+  await panel.getByLabel('ASC 815 disclosure tables',{exact:true}).check();
+  await expect(panel.getByLabel('Reporting date',{exact:true})).toHaveValue('2024-04-01');
   await expect(panel.getByLabel('Instrument fvh-1',{exact:true})).toHaveValue('swap-fvh');
   await expect(panel.getByLabel('Inception cfh-1',{exact:true})).toHaveValue('2024-02-01');
   await panel.getByRole('button',{name:'Run hedge accounting',exact:true}).click();
@@ -20,6 +22,10 @@ test('hedge accounting designates, replays, pages and reopens a stored run',asyn
   await panel.getByRole('tab',{name:'Basis and OCI',exact:true}).click();
   await expect(panel.getByRole('tabpanel')).toContainText('cfh-1');
   await expect(panel.getByRole('link',{name:'Download Parquet',exact:true})).toBeVisible();
+  await panel.getByRole('tab',{name:'Cash-flow hedge AOCI',exact:true}).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('expected reclassification within twelve months');
+  await panel.getByRole('tab',{name:'Hedge earnings',exact:true}).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('fair value hedge');
   const id=await panel.getByLabel('Stored hedge job',{exact:true}).inputValue();
   await page.reload();await page.getByRole('button',{name:'Open Hedge Accounting',exact:true}).click();
   const reopened=page.getByRole('region',{name:'Hedge Accounting',exact:true});

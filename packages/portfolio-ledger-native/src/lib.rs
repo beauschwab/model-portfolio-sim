@@ -21,6 +21,7 @@ pub use owners::deposits::revision as deposit_revision;
 pub use owners::deposits::source_portfolio as deposit_source_portfolio;
 pub use owners::deposits::source_principal as deposit_source_principal;
 pub use owners::derivatives as derivative_intent_owner;
+pub use owners::lifecycle as lifecycle_intent_owner;
 pub use owners::mortgages::pending as mortgage_pending_owner;
 pub use owners::product_events as product_event_owner;
 pub use replay::credit as credit_replay;

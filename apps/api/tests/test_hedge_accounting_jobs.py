@@ -74,3 +74,19 @@ def test_hedge_job_survives_worker_loss_with_its_original_deadline(durable):
     retry=db.REPO.claim(db.WORKER);assert retry['id']==jid and retry['attempt']==2
     assert db.CODEC.load(retry['request'])['args'][0]['publication_deadline_unix']==budget
     worker.execute(retry);row=db.REPO.job(jid);assert row['status']=='done',row['detail']
+
+
+def test_hedge_disclosure_tables_publish_as_verified_parquet(durable):
+    raw=json.loads((ROOT/'examples/models/hedge-accounting-1.json').read_text())
+    nodes=raw['derivative']['derivative']['operation']['request']['paths'][0]['nodes']
+    raw['disclosure_policy']=dict(identity=dict(id='disclosure-policy',revision='r1'),reporting_ordinal=nodes[70]['ordinal'])
+    submitted=model_routes.submit(model_routes.ModelRunRequest(schema_name=raw['schema'],request=raw,expected_revision=0))
+    db.WORKER='hedge-test-worker';worker.STOP.clear();assert db.REPO.acquire(db.WORKER)
+    job=db.REPO.claim(db.WORKER);worker.execute(job);row=db.REPO.job(submitted.id);assert row['status']=='done',row['detail']
+    saved=db.CODEC.load(db.result_ref(submitted.id));layouts=saved['execution']['table_layouts']
+    for table in ('derivative_fair_values','earnings','fair_value_hedged_items','cash_flow_hedge_aoci'):
+        assert f'/disclosures/{table}' in layouts
+    from app.model_tables import restore_sources
+    result=restore_sources(saved['model_result'],layouts)
+    assert result['disclosures']['reporting_ordinal']==nodes[70]['ordinal']
+    assert result['disclosures']['cash_flow_hedge_aoci'][0]['relationship_id']=='cfh-1'

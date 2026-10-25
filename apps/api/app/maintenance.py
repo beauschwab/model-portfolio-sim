@@ -77,7 +77,7 @@ def collect(repo, objects, *, grace_seconds=7*86400, apply=False, offline=False,
         with repo.engine.connect() as conn:
             lease = conn.execute(sa.select(r.workspaces.c.lease_until).where(repo.scoped(r.workspaces))).scalar_one()
             active = conn.execute(sa.select(sa.func.count()).select_from(r.jobs).where(repo.scoped(r.jobs),
-                r.jobs.c.status.in_(['running', 'queued']))).scalar_one()
+                r.jobs.c.status.in_(['running', 'queued', 'native_running', 'native_queued']))).scalar_one()
             if lease > time.time() or active: raise RuntimeError('workspace has a worker lease or active jobs')
     live = reachable(repo, objects)
     cutoff = time.time() - grace_seconds

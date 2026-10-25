@@ -492,6 +492,7 @@ dependencies = [
  "portfolio-ledger-native",
  "portfolio-model-core",
  "portfolio-risk-native",
+ "portfolio-verification-native",
  "serde",
  "serde_json",
  "sha2",
@@ -526,6 +527,15 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "portfolio-verification-native"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

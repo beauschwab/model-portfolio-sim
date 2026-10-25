@@ -1,0 +1,127 @@
+{
+ "schema": "liquidity-plan-1",
+ "actions": [
+  {
+   "action_id": "unwind",
+   "kind": "unwind",
+   "trade_ordinal": 738886,
+   "effective_ordinal": 738887,
+   "settlement_ordinal": 738887,
+   "lots": [
+    {
+     "lot_id": "bond-lot",
+     "quantity": 100.0
+    },
+    {
+     "lot_id": "swap-lot",
+     "quantity": 100.0
+    }
+   ],
+   "policy": {
+    "id": "unwind-policy",
+    "revision": "r1"
+   },
+   "accounting_treatment": "economic"
+  }
+ ],
+ "instructions": {
+  "facility_draws": [
+   {
+    "facility_id": "bridge",
+    "ordinal": 738887,
+    "amount": 95.0,
+    "instruction_id": "draw"
+   }
+  ],
+  "repayments": [
+   {
+    "lot_id": "repo-lot",
+    "repayment_ordinal": 738887,
+    "principal": 95.0,
+    "accrued_interest": 0.0,
+    "break_cost": 0.0,
+    "consent": {
+     "id": "repo-consent",
+     "revision": "r1"
+    },
+    "pledge_releases": [
+     {
+      "pledge_id": "bond-to-repo",
+      "quantity": 100.0
+     }
+    ],
+    "instruction_id": "repay-repo",
+    "depends_on": [
+     "draw"
+    ]
+   }
+  ],
+  "sales": [
+   {
+    "lot_id": "bond-lot",
+    "quantity": 100.0,
+    "quote": {
+     "id": "bond-bid",
+     "revision": "r1"
+    },
+    "trade_ordinal": 738886,
+    "settlement_ordinal": 738887,
+    "clean_price_per_100": 100.0,
+    "accrued_interest": 0.0,
+    "fees": 0.0,
+    "mechanism": "delivery_versus_payment",
+    "instruction_id": "sell-bond",
+    "depends_on": [
+     "release:bond-to-repo:738887"
+    ]
+   }
+  ],
+  "facility_repayments": [
+   {
+    "facility_id": "bridge",
+    "ordinal": 738887,
+    "amount": 95.0,
+    "instruction_id": "repay-bridge",
+    "depends_on": [
+     "sell-bond"
+    ]
+   }
+  ],
+  "terminations": [
+   {
+    "lot_id": "swap-lot",
+    "agreement_id": "swap-csa",
+    "effective_ordinal": 738887,
+    "settlement_ordinal": 738887,
+    "consideration": {
+     "kind": "model_clean_value"
+    },
+    "fees": 0.0,
+    "consent": {
+     "id": "swap-consent",
+     "revision": "r1"
+    },
+    "instruction_id": "terminate-swap"
+   }
+  ],
+  "initial_margin": [
+   {
+    "agreement_id": "swap-csa",
+    "portfolio_lot_ids": [],
+    "ordinal": 738887,
+    "posted_requirement": 0.0,
+    "received_requirement": 0.0,
+    "review": {
+     "id": "im-review",
+     "revision": "r1"
+    }
+   }
+  ]
+ },
+ "hedge_treatments": {
+  "bond-hedge": "terminate"
+ },
+ "funding_instructions": {
+  "repo-funds-bond": "repay"
+ }
+}

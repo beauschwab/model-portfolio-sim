@@ -21,7 +21,11 @@ fn main() {
                 .get("request")
                 .and_then(|r| r.get("schema"))
                 .and_then(Value::as_str)
-                .is_some_and(|s| s == "saved-derivative-mixed-1" || s == "saved-hedge-mixed-1")
+                .is_some_and(|s| {
+                    s == "saved-derivative-mixed-1"
+                        || s == "saved-hedge-mixed-1"
+                        || s == "liquidity-lifecycle-1"
+                })
                 && value
                     .get("request")
                     .and_then(|r| r.get("scale_tier"))
@@ -228,6 +232,16 @@ fn main() {
                     let compiled =
                         CompiledDatedLedger::compile(prepared.dated_request, 60000, 90000000)?;
                     daily::run_dated(compiled, Box::new(output))
+                }
+                Some("liquidity-allocation-1") => {
+                    use portfolio_decision_native::workflows::lifecycle::allocation;
+                    let bytes = serde_json::to_vec(request).map_err(|e| e.to_string())?;
+                    allocation::run(&bytes, Box::new(io::stdout())).map(|_| ())
+                }
+                Some("liquidity-lifecycle-1") => {
+                    use portfolio_decision_native::workflows::lifecycle::acquisition;
+                    let bytes = serde_json::to_vec(request).map_err(|e| e.to_string())?;
+                    acquisition::run(&bytes, Box::new(io::stdout())).map(|_| ())
                 }
                 Some("driven-credit-ledger-1") => {
                     use portfolio_ledger_native::{credit_path_replay, driven_credit};

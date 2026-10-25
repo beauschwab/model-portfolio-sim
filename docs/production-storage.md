@@ -352,3 +352,29 @@ specification, policy, bridge audit tables and source receipt persist with the
 result. Failed verification/cancellation follows the existing no-publication gate.
 `capital_bridge`, `rwa_contributions` and `ftp_preparation` are also eligible for
 optional Iceberg delivery. This adds no new database schema or mutable source store.
+
+## Rust workbench service (`apps/api-rust`, issue #47)
+
+`workbench-native` serves `liquidity-lifecycle-1` runs over the same database and object store
+(see [the stage E contract](models/liquidity-lifecycle-contract.md)). It reads the variables
+above (`DATABASE_URL`, `ARTIFACT_URL`, `S3_ENDPOINT_URL`, `WORKBENCH_TENANT_ID`,
+`WORKBENCH_WORKSPACE_ID`, `WORKBENCH_API_TOKEN`, `WORKBENCH_ENV`, `WORKBENCH_LEASE_SECONDS`) plus
+`PORTFOLIO_MODEL_LEDGER_EXE` (the native producer), `WORKBENCH_NATIVE_BIND` (default
+`127.0.0.1:8003`), `WORKBENCH_ALLOWED_ORIGIN` (the one browser origin allowed, behind the
+same-origin gateway) and `WORKBENCH_NATIVE_DEADLINE_SECONDS` (default 900, at most 3600). S3
+needs a build with `--features s3` and the usual AWS credential variables.
+
+Cutover is per workspace and explicit:
+
+1. Stop the Python worker for the workspace and let its queue drain.
+2. `workbench-native admin migrate` (additive Rust tables; the shared schema stays version 2).
+3. `workbench-native admin cutover --to rust`. It refuses while legacy jobs are queued or running or
+   a legacy lease is live.
+4. Start `workbench-native worker` and `workbench-native api`.
+
+While a workspace is routed to Rust, the Python worker refuses its lease, so legacy jobs wait.
+Return with `admin cutover --to legacy` after the native queue drains and the Rust worker stops.
+`admin init` creates a native-only workspace in an empty database; its revisions hold native
+snapshots, which the Python service does not read. Offline object collection (`app.maintenance`)
+counts native active jobs and keeps every object a native job or publication references, because
+job requests and results carry the same descriptors.

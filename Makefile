@@ -1,5 +1,5 @@
 # Rates Workbench monorepo
-.PHONY: install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test build build-native check-architecture
+.PHONY: install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test build build-native check-architecture check-native-service
 
 install:            ## python (editable) + node deps
 	uv sync --project apps/api
@@ -46,3 +46,8 @@ build-native:       ## required production financial runtime (HiGHS stays C++)
 
 build: build-native ## production native runtime and web build
 	cd apps/web && bun run build
+
+check-native-service: ## Rust service: fmt, clippy, process tests (no Python)
+	cargo fmt --manifest-path apps/api-rust/Cargo.toml -- --check
+	cargo clippy --locked --manifest-path apps/api-rust/Cargo.toml --all-targets --features s3,fault-injection -- -D warnings
+	cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features fault-injection

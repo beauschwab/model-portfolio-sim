@@ -217,9 +217,19 @@ class Repository:
         with self.engine.connect() as conn:
             return [dict(r) for r in conn.execute(query).mappings()]
 
+    def routed_to_native(self, conn):
+        """A workspace cut over to the Rust worker (apps/api-rust worker_routes) is not ours."""
+        if not sa.inspect(conn).has_table('worker_routes'):
+            return False
+        engine = conn.execute(sa.text('SELECT engine FROM worker_routes WHERE tenant = :t AND workspace = :w'),
+                              {'t': self.identity['tenant'], 'w': self.identity['workspace']}).scalar_one_or_none()
+        return engine == 'rust'
+
     def acquire(self, owner, seconds=60):
         now = time.time()
         with self.engine.begin() as conn:
+            if self.routed_to_native(conn):
+                return False
             result = conn.execute(workspaces.update().where(self.scoped(workspaces),
                 sa.or_(workspaces.c.lease_until < now, workspaces.c.owner == owner))
                 .values(owner=owner, lease_until=now + seconds))

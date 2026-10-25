@@ -1,0 +1,571 @@
+//! Bounded, checksummed publication objects for one verified native stream, and their
+//! bounded reopen. Objects are written before anything references them; the manifest is then
+//! reread, every stream chunk and table page is reread and checked, and the reread stream is
+//! verified independently again before the final SQL transaction may reference the manifest.
+//!
+//! Stream chunks keep the producer's bytes verbatim (`bin`), so persisted verification replays
+//! exactly what was produced. Table pages (`json`) are bounded views for paging; they are
+//! formatting only and never feed verification.
+use crate::objects::{Descriptor, Objects};
+use crate::repo::Claim;
+use crate::Refusal;
+use portfolio_verification_native::{
+    admit_request, stream::Parser, stream_bound, verify_stream, Receipt, MAX_LINE_BYTES,
+    MAX_TIER_REQUEST_BYTES,
+};
+use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
+use std::io::{BufRead, BufReader, Read};
+
+pub const MANIFEST_SCHEMA: &str = "native-lifecycle-publication-1";
+pub const ALLOCATION_SCHEMA: &str = "native-allocation-publication-1";
+pub const CHUNK_BYTES: usize = 4 * 1024 * 1024;
+pub const PAGE_ROWS: usize = 1000;
+pub const MAX_MANIFEST_BYTES: u64 = 16 * 1024 * 1024;
+pub const MAX_PAGE_BYTES: u64 = 32 * 1024 * 1024;
+pub const MAX_PAGE_LIMIT: usize = 1000;
+/// Dictionary-encoded columns of the native columnar journal batch.
+pub const JOURNAL_DICTIONARY_COLUMNS: [&str; 5] = [
+    "scenario",
+    "account",
+    "event",
+    "gl_account",
+    "instrument_id",
+];
+
+fn storage(e: impl std::fmt::Display) -> Refusal {
+    Refusal::new("STORAGE_ERROR", e.to_string())
+}
+
+#[cfg(test)]
+fn chunks(stream: &[u8]) -> Vec<&[u8]> {
+    // Whole lines, at most CHUNK_BYTES each unless a single line is longer.
+    let mut out = Vec::new();
+    let mut start = 0;
+    while start < stream.len() {
+        let limit = (start + CHUNK_BYTES).min(stream.len());
+        let end = if limit == stream.len() {
+            limit
+        } else {
+            match stream[start..limit].iter().rposition(|b| *b == b'\n') {
+                Some(p) => start + p + 1,
+                None => stream[limit..]
+                    .iter()
+                    .position(|b| *b == b'\n')
+                    .map_or(stream.len(), |p| limit + p + 1),
+            }
+        };
+        out.push(&stream[start..end]);
+        start = end;
+    }
+    out
+}
+
+fn put_json(objects: &Objects, value: &Value) -> Result<Descriptor, Refusal> {
+    Ok(objects.put(&serde_json::to_vec(value).expect("JSON serializes"), "json")?)
+}
+
+fn segment(objects: &Objects, table: &str, offset: usize, line: &Value) -> Result<Value, Refusal> {
+    if let Some(rows) = line.get("rows").and_then(Value::as_array) {
+        let mut pages = Vec::new();
+        for (k, page) in rows.chunks(PAGE_ROWS).enumerate() {
+            let d = put_json(objects, &json!({"table": table, "rows": page}))?;
+            pages.push(json!({"offset": offset + k * PAGE_ROWS, "rows": page.len(), "object": d.to_json()}));
+        }
+        return Ok(json!({"offset": offset, "rows": rows.len(), "layout": "rows", "pages": pages}));
+    }
+    let columns = line
+        .get("columns")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            Refusal::new(
+                "STREAM_LAYOUT",
+                format!("table `{table}` has neither rows nor columns"),
+            )
+        })?;
+    let count = columns
+        .values()
+        .next()
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    if columns
+        .values()
+        .any(|c| c.as_array().map(Vec::len) != Some(count))
+    {
+        return Err(Refusal::new(
+            "STREAM_LAYOUT",
+            format!("table `{table}` columns differ in length"),
+        ));
+    }
+    let dictionary = match line.get("dictionary") {
+        Some(d) => Some(put_json(objects, &json!({"table": table, "dictionary": d}))?.to_json()),
+        None => None,
+    };
+    let starts: Vec<usize> = if count == 0 {
+        vec![0]
+    } else {
+        (0..count).step_by(PAGE_ROWS).collect()
+    };
+    let mut pages = Vec::new();
+    for start in starts {
+        let end = (start + PAGE_ROWS).min(count);
+        let slice: Map<String, Value> = columns
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    Value::Array(v.as_array().expect("column")[start..end].to_vec()),
+                )
+            })
+            .collect();
+        let d = put_json(objects, &json!({"table": table, "columns": slice}))?;
+        pages.push(json!({"offset": offset + start, "rows": end - start, "object": d.to_json()}));
+    }
+    Ok(
+        json!({"offset": offset, "rows": count, "layout": "columns", "dictionary": dictionary, "pages": pages}),
+    )
+}
+
+/// Packs whole stream lines into chunks of at most CHUNK_BYTES (a longer line is its own chunk),
+/// keeping every byte, exactly as `chunks` splits a stream held in memory.
+struct Chunker<'a> {
+    objects: &'a Objects,
+    buffer: Vec<u8>,
+    refs: Vec<Value>,
+}
+impl Chunker<'_> {
+    fn push(&mut self, line: &[u8]) -> Result<(), Refusal> {
+        if !self.buffer.is_empty() && self.buffer.len() + line.len() > CHUNK_BYTES {
+            self.flush()?;
+        }
+        self.buffer.extend_from_slice(line);
+        Ok(())
+    }
+    fn flush(&mut self) -> Result<(), Refusal> {
+        if !self.buffer.is_empty() {
+            let d = self.objects.put(&self.buffer, "bin")?;
+            self.refs.push(d.to_json());
+            self.buffer.clear();
+        }
+        Ok(())
+    }
+}
+
+/// Writes every object, then the manifest; returns the manifest descriptor and its value. The
+/// stream is read once, line by line, so memory is bounded by one line and one chunk.
+pub fn write(
+    objects: &Objects,
+    claim: &Claim,
+    raw: &[u8],
+    stream: &mut dyn Read,
+    receipt: &Receipt,
+    verified_request: Option<&Descriptor>,
+) -> Result<(Descriptor, Value), Refusal> {
+    let mut chunker = Chunker {
+        objects,
+        buffer: Vec::new(),
+        refs: Vec::new(),
+    };
+    let mut hasher = Sha256::new();
+    let mut total = 0u64;
+    let mut tables: Vec<(String, Vec<Value>, usize)> = Vec::new();
+    let mut header: Option<Descriptor> = None;
+    let mut lines = 0usize;
+    let mut reader = BufReader::with_capacity(1 << 20, stream);
+    let mut raw_line = Vec::new();
+    loop {
+        raw_line.clear();
+        let n = (&mut reader)
+            .take(MAX_LINE_BYTES as u64 + 2)
+            .read_until(b'\n', &mut raw_line)
+            .map_err(storage)?;
+        if n == 0 {
+            break;
+        }
+        if raw_line.len() > MAX_LINE_BYTES + 1 {
+            return Err(Refusal::new(
+                "STREAM_LAYOUT",
+                "a stream line exceeds its bound",
+            ));
+        }
+        total += n as u64;
+        hasher.update(&raw_line);
+        chunker.push(&raw_line)?;
+        let body = raw_line.strip_suffix(b"\n").unwrap_or(&raw_line);
+        let body = body.strip_suffix(b"\r").unwrap_or(body);
+        let line = std::str::from_utf8(body)
+            .map_err(|_| Refusal::new("STREAM_LAYOUT", "stream is not UTF-8"))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        lines += 1;
+        let value: Value =
+            serde_json::from_str(line).map_err(|e| Refusal::new("STREAM_LAYOUT", e.to_string()))?;
+        if let Some(w) = value.get("workflow") {
+            // The verified producer receipt, for views that read it without the whole stream.
+            header = Some(put_json(objects, &json!({"workflow": w}))?);
+            continue;
+        }
+        let Some(table) = value.get("table").and_then(Value::as_str) else {
+            continue;
+        };
+        let position = tables.iter().position(|(t, _, _)| t == table);
+        let index = match position {
+            Some(i) => i,
+            None => {
+                tables.push((table.to_string(), Vec::new(), 0));
+                tables.len() - 1
+            }
+        };
+        let offset = tables[index].2;
+        let seg = segment(objects, table, offset, &value)?;
+        tables[index].2 += seg["rows"].as_u64().unwrap_or(0) as usize;
+        tables[index].1.push(seg);
+    }
+    chunker.flush()?;
+    let chunk_refs = chunker.refs;
+    let a = &claim.authority;
+    let manifest = json!({
+        "schema": MANIFEST_SCHEMA,
+        "job_id": claim.job_id,
+        "attempt": claim.attempt,
+        "source": {
+            "schema": a.schema, "raw": verified_request.unwrap_or(&a.raw).to_json(), "admitted_revision": a.admitted_revision,
+            "admitted_at": a.admitted_at, "deadline_at": a.deadline_at, "authority_sha256": claim.authority_sha256,
+        },
+        "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
+        "verification": {"verifier": a.verifier, "receipt": serde_json::to_value(receipt).expect("receipt")},
+        "header": header.map(|d| d.to_json()),
+        "stream": {"bytes": total, "sha256": crate::hex(&hasher.finalize()), "lines": lines, "chunks": chunk_refs},
+        "tables": tables.iter().map(|(t, segs, rows)| json!({"table": t, "rows": rows, "segments": segs})).collect::<Vec<_>>(),
+        "raw_sha256": crate::sha256_hex(raw),
+    });
+    let d = put_json(objects, &manifest)?;
+    Ok((d, manifest))
+}
+
+/// An allocation publication: the producer's allocation receipt, whether the plan is validated
+/// (exact replay passed and its stream verified independently) and, if so, the inner lifecycle
+/// publication of that replay.
+pub fn write_allocation(
+    objects: &Objects,
+    claim: &Claim,
+    receipt: &Value,
+    validated: bool,
+    lifecycle: Option<&Descriptor>,
+) -> Result<(Descriptor, Value), Refusal> {
+    let a = &claim.authority;
+    let allocation = put_json(objects, &json!({"allocation": receipt}))?;
+    let manifest = json!({
+        "schema": ALLOCATION_SCHEMA,
+        "job_id": claim.job_id,
+        "attempt": claim.attempt,
+        "source": {
+            "schema": a.schema, "raw": a.raw.to_json(), "admitted_revision": a.admitted_revision,
+            "admitted_at": a.admitted_at, "deadline_at": a.deadline_at, "authority_sha256": claim.authority_sha256,
+        },
+        "producer": {"executable_name": a.executable_name, "executable_sha256": a.executable_sha256},
+        "allocation": allocation.to_json(),
+        "validated": validated,
+        "lifecycle": lifecycle.map(Descriptor::to_json),
+    });
+    let d = put_json(objects, &manifest)?;
+    Ok((d, manifest))
+}
+
+/// Rereads an allocation publication and, when it carries one, its inner lifecycle publication.
+pub fn reread_allocation(
+    objects: &Objects,
+    d: &Descriptor,
+    expected: &Value,
+    inner: Option<&Value>,
+) -> Result<(), Refusal> {
+    let m = load_any(objects, d)?;
+    if &m != expected {
+        return Err(Refusal::new(
+            "REREAD_MISMATCH",
+            "reread allocation manifest differs",
+        ));
+    }
+    objects.get_bounded(&Descriptor::from_json(&m["allocation"])?, MAX_PAGE_BYTES)?;
+    match (m.get("lifecycle").filter(|v| !v.is_null()), inner) {
+        (Some(l), Some(value)) => {
+            reread(objects, &Descriptor::from_json(l)?, value)?;
+        }
+        (None, None) => {}
+        _ => {
+            return Err(Refusal::new(
+                "REREAD_MISMATCH",
+                "allocation lifecycle publication differs",
+            ))
+        }
+    }
+    Ok(())
+}
+
+/// Either publication manifest.
+pub fn load_any(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let bytes = objects.get_bounded(d, MAX_MANIFEST_BYTES)?;
+    let m: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+    if m["schema"] != MANIFEST_SCHEMA && m["schema"] != ALLOCATION_SCHEMA {
+        return Err(Refusal::new(
+            "STORAGE_ERROR",
+            "unsupported publication manifest",
+        ));
+    }
+    Ok(m)
+}
+
+/// The lifecycle publication behind a manifest: itself, or a validated allocation's replay.
+pub fn lifecycle_of(objects: &Objects, d: &Descriptor) -> Result<Descriptor, Refusal> {
+    let m = load_any(objects, d)?;
+    if m["schema"] == MANIFEST_SCHEMA {
+        return Ok(d.clone());
+    }
+    match m.get("lifecycle").filter(|v| !v.is_null()) {
+        Some(l) => Descriptor::from_json(l).map_err(Refusal::from),
+        None => Err(Refusal::new(
+            "NOT_PUBLISHED",
+            "this allocation has no validated plan to show",
+        )),
+    }
+}
+
+/// The allocation receipt of an allocation publication, with its validated flag.
+pub fn allocation(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let m = load_any(objects, d)?;
+    if m["schema"] != ALLOCATION_SCHEMA {
+        return Err(Refusal::new("NOT_FOUND", "this job is not an allocation"));
+    }
+    let bytes = objects.get_bounded(&Descriptor::from_json(&m["allocation"])?, MAX_PAGE_BYTES)?;
+    let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+    Ok(json!({"validated": m["validated"], "allocation": v["allocation"]}))
+}
+
+pub fn load_manifest(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let bytes = objects.get_bounded(d, MAX_MANIFEST_BYTES)?;
+    let m: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+    if m["schema"] != MANIFEST_SCHEMA {
+        return Err(Refusal::new(
+            "STORAGE_ERROR",
+            "unsupported publication manifest",
+        ));
+    }
+    Ok(m)
+}
+
+/// Rereads everything the manifest references from storage, checks every checksum and the
+/// stream identity, and verifies the reread raw input and stream independently again. The
+/// reread receipt must equal the one the manifest records.
+pub fn reread(objects: &Objects, d: &Descriptor, expected: &Value) -> Result<Receipt, Refusal> {
+    let m = load_manifest(objects, d)?;
+    if &m != expected {
+        return Err(Refusal::new(
+            "REREAD_MISMATCH",
+            "reread manifest differs from the written manifest",
+        ));
+    }
+    let raw_d = Descriptor::from_json(&m["source"]["raw"])?;
+    let raw = objects.get_bounded(&raw_d, MAX_TIER_REQUEST_BYTES as u64)?;
+    let (_, tier) =
+        admit_request(&raw).map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    let bound = stream_bound(tier);
+    // Every chunk is reread, hashed and parsed in order; the stream is never held whole.
+    let mut parser = Parser::new(bound);
+    let mut hasher = Sha256::new();
+    let mut total = 0u64;
+    for c in m["stream"]["chunks"]
+        .as_array()
+        .ok_or_else(|| Refusal::new("STORAGE_ERROR", "chunks missing"))?
+    {
+        let cd = Descriptor::from_json(c)?;
+        if total + cd.bytes > bound {
+            return Err(Refusal::new(
+                "STORAGE_ERROR",
+                "persisted stream exceeds its bound",
+            ));
+        }
+        let bytes = objects.get_bounded(&cd, (CHUNK_BYTES + MAX_LINE_BYTES) as u64)?;
+        total += bytes.len() as u64;
+        hasher.update(&bytes);
+        parser
+            .bytes(&bytes)
+            .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    }
+    if crate::hex(&hasher.finalize()) != m["stream"]["sha256"].as_str().unwrap_or("")
+        || Some(total) != m["stream"]["bytes"].as_u64()
+    {
+        return Err(Refusal::new(
+            "REREAD_MISMATCH",
+            "persisted stream identity differs",
+        ));
+    }
+    let parsed = parser
+        .finish()
+        .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    if let Some(h) = m.get("header").filter(|h| !h.is_null()) {
+        let bytes = objects.get_bounded(&Descriptor::from_json(h)?, MAX_PAGE_BYTES)?;
+        let stored: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+        if stored != json!({"workflow": parsed.header}) {
+            return Err(Refusal::new(
+                "REREAD_MISMATCH",
+                "persisted producer receipt differs from the stream",
+            ));
+        }
+    }
+    for table in m["tables"].as_array().into_iter().flatten() {
+        for seg in table["segments"].as_array().into_iter().flatten() {
+            if let Some(dict) = seg.get("dictionary").filter(|v| !v.is_null()) {
+                objects.get_bounded(&Descriptor::from_json(dict)?, MAX_PAGE_BYTES)?;
+            }
+            for page in seg["pages"].as_array().into_iter().flatten() {
+                objects.get_bounded(&Descriptor::from_json(&page["object"])?, MAX_PAGE_BYTES)?;
+            }
+        }
+    }
+    let receipt = verify_stream(&raw, parsed)
+        .map_err(|e| Refusal::new("PERSISTED_VERIFICATION_REFUSED", e))?;
+    if serde_json::to_value(&receipt).expect("receipt") != m["verification"]["receipt"] {
+        return Err(Refusal::new(
+            "REREAD_MISMATCH",
+            "persisted verification receipt differs",
+        ));
+    }
+    Ok(receipt)
+}
+
+/// The verified producer receipt of a publication (its workflow header).
+pub fn receipt(objects: &Objects, d: &Descriptor) -> Result<Value, Refusal> {
+    let m = load_manifest(objects, d)?;
+    let h = m
+        .get("header")
+        .filter(|h| !h.is_null())
+        .ok_or_else(|| Refusal::new("NOT_FOUND", "this publication has no producer receipt"))?;
+    let bytes = objects.get_bounded(&Descriptor::from_json(h)?, MAX_PAGE_BYTES)?;
+    serde_json::from_slice(&bytes).map_err(storage)
+}
+
+/// One bounded page of a published table: only the pages overlapping the window are read.
+pub fn page(
+    objects: &Objects,
+    d: &Descriptor,
+    table: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<Value, Refusal> {
+    if !(1..=MAX_PAGE_LIMIT).contains(&limit) {
+        return Err(Refusal::new(
+            "MALFORMED_INPUT",
+            "limit must be within [1, 1000]",
+        ));
+    }
+    let m = load_manifest(objects, d)?;
+    let entry = m["tables"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|t| t["table"] == table)
+        .ok_or_else(|| Refusal::new("NOT_FOUND", format!("table `{table}` is not published")))?;
+    let total = entry["rows"].as_u64().unwrap_or(0) as usize;
+    let end = (offset + limit).min(total);
+    let mut rows = Vec::new();
+    // The producer interns labels once per run: each segment stores only the entries added since
+    // the previous one, and its indices address the dictionary accumulated in segment order.
+    let mut accumulated: Vec<Value> = Vec::new();
+    for seg in entry["segments"].as_array().into_iter().flatten() {
+        let seg_start = seg["offset"].as_u64().unwrap_or(0) as usize;
+        if seg_start >= end {
+            break;
+        }
+        let dictionary = match seg.get("dictionary").filter(|v| !v.is_null()) {
+            Some(dd) if seg["layout"] == "columns" => {
+                let bytes = objects.get_bounded(&Descriptor::from_json(dd)?, MAX_PAGE_BYTES)?;
+                let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+                accumulated.extend(v["dictionary"].as_array().cloned().unwrap_or_default());
+                Some(&accumulated)
+            }
+            _ => None,
+        };
+        for p in seg["pages"].as_array().into_iter().flatten() {
+            let p_start = p["offset"].as_u64().unwrap_or(0) as usize;
+            let p_end = p_start + p["rows"].as_u64().unwrap_or(0) as usize;
+            if p_end <= offset || p_start >= end {
+                continue;
+            }
+            let bytes =
+                objects.get_bounded(&Descriptor::from_json(&p["object"])?, MAX_PAGE_BYTES)?;
+            let v: Value = serde_json::from_slice(&bytes).map_err(storage)?;
+            let lo = offset.max(p_start) - p_start;
+            let hi = end.min(p_end) - p_start;
+            if let Some(r) = v["rows"].as_array() {
+                rows.extend(r[lo..hi].iter().cloned());
+            } else if let Some(cols) = v["columns"].as_object() {
+                for k in lo..hi {
+                    let mut row = Map::new();
+                    for (name, col) in cols {
+                        let cell = col[k].clone();
+                        let decoded = match (
+                            &dictionary,
+                            table == "journal"
+                                && JOURNAL_DICTIONARY_COLUMNS.contains(&name.as_str()),
+                        ) {
+                            (Some(dict), true) => cell
+                                .as_u64()
+                                .and_then(|i| dict.get(i as usize))
+                                .cloned()
+                                .ok_or_else(|| {
+                                    Refusal::new(
+                                        "STORAGE_ERROR",
+                                        "journal dictionary index out of range",
+                                    )
+                                })?,
+                            _ => cell,
+                        };
+                        row.insert(name.clone(), decoded);
+                    }
+                    rows.push(Value::Object(row));
+                }
+            }
+        }
+    }
+    Ok(json!({"table": table, "offset": offset, "limit": limit, "total": total, "rows": rows}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn chunks_keep_whole_lines_and_every_byte() {
+        let line = "x".repeat(1024 * 1024) + "\n";
+        let stream = line.repeat(9);
+        let parts = chunks(stream.as_bytes());
+        assert!(parts.len() >= 3);
+        assert_eq!(parts.concat(), stream.as_bytes());
+        assert!(parts.iter().all(|p| p.ends_with(b"\n")));
+        assert!(parts.iter().all(|p| p.len() <= CHUNK_BYTES));
+    }
+
+    #[test]
+    fn line_packing_matches_the_in_memory_split() {
+        // Short lines, an over-long line and a final line without a break.
+        let mut stream = Vec::new();
+        for k in 0..40 {
+            stream.extend(vec![b'a' + (k % 26) as u8; 300_000 + k * 7919]);
+            stream.push(b'\n');
+        }
+        stream.extend(vec![b'z'; CHUNK_BYTES + 5]);
+        stream.push(b'\n');
+        stream.extend(b"tail");
+        let mut packed: Vec<Vec<u8>> = Vec::new();
+        let mut buffer: Vec<u8> = Vec::new();
+        for line in stream.split_inclusive(|b| *b == b'\n') {
+            if !buffer.is_empty() && buffer.len() + line.len() > CHUNK_BYTES {
+                packed.push(std::mem::take(&mut buffer));
+            }
+            buffer.extend_from_slice(line);
+        }
+        packed.push(buffer);
+        let reference: Vec<Vec<u8>> = chunks(&stream).into_iter().map(<[u8]>::to_vec).collect();
+        assert_eq!(packed, reference);
+    }
+}

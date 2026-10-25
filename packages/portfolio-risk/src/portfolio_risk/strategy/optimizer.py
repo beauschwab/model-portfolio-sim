@@ -36,8 +36,18 @@ import numpy as np
 from scipy.optimize import linprog
 
 
+UNIT_FIELDS = {"template", "h", "side", "kind"}
+UNIT_KINDS = {None, "mbs", "corp", "cd", "deposit", "swap"}
+
+
 def book_side(unit):
-    """Balance-sheet side: off-balance-sheet swap units are neither assets nor liabilities."""
+    """Balance-sheet side: off-balance-sheet swap units are neither assets nor liabilities.
+
+    A unit carries only the library's own fields and kinds. Formal hedge accounting
+    eligibility is never inferred from a strategy unit; it belongs to hedge-accounting-1.
+    """
+    if not set(unit) <= UNIT_FIELDS or unit.get("kind") not in UNIT_KINDS:
+        raise ValueError("strategy unit field or kind is not admitted; formal hedge accounting eligibility is prepared only by hedge-accounting-1")
     return 0.0 if unit.get("kind") == "swap" else unit["side"]
 
 

@@ -733,9 +733,34 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         }
         Ok(())
     };
+    let disclosure = r.disclosure_policy.as_ref();
+    // AOCI recognized/reclassified totals and retained balance after seasoned openings.
+    let oci_base: Vec<(f64, f64, f64)> = states
+        .iter()
+        .map(|st| {
+            (
+                st.oci_recognized,
+                st.oci_reclassified,
+                amount(st.oci + frozen_oci_left(st)),
+            )
+        })
+        .map(|(a, b, c)| c.map(|c| (a, b, c)))
+        .collect::<Result<_, _>>()?;
+    let mut fvh_attributed: BTreeMap<Account, f64> = BTreeMap::new();
+    let mut snapshot: Option<Snapshot> = None;
     for (k, node) in path.nodes.iter().enumerate() {
         portfolio_compute_control::checkpoint()?;
         let t = node.ordinal;
+        let fvh_shares: Vec<(usize, f64)> = r
+            .relationships
+            .iter()
+            .enumerate()
+            .filter(|(i, x)| {
+                x.designation == Designation::FairValueHedge
+                    && states[*i].status == Status::Qualified
+            })
+            .map(|(i, _)| (i, states[i].proportion))
+            .collect();
         // Status at the start of the node governs CFH mark ownership for this node.
         let cfh_shares: Vec<(usize, f64)> = r
             .relationships
@@ -801,6 +826,23 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
                         p.bucket.as_deref(),
                         None,
                     ));
+                }
+            }
+            if disclosure.is_some_and(|p| t <= p.reporting_ordinal) {
+                if let Some(mapped) = di.mapped_position_id.as_deref() {
+                    let share: f64 = fvh_shares
+                        .iter()
+                        .filter(|(i, _)| instruments(&r.relationships[*i]).any(|x| x == mapped))
+                        .map(|(_, v)| v)
+                        .sum();
+                    if share != 0. {
+                        for p in postings.iter().filter(|p| p.relationship_id.is_none()) {
+                            if earnings_account(p.account) {
+                                let v = fvh_attributed.entry(p.account).or_default();
+                                *v = amount(*v - p.debit_amount * share)?;
+                            }
+                        }
+                    }
                 }
             }
             let kind = di.event_id.split(':').next().unwrap_or("derivative");
@@ -2277,6 +2319,18 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             financial_trial_balance: Ledger::balances(&ledger.financial),
             custody_trial_balance: Ledger::balances(&ledger.memo),
         });
+        if disclosure.is_some_and(|p| p.reporting_ordinal == t) {
+            snapshot = Some(take_snapshot(
+                r,
+                &compiled.relationships,
+                &states,
+                &oci_base,
+                &lifecycle,
+                node,
+                &derivative.daily[k],
+                asof,
+            )?);
+        }
     }
     if cursor != derivative.intents.len() {
         return Err("derivative owner intents beyond the path tail".into());
@@ -2376,6 +2430,18 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
             return Err("hedge roll-forward does not reconcile retained balances".into());
         }
     }
+    let disclosures = match (disclosure, snapshot) {
+        (Some(policy), Some(snap)) => Some(disclosures(
+            policy,
+            snap,
+            &ledger.intents,
+            &fvh_attributed,
+            &r.relationships,
+            asof,
+        )?),
+        (None, _) => None,
+        (Some(_), None) => return Err("disclosure reporting node was not replayed".into()),
+    };
     Ok(HedgeAccountingResult {
         schema: SCHEMA.into(),
         model_version: MODEL_VERSION.into(),
@@ -2402,6 +2468,281 @@ pub(super) fn evaluate(r: &HedgeAccountingRequest) -> Result<HedgeAccountingResu
         asu_2025_09_selectable_rate_supported: true,
         asu_2025_09_swap_written_option_supported: true,
         seasoned_openings_supported: true,
+        disclosures,
         disclosure: "Reviewed modeled formal interest-rate hedge relationships on one Physical derivative source. Instrument marks, coupons, collateral and closeouts are owned once by the undesignated derivative owner and re-owned here under the selected designation; hedged-item benchmark basis, OCI, reclassification, amortization and derecognition follow the asc815-asu2017-12 rule matrix in docs/models/hedge-accounting.md with explicit reviewed assessment bounds. Under an explicit adopted ASU 2025-09 election the lane also replays similar-risk groups of forecast exposures (815-20-55-23A through 55-23D) and choose-your-rate liability debt elections (815-30-35-37I through 35-37M) prospectively, and designates a swap combined with a written cash-settled swaption of matching notional as one instrument without the net written option test (815-20-25-88); dual-hedge and nonfinancial elections remain refused. Relationships designated before the derivative opening date carry reviewed retained cumulative changes and basis/OCI balances posted once against opening equity. Under the adopted ASU 2022-01 portfolio-layer method, layers of a closed portfolio (bullet or amortizing) keep portfolio-level basis, and supplied observed balances and reviewed projections drive actual and anticipated breach dedesignation under the reviewed order. Not accounting-standard approval, observed effectiveness, net-investment, option or nonfinancial coverage or complete-scale acceptance; saved-book, shared-journal and capital adoption are separate explicit routes.".into(),
+    })
+}
+
+fn frozen_oci_left(st: &State) -> f64 {
+    st.frozen_oci.iter().map(|x| x.amount - x.released).sum()
+}
+/// Every mapped position forming the relationship's hedging instrument.
+fn instruments(rel: &Relationship) -> impl Iterator<Item = &str> {
+    std::iter::once(rel.hedging_instrument_position_id.as_str())
+        .chain(rel.written_option_position_id.as_deref())
+        .chain(
+            rel.additional_instrument_position_ids
+                .iter()
+                .map(String::as_str),
+        )
+}
+fn earnings_account(a: Account) -> bool {
+    matches!(
+        a,
+        Account::MarkGainLoss
+            | Account::ContractualIncome
+            | Account::CollateralInterestIncome
+            | Account::CounterpartyLossExpense
+            | Account::PostedCollateralReturnLossExpense
+            | Account::HedgedItemBasisGainLoss
+            | Account::HedgedItemBasisAmortization
+            | Account::HedgedItemBasisDerecognition
+            | Account::HedgedForecastReclassification
+    )
+}
+const TWELVE_MONTHS_DAYS: i32 = 365;
+/// Reporting-node balances; the period earnings are tallied from the journal afterwards.
+struct Snapshot {
+    derivative_fair_values: Vec<DerivativeFairValue>,
+    fair_value_hedged_items: Vec<FairValueHedgedItem>,
+    cash_flow_hedge_aoci: Vec<CashFlowHedgeAoci>,
+    maximum_forecast_horizon_days: Option<i32>,
+}
+/// Projected cash of `req` paying on `pay`, from the projections the request holds.
+fn projected_cash(req: &SwapRequest, pay: i32) -> Result<f64, String> {
+    swaps::value_swap(req)?
+        .schedule
+        .events
+        .iter()
+        .filter(|e| e.payment_ordinal == pay)
+        .try_fold(0., |a, e| amount(a + e.components.cash_total()?))
+}
+#[allow(clippy::too_many_arguments)]
+fn take_snapshot(
+    r: &HedgeAccountingRequest,
+    crs: &[CompiledRelationship],
+    states: &[State],
+    oci_base: &[(f64, f64, f64)],
+    lifecycle: &[LifecycleRecord],
+    node: &crate::products::derivatives::contract::csa::Node,
+    closing: &derivative_accounting::DailyClosing,
+    asof: i32,
+) -> Result<Snapshot, String> {
+    let t = node.ordinal;
+    let window = t + TWELVE_MONTHS_DAYS;
+    let mut derivative_fair_values = Vec::with_capacity(closing.trades.len());
+    for trade in &closing.trades {
+        let (mut fvh, mut cfh) = (0., 0.);
+        for (i, rel) in r.relationships.iter().enumerate() {
+            if states[i].status == Status::Qualified
+                && instruments(rel).any(|x| x == trade.mapped_position_id)
+            {
+                match rel.designation {
+                    Designation::FairValueHedge => fvh += states[i].proportion,
+                    Designation::CashFlowHedge => cfh += states[i].proportion,
+                }
+            }
+        }
+        let v = trade.clean_carrying;
+        let (fair_value_hedge, cash_flow_hedge) = (amount(v * fvh)?, amount(v * cfh)?);
+        derivative_fair_values.push(DerivativeFairValue {
+            position_id: trade.mapped_position_id.clone(),
+            fair_value: v,
+            fair_value_hedge,
+            cash_flow_hedge,
+            not_designated: amount(v - fair_value_hedge - cash_flow_hedge)?,
+        });
+    }
+    let mut fair_value_hedged_items = Vec::new();
+    let mut cash_flow_hedge_aoci = Vec::new();
+    let mut horizon: Option<i32> = None;
+    for (i, rel) in r.relationships.iter().enumerate() {
+        let (st, cr) = (&states[i], &crs[i]);
+        if rel.inception_ordinal > t && rel.opening.is_none() {
+            continue;
+        }
+        match rel.designation {
+            Designation::FairValueHedge => {
+                let item = &r.hedged_items[cr.item.ok_or("compiled item missing")?];
+                fair_value_hedged_items.push(FairValueHedgedItem {
+                    relationship_id: rel.relationship_id.clone(),
+                    hedged_item_id: item.item_id.clone(),
+                    status: st.status,
+                    designated_hedged_notional: rel
+                        .hedged_notional
+                        .map(|n| amount(n * st.scale))
+                        .transpose()?,
+                    live_basis_adjustment: st.basis,
+                    discontinued_basis_adjustment: st
+                        .frozen_basis
+                        .iter()
+                        .map(|x| x.amount - x.amortized)
+                        .sum(),
+                });
+            }
+            Designation::CashFlowHedge => {
+                let mut expected = 0.;
+                let mut latest: Option<i32> = None;
+                for (m, member) in cr.members.iter().enumerate() {
+                    let ms = &st.members[m];
+                    // Reclassifications already measured on an earlier date and deferred.
+                    for &(when, v) in &ms.deferred {
+                        if when > t && when <= window {
+                            expected = amount(expected + v)?;
+                        }
+                        if when > t {
+                            latest = latest.max(Some(when));
+                        }
+                    }
+                    if st.status != Status::Qualified {
+                        continue;
+                    }
+                    let (periods, hedged) = schedule(r, member, &ms.selected);
+                    for &q in hedged.iter().filter(|q| !ms.excluded.contains(q)) {
+                        let original = periods[q].payment_ordinal;
+                        if original <= t {
+                            continue;
+                        }
+                        let posts = ms.delays.get(&q).copied().unwrap_or(original);
+                        latest = latest.max(Some(posts));
+                        if posts > window {
+                            continue;
+                        }
+                        let settlement = if cr.matched {
+                            let req = node
+                                .trades
+                                .iter()
+                                .find_map(|x| match x {
+                                    Trade::Swap { request }
+                                        if request.position_id
+                                            == rel.hedging_instrument_position_id =>
+                                    {
+                                        Some(request)
+                                    }
+                                    _ => None,
+                                })
+                                .ok_or("hedging instrument absent from the reporting node")?;
+                            amount(rel.designated_proportion * projected_cash(req, original)?)?
+                        } else {
+                            let (req, _) = hypothetical(rel, cr, m, &ms.selected, t)?;
+                            projected_cash(req, original)?
+                        };
+                        expected = amount(expected + st.scale * settlement)?;
+                    }
+                }
+                for tranche in &st.frozen_oci {
+                    let open: Vec<&FrozenEntry> =
+                        tranche.entries.iter().filter(|e| !e.released).collect();
+                    let Some(last) = open.iter().map(|e| e.pay).max() else {
+                        continue;
+                    };
+                    latest = latest.max(Some(last));
+                    if last <= window {
+                        expected = amount(expected + tranche.amount - tranche.released)?;
+                    } else {
+                        for e in open.iter().filter(|e| e.pay <= window) {
+                            expected = amount(expected + tranche.amount * e.weight)?;
+                        }
+                    }
+                }
+                if st.status == Status::Qualified {
+                    if let Some(l) = latest {
+                        horizon = horizon.max(Some(l - t));
+                    }
+                }
+                let (recognized0, reclassified0, opening) = oci_base[i];
+                let not_occurring = lifecycle
+                    .iter()
+                    .filter(|x| {
+                        x.relationship_id == rel.relationship_id
+                            && x.ordinal > asof
+                            && x.ordinal <= t
+                            && matches!(
+                                x.reason.as_deref(),
+                                Some("forecast_probable_not_to_occur")
+                                    | Some("forecast_period_probable_not_to_occur")
+                            )
+                    })
+                    .try_fold(0., |a, x| amount(a + x.released_oci))?;
+                cash_flow_hedge_aoci.push(CashFlowHedgeAoci {
+                    relationship_id: rel.relationship_id.clone(),
+                    status: st.status,
+                    opening,
+                    recognized: amount(st.oci_recognized - recognized0)?,
+                    reclassified: amount(st.oci_reclassified - reclassified0)?,
+                    reclassified_forecast_not_occurring: not_occurring,
+                    closing: amount(st.oci + frozen_oci_left(st))?,
+                    expected_reclassification_within_twelve_months: expected,
+                    latest_hedged_payment_ordinal: latest,
+                });
+            }
+        }
+    }
+    Ok(Snapshot {
+        derivative_fair_values,
+        fair_value_hedged_items,
+        cash_flow_hedge_aoci,
+        maximum_forecast_horizon_days: horizon,
+    })
+}
+fn disclosures(
+    policy: &DisclosurePolicy,
+    snap: Snapshot,
+    intents: &[Intent],
+    fvh_attributed: &BTreeMap<Account, f64>,
+    relationships: &[Relationship],
+    asof: i32,
+) -> Result<Disclosures, String> {
+    let designation: BTreeMap<&str, Designation> = relationships
+        .iter()
+        .map(|x| (x.relationship_id.as_str(), x.designation))
+        .collect();
+    let mut lines: BTreeMap<(Account, HedgeType), f64> = BTreeMap::new();
+    for intent in intents
+        .iter()
+        .filter(|x| x.ordinal <= policy.reporting_ordinal)
+    {
+        for p in intent
+            .postings
+            .iter()
+            .filter(|p| earnings_account(p.account))
+        {
+            let kind = match p.relationship_id.as_deref().map(|x| designation[x]) {
+                Some(Designation::FairValueHedge) => HedgeType::FairValueHedge,
+                Some(Designation::CashFlowHedge) => HedgeType::CashFlowHedge,
+                None => HedgeType::NotDesignated,
+            };
+            let v = lines.entry((p.account, kind)).or_default();
+            *v = amount(*v - p.debit_amount)?;
+        }
+    }
+    for (&account, &v) in fvh_attributed {
+        let fvh = lines
+            .entry((account, HedgeType::FairValueHedge))
+            .or_default();
+        *fvh = amount(*fvh + v)?;
+        let not = lines
+            .entry((account, HedgeType::NotDesignated))
+            .or_default();
+        *not = amount(*not - v)?;
+    }
+    Ok(Disclosures {
+        policy: policy.identity.clone(),
+        period_start_ordinal: asof,
+        reporting_ordinal: policy.reporting_ordinal,
+        twelve_month_end_ordinal: policy.reporting_ordinal + TWELVE_MONTHS_DAYS,
+        derivative_fair_values: snap.derivative_fair_values,
+        earnings: lines
+            .into_iter()
+            .map(|((account, hedge_type), amount)| EarningsLine {
+                account,
+                hedge_type,
+                amount,
+            })
+            .collect(),
+        fair_value_hedged_items: snap.fair_value_hedged_items,
+        cash_flow_hedge_aoci: snap.cash_flow_hedge_aoci,
+        maximum_forecast_horizon_days: snap.maximum_forecast_horizon_days,
+        basis: "Period from the derivative opening to the reporting node. Earnings are credit-positive journal postings by line: a relationship's postings take its designation, and a derivative-owner earnings posting on a hedging instrument takes the share designated in fair-value hedges qualified at the start of its node. The twelve-month expectation uses the reporting node's projections of hedged-period settlements, deferred amounts already measured and scheduled frozen-OCI entries; it is an estimate, not later information. Hedged-item carrying amounts belong to the item owner and are not restated here.".into(),
     })
 }

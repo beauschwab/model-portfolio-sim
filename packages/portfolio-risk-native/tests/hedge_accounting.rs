@@ -1259,3 +1259,76 @@ fn hedged_item_maturity_derecognizes_the_remaining_basis_on_the_principal_date()
         assert!(run(&with_events(raw(), e)).is_err(), "{change} must reject");
     }
 }
+
+fn disclosed(v: &Value, at: i32) -> HedgeAccountingResult {
+    let mut v = v.clone();
+    v["disclosure_policy"] =
+        json!({"identity": {"id": "disclosure-policy", "revision": "r1"}, "reporting_ordinal": at});
+    run(&v).unwrap()
+}
+
+#[test]
+fn disclosure_tables_are_opt_in_and_reconcile_at_the_reporting_node() {
+    let base = run(&raw()).unwrap();
+    assert!(base.disclosures.is_none());
+    assert!(serde_json::to_value(&base)
+        .unwrap()
+        .get("disclosures")
+        .is_none());
+    let at = day(3, 11);
+    let result = disclosed(&raw(), at);
+    let d = result.disclosures.as_ref().unwrap();
+    assert_eq!(
+        (d.period_start_ordinal, d.reporting_ordinal),
+        (day(1, 1), at)
+    );
+    for row in &d.derivative_fair_values {
+        close(
+            row.fair_value_hedge + row.cash_flow_hedge + row.not_designated,
+            row.fair_value,
+        );
+    }
+    // Both swaps are fully designated and qualified at the reporting node.
+    for row in &d.derivative_fair_values {
+        close(row.not_designated, 0.);
+    }
+    let daily = result.daily.iter().find(|x| x.ordinal == at).unwrap();
+    for row in &d.cash_flow_hedge_aoci {
+        close(row.opening + row.recognized - row.reclassified, row.closing);
+        let x = daily
+            .relationships
+            .iter()
+            .find(|x| x.relationship_id == row.relationship_id)
+            .unwrap();
+        close(row.closing, x.oci_balance + x.frozen_oci_balance);
+        assert_eq!(row.latest_hedged_payment_ordinal, Some(day(4, 1)));
+    }
+    assert_eq!(d.maximum_forecast_horizon_days, Some(day(4, 1) - at));
+    // Every earnings posting up to the node is tabulated exactly once.
+    let mut total = 0.;
+    for i in result.intents.iter().filter(|i| i.ordinal <= at) {
+        for p in &i.postings {
+            if matches!(
+                p.account,
+                Account::MarkGainLoss
+                    | Account::HedgedItemBasisGainLoss
+                    | Account::HedgedForecastReclassification
+                    | Account::ContractualIncome
+                    | Account::CollateralInterestIncome
+            ) {
+                total -= p.debit_amount;
+            }
+        }
+    }
+    close(d.earnings.iter().map(|x| x.amount).sum(), total);
+}
+
+#[test]
+fn disclosure_policy_must_name_a_path_node_and_known_fields() {
+    let mut v = raw();
+    v["disclosure_policy"] =
+        json!({"identity": {"id": "d", "revision": "r1"}, "reporting_ordinal": day(5, 1)});
+    assert!(run(&v).unwrap_err().contains("path node"));
+    v["disclosure_policy"] = json!({"identity": {"id": "d", "revision": "r1"}, "reporting_ordinal": day(3, 1), "window_days": 365});
+    assert!(serde_json::from_value::<HedgeAccountingRequest>(v).is_err());
+}

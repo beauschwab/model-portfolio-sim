@@ -481,6 +481,9 @@ pub struct HedgeAccountingRequest {
     pub forecast_exposures: Vec<ForecastExposure>,
     pub relationships: Vec<Relationship>,
     pub events: Vec<Event>,
+    /// Opt-in ASC 815 disclosure tables at one reporting node. Absent: the historical result.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disclosure_policy: Option<DisclosurePolicy>,
 }
 
 /// Derivative owner accounts plus the formal hedge accounts, one journal.
@@ -750,4 +753,82 @@ pub struct HedgeAccountingResult {
     pub asu_2025_09_swap_written_option_supported: bool,
     pub seasoned_openings_supported: bool,
     pub disclosure: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disclosures: Option<Disclosures>,
+}
+
+/// Reviewed presentation policy for the ASC 815 disclosure tables and the reporting node they
+/// describe (a node of the derivative path). The period runs from the opening to that node.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DisclosurePolicy {
+    pub identity: Identity,
+    pub reporting_ordinal: i32,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HedgeType {
+    FairValueHedge,
+    CashFlowHedge,
+    NotDesignated,
+}
+/// 815-10-50-4B: derivative fair value at the reporting node by designation.
+#[derive(Debug, Clone, Serialize)]
+pub struct DerivativeFairValue {
+    pub position_id: String,
+    pub fair_value: f64,
+    pub fair_value_hedge: f64,
+    pub cash_flow_hedge: f64,
+    pub not_designated: f64,
+}
+/// 815-10-50-4A/4C: earnings recognized in the period by line and hedge type. Income is
+/// positive. Postings owned by a relationship take its designation; a derivative-owner earnings
+/// posting on a hedging instrument takes the share designated in qualified fair-value hedges at
+/// the start of its node, and the rest is not designated.
+#[derive(Debug, Clone, Serialize)]
+pub struct EarningsLine {
+    pub account: Account,
+    pub hedge_type: HedgeType,
+    pub amount: f64,
+}
+/// 815-10-50-4EE: cumulative basis adjustment of a fair-value hedged item at the reporting node.
+#[derive(Debug, Clone, Serialize)]
+pub struct FairValueHedgedItem {
+    pub relationship_id: String,
+    pub hedged_item_id: String,
+    pub status: Status,
+    pub designated_hedged_notional: Option<f64>,
+    pub live_basis_adjustment: f64,
+    pub discontinued_basis_adjustment: f64,
+}
+/// 815-30-50-1 and 220-10-45-14A: cash-flow hedge AOCI over the period.
+#[derive(Debug, Clone, Serialize)]
+pub struct CashFlowHedgeAoci {
+    pub relationship_id: String,
+    pub status: Status,
+    pub opening: f64,
+    pub recognized: f64,
+    pub reclassified: f64,
+    /// Part of `reclassified` released because a forecast became probable not to occur.
+    pub reclassified_forecast_not_occurring: f64,
+    pub closing: f64,
+    /// Reclassification expected in the twelve months after the reporting node: hedged periods
+    /// paying in that window at the node's projected settlements, measured deferred amounts and
+    /// scheduled frozen-OCI entries. No later information is used.
+    pub expected_reclassification_within_twelve_months: f64,
+    pub latest_hedged_payment_ordinal: Option<i32>,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct Disclosures {
+    pub policy: Identity,
+    pub period_start_ordinal: i32,
+    pub reporting_ordinal: i32,
+    pub twelve_month_end_ordinal: i32,
+    pub derivative_fair_values: Vec<DerivativeFairValue>,
+    pub earnings: Vec<EarningsLine>,
+    pub fair_value_hedged_items: Vec<FairValueHedgedItem>,
+    pub cash_flow_hedge_aoci: Vec<CashFlowHedgeAoci>,
+    /// 815-30-50-1(b): longest time from the reporting node to a hedged forecast payment.
+    pub maximum_forecast_horizon_days: Option<i32>,
+    pub basis: String,
 }

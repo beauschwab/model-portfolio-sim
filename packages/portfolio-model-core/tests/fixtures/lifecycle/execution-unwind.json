@@ -1,0 +1,87 @@
+{
+  "plan": {
+    "schema": "liquidity-lifecycle-1",
+    "model_version": "liquidity-lifecycle-1",
+    "workspace_revision": {"id": "workspace", "revision": "r7"},
+    "saved_book_revision": {"id": "saved-book", "revision": "r3"},
+    "entity": "synthetic-bank",
+    "currency": "USD",
+    "monetary_unit": "currency_units",
+    "as_of_ordinal": 738886,
+    "settlement_policy": {"id": "settlement-phases", "revision": "r1"},
+    "sources": [
+      {"source_id": "bond-source", "revision": "r1", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "measure": "physical"},
+      {"source_id": "repo-source", "revision": "r1", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "measure": "physical"},
+      {"source_id": "swap-source", "revision": "r1", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "measure": "physical"}
+    ],
+    "accounts": [{"account_id": "a", "cash": 0.0, "equity": 6.0}],
+    "lots": [
+      {"lot_id": "bond-lot", "position_id": "bond", "source_id": "bond-source", "account_id": "a", "kind": "security",
+       "accounting_category": "available_for_sale", "quantity": 100.0, "acquisition_ordinal": 738800,
+       "original_cost": 100.0, "original_effective_yield": 0.05, "original_oas": 0.0012},
+      {"lot_id": "repo-lot", "position_id": "repo", "source_id": "repo-source", "account_id": "a", "kind": "funding",
+       "accounting_category": "funding_liability", "quantity": 95.0, "acquisition_ordinal": 738850,
+       "original_cost": 95.0, "original_effective_yield": 0.04, "original_oas": 0.0},
+      {"lot_id": "swap-lot", "position_id": "swap", "source_id": "swap-source", "account_id": "a", "kind": "derivative",
+       "accounting_category": "derivative", "quantity": 100.0, "acquisition_ordinal": 738800,
+       "original_cost": -4.0, "original_effective_yield": 0.0, "original_oas": 0.0},
+      {"lot_id": "offset-lot", "position_id": "swap-offset", "source_id": "swap-source", "account_id": "a", "kind": "derivative",
+       "accounting_category": "derivative", "quantity": 100.0, "acquisition_ordinal": 738887,
+       "original_cost": 0.0, "original_effective_yield": 0.0, "original_oas": 0.0}
+    ],
+    "hedge_allocations": [
+      {"allocation_id": "bond-hedge", "exposure_lot_id": "bond-lot", "hedge_lot_id": "swap-lot", "amount": 100.0,
+       "risk_basis": "interest_rate", "effective_start_ordinal": 738800, "review": {"id": "hedge-review", "revision": "r1"},
+       "unwind_treatment": "terminate"}
+    ],
+    "funding_allocations": [
+      {"allocation_id": "repo-funds-bond", "funding_lot_id": "repo-lot", "attributed_lot_id": "bond-lot", "amount": 95.0,
+       "effective_start_ordinal": 738850, "instruction": "repay"}
+    ],
+    "pledges": [
+      {"pledge_id": "bond-to-repo", "lot_id": "bond-lot", "agreement_id": "repo-lot", "holder": "repo-dealer", "quantity": 100.0,
+       "eligibility": {"id": "repo-eligibility", "revision": "r1"}, "haircut": 0.05}
+    ],
+    "margin_agreements": [
+      {"agreement_id": "swap-csa", "counterparty": "dealer", "legal_review": {"id": "csa-review", "revision": "r1"},
+       "settlement_lag_days": 1, "initial_margin": "supplied_requirements", "segregation": "segregated",
+       "vm_at_termination": "return_separately", "calendar": {"id": "usd-calendar", "revision": "r1"},
+       "lot_ids": ["swap-lot", "offset-lot"],
+       "opening_collateral": {"posted_vm": 2.0, "received_vm": 0.0, "posted_im": 3.0, "received_im_custody": 0.0}}
+    ],
+    "facilities": [
+      {"facility_id": "bridge", "provider": "treasury-bank", "commitment": 95.0, "drawn": 0.0,
+       "access_policy": {"id": "bridge-access", "revision": "r1"}, "expiry_ordinal": 738950}
+    ],
+    "actions": [
+      {"action_id": "unwind", "kind": "unwind", "trade_ordinal": 738886, "effective_ordinal": 738887, "settlement_ordinal": 738887,
+       "lots": [{"lot_id": "bond-lot", "quantity": 100.0}, {"lot_id": "swap-lot", "quantity": 100.0}],
+       "policy": {"id": "unwind-policy", "revision": "r1"}, "accounting_treatment": "economic"}
+    ]
+  },
+  "execution": {
+    "scenario_id": "baseline",
+    "horizon_end_ordinal": 738890,
+    "facility_draws": [{"facility_id": "bridge", "ordinal": 738887, "amount": 95.0, "instruction_id": "draw"}],
+    "repayments": [
+      {"lot_id": "repo-lot", "repayment_ordinal": 738887, "principal": 95.0, "accrued_interest": 0.0, "break_cost": 0.0,
+       "consent": {"id": "repo-consent", "revision": "r1"}, "pledge_releases": [{"pledge_id": "bond-to-repo", "quantity": 100.0}],
+       "instruction_id": "repay-repo", "depends_on": ["draw"]}
+    ],
+    "sales": [
+      {"lot_id": "bond-lot", "quantity": 100.0, "quote": {"id": "bond-bid", "revision": "r1"}, "trade_ordinal": 738886,
+       "settlement_ordinal": 738887, "clean_price_per_100": 100.0, "accrued_interest": 0.0, "fees": 0.0,
+       "mechanism": "delivery_versus_payment", "instruction_id": "sell-bond", "depends_on": ["release:bond-to-repo:738887"]}
+    ],
+    "facility_repayments": [{"facility_id": "bridge", "ordinal": 738887, "amount": 95.0, "instruction_id": "repay-bridge", "depends_on": ["sell-bond"]}],
+    "terminations": [
+      {"lot_id": "swap-lot", "agreement_id": "swap-csa", "effective_ordinal": 738887, "settlement_ordinal": 738887,
+       "consideration": {"kind": "model_clean_value"}, "fees": 0.0, "consent": {"id": "swap-consent", "revision": "r1"},
+       "instruction_id": "terminate-swap"}
+    ],
+    "initial_margin": [
+      {"agreement_id": "swap-csa", "portfolio_lot_ids": [], "scenario_id": "baseline", "ordinal": 738887,
+       "posted_requirement": 0.0, "received_requirement": 0.0, "review": {"id": "im-review", "revision": "r1"}}
+    ]
+  }
+}

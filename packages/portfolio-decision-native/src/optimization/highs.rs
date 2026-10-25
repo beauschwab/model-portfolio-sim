@@ -57,7 +57,10 @@ pub fn linear_program(v: &Value) -> Result<Value, String> {
     Ok(json!({"success":true,"x":x,"marginals":solution.dual_rows(),"message":"Optimal"}))
 }
 
+/// Strict: a unit carries only the library's own fields and kinds. A formal hedge designation or
+/// any other accounting eligibility is never inferred here; it belongs to `hedge-accounting-1`.
 #[derive(Clone, Deserialize, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Unit {
     pub template: String,
     pub h: usize,
@@ -74,7 +77,13 @@ pub struct Unit {
     pub swap: bool,
 }
 fn swap_kind<'de, D: serde::Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
-    Ok(<Option<String> as Deserialize>::deserialize(d)?.as_deref() == Some("swap"))
+    match <Option<String> as Deserialize>::deserialize(d)?.as_deref() {
+        Some("swap") => Ok(true),
+        None | Some("mbs" | "corp" | "cd" | "deposit") => Ok(false),
+        Some(other) => Err(serde::de::Error::custom(format!(
+            "strategy unit kind {other:?} is not admitted; formal hedge accounting eligibility is prepared only by hedge-accounting-1"
+        ))),
+    }
 }
 fn swap_kind_out<S: serde::Serializer>(_: &bool, s: S) -> Result<S::Ok, S::Error> {
     s.serialize_str("swap")

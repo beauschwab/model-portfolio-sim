@@ -14,6 +14,10 @@ const RESULT_TABS = [
   { id: 'assessments', label: 'Assessments' },
   { id: 'closing', label: 'Basis and OCI' },
   { id: 'intents', label: 'Journal' },
+  { id: 'disclosures/derivative_fair_values', label: 'Derivative fair values' },
+  { id: 'disclosures/earnings', label: 'Hedge earnings' },
+  { id: 'disclosures/fair_value_hedged_items', label: 'Hedged item basis' },
+  { id: 'disclosures/cash_flow_hedge_aoci', label: 'Cash-flow hedge AOCI' },
 ];
 const EVENT_KINDS = ['assess', 'discontinue', 'forecast_status', 'rate_election', 'debt_issued', 'debt_replacement'];
 const REASONS = ['dedesignation', 'hedged_item_sold', 'instrument_terminated', 'hedged_item_matured'];
@@ -160,6 +164,12 @@ export default function HedgeAccounting() {
                 else delete d.policy.portfolio_layer; })} />ASU 2022-01 portfolio layers</label>
             {policy?.portfolio_layer && <Field label="Breach order"><Select label="Breach order" value={policy.portfolio_layer.breach_order} options={['last_designated_first', 'pro_rata']}
               onChange={v => update(d => { d.policy.portfolio_layer.breach_order = v; })} /></Field>}
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" aria-label="ASC 815 disclosure tables" checked={!!request.disclosure_policy}
+              onChange={e => update(d => {
+                if (e.target.checked) d.disclosure_policy = { identity: { id: 'disclosure-policy', revision: 'r1' }, reporting_ordinal: nodes[nodes.length - 1]?.ordinal };
+                else delete d.disclosure_policy; })} />ASC 815 disclosure tables</label>
+            {request.disclosure_policy && <Field label="Reporting date"><Select label="Reporting date" value={iso(request.disclosure_policy.reporting_ordinal)}
+              options={nodes.map(n => iso(n.ordinal))} onChange={v => update(d => { d.disclosure_policy.reporting_ordinal = ordinalOf(v); })} /></Field>}
           </div>
         </section>
         <section aria-label="Hedged items and exposures" className="space-y-2">

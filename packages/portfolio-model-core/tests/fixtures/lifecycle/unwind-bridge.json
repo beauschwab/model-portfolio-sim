@@ -1,0 +1,80 @@
+{
+  "schema": "liquidity-lifecycle-1",
+  "model_version": "liquidity-lifecycle-1",
+  "workspace_revision": {"id": "workspace", "revision": "r7"},
+  "saved_book_revision": {"id": "saved-book", "revision": "r3"},
+  "entity": "synthetic-bank",
+  "currency": "USD",
+  "monetary_unit": "currency_units",
+  "as_of_ordinal": 739252,
+  "settlement_policy": {"id": "settlement-phases", "revision": "r1"},
+  "sources": [
+    {"source_id": "bond-source", "revision": "r1", "sha256": "1111111111111111111111111111111111111111111111111111111111111111", "measure": "physical"},
+    {"source_id": "repo-source", "revision": "r1", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "measure": "physical"},
+    {"source_id": "swap-source", "revision": "r1", "sha256": "3333333333333333333333333333333333333333333333333333333333333333", "measure": "physical"},
+    {"source_id": "hedge-accounting-source", "revision": "r1", "sha256": "4444444444444444444444444444444444444444444444444444444444444444", "measure": "physical"}
+  ],
+  "accounts": [{"account_id": "bank", "cash": 0.0, "equity": 6.0}],
+  "lots": [
+    {"lot_id": "bond-lot", "position_id": "bond", "source_id": "bond-source", "account_id": "bank", "kind": "security",
+     "accounting_category": "available_for_sale", "quantity": 100.0, "acquisition_ordinal": 739000,
+     "original_cost": 100.0, "original_effective_yield": 0.05, "original_oas": 0.0012},
+    {"lot_id": "repo-lot", "position_id": "repo", "source_id": "repo-source", "account_id": "bank", "kind": "funding",
+     "accounting_category": "funding_liability", "quantity": 95.0, "acquisition_ordinal": 739200,
+     "original_cost": 95.0, "original_effective_yield": 0.04, "original_oas": 0.0},
+    {"lot_id": "swap-lot", "position_id": "swap", "source_id": "swap-source", "account_id": "bank", "kind": "derivative",
+     "accounting_category": "derivative", "quantity": 100.0, "acquisition_ordinal": 739000,
+     "original_cost": 0.0, "original_effective_yield": 0.0, "original_oas": 0.0}
+  ],
+  "hedge_allocations": [
+    {"allocation_id": "bond-hedge", "exposure_lot_id": "bond-lot", "hedge_lot_id": "swap-lot", "amount": 100.0,
+     "risk_basis": "interest_rate", "effective_start_ordinal": 739000, "review": {"id": "hedge-review", "revision": "r1"},
+     "unwind_treatment": "terminate"}
+  ],
+  "funding_allocations": [
+    {"allocation_id": "repo-funds-bond", "funding_lot_id": "repo-lot", "attributed_lot_id": "bond-lot", "amount": 95.0,
+     "effective_start_ordinal": 739200, "instruction": "repay"}
+  ],
+  "pledges": [
+    {"pledge_id": "bond-to-repo", "lot_id": "bond-lot", "agreement_id": "repo-lot", "holder": "repo-dealer", "quantity": 100.0,
+     "eligibility": {"id": "repo-eligibility", "revision": "r1"}, "haircut": 0.05}
+  ],
+  "margin_agreements": [
+    {"agreement_id": "swap-csa", "counterparty": "dealer", "legal_review": {"id": "csa-review", "revision": "r1"},
+     "settlement_lag_days": 1, "initial_margin": "supplied_requirements", "segregation": "segregated",
+     "vm_at_termination": "return_separately", "calendar": {"id": "usd-calendar", "revision": "r1"}, "lot_ids": ["swap-lot"]}
+  ],
+  "facilities": [
+    {"facility_id": "bridge", "provider": "treasury-bank", "commitment": 95.0, "drawn": 0.0,
+     "access_policy": {"id": "bridge-access", "revision": "r1"}, "expiry_ordinal": 739300}
+  ],
+  "actions": [
+    {"action_id": "unwind", "kind": "unwind", "trade_ordinal": 739253, "effective_ordinal": 739253, "settlement_ordinal": 739253,
+     "lots": [{"lot_id": "bond-lot", "quantity": 100.0}, {"lot_id": "swap-lot", "quantity": 100.0}],
+     "policy": {"id": "unwind-policy", "revision": "r1"}, "accounting_treatment": "economic"}
+  ],
+  "obligations": [
+    {"obligation_id": "bridge-draw", "source_event": "bridge:draw:1", "account_id": "bank", "kind": "financing_draw", "cash": 95.0,
+     "facility_id": "bridge", "action_id": "unwind", "due_ordinal": 739253, "phase": 1, "sequence": 1, "state": "pending"},
+    {"obligation_id": "repo-repayment", "source_event": "repo:repay:1", "account_id": "bank", "kind": "financing_repayment", "cash": -95.0,
+     "action_id": "unwind", "due_ordinal": 739253, "phase": 1, "sequence": 2, "depends_on": ["bridge-draw"], "state": "pending"},
+    {"obligation_id": "bond-release", "source_event": "repo:release:1", "account_id": "bank", "kind": "collateral_release", "cash": 0.0,
+     "pledge_id": "bond-to-repo", "quantity": 100.0, "action_id": "unwind", "due_ordinal": 739253, "phase": 1, "sequence": 3,
+     "depends_on": ["repo-repayment"], "state": "pending"},
+    {"obligation_id": "bond-delivery", "source_event": "bond:delivery:1", "account_id": "bank", "kind": "security_delivery", "cash": 0.0,
+     "lot_id": "bond-lot", "quantity": 100.0, "action_id": "unwind", "due_ordinal": 739253, "phase": 2, "sequence": 1,
+     "depends_on": ["bond-release"], "state": "pending"},
+    {"obligation_id": "bond-payment", "source_event": "bond:payment:1", "account_id": "bank", "kind": "cash_receipt", "cash": 100.0,
+     "action_id": "unwind", "due_ordinal": 739253, "phase": 2, "sequence": 2, "depends_on": ["bond-delivery"], "state": "pending"},
+    {"obligation_id": "bridge-repayment", "source_event": "bridge:repay:1", "account_id": "bank", "kind": "financing_repayment", "cash": -95.0,
+     "facility_id": "bridge", "action_id": "unwind", "due_ordinal": 739253, "phase": 3, "sequence": 1, "depends_on": ["bond-payment"], "state": "pending"},
+    {"obligation_id": "swap-termination", "source_event": "swap:termination:1", "account_id": "bank", "kind": "termination_payment", "cash": -4.0,
+     "agreement_id": "swap-csa", "action_id": "unwind", "due_ordinal": 739253, "phase": 3, "sequence": 2, "state": "pending"},
+    {"obligation_id": "vm-return", "source_event": "swap-csa:vm-return:1", "account_id": "bank", "kind": "collateral_return_received", "cash": 2.0,
+     "agreement_id": "swap-csa", "collateral": "variation_margin", "due_ordinal": 739254, "phase": 1, "sequence": 1,
+     "depends_on": ["swap-termination"], "state": "pending"},
+    {"obligation_id": "im-return", "source_event": "swap-csa:im-return:1", "account_id": "bank", "kind": "collateral_return_received", "cash": 3.0,
+     "agreement_id": "swap-csa", "collateral": "initial_margin", "due_ordinal": 739256, "phase": 1, "sequence": 1,
+     "depends_on": ["swap-termination"], "state": "pending"}
+  ]
+}
