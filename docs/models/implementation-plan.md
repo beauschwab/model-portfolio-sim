@@ -5,6 +5,29 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Commercial main integration and borrowed comparisons (2026-10-25)
+
+The isolated `codex/commercial-oct25-sync` branch integrates main `01d0254` and
+commercial/synthetic checkpoint `c700586` at `77965dd`. The commercial cut's
+shared-Sim constructor now supplies the new lifecycle-owner argument explicitly.
+Immutable specification and surviving-position comparison use complete borrowed
+views instead of two JSON Value trees and position clones. Four new regressions
+retain the old comparison oracle, including 117 field mutations, signed zero,
+extreme numbers, component capacity, cancellation and ordered containers.
+
+Fresh validation: 1,599 tests across core/ledger/pricing/decision/independent
+verification, twenty native formatting/test/strict-Clippy/doc gates, architecture
+and ten fixtures, native/HTTP/MCP contracts, 40 MCP tests, six API transport/routing
+tests and the web build. Native receipt:
+`5be3faf2240046777669aaf85bb104f55ad0047a6ad8d477396d8f4618ab6fd0`.
+This source checkpoint does not establish complete installed engine/API/browser
+acceptance. Source/private-memory/Sim/codec admission, exact predecessor binding
+and positive persisted raw cut publication remain open with unchanged bounds and
+positive acceptance tests. No census allowance is reduced by this comparison
+change. Full issue scope, observed/reviewed evidence and combined product scale
+acceptance remain required. See
+[the integration review](../reviews/2026-10-25-commercial-main-sync.md).
+
 ## Synthetic data and main synchronization (2026-10-19)
 
 Main `8f48fa0` is merged at `100ab9c`, retaining both the commercial follow-through

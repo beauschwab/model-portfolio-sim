@@ -62,6 +62,59 @@ fn equal<T: serde::Serialize>(a: &T, b: &T) -> R<()> {
     }
     Ok(())
 }
+
+/// The immutable specification with the original position inventory substituted.
+/// All nested inputs remain borrowed; their own serializers retain every field.
+/// Exhaustive destructuring makes a new Spec field a compile-time review gate.
+#[derive(serde::Serialize)]
+struct RevisionSpec<'a> {
+    horizon_days: usize,
+    accounts: &'a [Account],
+    positions: &'a [Position],
+    netting_sets: &'a [NettingSet],
+    policies: &'a [Policy],
+    scenarios: &'a [Scenario],
+    reverse_severities: &'a [f64],
+    cashflows: &'a [Cashflow],
+    ruleset: &'a str,
+}
+fn revision_spec<'a>(spec: &'a Spec, retained: &'a [Position]) -> RevisionSpec<'a> {
+    let Spec {
+        horizon_days,
+        accounts,
+        positions: _,
+        netting_sets,
+        policies,
+        scenarios,
+        reverse_severities,
+        cashflows,
+        ruleset,
+    } = spec;
+    RevisionSpec {
+        horizon_days: *horizon_days,
+        accounts,
+        positions: retained,
+        netting_sets,
+        policies,
+        scenarios,
+        reverse_severities,
+        cashflows,
+        ruleset,
+    }
+}
+
+fn equal_revision_specifications(old: &Spec, new: &Spec) -> R<()> {
+    let retained = new
+        .positions
+        .get(..old.positions.len())
+        .ok_or("native cut requires complete surviving ownership and a future calendar")?;
+    equal(
+        &revision_spec(old, &old.positions),
+        &revision_spec(new, &old.positions),
+    )?;
+    equal(&old.positions.as_slice(), &retained)
+}
+
 fn validate_revision(
     old: &Spec,
     new: &Spec,
@@ -80,14 +133,7 @@ fn validate_revision(
             "native cut requires complete surviving ownership and a future calendar".into(),
         );
     }
-    let old_json = serde_json::to_value(old).map_err(|e| e.to_string())?;
-    let mut new_json = serde_json::to_value(new).map_err(|e| e.to_string())?;
-    new_json["positions"] = old_json["positions"].clone();
-    equal(&old_json, &new_json)?;
-    equal(
-        &old.positions,
-        &new.positions[..old.positions.len()].to_vec(),
-    )?;
+    equal_revision_specifications(old, new)?;
     if a.position_owners != b.position_owners[..old.positions.len()] {
         return Err("native cut existing position ownership changed".into());
     }
@@ -414,6 +460,7 @@ fn run_commercial_cut_inner(
             None,
             None,
             None,
+            None,
             Some(original),
         )?;
         let checkpoint = CutCheckpoint::capture(sim, cut_day)?;
@@ -540,6 +587,181 @@ mod tests {
 
         crate::spec::normalize(raw, 512, 8_000_000).unwrap()
     }
+
+    // Keep the pre-change Value/clone comparison as an independent test oracle.
+    fn previous_revision_comparison(old: &Spec, new: &Spec) -> R<()> {
+        let old_json = serde_json::to_value(old).unwrap();
+        let mut new_json = serde_json::to_value(new).unwrap();
+        new_json["positions"] = old_json["positions"].clone();
+        equal(&old_json, &new_json)?;
+        equal(
+            &old.positions,
+            &new.positions[..old.positions.len()].to_vec(),
+        )
+    }
+
+    fn complete_spec() -> Spec {
+        let mut raw = serde_json::to_value(spec()).unwrap();
+        raw["netting_sets"] = json!([{
+            "id": "netting", "account": "bank", "counterparty": "cp"
+        }]);
+        raw["policies"] = json!([{
+            "id": "policy", "account": "bank", "kind": "funding",
+            "trigger_cash": 1., "limit": 2.
+        }]);
+        raw["cashflows"] = json!([{
+            "position": "loan", "day": 1, "principal": 3.,
+            "cash_interest": -0., "accrual_interest": 4., "book_amortization": -5.
+        }]);
+        raw["reverse_severities"] = json!([0., 0.5, 1.]);
+        raw["scenarios"] = json!([{"name": "stress", "rate_shift": -0.01}]);
+        serde_json::from_value(raw).unwrap()
+    }
+
+    fn scalar_paths(value: &Value, path: &str, paths: &mut Vec<String>) {
+        match value {
+            Value::Object(fields) => {
+                for (name, child) in fields {
+                    scalar_paths(child, &format!("{path}/{name}"), paths);
+                }
+            }
+            Value::Array(values) => {
+                for (index, child) in values.iter().enumerate() {
+                    scalar_paths(child, &format!("{path}/{index}"), paths);
+                }
+            }
+            _ => paths.push(path.to_owned()),
+        }
+    }
+
+    #[test]
+    fn borrowed_revision_matches_previous_comparison_for_every_serialized_scalar() {
+        let original = complete_spec();
+        let raw = serde_json::to_value(&original).unwrap();
+        let mut paths = Vec::new();
+        scalar_paths(&raw, "", &mut paths);
+        assert!(paths.len() >= 100, "exercise all populated Spec families");
+        eprintln!(
+            "borrowed revision: {} scalar mutation controls",
+            paths.len()
+        );
+        for path in paths {
+            let mut changed = raw.clone();
+            let cell = changed.pointer_mut(&path).unwrap();
+            *cell = match &*cell {
+                Value::String(text) => json!(format!("{text}\"\\\n\u{0}雪")),
+                Value::Bool(flag) => json!(!flag),
+                Value::Number(n) if n.is_u64() => json!(n.as_u64().unwrap() + 1),
+                Value::Number(n) => json!(n.as_f64().unwrap() + 0.125),
+                other => panic!("unexpected scalar: {other}"),
+            };
+            let changed: Spec = serde_json::from_value(changed).unwrap();
+            let previous = previous_revision_comparison(&original, &changed);
+            let borrowed = equal_revision_specifications(&original, &changed);
+            assert!(previous.is_err(), "previous comparison must reject {path}");
+            assert_eq!(borrowed, previous, "mutation {path}");
+        }
+    }
+
+    #[test]
+    fn borrowed_revision_preserves_full_wire_content_and_borrows_all_containers() {
+        let original = complete_spec();
+        let mut revised = original.clone();
+        revised.positions.push(original.positions[0].clone());
+        let view = revision_spec(&revised, &original.positions);
+        let mut previous = serde_json::to_value(&revised).unwrap();
+        previous["positions"] = serde_json::to_value(&original.positions).unwrap();
+        assert_eq!(serde_json::to_value(&view).unwrap(), previous);
+        assert!(std::ptr::eq(view.accounts, revised.accounts.as_slice()));
+        assert!(std::ptr::eq(view.positions, original.positions.as_slice()));
+        assert!(std::ptr::eq(
+            view.netting_sets,
+            revised.netting_sets.as_slice()
+        ));
+        assert!(std::ptr::eq(view.policies, revised.policies.as_slice()));
+        assert!(std::ptr::eq(view.scenarios, revised.scenarios.as_slice()));
+        assert!(std::ptr::eq(
+            view.reverse_severities,
+            revised.reverse_severities.as_slice()
+        ));
+        assert!(std::ptr::eq(view.cashflows, revised.cashflows.as_slice()));
+        assert!(std::ptr::eq(view.ruleset, revised.ruleset.as_str()));
+        assert_eq!(equal_revision_specifications(&original, &revised), Ok(()));
+        assert_eq!(previous_revision_comparison(&original, &revised), Ok(()));
+        revised.positions.clear();
+        assert!(equal_revision_specifications(&original, &revised).is_err());
+    }
+
+    #[test]
+    fn borrowed_revision_retains_signed_zero_extreme_numbers_capacity_and_cancellation() {
+        let mut original = complete_spec();
+        for value in [-0., f64::MAX, f64::MIN_POSITIVE, f64::from_bits(1), -1e-200] {
+            original.accounts[0].cash = value;
+            assert_eq!(equal_revision_specifications(&original, &original), Ok(()));
+            assert_eq!(previous_revision_comparison(&original, &original), Ok(()));
+            let view = revision_spec(&original, &original.positions);
+            assert_eq!(
+                serde_json::to_value(view).unwrap(),
+                serde_json::to_value(&original).unwrap()
+            );
+        }
+        original.accounts[0].cash = 0.;
+        let mut changed = original.clone();
+        changed.accounts[0].cash = -0.;
+        assert_eq!(
+            equal_revision_specifications(&original, &changed),
+            previous_revision_comparison(&original, &changed)
+        );
+        assert!(equal_revision_specifications(&original, &changed).is_err());
+        original.ruleset = "r".repeat((16 << 20) + 1);
+        let previous = previous_revision_comparison(&original, &original);
+        assert!(previous
+            .as_ref()
+            .unwrap_err()
+            .contains("component capacity"));
+        assert_eq!(
+            equal_revision_specifications(&original, &original),
+            previous
+        );
+        let control = portfolio_compute_control::Control::new(10_000).unwrap();
+        let cancelled = portfolio_compute_control::scope(Some(control.clone()), || {
+            control.cancel();
+            equal_revision_specifications(&original, &original)
+        });
+        assert_eq!(cancelled.unwrap_err(), "COMPUTE_CANCELLED");
+    }
+
+    #[test]
+    fn borrowed_revision_preserves_empty_inputs_array_order_and_container_changes() {
+        let empty: Spec = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(equal_revision_specifications(&empty, &empty), Ok(()));
+        assert_eq!(previous_revision_comparison(&empty, &empty), Ok(()));
+        let original = complete_spec();
+        let raw = serde_json::to_value(&original).unwrap();
+        for (field, values) in raw.as_object().unwrap() {
+            let Some(values) = values.as_array() else {
+                continue;
+            };
+            assert!(!values.is_empty(), "populate {field} before mutating it");
+            let mut changed = raw.clone();
+            changed[field]
+                .as_array_mut()
+                .unwrap()
+                .push(values[0].clone());
+            let revised: Spec = serde_json::from_value(changed).unwrap();
+            let previous = previous_revision_comparison(&original, &revised);
+            assert_eq!(previous.is_ok(), field == "positions", "{field}");
+            assert_eq!(equal_revision_specifications(&original, &revised), previous);
+        }
+        let mut revised = original.clone();
+        revised.reverse_severities.reverse();
+        assert!(equal_revision_specifications(&original, &revised).is_err());
+        assert_eq!(
+            equal_revision_specifications(&original, &revised),
+            previous_revision_comparison(&original, &revised)
+        );
+    }
+
     fn binding<'a>(source: &'a HandSource, id: &'a str, key: u64, origin: usize) -> Binding<'a> {
         Binding {
             source_class: SourceClass::CommercialLoan,
