@@ -539,10 +539,11 @@ mod tests {
         assert_eq!(prefix.completed.compiled_work_formula, 61_504);
         assert_eq!(prefix.revised.compiled_work_formula, 107_136);
         assert!(
-            !prefix.immutable_specification_verified
+            prefix.immutable_specification_verified
                 && !prefix.complete_sim_bound_available
                 && !prefix.raw_source_capacity_bound_available
         );
+        assert!(prefix.specification.compiled_ownership_verified);
         println!(
             "CUT_PROOF_DIAGNOSTIC={}",
             serde_json::to_string(&observed).unwrap()

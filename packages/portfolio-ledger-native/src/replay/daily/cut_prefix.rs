@@ -537,6 +537,7 @@ fn borrowed_sources(
 
 #[derive(Debug, Serialize)]
 pub struct TypedCutPrefixInventory {
+    pub specification: super::cut_spec::TypedCutSpecificationInventory,
     pub completed: BorrowedCutSourceInventory,
     pub revised: BorrowedCutSourceInventory,
     pub prefix_events_per_side: usize,
@@ -697,6 +698,28 @@ pub fn commercial_cut_typed_prefix_inventory(
         return Err("typed prefix reverse sources unsupported".into());
     }
     let before = cut_shape::spent().ok_or("typed prefix work ticket missing")?;
+    let mut specification =
+        super::cut_spec::commercial_cut_typed_specification_inventory(completed, revised, cut)?;
+    if original.position_owners.len() != completed.positions.len()
+        || future.position_owners.len() != revised.positions.len()
+    {
+        return Err("typed prefix compiled position coverage differs".into());
+    }
+    for (a, b) in original.position_owners.iter().zip(&future.position_owners) {
+        tick(1)?;
+        if a != b {
+            return Err("typed prefix existing position ownership differs".into());
+        }
+    }
+    for owner in &future.position_owners[original.position_owners.len()..] {
+        tick(1)?;
+        if !owner {
+            return Err(
+                "typed prefix appended position requires exclusive compiled ownership".into(),
+            );
+        }
+    }
+    specification.compiled_ownership_verified = true;
     let bindings = same_bindings(original, future, cut)?;
     let a = borrowed_sources(original, completed.horizon_days)?;
     let b = borrowed_sources(future, revised.horizon_days)?;
@@ -745,6 +768,7 @@ pub fn commercial_cut_typed_prefix_inventory(
         return Err("typed prefix ordered workspace exceeds component32MiB before growth".into());
     }
     let mut result = TypedCutPrefixInventory {
+        specification,
         completed: a,
         revised: b,
         prefix_events_per_side: 0,
@@ -763,7 +787,7 @@ pub fn commercial_cut_typed_prefix_inventory(
         binding_identity_equality_work_upper: bindings.equality_work_upper,
         future_binding_identity_shape: bindings.future,
         fee_year_equality_work_upper: 0,
-        immutable_specification_verified: false,
+        immutable_specification_verified: true,
         complete_sim_bound_available: false,
         raw_source_capacity_bound_available: false,
     };
@@ -852,6 +876,58 @@ pub fn commercial_cut_typed_prefix_inventory(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn immutable_specification_composes_with_exact_compiled_position_coverage() {
+        use crate::{owners::commercial::intents::Compiled, transport::types::Spec};
+        let spec: Spec = serde_json::from_value(serde_json::json!({
+            "horizon_days": 30,
+            "accounts": [{"id":"bank", "entity":"bank", "currency":"USD", "cash":100., "equity":100.}],
+            "scenarios": [{"name":"stress"}],
+            "positions": [{"id":"old", "account":"bank", "kind":"loan", "balance":0.}]
+        })).unwrap();
+        // Structural controls only: no financial source or permission is made.
+        let mut old = Compiled::new(&spec, vec![]).unwrap();
+        let mut future = Compiled::new(&spec, vec![]).unwrap();
+        let result = cut_shape::with_budget(100_000, || {
+            commercial_cut_typed_prefix_inventory(&spec, &spec, &old, &future, 1)
+        })
+        .unwrap();
+        assert!(result.immutable_specification_verified);
+        assert!(result.specification.compiled_ownership_verified);
+        assert!(
+            !result.complete_sim_bound_available && !result.raw_source_capacity_bound_available
+        );
+        future.position_owners[0] = true;
+        assert!(cut_shape::with_budget(100_000, || {
+            commercial_cut_typed_prefix_inventory(&spec, &spec, &old, &future, 1)
+        })
+        .unwrap_err()
+        .contains("existing position ownership differs"));
+        future.position_owners[0] = false;
+        old.position_owners.clear();
+        assert!(cut_shape::with_budget(100_000, || {
+            commercial_cut_typed_prefix_inventory(&spec, &spec, &old, &future, 1)
+        })
+        .unwrap_err()
+        .contains("compiled position coverage differs"));
+        let old = Compiled::new(&spec, vec![]).unwrap();
+        let mut revised = spec.clone();
+        let mut appended = revised.positions[0].clone();
+        appended.id = "new".into();
+        revised.positions.push(appended);
+        let future = Compiled::new(&revised, vec![]).unwrap();
+        assert!(cut_shape::with_budget(100_000, || {
+            commercial_cut_typed_prefix_inventory(&spec, &revised, &old, &future, 1)
+        })
+        .unwrap_err()
+        .contains("appended position requires exclusive compiled ownership"));
+        revised.accounts[0].cash += 1.;
+        assert!(cut_shape::with_budget(100_000, || {
+            commercial_cut_typed_prefix_inventory(&spec, &revised, &old, &future, 1)
+        })
+        .unwrap_err()
+        .contains("immutable specification"));
+    }
     fn group() -> AtomicGroup {
         AtomicGroup {
             path_key: 1,

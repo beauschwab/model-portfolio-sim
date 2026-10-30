@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod borrowed_prefix_tests;
 pub mod candidate_holdings;
 pub mod candidates;
 pub mod credit;

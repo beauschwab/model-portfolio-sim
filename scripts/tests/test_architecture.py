@@ -11,6 +11,20 @@ checker=importlib.util.module_from_spec(spec);spec.loader.exec_module(checker)
 
 
 class ArchitectureTests(unittest.TestCase):
+    def test_native_unicode_source_retains_application_boundary_checks(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'packages/fixture-native/src'
+            source.mkdir(parents=True)
+            (source.parent / 'Cargo.toml').write_text('[package]\nname="fixture"\n', encoding='utf-8')
+            path = source / 'lib.rs'
+            # These UTF-8 bytes cannot be decoded by Windows cp1252.
+            path.write_text('// \u201d\u96ea\nuse app::store;\n', encoding='utf-8')
+            self.assertIn('application source', '\n'.join(checker.rust_violations(root)))
+            path.write_text('// \u201d\u96ea\npub fn local() {}\n', encoding='utf-8')
+            self.assertEqual(checker.rust_violations(root), [])
+
     def test_shared_model_sources_keep_exact_binding_at_canonical_paths(self):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:

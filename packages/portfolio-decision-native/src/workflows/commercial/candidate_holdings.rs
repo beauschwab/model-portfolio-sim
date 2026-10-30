@@ -3,10 +3,6 @@
 use super::{candidates, holdings};
 use portfolio_compute_control::checkpoint;
 use portfolio_model_core::strict_json;
-use portfolio_risk_native::{
-    commercial_continuation as continuation, commercial_fee_source::adoption as fee,
-    commercial_graph as graph,
-};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeMap, time::Instant};
@@ -70,132 +66,25 @@ fn same<T: Serialize>(a: &T, b: &T) -> Result<(), String> {
     }
     Ok(())
 }
-fn loan_prefix(a: &graph::History, b: &graph::History, cut: i32) -> Result<(), String> {
-    same(&(&a.path_id, a.weight), &(&b.path_id, b.weight))?;
-    if cut <= a.source.source.current.asof_ordinal {
-        return same(&a.source, &b.source);
-    }
-    continuation::validate_raw_prefix(&continuation::Request {
-        schema: continuation::SCHEMA.into(),
-        cut_ordinal: cut,
-        completed_source: a.source.clone(),
-        revised_source: b.source.clone(),
-    })?;
-    Ok(())
+#[path = "candidate_prefix.rs"]
+mod borrowed_prefix;
+/// Retain complete original authority using borrowed raw inputs. This is a
+/// comparison only; it grants no financial-owner or resource capability.
+pub(super) fn raw_prefix_borrowed(
+    completed: &candidates::Request,
+    revised: &candidates::Request,
+    cut: i32,
+    allow_future_candidates: bool,
+) -> Result<(), String> {
+    borrowed_prefix::validate(completed, revised, cut, allow_future_candidates)
 }
-fn fee_prefix(a: &fee::History, b: &fee::History, cut: i32) -> Result<(), String> {
-    same(&a.path_id, &b.path_id)?;
-    let mut policy = b.policy.clone();
-    policy.events = a.policy.events.clone();
-    same(&a.policy, &policy)?;
-    same(
-        &a.policy
-            .events
-            .iter()
-            .filter(|e| e.ordinal <= cut)
-            .collect::<Vec<_>>(),
-        &b.policy
-            .events
-            .iter()
-            .filter(|e| e.ordinal <= cut)
-            .collect::<Vec<_>>(),
-    )?;
-    same(
-        &a.acquisition_releases
-            .iter()
-            .filter(|e| e.ordinal <= cut)
-            .collect::<Vec<_>>(),
-        &b.acquisition_releases
-            .iter()
-            .filter(|e| e.ordinal <= cut)
-            .collect::<Vec<_>>(),
-    )
-}
-/// Retain all original Q/P proofs, model/contract identities, costs, quotes,
-/// original yields/spreads and allocation authorities. Only future histories
-/// may change; their observed source prefix is checked before generation.
 pub(super) fn raw_prefix(r: &Request) -> Result<(), String> {
-    let a = &r.completed_candidate;
-    let b = &r.revised_candidate;
-    if a.commercial.units.len() != b.commercial.units.len() {
-        return Err("candidate holding unit coverage changed".into());
-    }
-    let mut normalized = b.commercial.clone();
-    for ((old, new), folded) in a
-        .commercial
-        .units
-        .iter()
-        .zip(&b.commercial.units)
-        .zip(&mut normalized.units)
-    {
-        if old.graph.positions.len() != new.graph.positions.len() {
-            return Err("candidate holding position coverage changed".into());
-        }
-        for ((p, q), folded) in old
-            .graph
-            .positions
-            .iter()
-            .zip(&new.graph.positions)
-            .zip(&mut folded.graph.positions)
-        {
-            if p.histories.len() != q.histories.len() {
-                return Err("candidate holding scenario coverage changed".into());
-            }
-            for (x, y) in p.histories.iter().zip(&q.histories) {
-                same(&x.scenario_id, &y.scenario_id)?;
-                for (xs, ys) in [
-                    (&x.physical, &y.physical),
-                    (&x.pricing, &y.pricing),
-                    (&x.pricing_down, &y.pricing_down),
-                    (&x.pricing_up, &y.pricing_up),
-                ] {
-                    if xs.len() != ys.len() {
-                        return Err("candidate holding path coverage changed".into());
-                    }
-                    for (x, y) in xs.iter().zip(ys) {
-                        loan_prefix(x, y, r.cut_ordinal)?;
-                    }
-                }
-            }
-            folded.histories = p.histories.clone();
-            match (&p.fees, &q.fees, &mut folded.fees) {
-                (None, None, None) => {}
-                (Some(x), Some(y), Some(z)) => {
-                    if x.histories.len() != y.histories.len() {
-                        return Err("candidate holding fee scenario coverage changed".into());
-                    }
-                    for (x, y) in x.histories.iter().zip(&y.histories) {
-                        same(&x.scenario_id, &y.scenario_id)?;
-                        for (xs, ys) in [
-                            (&x.physical, &y.physical),
-                            (&x.pricing, &y.pricing),
-                            (&x.pricing_down, &y.pricing_down),
-                            (&x.pricing_up, &y.pricing_up),
-                        ] {
-                            if xs.len() != ys.len() {
-                                return Err("candidate holding fee path coverage changed".into());
-                            }
-                            for (x, y) in xs.iter().zip(ys) {
-                                fee_prefix(x, y, r.cut_ordinal)?;
-                            }
-                        }
-                    }
-                    z.histories = x.histories.clone();
-                }
-                _ => return Err("candidate holding fee ownership changed".into()),
-            }
-        }
-    }
-    same(&a.commercial, &normalized)?;
-    let mut av = serde_json::to_value(a).map_err(|e| e.to_string())?;
-    let mut bv = serde_json::to_value(b).map_err(|e| e.to_string())?;
-    av.as_object_mut()
-        .ok_or("candidate holding request object")?
-        .remove("commercial");
-    bv.as_object_mut()
-        .ok_or("candidate holding request object")?
-        .remove("commercial");
-    same(&av, &bv)
+    raw_prefix_borrowed(
+        &r.completed_candidate,
+        &r.revised_candidate,
+        r.cut_ordinal,
+        false,
+    )
 }
 fn prefix_rows<'a>(tables: &'a Tables, name: &str, cut: usize) -> Vec<&'a Value> {
     tables

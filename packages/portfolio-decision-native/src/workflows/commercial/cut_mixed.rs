@@ -142,89 +142,16 @@ fn mul(a: usize, b: usize) -> Result<usize, String> {
     a.checked_mul(b)
         .ok_or("native cut admission overflow".into())
 }
-fn same<T: Serialize>(a: &T, b: &T) -> Result<(), String> {
-    checkpoint()?;
-    if strict_json::encode(a, MAX_RAW)? != strict_json::encode(b, MAX_RAW)? {
-        return Err(
-            "native cut immutable owner/original anchor or observed raw prefix differs".into(),
-        );
-    }
-    Ok(())
-}
 /// The surviving complete source cannot be replaced by a cut-started contract.
-/// Appended sources have actual future acquisition dates and no observed groups.
+/// Appended sources have future acquisition dates and no observed source groups.
 pub fn validate_raw_prefix(r: &Request) -> Result<usize, String> {
-    let a = &r.completed_candidate;
-    let b = &r.revised_candidate;
-    let n = a.commercial.units.len();
-    if b.commercial.units.len() < n || b.allocation.len() < n || b.owners.len() < n {
-        return Err("native cut cannot remove surviving units/allocation/owners".into());
-    }
-    same(&a.as_of_ordinal, &b.as_of_ordinal)?;
-    same(
-        &a.commercial
-            .reporting_ordinals
-            .iter()
-            .filter(|d| **d <= r.cut_ordinal)
-            .collect::<Vec<_>>(),
-        &b.commercial
-            .reporting_ordinals
-            .iter()
-            .filter(|d| **d <= r.cut_ordinal)
-            .collect::<Vec<_>>(),
+    candidate_holdings::raw_prefix_borrowed(
+        &r.completed_candidate,
+        &r.revised_candidate,
+        r.cut_ordinal,
+        true,
     )?;
-    let mut folded: candidates::Request =
-        serde_json::from_value(serde_json::to_value(b).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    folded.commercial.units.truncate(n);
-    folded.allocation.truncate(n);
-    folded.owners.truncate(n);
-    folded.reporting_end_ordinal = a.reporting_end_ordinal;
-    folded.commercial.reporting_ordinals = a.commercial.reporting_ordinals.clone();
-    for (old, new) in a.commercial.units.iter().zip(&mut folded.commercial.units) {
-        same(
-            &old.graph
-                .reporting_ordinals
-                .iter()
-                .filter(|d| **d <= r.cut_ordinal)
-                .collect::<Vec<_>>(),
-            &new.graph
-                .reporting_ordinals
-                .iter()
-                .filter(|d| **d <= r.cut_ordinal)
-                .collect::<Vec<_>>(),
-        )?;
-        new.graph.reporting_ordinals = old.graph.reporting_ordinals.clone();
-    }
-    let positions = folded
-        .specification
-        .get_mut("positions")
-        .and_then(Value::as_array_mut)
-        .ok_or("native cut placeholder array absent")?;
-    if positions.len() < n {
-        return Err("native cut surviving placeholder coverage differs".into());
-    }
-    positions.truncate(n);
-    // The ordinary candidate route normalizes its reporting calendar to the
-    // complete source tail. Both exact admissions prove the same full horizon.
-    if let Some(days) = a.specification.get("horizon_days") {
-        folded.specification["horizon_days"] = days.clone();
-    }
-    let completed: candidates::Request =
-        serde_json::from_value(serde_json::to_value(a).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    candidate_holdings::raw_prefix(&candidate_holdings::Request {
-        schema: candidate_holdings::SCHEMA.into(),
-        cut_ordinal: r.cut_ordinal,
-        completed_candidate: completed,
-        revised_candidate: folded,
-    })?;
-    for unit in b.commercial.units.iter().skip(n) {
-        if unit.graph.as_of_ordinal <= r.cut_ordinal {
-            return Err("native cut appended candidate acquisition must follow cut".into());
-        }
-    }
-    Ok(b.commercial.units.len() - n)
+    Ok(r.revised_candidate.commercial.units.len() - r.completed_candidate.commercial.units.len())
 }
 #[derive(Clone)]
 struct Buffer(Arc<Mutex<Vec<u8>>>);

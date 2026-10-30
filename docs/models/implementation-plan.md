@@ -5,6 +5,32 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Borrowed source prefixes and complete specification diagnostics (2026-10-29)
+
+Commercial holding and mixed-cut raw checks now share complete borrowed DTO
+views, and continuation validates borrowed source requests. This removes complete
+candidate/graph/loan-source and fee-policy comparison copies while preserving
+the old reporting-calendar fold, original anchors, all P/Q histories and future
+acquisition/fee clock rules. Frozen pre-change native oracles agree across 3,608
+supported mutation cases and dedicated zero-weight, default, clock and cancellation
+controls. No admission charge, resource limit or financial calculation changes.
+
+The typed specification census now exhaustively checks all seven native DTOs,
+charges scans/comparisons under the existing work ticket, and composes with exact
+compiled position ownership. The immutable-specification diagnostic subgate is
+complete; full Sim and raw-source capacity flags remain false. Source-view lookup
+also uses an iterator preserving inactive-tranche offsets instead of temporary
+vectors. Its component index control is separate from financial draw admission.
+All twenty fresh native gates pass: 1,618 tests (core 448, ledger 234, pricing 699,
+decision/workflow 222, independent verifier 15), strict Clippy, formatting and
+doc tests. Architecture/eleven fixtures, native/HTTP contracts, forty MCP tests
+and six selected API transport/routing tests also pass. Native receipt:
+`e80b6e2eb0a7b6a47961fbc7113d2fc2b86ec2f3aefaf8150544815613cf0514`.
+See [the evidence review](../reviews/2026-10-29-commercial-prefix-and-specification.md).
+Complete source/private-memory/Sim/codec admission, positive persisted cut
+publication, exact predecessor binding, installed acceptance and every wider
+issue requirement remain open. Invented histories remain synthetic and unreviewed.
+
 ## Commercial main integration and borrowed comparisons (2026-10-25)
 
 The isolated `codex/commercial-oct25-sync` branch integrates main `01d0254` and

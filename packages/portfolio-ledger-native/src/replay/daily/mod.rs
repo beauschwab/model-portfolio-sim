@@ -5,6 +5,7 @@ mod cut;
 mod cut_inventory;
 mod cut_prefix;
 mod cut_shape;
+mod cut_spec;
 pub use cut::{
     admit_commercial_cut, commercial_cut_census, run_commercial_cut,
     run_commercial_cut_with_inventory, CommercialCutAdmission,
@@ -20,6 +21,7 @@ pub use cut_shape::{
     object as cut_json_object, shape as cut_json_shape, spent as cut_census_work_spent,
     with_budget as with_cut_census_budget, Shape as CutJsonShape,
 };
+pub use cut_spec::{commercial_cut_typed_specification_inventory, TypedCutSpecificationInventory};
 #[cfg(test)]
 mod compatibility_tests;
 mod consumer_hooks;

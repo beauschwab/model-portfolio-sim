@@ -183,3 +183,25 @@ complete-Preparation/final-Value transport blocker; they are not published
 financial cases or a replacement for the fee/mixed acceptance gates.
 
 The final matching minimal loan-only and zero-coupon controls retain127173436 and123312872 peak bytes respectively. Their pre-review work values49964010/45669294 are superseded by the final measured census49990818/45696174. The existing Y fixture has two named runs with identical zero severity/collateral curves; the additional zero-coupon diagnostic explicitly changes the stress collateral curve/severity. None is empirical stress validation.
+
+## Complete immutable-specification diagnostic (2026-10-29)
+
+The diagnostic prefix inventory now includes the complete typed Spec/Account/
+Position/NettingSet/Policy/Scenario/Cashflow census, exact retained-position and
+compiled ownership comparison, and raw appended-position conditions. Field,
+container, UTF-8 and equality visits are charged before their traversal. This
+closes `immutable_specification_verified` only in the composed diagnostic;
+standalone raw-spec reports retain `compiled_ownership_verified=false`.
+`complete_sim_bound_available` and `raw_source_capacity_bound_available` remain
+false, and complete-source admission still refuses. No production permit or work
+deduction is inferred from the completed subgate.
+
+Raw holding/cut comparison now borrows complete normalized views and source
+requests instead of copying candidate graphs, loan sources and fee policies.
+Existing financial preparation, complete original histories/proofs and authority
+remain intact. SourceAdapter view lookup also avoids its temporary vector while
+preserving inactive draw index offsets. Existing conservative source/transport
+charges and historical omitted/selected refusals are unchanged. Full source,
+private allocation, Sim, codec, exact predecessor and positive raw/persisted
+publication evidence is still required. See
+[the checkpoint review](../reviews/2026-10-29-commercial-prefix-and-specification.md).

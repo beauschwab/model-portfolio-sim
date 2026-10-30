@@ -89,7 +89,7 @@ def native_crate_domain_violations(root, filename):
     manifest = root / 'docs/contracts' / filename
     if not manifest.exists():
         return []
-    layout = json.loads(manifest.read_text())
+    layout = json.loads(manifest.read_text(encoding='utf-8-sig'))
     source = root / layout['crate'] / 'src'
     errors = []
     for path in source.glob('*.rs'):
@@ -101,7 +101,7 @@ def native_crate_domain_violations(root, filename):
     binding = layout.get('exact_source_binding')
     if binding:
         receipt_path = source / binding['module']
-        receipt = receipt_path.read_text() if receipt_path.is_file() else ''
+        receipt = receipt_path.read_text(encoding='utf-8-sig') if receipt_path.is_file() else ''
         includes = re.findall(r'\(\s*"([^"]+)"\s*,\s*include_bytes!\(\s*"([^"]+)"\s*\)\s*,?\s*\)', receipt)
         actual = {label: ((source / binding['module']).parent / path).resolve()
                   for label, path in includes}
@@ -116,14 +116,14 @@ def native_crate_domain_violations(root, filename):
                 errors.append(f'{layout["crate"]}: missing extracted domain source {destination}')
     export_files = {'lib.rs': layout['compatibility_exports'], **layout.get('nested_compatibility_exports', {})}
     for file, aliases in export_files.items():
-        exports = (source / file).read_text()
+        exports = (source / file).read_text(encoding='utf-8-sig')
         for old, new in aliases.items():
             declaration = f'pub use {new};' if old == new.split('::')[-1] else f'pub use {new} as {old};'
             if declaration not in exports:
                 errors.append(f'{layout["crate"]}/src/{file}: missing compatibility export {old}')
     for path in (source / 'math').rglob('*.rs'):
         # Math uses explicit crate paths; grouped root imports would hide ownership.
-        text = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', path.read_text(), flags=re.S)
+        text = re.sub(r'/\*.*?\*/|//[^\n]*|"(?:\\.|[^"\\])*"', '', path.read_text(encoding='utf-8-sig'), flags=re.S)
         if re.search(r'crate\s*::\s*\{', text):
             errors.append(f'{path.relative_to(root)}: math must use explicit domain imports')
         for target in re.findall(r'crate\s*::\s*([A-Za-z_]\w*)', text):
@@ -137,10 +137,10 @@ def native_crate_domain_violations(root, filename):
 def rust_violations(root):
     errors=[]
     for p in (root/'packages').glob('*/Cargo.toml'):
-        for i,line in enumerate(p.read_text().splitlines(),1):
+        for i,line in enumerate(p.read_text(encoding='utf-8-sig').splitlines(),1):
             if re.search(r'path\s*=.*(?:apps[/\\]|apps[/\\]web|apps[/\\]api)',line):errors.append(f'{p.relative_to(root)}:{i}: {line.strip()}: native packages cannot depend on application implementations')
     for p in (root/'packages').glob('*/src/**/*.rs'):
-        for i,line in enumerate(p.read_text().splitlines(),1):
+        for i,line in enumerate(p.read_text(encoding='utf-8-sig').splitlines(),1):
             if re.search(r'(?:use|extern crate)\s+(?:app|apps|web)::|(?:include!|include_str!|path\s*=).*apps[/\\]',line):errors.append(f'{p.relative_to(root)}:{i}: application source: native packages cannot depend on API/UI implementations')
     return errors + native_domain_violations(root)
 
@@ -152,7 +152,7 @@ def main():
     if args.write_baseline:
         if errors:raise SystemExit('\n'.join(errors))
         baseline.write_text(json.dumps({'explanation':'Existing deferred reference/compatibility and worker-session edges; no new cycle edge is admitted without explicit review. Storage/handler edges are forbidden independently.','cycle_edges':current},indent=2)+'\n')
-    allowed=json.loads(baseline.read_text())['cycle_edges']
+    allowed=json.loads(baseline.read_text(encoding='utf-8-sig'))['cycle_edges']
     for a,b in current:
         if [a,b] not in allowed:errors.append(f'{a}: {b}: new cyclic dependency outside the reviewed baseline')
     if errors:raise SystemExit('\n'.join(errors))

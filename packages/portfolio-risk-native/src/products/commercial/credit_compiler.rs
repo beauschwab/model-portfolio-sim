@@ -831,32 +831,40 @@ impl<'a> SourceAdapter<'a> {
         }
         self
     }
-    fn views(&self) -> Vec<SourceView<'_>> {
-        let mut views = vec![SourceView {
+    fn views(&self) -> impl Iterator<Item = SourceView<'_>> + '_ {
+        let base = SourceView {
             source: self.source,
             audit_offset: 0,
             cash_offset: 0,
             segment_offset: 0,
             tranche_id: None,
-        }];
+        };
         let mut audit = self.source.source().audit.len();
         let mut cash = self.source.source().schedule.events.len();
         let mut segment = self.source.segments().len();
-        for (i, d) in self.draw_sources.iter().enumerate() {
-            if self.active_draws.contains(&i) {
-                views.push(SourceView {
-                    source: &d.current,
-                    audit_offset: audit,
-                    cash_offset: cash,
-                    segment_offset: segment,
-                    tranche_id: Some(&d.terms.review.id),
-                });
-            }
-            audit += d.current.source().audit.len();
-            cash += d.current.source().schedule.events.len();
-            segment += d.current.segments().len();
-        }
-        views
+        let draws = self
+            .draw_sources
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, d)| {
+                let view = if self.active_draws.contains(&i) {
+                    Some(SourceView {
+                        source: &d.current,
+                        audit_offset: audit,
+                        cash_offset: cash,
+                        segment_offset: segment,
+                        tranche_id: Some(&d.terms.review.id),
+                    })
+                } else {
+                    None
+                };
+                // Inactive tranches still own their positions in every index space.
+                audit += d.current.source().audit.len();
+                cash += d.current.source().schedule.events.len();
+                segment += d.current.segments().len();
+                view
+            });
+        std::iter::once(base).chain(draws)
     }
     fn new(
         source: &'a NativeFactors,
@@ -1334,7 +1342,6 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
     ) -> Result<Option<carry::NativeCouponEntitlement>, String> {
         let v = self
             .views()
-            .into_iter()
             .find(|v| {
                 atom.captured_segment_index >= v.segment_offset
                     && atom.captured_segment_index < v.segment_offset + v.source.segments().len()
@@ -1375,7 +1382,6 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
     ) -> Result<Option<carry::NativeContractualCash>, String> {
         let (v, index) = self
             .views()
-            .into_iter()
             .find_map(|v| {
                 v.source
                     .source()
@@ -2767,6 +2773,74 @@ mod tests {
         raw.credit.opening_undrawn_commitment = 40.;
         raw.credit.intervals[0].end_year = f64::from(end_day.max(35)) / 365.;
         cost
+    }
+    #[test]
+    fn borrowed_source_views_retain_offsets_across_every_active_subset() {
+        let mut raw = request(35);
+        add_draw(&mut raw, 10, 50, 10., 0.07);
+        reviewed_maturity(&mut raw);
+        let mut result = evaluate(&raw).unwrap();
+        let mut second_raw = request(35);
+        add_draw(&mut second_raw, 12, 55, 15., 0.08);
+        let second = &mut second_raw.performing_draw_tranches[0];
+        second.review.id = "second-draw-review".into();
+        for source in [&mut second.source.original, &mut second.source.current] {
+            source.contract.id = "second-draw-contract".into();
+            source.position_id = "second-draw-contract".into();
+            source.periods[0].period_id = "second-draw-coupon".into();
+        }
+        second.source.acquisition.identity.id = "second-draw-acquisition".into();
+        second.source.acquisition.original_yield_anchor.id = "second-draw-yield".into();
+        reviewed_maturity(&mut second_raw);
+        let mut second_result = evaluate(&second_raw).unwrap();
+        // Join independently admitted source objects solely for an index test.
+        // This grants no two-tranche financial admission or source-cost waiver.
+        result.draw_sources.append(&mut second_result.draw_sources);
+        assert_eq!(result.draw_sources.len(), 2);
+        let mut adapter =
+            SourceAdapter::new(result.current_source(), vec![17], &[], None, None, None).unwrap();
+        adapter.draw_sources = &result.draw_sources;
+        for mask in 0..4 {
+            adapter.active_draws = (0..2).filter(|i| mask & (1 << i) != 0).collect();
+            // Preserve the old eager inventory as a test-only index oracle.
+            let mut expected = vec![(adapter.source as *const _, 0, 0, 0, None)];
+            let mut audit = adapter.source.source().audit.len();
+            let mut cash = adapter.source.source().schedule.events.len();
+            let mut segment = adapter.source.segments().len();
+            for (i, draw) in adapter.draw_sources.iter().enumerate() {
+                if adapter.active_draws.contains(&i) {
+                    expected.push((
+                        &draw.current as *const _,
+                        audit,
+                        cash,
+                        segment,
+                        Some(draw.terms.review.id.as_str()),
+                    ));
+                }
+                audit += draw.current.source().audit.len();
+                cash += draw.current.source().schedule.events.len();
+                segment += draw.current.segments().len();
+            }
+            let actual: Vec<_> = adapter
+                .views()
+                .map(|view| {
+                    (
+                        view.source as *const _,
+                        view.audit_offset,
+                        view.cash_offset,
+                        view.segment_offset,
+                        view.tranche_id,
+                    )
+                })
+                .collect();
+            assert_eq!(actual, expected, "active mask {mask}");
+            assert_eq!(
+                adapter.views().next().unwrap().source as *const _,
+                adapter.source as *const _
+            );
+        }
+        adapter.draw_sources = &[];
+        assert_eq!(adapter.views().count(), 1);
     }
     #[test]
     fn discretionary_draw_owns_nominal_cost_original_eir_and_complete_coupon_tail() {
