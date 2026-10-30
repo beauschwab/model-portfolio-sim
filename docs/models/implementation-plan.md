@@ -5,6 +5,33 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Complete source projection capture during preparation (2026-10-30)
+
+Finite native commercial preparation can now lend each complete source proof to
+a serialization-only observer, including original Pricing proofs after original
+loan and separate fee quote reconciliation. It performs no additional financial
+projection, pricing or calibration. The selected unpublished cut component writes
+all 27 original/current source uses once, with original anchors, fees, complete
+tails and zero-weight sources retained. Its 1,070,233-byte stream reports
+28,943,902 component work and 115,257,808 retained bytes. This is capture only;
+it grants no cut execution or publication authority.
+
+Independent raw-source replay verifies all 27 records and the three original
+loan/fee quote pairs; sixteen tampering controls reject and all 24 current
+sources also replay with zero weights. The specimen has no realized defaults or
+recovery receipts. Fresh changed-crate gates pass 938 native tests, plus 84
+standalone controls, 58 portable checker tests, forty MCP tests and architecture/
+contracts. Unchanged crates retain source-matched prior evidence. See
+[the component contract](commercial-source-proof-capture.md) and
+[the evidence review](../reviews/2026-10-30-commercial-source-proof-capture.md).
+
+Complete raw-source/private-allocation/Sim/codec accounting, pre-traversal
+serializer funding, actual removal of repeated preparation/Value scans, exact
+published predecessor binding and positive persisted cut publication remain open.
+The complete installed and mixed-product scale gates and every original issue
+requirement remain required. Synthetic histories establish no observed accuracy
+and example policies remain unreviewed.
+
 ## Borrowed output frames and explicit Sink capacity (2026-10-29)
 
 Daily output frames now borrow their complete rows instead of deep-cloning the

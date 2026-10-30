@@ -31,6 +31,20 @@ pub struct Request {
     pub base_scenario_id: String,
     pub units: Vec<Unit>,
 }
+
+/// The unit identity borrows the raw preparation request only for this callback.
+/// Source scope/index semantics are those of `graph::SourceObservation`.
+#[derive(Serialize)]
+pub struct UnitSourceObservation<'a> {
+    pub unit_index: usize,
+    pub unit_id: &'a str,
+    #[serde(flatten)]
+    pub source: graph::SourceObservation<'a>,
+}
+
+pub type SourceObserver<'observer> =
+    dyn for<'a> FnMut(UnitSourceObservation<'a>) -> Result<(), String> + 'observer;
+
 #[derive(Clone, Serialize)]
 pub struct CashEvent {
     pub scenario_id: String,
@@ -288,6 +302,34 @@ pub fn audit_source_work(r: &Request) -> Result<usize, String> {
     Ok(work)
 }
 pub fn prepare(r: &Request) -> Result<Prepared, String> {
+    prepare_observed(r, None)
+}
+
+/// Prepare unchanged coefficients while observing already compiled complete
+/// finite sources. The entire request is checked for generated selections
+/// before preparing any unit; generated preparation remains available through
+/// the historical `prepare` entrypoint.
+pub fn prepare_with_source_observer(
+    r: &Request,
+    observer: &mut SourceObserver<'_>,
+) -> Result<Prepared, String> {
+    if r.units.iter().any(|u| {
+        u.graph
+            .positions
+            .iter()
+            .any(|p| p.generated_policy.is_some())
+    }) {
+        return Err(
+            "finite commercial unit source observer does not support generated policies".into(),
+        );
+    }
+    prepare_observed(r, Some(observer))
+}
+
+fn prepare_observed(
+    r: &Request,
+    mut observer: Option<&mut SourceObserver<'_>>,
+) -> Result<Prepared, String> {
     let work = audit_source_work(r)?;
     let scenarios = r.units[0]
         .graph
@@ -316,7 +358,18 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
     let mut cash = Vec::new();
     for (ui, u) in r.units.iter().enumerate() {
         check()?;
-        let g = graph::analyze(&u.graph)?;
+        let g = if let Some(observer) = observer.as_mut() {
+            let mut observe = |source: graph::SourceObservation<'_>| {
+                observer(UnitSourceObservation {
+                    unit_index: ui,
+                    unit_id: &u.unit_id,
+                    source,
+                })
+            };
+            graph::analyze_with_source_observer(&u.graph, &mut observe)?
+        } else {
+            graph::analyze(&u.graph)?
+        };
         let purchase = u.graph.as_of_ordinal;
         let period = r.reporting_ordinals[..h]
             .iter()

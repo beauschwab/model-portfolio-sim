@@ -183,7 +183,7 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
     evaluate_internal(r, None, None)
 }
 
-fn validate_selected_authority(r: &Request) -> Result<(), String> {
+pub(super) fn validate_selected_authority(r: &Request) -> Result<(), String> {
     for candidate in [&r.completed_candidate, &r.revised_candidate] {
         for unit in &candidate.commercial.units {
             for position in &unit.graph.positions {

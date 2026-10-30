@@ -68,6 +68,86 @@ pub struct Request {
     pub positions: Vec<Position>,
 }
 pub use crate::products::commercial::cash::{economic_cash, EconomicCash};
+
+/// Closed provenance scope, independent of a source's role or scenario label.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProofScope {
+    OriginalPricing,
+    OriginalPhysical,
+    Current,
+}
+
+/// Call-local serialization view of an already compiled source. It exposes no
+/// native financial owner, projection method or constructor to observers.
+///
+/// A callback cannot retain this borrowed proof beyond its invocation:
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::{SourceObservation, SourceProof};
+/// let mut retained: Option<SourceProof<'static>> = None;
+/// let mut observer = |source: SourceObservation<'_>| {
+///     retained = Some(source.proof);
+///     Ok(())
+/// };
+/// let _: &mut portfolio_risk_native::commercial_graph::SourceObserver<'_> = &mut observer;
+/// ```
+/// Nor can it manufacture a proof from a financial source:
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::{NativeSource, SourceProof};
+/// fn forge(source: &NativeSource) -> SourceProof<'_> {
+///     SourceProof { source }
+/// }
+/// ```
+#[derive(Serialize)]
+#[serde(transparent)]
+pub struct SourceProof<'a> {
+    source: &'a NativeSource,
+}
+
+/// Metadata for one complete source proof. `position_index` indexes the raw
+/// request's positions. `history_index` starts at zero separately for each
+/// position, scope and scenario. `scenario_index` is None for original scopes
+/// and indexes the raw request's scenarios for Current. Original scopes follow their raw history
+/// vectors; Current follows physical, pricing, pricing_down, pricing_up order
+/// within that scenario's native source slice. Zero-weight histories remain.
+#[derive(Serialize)]
+pub struct SourceObservation<'a> {
+    pub scope: ProofScope,
+    pub position_index: usize,
+    pub scenario_index: Option<usize>,
+    pub history_index: usize,
+    pub role: Role,
+    pub proof: SourceProof<'a>,
+}
+
+/// Observers may serialize a call-local proof, but cannot retain its borrow.
+pub type SourceObserver<'observer> =
+    dyn for<'a> FnMut(SourceObservation<'a>) -> Result<(), String> + 'observer;
+
+fn observe_sources(
+    observer: &mut Option<&mut SourceObserver<'_>>,
+    scope: ProofScope,
+    position_index: usize,
+    scenario_index: Option<usize>,
+    sources: &[NativeSource],
+) -> Result<(), String> {
+    if let Some(observer) = observer.as_mut() {
+        for (history_index, source) in sources.iter().enumerate() {
+            check()?;
+            observer(SourceObservation {
+                scope,
+                position_index,
+                scenario_index,
+                history_index,
+                role: source.role,
+                proof: SourceProof { source },
+            })?;
+            check()?;
+        }
+    }
+    Ok(())
+}
+
 pub struct NativeSource {
     pub position_id: String,
     pub scenario_id: String,
@@ -1195,6 +1275,27 @@ fn solve(
     Ok((lo + hi) / 2.)
 }
 pub fn analyze(r: &Request) -> Result<ResultData, String> {
+    analyze_observed(r, None)
+}
+
+/// Observe the existing complete finite source proofs without repricing,
+/// regenerating, changing admission or granting publication eligibility.
+/// Generated selections reject before any financial generation, including when
+/// mixed with otherwise finite positions.
+pub fn analyze_with_source_observer(
+    r: &Request,
+    observer: &mut SourceObserver<'_>,
+) -> Result<ResultData, String> {
+    if r.positions.iter().any(|p| p.generated_policy.is_some()) {
+        return Err("finite commercial source observer does not support generated policies".into());
+    }
+    analyze_observed(r, Some(observer))
+}
+
+fn analyze_observed(
+    r: &Request,
+    mut observer: Option<&mut SourceObserver<'_>>,
+) -> Result<ResultData, String> {
     let work = audit_admitted_work(r)?;
     if let Some(generated) = r.positions[0].generated_policy.as_ref() {
         return crate::products::commercial::generated_graph::analyze(
@@ -1210,7 +1311,8 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
     let mut exercise_policies = Vec::new();
     let mut original_physical_sources = Vec::new();
     let mut original_acquisition_proofs = Vec::new();
-    for p in &r.positions {
+    for (position_index, p) in r.positions.iter().enumerate() {
+        let original_physical_begin = original_physical_sources.len();
         let original_bundle = pricing_bundle(&p.original_pricing)?;
         let mut original = p
             .original_pricing
@@ -1364,7 +1466,21 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                 return Err("separate original fee quote does not reconcile complete native Pricing fee cash at its own spread".into());
             }
         }
-        for scene in &r.scenarios {
+        observe_sources(
+            &mut observer,
+            ProofScope::OriginalPricing,
+            position_index,
+            None,
+            &original,
+        )?;
+        observe_sources(
+            &mut observer,
+            ProofScope::OriginalPhysical,
+            position_index,
+            None,
+            &original_physical_sources[original_physical_begin..],
+        )?;
+        for (scenario_index, scene) in r.scenarios.iter().enumerate() {
             let h = p
                 .histories
                 .iter()
@@ -1505,6 +1621,13 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                     dv01: money((down - up) / (2. * r.bump_bp))?,
                 });
             }
+            observe_sources(
+                &mut observer,
+                ProofScope::Current,
+                position_index,
+                Some(scenario_index),
+                &native_sources[begin..],
+            )?;
         }
     }
     let out=ResultData{schema:SCHEMA,raw_source:r.clone(),original_oas:anchors,native_sources,metrics,admitted_work_upper:work,

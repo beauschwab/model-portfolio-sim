@@ -4,6 +4,7 @@ pub mod candidate_holdings;
 pub mod candidates;
 pub mod credit;
 pub mod cut_mixed;
+pub mod cut_proof_capture;
 pub mod cut_proof_inventory;
 pub mod fee_candidate_treasury;
 pub mod fees;

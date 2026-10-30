@@ -227,3 +227,16 @@ proof. Complete raw-source/private-allocation/Sim/codec, exact predecessor and
 positive independent raw/persisted publication gates remain open. The reference
 continues to refuse publication independently of arithmetic agreement. See
 [the detailed component review](../reviews/2026-10-29-commercial-borrowed-sink.md).
+
+## Original and current source capture prerequisite (2026-10-30)
+
+The finite graph now exposes lifetime-bounded serialization-only observations
+of complete original/current source proofs during its existing preparation.
+The separate unpublished cut capture retains all 27 selected source uses and
+independently reconciles original loan/fee quotes, without reprojecting or
+recalibrating. This closes the missing original projection capture subgate for
+that explicit subset. It does not change the current cut's repeated preparation,
+final Value scans, ledger admission or publication refusal. Writer byte/cell
+funding does not establish complete pre-traversal codec accounting. See
+[the source-capture contract](commercial-source-proof-capture.md) and
+[its validation review](../reviews/2026-10-30-commercial-source-proof-capture.md).

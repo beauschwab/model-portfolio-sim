@@ -153,12 +153,42 @@ fn prepare_and_run(
     r: &Request,
     generated: bool,
     original: Option<&Value>,
-    mut output: Box<dyn Write + Send>,
+    output: Box<dyn Write + Send>,
     bridge_reservation: (usize, usize),
     mode: PreparationMode,
     consumer: Option<&mut FiniteConsumer<'_>>,
 ) -> Result<(Option<Preparation>, i32, usize, Admission), String> {
+    prepare_and_run_observed(
+        r,
+        generated,
+        original,
+        output,
+        bridge_reservation,
+        mode,
+        consumer,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn prepare_and_run_observed(
+    r: &Request,
+    generated: bool,
+    original: Option<&Value>,
+    mut output: Box<dyn Write + Send>,
+    bridge_reservation: (usize, usize),
+    mode: PreparationMode,
+    consumer: Option<&mut FiniteConsumer<'_>>,
+    observer: Option<&mut units::SourceObserver<'_>>,
+) -> Result<(Option<Preparation>, i32, usize, Admission), String> {
     portfolio_compute_control::checkpoint()?;
+    if observer.is_some()
+        && (generated || consumer.is_none() || !matches!(mode, PreparationMode::Execute))
+    {
+        return Err(
+            "source capture requires an explicit finite borrowed preparation consumer".into(),
+        );
+    }
     if generated && consumer.is_some() {
         return Err(
             "finite native preparation callback cannot borrow compact generated owners".into(),
@@ -498,7 +528,10 @@ fn prepare_and_run(
     if !matches!(mode, PreparationMode::Execute) {
         return Ok((None, admission.full_end_ordinal, 0, admission));
     }
-    let prepared = units::prepare(&r.commercial)?;
+    let prepared = match observer {
+        Some(observer) => units::prepare_with_source_observer(&r.commercial, observer)?,
+        None => units::prepare(&r.commercial)?,
+    };
     let allocation_replay = units::evaluate(&prepared, &r.allocation)?;
     if generated {
         return generated_stream::execute(
@@ -700,6 +733,31 @@ pub(super) fn with_finite_compiled_receipt(
     )?;
     Ok((
         prepared.ok_or("finite native preparation absent")?,
+        admission,
+    ))
+}
+
+/// Observe source proofs during the very same finite preparation. Callback
+/// serialization has its own caller-funded bounded work/output contract; this
+/// function never deducts source work or enlarges the source admission.
+pub(super) fn with_finite_compiled_observer(
+    r: &Request,
+    reservation: (usize, usize),
+    observer: &mut units::SourceObserver<'_>,
+    consumer: &mut FiniteConsumer<'_>,
+) -> Result<(Preparation, Admission), String> {
+    let (prepared, _, _, admission) = prepare_and_run_observed(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        reservation,
+        PreparationMode::Execute,
+        Some(consumer),
+        Some(observer),
+    )?;
+    Ok((
+        prepared.ok_or("finite observed native preparation absent")?,
         admission,
     ))
 }
