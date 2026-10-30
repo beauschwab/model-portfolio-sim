@@ -6,6 +6,8 @@ It is **diagnostic only and cannot publish an accepted selected result** while t
 transfer plus appended future transfer still refuses before either Sim executes.
 No sample, scenario, source tail, monetary tolerance or capacity limit changed.
 The historical omitted route and its original refusal are unchanged.
+Current builds emit output inventory version 2, described in the final section.
+The original measured version-1 census below remains historical evidence.
 
 The selector requires genuine finite transfer sources with the explicit
 `counted_finite_transfer_contract_factor_work-1` source authority on every
@@ -34,12 +36,14 @@ Value; those owners are explicitly dropped before final Value parsing. The final
 stdout envelope borrows that final Value, avoiding the historical `json!` clone.
 
 For canonical typed bytes R, actual wire length W and capacity U, summed source
-capacity A, C=4MiB, V=64MiB, K=32MiB, I=20(R+W), descriptor reserve H=20×64KiB, and J=40×the complete prefix/visible row-JSON upper:
+capacity A, C=4MiB, V=64MiB, K=32MiB, I=20(R+W), descriptor reserve H=20×64KiB,
+and versioned live Sink reservation J (version1 uses40×the complete prefix/visible
+row-JSON upper; version2 counts the borrowed-frame containers explicitly):
 
 | Phase | Coexisting retained capacity upper |
 | --- | --- |
 | Owned wire/parse | U +40W +20R |
-| Source owners, component Sim, receipts/stream and live output batch/flush clone | A +I +K +6C +H +J |
+| Source owners, component Sim, receipts/stream and live output batch | A +I +K +6C +H +J |
 | Raw prefix comparisons | I +V |
 | Tables/result serialization, receipts/stream | I +V +6C +H |
 | Final parse after all former owners drop | V +2 floor(V/20) |
@@ -205,3 +209,21 @@ charges and historical omitted/selected refusals are unchanged. Full source,
 private allocation, Sim, codec, exact predecessor and positive raw/persisted
 publication evidence is still required. See
 [the checkpoint review](../reviews/2026-10-29-commercial-prefix-and-specification.md).
+
+## Borrowed output frames and explicit Sink component (2026-10-29)
+
+Daily ordinary-row frames now serialize borrowed slices, eliminating the actual
+deep copy at flush. `commercial-cut-output-inventory-2` replaces the old clone
+term with the existing single-row-tree convention plus explicit retained/growing
+row vectors, journal columns, dictionary string owners/containers, table nodes
+and names, and writer/frame workspace. Version-1 receipts remain readable with
+their unchanged original `40E` arithmetic and refusal. No request cap changes.
+
+The selected short fixture now reports Sink20,392,098 bytes and source-phase
+132,084,182 bytes, below128MiB. Root work65,036,571 and W11,343,032 still refuse;
+all original source, receipt, complete-table and ledger dimensions are retained.
+This is a logical component refinement, not a complete allocator/RSS or Sim
+proof. Complete raw-source/private-allocation/Sim/codec, exact predecessor and
+positive independent raw/persisted publication gates remain open. The reference
+continues to refuse publication independently of arithmetic agreement. See
+[the detailed component review](../reviews/2026-10-29-commercial-borrowed-sink.md).

@@ -28,16 +28,51 @@ fn census(request: Value) -> Value {
 #[test]
 fn genuine_selected_transfer_reaches_complete_census_but_never_sim_authority() {
     let meta = census(raw());
+    println!("CUT_ADMISSION_CENSUS={meta}");
     assert_eq!(meta["initial_source_work_upper"], 26_801_980);
-    assert_eq!(meta["final_joined_work_upper"], 65_033_611);
+    assert_eq!(meta["final_joined_work_upper"], 65_036_571);
     let w = &meta["cut_ledger_census"];
     assert_eq!(w["work_upper"], 11_343_032);
     assert_eq!(w["retained_bytes_upper"], 2_876_652);
     assert_eq!(w["comparison_work_upper"], 11_141_120);
     assert_eq!(
-        meta["retention_phases"]["source_owner_phase_bytes"],
-        150_532_884
+        meta["output_inventory"]["schema"],
+        "commercial-cut-output-inventory-2"
     );
+    assert_eq!(
+        meta["retention_phases"]["source_owner_phase_bytes"],
+        132_084_182
+    );
+    assert_eq!(
+        meta["output_inventory"]["stream_batch_retained_bytes_upper"],
+        20_392_098
+    );
+    let historical: Value = serde_json::from_str(include_str!(
+        "../../portfolio-risk/tests/fixtures/commercial-cut-inventory-1-refusal.json"
+    ))
+    .unwrap();
+    for key in [
+        "prefix",
+        "visible",
+        "all_stream",
+        "visible_stream",
+        "decoded_tables",
+        "dictionary_upper",
+    ] {
+        assert_eq!(
+            meta["output_inventory"][key],
+            historical["output_inventory"][key]
+        );
+    }
+    for key in [
+        "initial_source_work_upper",
+        "source_owner_retained_bytes_upper",
+        "cut_ledger_census",
+        "completed_receipt_bytes",
+        "revised_receipt_bytes",
+    ] {
+        assert_eq!(meta[key], historical[key]);
+    }
     assert!(meta.get("producer_completion").is_none());
     assert!(meta.get("cut_tables").is_none());
 }

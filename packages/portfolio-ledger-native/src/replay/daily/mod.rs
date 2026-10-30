@@ -5,6 +5,7 @@ mod cut;
 mod cut_inventory;
 mod cut_prefix;
 mod cut_shape;
+mod cut_sink;
 mod cut_spec;
 pub use cut::{
     admit_commercial_cut, commercial_cut_census, run_commercial_cut,
@@ -21,6 +22,7 @@ pub use cut_shape::{
     object as cut_json_object, shape as cut_json_shape, spent as cut_census_work_spent,
     with_budget as with_cut_census_budget, Shape as CutJsonShape,
 };
+pub use cut_sink::CutSinkMemory;
 pub use cut_spec::{commercial_cut_typed_specification_inventory, TypedCutSpecificationInventory};
 #[cfg(test)]
 mod compatibility_tests;
@@ -132,6 +134,14 @@ struct JournalMessage<'a> {
     columns: &'a JournalColumns,
     dictionary: &'a [String],
 }
+/// Preserve the historical sorted object keys without cloning the row Values.
+#[derive(serde::Serialize)]
+struct RowMessage<'a> {
+    rows: &'a [Value],
+    table: &'a str,
+}
+#[cfg(test)]
+mod sink_tests;
 struct Sink {
     out: io::BufWriter<Box<dyn Write + Send>>,
     rows: BTreeMap<String, Vec<Value>>,
@@ -193,7 +203,7 @@ impl Sink {
         j.instrument_id.push(i);
         j.value.push(value);
         self.count += 1;
-        if self.count >= 16384 {
+        if self.count >= cut_sink::BATCH_ROWS {
             self.flush()?;
         }
         Ok(())
@@ -213,7 +223,7 @@ impl Sink {
         }
         self.rows.entry(table.into()).or_default().push(row);
         self.count += 1;
-        if self.count >= 16384 {
+        if self.count >= cut_sink::BATCH_ROWS {
             self.flush()?;
         }
         Ok(())
@@ -237,7 +247,7 @@ impl Sink {
             if rows.is_empty() {
                 continue;
             }
-            serde_json::to_writer(&mut self.out, &json!({"table":name,"rows":rows}))
+            serde_json::to_writer(&mut self.out, &RowMessage { rows, table: name })
                 .map_err(|e| e.to_string())?;
             self.out.write_all(b"\n").map_err(|e| e.to_string())?;
             rows.clear();

@@ -5,6 +5,27 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Borrowed output frames and explicit Sink capacity (2026-10-29)
+
+Daily output frames now borrow their complete rows instead of deep-cloning the
+row array and nested Values during every flush. Frozen byte/error and mixed
+16,384-record threshold controls preserve existing output and dictionary order.
+New version-2 cut inventories explicitly count retained/growing row vectors,
+journal columns, dictionary strings/containers, table nodes/names and writer
+workspace. Historical version-1 receipts retain their original clone accounting.
+
+The genuine selected fixture's reported source phase falls from 150,532,884 to
+132,084,182 bytes, within the unchanged 128 MiB cap. This logical component
+refinement is not complete raw-source/private-allocation/Sim/RSS proof. Original
+source bounds, all output families and ledger component dimensions are retained.
+Root work remains 65,036,571 and ledger work 11,343,032, so execution still refuses.
+Positive independently persisted cut publication, exact predecessor binding,
+installed acceptance and every wider issue requirement remain open. All eight
+changed-crate native gates pass (464 tests), plus 84 focused debug-standalone
+controls, forty MCP tests and architecture/contracts. Unchanged core/pricing/
+independent-verifier suites retain their prior source-matched evidence. See
+[the component evidence review](../reviews/2026-10-29-commercial-borrowed-sink.md).
+
 ## Borrowed source prefixes and complete specification diagnostics (2026-10-29)
 
 Commercial holding and mixed-cut raw checks now share complete borrowed DTO

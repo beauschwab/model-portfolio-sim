@@ -89,6 +89,31 @@ def _table_total(tables):
     return tuple(result)
 
 
+def _borrowed_sink_memory(inv):
+    """Pinned 64-bit logical component census, including retained/growing buffers.
+
+    This checks arithmetic against table/label dimensions. It does not replace
+    the separate raw-derived source and complete simulator publication gates.
+    """
+    batch=16_384
+    slots=lambda n: 3*n+8 if n else 0
+    tables=[*inv['prefix'].items(),*inv['visible'].items()]
+    row_slots=sum(slots(min(batch,t['rows_upper'])) for name,t in tables if name!='journal')
+    journal_rows=sum(t['rows_upper'] for name,t in tables if name=='journal')
+    _,labels,payload=_shape(inv['dictionary_upper'])
+    encoded=_table_total(inv['prefix'])[0]+_shape(inv['decoded_tables'])[0]
+    result=dict(schema='commercial-borrowed-sink-memory-1',row_tree_bytes_upper=20*encoded,
+        row_vector_bytes_upper=32*row_slots,journal_vector_bytes_upper=64*slots(min(batch,journal_rows)),
+        dictionary_payload_bytes_upper=2*payload,
+        dictionary_container_bytes_upper=24*slots(labels)+64*(8*labels+32),
+        table_container_bytes_upper=4096*(len(tables)+1)+2*sum(len(name.encode()) for name,_ in tables if name!='journal'),
+        writer_frame_bytes_upper=64<<10)
+    if (any(type(n) is not int or not 0<=n<1<<64 for k,n in result.items() if k!='schema') or
+        sum(n for k,n in result.items() if k!='schema')>=1<<64):
+        raise ArithmeticError('cut borrowed Sink capacity overflow')
+    return result
+
+
 
 SCOPE = "one genuine native completed Sim prefix moves its complete live state into a distinct resumed Sim; original source clocks, gross rights, policy counters, original loan and fee anchors retained; new future commercial AC owners append zero state and acquire once; no deserialized monetary checkpoint, observed bank opening, native prior publication, arbitrary mixed owners or empirical/accounting approval"
 RESULT_KEYS = "schema raw_source completed_preparation revised_preparation cut_tables producer_completion scope selected_admission origin_asof_ordinal cut_ordinal cut_day full_end_ordinal admitted_work_upper retained_bytes_upper cut_component_work_reservation cut_component_bytes_reservation component_output_limit_bytes appended_candidates completed_prefix_daily_sim_executed_once resumed_future_daily_sim_executed_once complete_origin_source_owners_retained cut_started_mixed_sim_adoption original_credit_clock_restarted original_loan_anchor_refitted original_fee_anchor_refitted surviving_second_acquisition_posted prior_publication_verified opening_identity_verified general_mixed_book_adoption empirical_validation".split()
@@ -131,7 +156,11 @@ def verify_census(meta, *, admitted):
         raise ArithmeticError('cut unchanged shared ledger work formula differs')
     inv=meta['output_inventory']
     invkeys='schema prefix visible all_stream visible_stream decoded_tables dictionary_upper all_flushes_upper census_work_upper stream_batch_retained_bytes_upper'.split()
-    if set(inv)!=set(invkeys) or inv['schema']!='commercial-cut-output-inventory-1':
+    if inv.get('schema')=='commercial-cut-output-inventory-2':
+        invkeys.append('stream_batch_memory')
+    elif inv.get('schema')!='commercial-cut-output-inventory-1':
+        raise ArithmeticError('cut full output inventory version differs')
+    if set(inv)!=set(invkeys):
         raise ArithmeticError('cut full output inventory identity differs')
     for section in ('prefix','visible'):
         for table,row in inv[section].items():
@@ -141,10 +170,18 @@ def verify_census(meta, *, admitted):
                 raise ArithmeticError('cut exact table inventory differs')
             _shape(row['shape_upper'])
     if type(inv['stream_batch_retained_bytes_upper']) is not int or inv['stream_batch_retained_bytes_upper']<0:
-        raise ArithmeticError('cut live stream batch/flush clone reservation differs')
+        raise ArithmeticError('cut live stream batch reservation differs')
+    if inv['schema']=='commercial-cut-output-inventory-1':
+        # Historical receipts retain their original conservative clone budget.
+        batch_bytes=40*(_table_total(inv['prefix'])[0]+_shape(inv['decoded_tables'])[0])
+    else:
+        memory=_borrowed_sink_memory(inv)
+        if not exact_json_identity(memory,inv['stream_batch_memory']):
+            raise ArithmeticError('cut borrowed Sink complete container reservation differs')
+        batch_bytes=sum(n for k,n in memory.items() if k!='schema')
     if (_shape(inv['decoded_tables'])!=_table_total(inv['visible']) or
-        inv['stream_batch_retained_bytes_upper']!=40*(_table_total(inv['prefix'])[0]+_shape(inv['decoded_tables'])[0])):
-        raise ArithmeticError('cut full row batch/clone shape reservation differs')
+        inv['stream_batch_retained_bytes_upper']!=batch_bytes):
+        raise ArithmeticError('cut full row batch shape reservation differs')
     expected['source_owner_phase_bytes']+=inv['stream_batch_retained_bytes_upper']
     if not exact_json_identity(expected,meta['retention_phases']):
         raise ArithmeticError('cut simultaneous receipt/batch phase inventory differs')

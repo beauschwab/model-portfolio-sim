@@ -1,0 +1,631 @@
+{
+  "completed_preparation_work_upper": 26801980,
+  "completed_receipt_bytes": 585851,
+  "cut_ledger_census": {
+    "comparison_work_upper": 11141120,
+    "future_compiled_bytes_upper": 884736,
+    "future_compiled_work_upper": 107136,
+    "original_compiled_bytes_upper": 507904,
+    "original_compiled_work_upper": 61504,
+    "retained_bytes_upper": 2876652,
+    "specification_bytes": 4159,
+    "work_upper": 11343032
+  },
+  "descriptor_retained_bytes_upper": 1310720,
+  "final_joined_work_upper": 65033611,
+  "final_result_shape": {
+    "cells_upper": 1777411,
+    "encoded_bytes_upper": 2899652,
+    "string_bytes_upper": 2324183
+  },
+  "initial_source_work_upper": 26801980,
+  "output_inventory": {
+    "all_flushes_upper": 5,
+    "all_stream": {
+      "cells_upper": 55025,
+      "encoded_bytes_upper": 1136321,
+      "string_bytes_upper": 493722
+    },
+    "census_work_upper": 438004,
+    "decoded_tables": {
+      "cells_upper": 42327,
+      "encoded_bytes_upper": 843106,
+      "string_bytes_upper": 400912
+    },
+    "dictionary_upper": {
+      "cells_upper": 964,
+      "encoded_bytes_upper": 23468,
+      "string_bytes_upper": 22504
+    },
+    "prefix": {
+      "breaches": {
+        "fields": [
+          "scenario",
+          "account",
+          "metric",
+          "day"
+        ],
+        "rows_upper": 12,
+        "shape_upper": {
+          "cells_upper": 108,
+          "encoded_bytes_upper": 1188,
+          "string_bytes_upper": 696
+        },
+        "template_scan_work_upper": 108
+      },
+      "commercial_daily": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "source_class",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "source_origin_day",
+          "unweighted_book",
+          "capital_ftp_eligible"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 472,
+          "encoded_bytes_upper": 9860,
+          "string_bytes_upper": 4420
+        },
+        "template_scan_work_upper": 5166
+      },
+      "commercial_fee_daily": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "fee_id",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "native_fee_snapshot"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 180,
+          "encoded_bytes_upper": 4024,
+          "string_bytes_upper": 1648
+        },
+        "template_scan_work_upper": 2102
+      },
+      "commercial_fee_lineage": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "day",
+          "path_key",
+          "native_year",
+          "source_weight",
+          "allocation_factor",
+          "native_group_index",
+          "transaction_number",
+          "native_fee_group"
+        ],
+        "rows_upper": 8,
+        "shape_upper": {
+          "cells_upper": 768,
+          "encoded_bytes_upper": 13416,
+          "string_bytes_upper": 6272
+        },
+        "template_scan_work_upper": 14184
+      },
+      "commercial_source_lineage": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "source_class",
+          "date_policy",
+          "day",
+          "native_credit_year",
+          "source_origin_day",
+          "global_native_credit_year",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "native_group_index",
+          "transaction_number",
+          "native_atomic_group"
+        ],
+        "rows_upper": 12,
+        "shape_upper": {
+          "cells_upper": 2138,
+          "encoded_bytes_upper": 41074,
+          "string_bytes_upper": 19346
+        },
+        "template_scan_work_upper": 43212
+      },
+      "exposures": {
+        "fields": [
+          "scenario",
+          "account",
+          "position",
+          "kind",
+          "day",
+          "balance",
+          "allowance",
+          "watch_fraction",
+          "commitment",
+          "market_factor",
+          "encumbered_fraction",
+          "accrued_interest"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 100,
+          "encoded_bytes_upper": 1844,
+          "string_bytes_upper": 720
+        },
+        "template_scan_work_upper": 486
+      },
+      "journal": {
+        "fields": [
+          "scenario",
+          "account",
+          "event",
+          "gl_account",
+          "instrument_id",
+          "transaction_number",
+          "day",
+          "value"
+        ],
+        "rows_upper": 146,
+        "shape_upper": {
+          "cells_upper": 2482,
+          "encoded_bytes_upper": 45406,
+          "string_bytes_upper": 28908
+        },
+        "template_scan_work_upper": 328
+      },
+      "ledger": {
+        "fields": [
+          "scenario",
+          "account",
+          "event",
+          "day",
+          "cash",
+          "earnings",
+          "aoci",
+          "memo_amount"
+        ],
+        "rows_upper": 20,
+        "shape_upper": {
+          "cells_upper": 340,
+          "encoded_bytes_upper": 5760,
+          "string_bytes_upper": 2220
+        },
+        "template_scan_work_upper": 305
+      },
+      "path": {
+        "fields": [
+          "scenario",
+          "account",
+          "entity",
+          "currency",
+          "lcr_status",
+          "nsfr_status",
+          "day",
+          "cash",
+          "restricted_cash",
+          "cash_floor",
+          "assets",
+          "liabilities",
+          "equity",
+          "aoci",
+          "cet1",
+          "rwa",
+          "cet1_ratio",
+          "leverage_ratio",
+          "usable_collateral",
+          "undrawn",
+          "hqla_proxy",
+          "lcr_proxy",
+          "nsfr_proxy",
+          "reconciliation_error",
+          "cash_headroom",
+          "cet1_headroom",
+          "leverage_headroom",
+          "lcr_headroom",
+          "nsfr_headroom",
+          "htm_headroom"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 244,
+          "encoded_bytes_upper": 4964,
+          "string_bytes_upper": 1648
+        },
+        "template_scan_work_upper": 1302
+      }
+    },
+    "schema": "commercial-cut-output-inventory-1",
+    "stream_batch_retained_bytes_upper": 38840800,
+    "visible": {
+      "attribution": {
+        "fields": [
+          "scenario",
+          "account",
+          "event",
+          "cash_delta",
+          "earnings_delta",
+          "aoci_delta"
+        ],
+        "rows_upper": 36,
+        "shape_upper": {
+          "cells_upper": 468,
+          "encoded_bytes_upper": 7920,
+          "string_bytes_upper": 3996
+        },
+        "template_scan_work_upper": 233
+      },
+      "breaches": {
+        "fields": [
+          "scenario",
+          "account",
+          "metric",
+          "day"
+        ],
+        "rows_upper": 12,
+        "shape_upper": {
+          "cells_upper": 108,
+          "encoded_bytes_upper": 1188,
+          "string_bytes_upper": 696
+        },
+        "template_scan_work_upper": 108
+      },
+      "closing_statements": {
+        "fields": [
+          "scenario",
+          "account",
+          "currency",
+          "assets",
+          "liabilities",
+          "equity",
+          "cash",
+          "restricted_cash",
+          "intercompany_assets",
+          "intercompany_liabilities",
+          "reconciliation_error"
+        ],
+        "rows_upper": 2,
+        "shape_upper": {
+          "cells_upper": 46,
+          "encoded_bytes_upper": 900,
+          "string_bytes_upper": 342
+        },
+        "template_scan_work_upper": 473
+      },
+      "commercial_closing": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "source_class",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "source_origin_day",
+          "unweighted_book",
+          "capital_ftp_eligible"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 472,
+          "encoded_bytes_upper": 9876,
+          "string_bytes_upper": 4436
+        },
+        "template_scan_work_upper": 10348
+      },
+      "commercial_daily": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "source_class",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "source_origin_day",
+          "unweighted_book",
+          "capital_ftp_eligible"
+        ],
+        "rows_upper": 120,
+        "shape_upper": {
+          "cells_upper": 14160,
+          "encoded_bytes_upper": 296280,
+          "string_bytes_upper": 133080
+        },
+        "template_scan_work_upper": 10348
+      },
+      "commercial_fee_closing": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "fee_id",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "native_fee_snapshot"
+        ],
+        "rows_upper": 4,
+        "shape_upper": {
+          "cells_upper": 180,
+          "encoded_bytes_upper": 4040,
+          "string_bytes_upper": 1664
+        },
+        "template_scan_work_upper": 4220
+      },
+      "commercial_fee_daily": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "fee_id",
+          "day",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "native_fee_snapshot"
+        ],
+        "rows_upper": 120,
+        "shape_upper": {
+          "cells_upper": 5400,
+          "encoded_bytes_upper": 121200,
+          "string_bytes_upper": 49920
+        },
+        "template_scan_work_upper": 4220
+      },
+      "commercial_fee_lineage": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "day",
+          "path_key",
+          "native_year",
+          "source_weight",
+          "allocation_factor",
+          "native_group_index",
+          "transaction_number",
+          "native_fee_group"
+        ],
+        "rows_upper": 16,
+        "shape_upper": {
+          "cells_upper": 1536,
+          "encoded_bytes_upper": 26896,
+          "string_bytes_upper": 12608
+        },
+        "template_scan_work_upper": 28432
+      },
+      "commercial_source_lineage": {
+        "fields": [
+          "scenario",
+          "position_id",
+          "source_class",
+          "date_policy",
+          "day",
+          "native_credit_year",
+          "source_origin_day",
+          "global_native_credit_year",
+          "path_key",
+          "source_weight",
+          "allocation_factor",
+          "native_group_index",
+          "transaction_number",
+          "native_atomic_group"
+        ],
+        "rows_upper": 20,
+        "shape_upper": {
+          "cells_upper": 3544,
+          "encoded_bytes_upper": 68132,
+          "string_bytes_upper": 32136
+        },
+        "template_scan_work_upper": 71676
+      },
+      "consolidated": {
+        "fields": [
+          "scenario",
+          "currency",
+          "assets",
+          "liabilities",
+          "equity",
+          "cash",
+          "restricted_cash"
+        ],
+        "rows_upper": 2,
+        "shape_upper": {
+          "cells_upper": 30,
+          "encoded_bytes_upper": 524,
+          "string_bytes_upper": 174
+        },
+        "template_scan_work_upper": 277
+      },
+      "exposures": {
+        "fields": [
+          "scenario",
+          "account",
+          "position",
+          "kind",
+          "day",
+          "balance",
+          "allowance",
+          "watch_fraction",
+          "commitment",
+          "market_factor",
+          "encumbered_fraction",
+          "accrued_interest"
+        ],
+        "rows_upper": 120,
+        "shape_upper": {
+          "cells_upper": 3000,
+          "encoded_bytes_upper": 55800,
+          "string_bytes_upper": 22080
+        },
+        "template_scan_work_upper": 490
+      },
+      "journal": {
+        "fields": [
+          "scenario",
+          "account",
+          "event",
+          "gl_account",
+          "instrument_id",
+          "transaction_number",
+          "day",
+          "value"
+        ],
+        "rows_upper": 370,
+        "shape_upper": {
+          "cells_upper": 6290,
+          "encoded_bytes_upper": 116550,
+          "string_bytes_upper": 74740
+        },
+        "template_scan_work_upper": 332
+      },
+      "ledger": {
+        "fields": [
+          "scenario",
+          "account",
+          "event",
+          "day",
+          "cash",
+          "earnings",
+          "aoci",
+          "memo_amount"
+        ],
+        "rows_upper": 36,
+        "shape_upper": {
+          "cells_upper": 612,
+          "encoded_bytes_upper": 10368,
+          "string_bytes_upper": 3996
+        },
+        "template_scan_work_upper": 305
+      },
+      "path": {
+        "fields": [
+          "scenario",
+          "account",
+          "entity",
+          "currency",
+          "lcr_status",
+          "nsfr_status",
+          "day",
+          "cash",
+          "restricted_cash",
+          "cash_floor",
+          "assets",
+          "liabilities",
+          "equity",
+          "aoci",
+          "cet1",
+          "rwa",
+          "cet1_ratio",
+          "leverage_ratio",
+          "usable_collateral",
+          "undrawn",
+          "hqla_proxy",
+          "lcr_proxy",
+          "nsfr_proxy",
+          "reconciliation_error",
+          "cash_headroom",
+          "cet1_headroom",
+          "leverage_headroom",
+          "lcr_headroom",
+          "nsfr_headroom",
+          "htm_headroom"
+        ],
+        "rows_upper": 60,
+        "shape_upper": {
+          "cells_upper": 3660,
+          "encoded_bytes_upper": 74460,
+          "string_bytes_upper": 24720
+        },
+        "template_scan_work_upper": 1302
+      },
+      "summary": {
+        "fields": [
+          "scenario",
+          "account",
+          "entity",
+          "currency",
+          "lcr_applicability",
+          "lcr_status",
+          "nsfr_applicability",
+          "nsfr_status",
+          "final_cash",
+          "final_equity",
+          "minimum_cash",
+          "peak_cash_shortfall",
+          "max_reconciliation_error",
+          "first_cash_breach_day",
+          "first_capital_breach_day",
+          "first_leverage_breach_day",
+          "first_lcr_breach_day",
+          "first_nsfr_breach_day",
+          "first_htm_breach_day",
+          "htm_reclassification_day"
+        ],
+        "rows_upper": 2,
+        "shape_upper": {
+          "cells_upper": 82,
+          "encoded_bytes_upper": 1746,
+          "string_bytes_upper": 896
+        },
+        "template_scan_work_upper": 914
+      },
+      "trial_balance": {
+        "fields": [
+          "scenario",
+          "account",
+          "gl_account",
+          "instrument_id",
+          "balance"
+        ],
+        "rows_upper": 246,
+        "shape_upper": {
+          "cells_upper": 2706,
+          "encoded_bytes_upper": 45756,
+          "string_bytes_upper": 35178
+        },
+        "template_scan_work_upper": 197
+      }
+    },
+    "visible_stream": {
+      "cells_upper": 47006,
+      "encoded_bytes_upper": 969863,
+      "string_bytes_upper": 427709
+    }
+  },
+  "owned_wire_bytes": 244421,
+  "owned_wire_capacity": 262144,
+  "retention_phases": {
+    "decoded_tables_phase_bytes": 103359688,
+    "final_value_phase_bytes": 73819750,
+    "owned_wire_parse_phase_bytes": 14924844,
+    "raw_validation_phase_bytes": 76883144,
+    "source_owner_phase_bytes": 150532884
+  },
+  "revised_preparation_work_upper": 27973682,
+  "revised_receipt_bytes": 1126344,
+  "schema": "commercial-cut-encoded-admission-1",
+  "source_owner_retained_bytes_upper": 41886828,
+  "typed_raw_bytes": 244293,
+  "work_components": {
+    "all_native_stream_passes": 4765384,
+    "decoded_table_passes": 1770866,
+    "descriptor_scans": 32936,
+    "final_result_passes": 14031189,
+    "independent_cut_guard": 11343032,
+    "original_raw_census": 349598,
+    "preparation_receipt_scans": 3424390,
+    "prepared_specification_census": 9222,
+    "raw_prefix": 1955368,
+    "repeated_specification_scans": 33272,
+    "source_preparation": 24846612,
+    "structural_census": 438004,
+    "visible_stream_passes": 2033738
+  }
+}

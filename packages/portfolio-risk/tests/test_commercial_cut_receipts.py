@@ -54,8 +54,10 @@ def actual_refusal():
 def test_actual_full_native_source_census_refuses_and_independent_scan_formula_agrees(actual_refusal):
     phases=verify_census(actual_refusal,admitted=False)
     assert actual_refusal['initial_source_work_upper']==26_801_980
-    assert actual_refusal['final_joined_work_upper']==65_033_611
-    assert max(phases.values())==150_532_884
+    assert actual_refusal['output_inventory']['schema']=='commercial-cut-output-inventory-2'
+    assert actual_refusal['final_joined_work_upper']==65_036_571
+    assert max(phases.values())==132_084_182
+    assert actual_refusal['output_inventory']['stream_batch_retained_bytes_upper']==20_392_098
     assert actual_refusal['cut_ledger_census']['work_upper']==11_343_032
     assert actual_refusal['cut_ledger_census']['retained_bytes_upper']==2_876_652
     with pytest.raises(ArithmeticError,match='caps refuse'):
@@ -63,7 +65,7 @@ def test_actual_full_native_source_census_refuses_and_independent_scan_formula_a
     assert 'cut_tables' not in actual_refusal and 'producer_completion' not in actual_refusal
 
 
-@pytest.mark.parametrize('target', ['work','comparison','raw','receipt','phase','bool','overflow','extra','table'])
+@pytest.mark.parametrize('target', ['work','comparison','raw','receipt','phase','bool','overflow','extra','table','sink','sink_bool','sink_total','inventory_version','dictionary'])
 def test_independent_census_rejects_mutated_metadata_including_retyped_dimensions(actual_refusal,target):
     x=deepcopy(actual_refusal)
     if target=='work': x['final_joined_work_upper']-=1
@@ -74,7 +76,12 @@ def test_independent_census_rejects_mutated_metadata_including_retyped_dimension
     elif target=='bool': x['work_components']['original_raw_census']=True
     elif target=='overflow': x['typed_raw_bytes']=1<<64
     elif target=='extra': x['native_cut_state_moved']=True
-    else:x['output_inventory']['visible']['journal']['fields'].append('foreign')
+    elif target=='table': x['output_inventory']['visible']['journal']['fields'].append('foreign')
+    elif target=='sink': x['output_inventory']['stream_batch_memory']['row_vector_bytes_upper']-=1
+    elif target=='sink_bool': x['output_inventory']['stream_batch_memory']['journal_vector_bytes_upper']=True
+    elif target=='sink_total': x['output_inventory']['stream_batch_retained_bytes_upper']-=1
+    elif target=='inventory_version': x['output_inventory']['schema']='commercial-cut-output-inventory-3'
+    else:x['output_inventory']['dictionary_upper']['cells_upper']+=1
     with pytest.raises(ArithmeticError):verify_census(x,admitted=False)
 
 
@@ -104,3 +111,29 @@ def test_producer_arithmetic_agreement_never_grants_selected_publication(actual_
     # makes no claim that the native source has passed its independent gates.
     with pytest.raises(ArithmeticError,match='independent raw-derived source/Compiled/output admission census is incomplete'):
         require_raw_derived_admission()
+
+
+def test_historical_inventory_retains_its_original_clone_reservation_and_refusal():
+    frozen=json.loads((ROOT/'packages/portfolio-risk/tests/fixtures/commercial-cut-inventory-1-refusal.json').read_text(encoding='utf-8'))
+    assert frozen['output_inventory']['schema']=='commercial-cut-output-inventory-1'
+    assert frozen['output_inventory']['stream_batch_retained_bytes_upper']==38_840_800
+    assert max(verify_census(frozen,admitted=False).values())==150_532_884
+    with pytest.raises(ArithmeticError,match='caps refuse'):
+        verify_census(frozen,admitted=True)
+
+
+def test_borrowed_sink_capacity_uses_every_table_and_repeated_zero_label_upper():
+    from portfolio_risk.analytics.commercial_cut_receipts_reference import _borrowed_sink_memory
+    frozen=json.loads((ROOT/'packages/portfolio-risk/tests/fixtures/commercial-cut-inventory-1-refusal.json').read_text(encoding='utf-8'))
+    inv=frozen['output_inventory']; memory=_borrowed_sink_memory(inv)
+    assert memory['row_tree_bytes_upper']==19_420_400
+    assert memory['journal_vector_bytes_upper']==99_584
+    assert sum(n for k,n in memory.items() if k!='schema')<22_000_000
+    inv['prefix']['journal']['rows_upper']=1<<32
+    assert _borrowed_sink_memory(inv)['journal_vector_bytes_upper']==64*(3*16_384+8)
+    inv['dictionary_upper']['cells_upper']=(1<<64)-1
+    with pytest.raises(ArithmeticError,match='overflow'):
+        _borrowed_sink_memory(inv)
+    inv['dictionary_upper']['cells_upper']=((1<<64)-1-2240)//584
+    with pytest.raises(ArithmeticError,match='overflow'):
+        _borrowed_sink_memory(inv)

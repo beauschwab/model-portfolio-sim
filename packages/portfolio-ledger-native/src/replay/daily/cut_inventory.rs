@@ -36,6 +36,7 @@ pub struct CommercialCutInventory {
     pub all_flushes_upper: usize,
     pub census_work_upper: usize,
     pub stream_batch_retained_bytes_upper: usize,
+    pub stream_batch_memory: super::cut_sink::CutSinkMemory,
 }
 
 fn row(
@@ -561,22 +562,24 @@ pub fn commercial_cut_inventory(
             )?,
         )?,
     )?;
-    // Any16384-row live Sink batch is a subset of these complete row sets.
-    // The flush json! clones the Values while the originals remain retained.
-    // This is an additional coexisting Sim phase, never the later decode phase.
-    let stream_batch_retained_bytes_upper = mul(
+    // Frames borrow their rows. Include retained high-water row buffers,
+    // dictionary owners, column buffers and growth overlap separately.
+    let (stream_batch_memory, stream_batch_census_work_upper) = super::cut_sink::inventory(
+        &prefix,
+        &visible,
         add(
             total(&prefix)?.encoded_bytes_upper,
             decoded_tables.encoded_bytes_upper,
         )?,
-        40,
+        dictionary,
     )?;
+    let stream_batch_retained_bytes_upper = stream_batch_memory.total()?;
     let census_work_upper = match (started, spent()) {
         (Some(a), Some(b)) => b.checked_sub(a).ok_or("cut census ticket state differs")?,
-        _ => declared_census_work_upper,
+        _ => add(declared_census_work_upper, stream_batch_census_work_upper)?,
     };
     Ok(CommercialCutInventory {
-        schema: "commercial-cut-output-inventory-1",
+        schema: "commercial-cut-output-inventory-2",
         prefix,
         visible,
         all_stream,
@@ -586,6 +589,7 @@ pub fn commercial_cut_inventory(
         all_flushes_upper: flushes,
         census_work_upper,
         stream_batch_retained_bytes_upper,
+        stream_batch_memory,
     })
 }
 
