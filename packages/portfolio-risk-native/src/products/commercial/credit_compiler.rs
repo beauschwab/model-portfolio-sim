@@ -255,20 +255,31 @@ pub(crate) fn serialize_factors<S: serde::Serializer>(
     source: &NativeFactors,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    struct Segments<'a>(&'a [super::factor_source::segments::FactorSegment]);
+    impl Serialize for Segments<'_> {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            use serde::ser::SerializeSeq;
+            let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+            for segment in self.0 {
+                sequence.serialize_element(&segment.evidence())?;
+            }
+            sequence.end()
+        }
+    }
     #[derive(Serialize)]
     struct Receipt<'a> {
         raw: &'a crate::products::term::contracts::indexed::ContractPathRequest,
         source: &'a crate::products::term::contracts::indexed::ContractPathResult,
         policy: &'a FactorPolicy,
         admission: &'a crate::products::commercial::factor_source::owner::Admission,
-        segments: Vec<crate::products::commercial::factor_source::segments::SegmentEvidence<'a>>,
+        segments: Segments<'a>,
     }
     Receipt {
         raw: source.raw(),
         source: source.source(),
         policy: source.policy(),
         admission: source.admission(),
-        segments: source.segments().iter().map(|s| s.evidence()).collect(),
+        segments: Segments(source.segments()),
     }
     .serialize(serializer)
 }

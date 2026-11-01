@@ -152,3 +152,33 @@ current cut's complete source/private-allocation/Sim/output codec bounds,
 repeated preparation/Value scans, predecessor binding and persisted publication
 remain open. This component still has `complete_source_sim_codec_bounds=false`
 and `publication_eligible=false`.
+
+## Finite typed proof ownership (2026-11-01 follow-through)
+
+Finite graph sources now serialize their complete sealed Physical or Pricing
+owner directly. A Physical source no longer retains a second JSON projection;
+Pricing bundles and their source proofs share the same immutable native result.
+Original Pricing owners are released after their complete observation and anchor
+checks, before current scenario owners are retained. Generated metadata/recipes
+keep their existing separate representation. Factor-segment evidence is emitted
+as a borrowed sequence rather than collecting a temporary descriptor vector.
+
+The public JSON fields, numbers, cash, fee and recovery tails remain the same.
+Direct struct serialization can change JSON object key emission order, so a new
+encoded capture may have a different byte hash. Historical immutable artifacts
+and their hashes are not rewritten. Independent verification must continue to
+check the exact new bytes and complete decoded source, rather than substitute an
+older capture's hash.
+
+The refusal-only projection inventory may create one transient JSON view of a
+typed source. Its cell/key/scalar construction is prepaid, it is dropped before
+the next source, and the unchanged historical graph allowance still covers that
+view together with its sealed owner. Observed Value capacities describe this
+diagnostic temporary; they do not certify the typed source's allocator layout.
+
+All ordinary and selected admission bounds remain unchanged. This removes a
+retained duplicate representation without claiming a smaller complete source,
+Sim or codec bound. The original public cut example still refuses at
+36,844,632 work units and 223,261,940 retained-byte upper bound. Complete private
+allocation/lifetime admission, predecessor binding and successful independently
+verified cut publication remain required under issues 15 and 25.

@@ -12,6 +12,10 @@ is pending. Matching native artifacts and explicit saved-library/session rebuild
 are required. Cut coordinator publication, broader issue #15/#25 adoption,
 observed/policy validation and combined scale acceptance remain open.
 
+Finite commercial proofs now share typed native owners instead of retaining a
+second projection JSON tree. Complete result values and admission limits remain
+unchanged; see [proof ownership](docs/models/commercial-source-proof-capture.md).
+
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
 forecasts, unit libraries, strategy coordination, and daily ledger/closing reports.

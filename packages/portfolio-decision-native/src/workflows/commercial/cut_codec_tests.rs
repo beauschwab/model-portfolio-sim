@@ -40,6 +40,33 @@ fn complete_json_bytes_and_independent_traversal_formula_match() {
     compare(&'😀');
     compare(&Some((None::<u64>, 123_u64, "text")));
 }
+
+#[test]
+fn diagnostic_value_is_prepaid_and_preserves_the_complete_json_tree() {
+    let raw = json!({"full": [null, -0.0, "é", {"tail": true}], "fee": -12.5});
+    let mut charged = 0;
+    let (value, work) = diagnostic_value(&raw, |n| {
+        charged += n;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(value, raw);
+    assert_eq!(work, expected(&raw));
+    assert_eq!(charged, work);
+    for limit in [0, 1, work - 1] {
+        let mut spent = 0;
+        assert!(diagnostic_value(&raw, |n| {
+            if n > limit - spent {
+                return Err("diagnostic work exhausted".into());
+            }
+            spent += n;
+            Ok(())
+        })
+        .unwrap_err()
+        .contains("diagnostic work exhausted"));
+        assert!(spent <= limit);
+    }
+}
 #[test]
 fn typed_structs_enums_tuples_options_and_flatten_preserve_wire_and_work() {
     #[derive(Serialize)]

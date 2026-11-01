@@ -1606,3 +1606,15 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Finite commercial proof ownership (2026-11-01 follow-through)
+
+Finite Physical projections serialize the same sealed accounting owner used by
+the journal; Pricing bundles/proofs share immutable typed native results. No
+second finite projection JSON tree is retained. Complete fields and financial
+values remain unchanged; direct serialization may change object key order and
+therefore newly encoded capture hashes. Historical artifacts remain immutable.
+Diagnostic transient JSON construction is prepaid under the unchanged source
+allowances. No admission discount, complete allocator/RSS proof, successful cut
+publication or issue15/25 completion follows from this representation change.
+See docs/models/commercial-source-proof-capture.md for lifetimes and boundaries.

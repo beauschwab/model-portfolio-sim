@@ -8,6 +8,7 @@ use portfolio_model_core::{cashflow::validate_ordinal, credit::CreditMeasure, st
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 pub const SCHEMA: &str = "commercial-product-graph-1";
 pub const MAX_WORK: usize = 32_000_000;
@@ -148,6 +149,50 @@ fn observe_sources(
     Ok(())
 }
 
+/// A complete proof shares the same sealed owner used by native calculations.
+/// There is no retained JSON copy of a finite Physical or Pricing projection.
+/// The variant is private so JSON cannot manufacture a journal-eligible owner.
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::SourceProjection;
+/// let _: SourceProjection = serde_json::from_str("{}").unwrap();
+/// ```
+pub struct SourceProjection(ProjectionOwner);
+enum ProjectionOwner {
+    Physical(Box<owner::ResultData>),
+    // Factor query/work counters are Cell-based. Proof sharing stays within
+    // this native request thread; it does not claim concurrent factor access.
+    Pricing(Rc<owner::EconomicResult>),
+    Generated(Value),
+}
+impl SourceProjection {
+    pub(crate) fn generated(receipt: Value) -> Self {
+        Self(ProjectionOwner::Generated(receipt))
+    }
+    /// Generated sources retain their small metadata receipt separately from
+    /// the sealed recipe. Finite sources serialize their typed owner directly.
+    pub fn retained_json_receipt(&self) -> Option<&Value> {
+        match &self.0 {
+            ProjectionOwner::Generated(receipt) => Some(receipt),
+            _ => None,
+        }
+    }
+    fn physical(&self) -> Option<&owner::ResultData> {
+        match &self.0 {
+            ProjectionOwner::Physical(owner) => Some(owner),
+            _ => None,
+        }
+    }
+}
+impl Serialize for SourceProjection {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match &self.0 {
+            ProjectionOwner::Physical(owner) => owner.serialize(serializer),
+            ProjectionOwner::Pricing(owner) => owner.as_ref().serialize(serializer),
+            ProjectionOwner::Generated(receipt) => receipt.serialize(serializer),
+        }
+    }
+}
+
 pub struct NativeSource {
     pub position_id: String,
     pub scenario_id: String,
@@ -161,10 +206,7 @@ pub struct NativeSource {
     pub fee_projection: Option<Box<crate::products::commercial::fee_source::adoption::Projection>>,
     pub(crate) generated_fee_projection:
         Option<Box<crate::products::commercial::generated_policy::FeeProjection>>,
-    pub projection: Value,
-    /// Native-only financial owner retained from the very same graph pass.
-    /// JSON receipts cannot be deserialized into a journal-eligible owner.
-    pub(crate) physical_projection: Option<Box<owner::ResultData>>,
+    pub projection: SourceProjection,
     pub(crate) generated_projection: Option<(
         Box<crate::products::commercial::generated_policy::PhysicalSource>,
         std::sync::Arc<std::sync::Mutex<owner::NativeOriginalAcquisitionProof>>,
@@ -199,7 +241,9 @@ impl Serialize for NativeSource {
             out.serialize_field(
                 "projection",
                 &GeneratedProjection {
-                    receipt: &self.projection,
+                    receipt: self.projection.retained_json_receipt().ok_or_else(|| {
+                        serde::ser::Error::custom("generated source metadata receipt absent")
+                    })?,
                     book_points: recipe.book_points(),
                 },
             )?;
@@ -241,7 +285,7 @@ impl NativeSource {
             .map(Some)
     }
     pub fn physical_accounting_source(&self) -> Option<&owner::ResultData> {
-        self.physical_projection.as_deref()
+        self.projection.physical()
     }
     pub fn physical_period(&self, left: f64, right: f64) -> Result<(f64, f64), String> {
         if let Some((recipe, _)) = &self.generated_projection {
@@ -667,8 +711,10 @@ pub fn audit_capacity(r: &Request) -> Result<Capacity, String> {
                     .checked_add(admitted.joined_bytes_upper)
                     .ok_or("commercial graph bytes overflow")?;
                 if role == Role::Physical {
-                    // Keep the sealed financial owner alongside its JSON
-                    // receipt for native candidate journal reuse.
+                    // Preserve the historical allowance while independent
+                    // source/private-allocation and complete cut bounds remain
+                    // open. Finite proofs now serialize the same sealed owner;
+                    // this representation change grants no admission discount.
                     bytes = bytes
                         .checked_add(admitted.joined_bytes_upper)
                         .ok_or("commercial retained journal owner bytes overflow")?;
@@ -851,7 +897,7 @@ fn generate(
         .as_ref()
         .map(|s| s.history(&scene.scenario_id, role, &h.path_id, false))
         .transpose()?;
-    let (cash, projection, physical_projection, fee_projection) = if role == Role::Physical {
+    let (cash, projection, fee_projection) = if role == Role::Physical {
         let v = owner::evaluate(&h.source)?;
         let fees = p
             .fees
@@ -861,8 +907,7 @@ fn generate(
             .transpose()?;
         (
             economic_cash(v.carry())?,
-            serde_json::to_value(&v).map_err(|e| e.to_string())?,
-            Some(Box::new(v)),
+            SourceProjection(ProjectionOwner::Physical(Box::new(v))),
             fees.map(Box::new),
         )
     } else {
@@ -877,8 +922,7 @@ fn generate(
             .transpose()?;
         (
             economic_cash(v.carry())?,
-            serde_json::to_value(v).map_err(|e| e.to_string())?,
-            None,
+            SourceProjection(ProjectionOwner::Pricing(Rc::new(v))),
             fees.map(Box::new),
         )
     };
@@ -894,20 +938,21 @@ fn generate(
         cash,
         fee_projection,
         projection,
-        physical_projection,
         generated_projection: None,
         generated_fee_projection: None,
     })
 }
-fn pricing_bundle(hs: &[History]) -> Result<Vec<owner::EconomicResult>, String> {
+fn pricing_bundle(hs: &[History]) -> Result<Vec<Rc<owner::EconomicResult>>, String> {
     hs.iter()
-        .map(|h| owner::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing))
+        .map(|h| {
+            owner::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing).map(Rc::new)
+        })
         .collect()
 }
 fn compile_policy(
     policy: &crate::products::commercial::exercise::Policy,
     hs: &[History],
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
     scene: &Scenario,
     oas: f64,
     bump: f64,
@@ -980,7 +1025,7 @@ fn source_from_economic(
     h: &History,
     role: Role,
     scene: &Scenario,
-    v: &owner::EconomicResult,
+    v: &Rc<owner::EconomicResult>,
 ) -> Result<NativeSource, String> {
     Ok(NativeSource {
         position_id: p.position_id.clone(),
@@ -993,8 +1038,7 @@ fn source_from_economic(
         source_request: h.source.clone(),
         cash: economic_cash(v.carry())?,
         fee_projection: None,
-        projection: serde_json::to_value(v).map_err(|e| e.to_string())?,
-        physical_projection: None,
+        projection: SourceProjection(ProjectionOwner::Pricing(Rc::clone(v))),
         generated_projection: None,
         generated_fee_projection: None,
     })
@@ -1002,7 +1046,7 @@ fn source_from_economic(
 fn stopped_pricing(
     p: &Position,
     hs: &[History],
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
     role: Role,
     scene: &Scenario,
     policy: &crate::products::commercial::exercise::NativeExercisePolicy,
@@ -1026,8 +1070,11 @@ fn stopped_pricing(
             }
             sources.push(source);
         } else {
-            let revised =
-                owner::evaluate_economic_with_stops(&h.source, CreditMeasure::Pricing, &stops)?;
+            let revised = Rc::new(owner::evaluate_economic_with_stops(
+                &h.source,
+                CreditMeasure::Pricing,
+                &stops,
+            )?);
             let mut source = source_from_economic(p, h, role, scene, &revised)?;
             if let Some(fees) = &p.fees {
                 source.fee_projection = Some(Box::new(
@@ -1096,8 +1143,7 @@ fn physical_with_policy(
         source_request: h.source.clone(),
         cash: economic_cash(revised.carry())?,
         fee_projection,
-        projection: serde_json::to_value(&revised).map_err(|e| e.to_string())?,
-        physical_projection: Some(Box::new(revised)),
+        projection: SourceProjection(ProjectionOwner::Physical(Box::new(revised))),
         generated_projection: None,
         generated_fee_projection: None,
     })
@@ -1174,7 +1220,7 @@ fn solve(
     p: &Position,
     sources: &[NativeSource],
     r: &Request,
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
 ) -> Result<f64, String> {
     if let OasTarget::Locked { base_oas, .. } = p.oas_target {
         return Ok(base_oas);
@@ -1480,6 +1526,11 @@ fn analyze_observed(
             None,
             &original_physical_sources[original_physical_begin..],
         )?;
+        // Complete original Pricing proofs have been observed and all anchors
+        // established. They never belong to the current-source result. Release
+        // both shared references before retaining current scenario owners.
+        drop(original);
+        drop(original_bundle);
         for (scenario_index, scene) in r.scenarios.iter().enumerate() {
             let h = p
                 .histories

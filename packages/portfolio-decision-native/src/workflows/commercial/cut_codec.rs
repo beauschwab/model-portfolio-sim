@@ -385,6 +385,29 @@ pub(super) fn write<T: Serialize>(
     Ok(meter.work.get())
 }
 
+/// Diagnostic-only conversion of one audited built-in projection. Every cell,
+/// key and scalar is funded before the Value serializer sees it. The caller
+/// must separately retain the existing source/Value component allowance and
+/// drop this temporary before moving to the next source. This does not prove
+/// allocator layout or grant any publication/admission authority.
+pub(super) fn diagnostic_value<T: Serialize>(
+    value: &T,
+    charge: impl FnMut(usize) -> Result<(), String>,
+) -> Result<(serde_json::Value, usize), String> {
+    let meter = Meter {
+        charge: RefCell::new(charge),
+        work: Cell::new(0),
+    };
+    let result = Wrapped {
+        value,
+        meter: &meter,
+        depth: 0,
+    }
+    .serialize(serde_json::value::Serializer)
+    .map_err(|error| error.to_string())?;
+    Ok((result, meter.work.get()))
+}
+
 #[cfg(test)]
 #[path = "cut_codec_tests.rs"]
 mod tests;

@@ -1554,3 +1554,25 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Finite commercial proof ownership (2026-11-01 follow-through)
+
+Finite Physical graph projections now serialize their sealed native accounting
+owner directly. Pricing source proofs share the immutable economic result with
+the continuation/anchor bundle using request-local Rc; no financial state is cloned or
+recomputed for proof serialization. Original Pricing references are released
+after complete source observation and anchor checks, before current scenarios.
+Factor evidence serializes borrowed segments without a temporary descriptor Vec.
+
+Complete JSON values remain compatible, including signed zero and all optional
+rights/recovery/fee fields. Object key emission order can change, so newly
+captured encoded records get their own immutable byte identity. Generated
+metadata and recipes retain their existing representation. The refusal-only
+inventory funds one transient JSON view before inspecting it, retains the old
+source/Value allowance and releases that view before the next source.
+
+Ordinary/selected admission, independent raw-derived source/private-allocation/
+Sim/codec gates and exact predecessor verification are unchanged. The public
+cut example still rejects before dual graph generation; this internal ownership
+refactor establishes neither positive publication nor issues15/25 completion.
+See docs/models/commercial-source-proof-capture.md for the component boundary.

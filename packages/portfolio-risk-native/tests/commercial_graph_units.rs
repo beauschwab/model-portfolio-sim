@@ -62,6 +62,37 @@ fn credit_off_exact_source_cash_and_hand_dv01() {
     assert!(out.shared_draws_retained);
     assert!(!out.empirical_validation);
 }
+
+#[test]
+fn finite_projections_serialize_complete_independent_owners_without_retained_json() {
+    use portfolio_model_core::credit::CreditMeasure;
+    use portfolio_risk_native::advanced_graph::Role;
+    let raw = request();
+    let result = graph::analyze(&raw).unwrap();
+    assert_eq!(result.native_sources.len(), 4);
+    for source in &result.native_sources {
+        assert!(source.projection.retained_json_receipt().is_none());
+        let actual = serde_json::to_value(&source.projection).unwrap();
+        let expected = if source.role == Role::Physical {
+            assert!(source.physical_accounting_source().is_some());
+            serde_json::to_value(compiler::evaluate(&source.source_request).unwrap()).unwrap()
+        } else {
+            assert!(source.physical_accounting_source().is_none());
+            serde_json::to_value(
+                compiler::evaluate_economic_with_measure(
+                    &source.source_request,
+                    CreditMeasure::Pricing,
+                )
+                .unwrap(),
+            )
+            .unwrap()
+        };
+        assert_eq!(actual, expected);
+        let wire = serde_json::to_value(source).unwrap();
+        assert_eq!(wire["projection"], expected);
+        assert_eq!(wire.as_object().unwrap().len(), 10);
+    }
+}
 #[test]
 fn original_oas_does_not_refit_in_changed_current_market() {
     let mut r = request();
@@ -208,7 +239,8 @@ fn credit_enabled_recovery_has_no_fake_default_principal_cash() {
         .iter()
         .find(|s| s.role == portfolio_risk_native::advanced_graph::Role::Physical)
         .unwrap();
-    let default = physical.projection["carry"]["credit"]["result"]["paths"][0]["default"].clone();
+    let projection = serde_json::to_value(&physical.projection).unwrap();
+    let default = projection["carry"]["credit"]["result"]["paths"][0]["default"].clone();
     assert!((default["economic_principal_loss"].as_f64().unwrap() - 40.).abs() < 1e-10);
 }
 #[test]
@@ -293,7 +325,7 @@ fn separate_fee_graph_price_and_original_loan_anchors_do_not_mix() {
         for (source, loan) in result.native_sources.iter().zip(&plain.native_sources) {
             assert_eq!(
                 serde_json::to_value(&source.projection).unwrap(),
-                loan.projection
+                serde_json::to_value(&loan.projection).unwrap()
             );
             assert_eq!(
                 serde_json::to_value(&source.cash).unwrap(),
@@ -820,22 +852,17 @@ fn continuation_uses_owned_credit_cash_and_stops_physical_accounting_once() {
         .iter()
         .find(|s| s.role == portfolio_risk_native::advanced_graph::Role::Physical)
         .unwrap();
-    assert_eq!(
-        physical.projection["native_stops"]
-            .as_array()
-            .unwrap()
-            .len(),
-        1
-    );
+    let projection = serde_json::to_value(&physical.projection).unwrap();
+    assert_eq!(projection["native_stops"].as_array().unwrap().len(), 1);
     assert!(
-        physical.projection["accounting"]["closing"][0]["principal"]
+        projection["accounting"]["closing"][0]["principal"]
             .as_f64()
             .unwrap()
             .abs()
             < 1e-12
     );
     assert!(
-        physical.projection["accounting"]["closing"][0]["legal_interest"]
+        projection["accounting"]["closing"][0]["legal_interest"]
             .as_f64()
             .unwrap()
             .abs()

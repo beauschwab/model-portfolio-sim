@@ -20,6 +20,8 @@ pub struct ProjectionEnvelopeInventory {
     pub projection_string_utf8_bytes: usize,
     pub observed_value_array_capacity_slots: usize,
     pub observed_value_string_capacity_bytes: usize,
+    pub materialized_projection_views: usize,
+    pub projection_materialization_work: usize,
     pub source_map_allocator_layout_proved: bool,
     pub complete_projection_field_mapping: bool,
     pub original_pricing_proofs_retained: bool,
@@ -346,8 +348,10 @@ fn count_value(value: &Value, result: &mut ProjectionEnvelopeInventory) -> R<()>
     Ok(())
 }
 
-/// Inspect already prepared, genuine sources without retaining/encoding another
-/// receipt. Counts are diagnostic. No source work or unknown allocator is waived.
+/// Inspect already prepared, genuine sources. A finite typed projection gets
+/// one prepaid transient Value view, released before the next source. The
+/// unchanged graph census still reserves its historical complete Value/owner
+/// allowance. Counts remain diagnostic; no unknown allocator is waived.
 pub fn inventory_prepared(prepared: &units::Prepared) -> R<ProjectionEnvelopeInventory> {
     if daily::cut_census_work_spent().is_none() {
         return Err("cut proof inventory requires a remaining-work ticket".into());
@@ -445,8 +449,20 @@ pub fn inventory_prepared(prepared: &units::Prepared) -> R<ProjectionEnvelopeInv
             } else {
                 result.current_pricing_uses = add(result.current_pricing_uses, 1)?;
             }
-            envelope(&s.projection, physical)?;
-            count_value(&s.projection, &mut result)?;
+            let temporary;
+            let projection = if let Some(receipt) = s.projection.retained_json_receipt() {
+                receipt
+            } else {
+                let (value, work) = super::cut_codec::diagnostic_value(&s.projection, tick)?;
+                result.materialized_projection_views =
+                    add(result.materialized_projection_views, 1)?;
+                result.projection_materialization_work =
+                    add(result.projection_materialization_work, work)?;
+                temporary = value;
+                &temporary
+            };
+            envelope(projection, physical)?;
+            count_value(projection, &mut result)?;
         }
     }
     // Original Q sources are actually dropped by graph::analyze after OAS;
@@ -530,6 +546,11 @@ mod tests {
             x.current_source_expected_uses + y.current_source_expected_uses,
             24
         );
+        assert_eq!(
+            x.materialized_projection_views + y.materialized_projection_views,
+            24
+        );
+        assert!(x.projection_materialization_work > 0 && y.projection_materialization_work > 0);
         assert!(!x.original_pricing_proofs_retained && !x.complete_projection_field_mapping);
         assert!(require_complete_inventory(x).is_err());
         assert!(require_complete_inventory(y).is_err());
