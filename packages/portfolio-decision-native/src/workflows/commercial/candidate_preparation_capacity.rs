@@ -22,17 +22,17 @@ fn mul(a: usize, b: usize) -> Result<usize, String> {
         .ok_or("borrowed preparation census overflow".into())
 }
 pub(super) fn census(i: Input) -> Result<Capacity, String> {
-    // Compiled::new scans source groups for the opening, event indexing and
-    // final closing coverage. Its ordered BTree indices and per-day sort each
-    // perform at most word-bits comparisons per event; each comparison may
-    // traverse the complete bounded scenario label. Group bodies are borrowed
-    // from the complete graph census, never cloned into this event index.
+    // Historical conservative reservation for opening, indexing and closing
+    // scans. Compiled now caches a borrowed, numeric metadata order and merges
+    // daily slices without sorting or String keys. Keep the former allowance
+    // until the entire raw-derived source/Compiled/Sim/codec bound is proved;
+    // the new metadata sort inventory alone grants no admission discount.
     let comparison = mul(usize::BITS as usize, add(i.scenario_label_bytes, 32)?)?;
     let scans = mul(i.groups, add(mul(comparison, 4)?, 128)?)?;
     let coverage = mul(i.bindings, add(add(i.positions, i.accounts)?, 128)?)?;
     let work = add(scans, add(coverage, mul(i.coefficient_cells, 128)?)?)?;
-    // Each event can own a BTree key/string/node and Vec index even when no
-    // events share a day. Bindings, sets and ownership maps are also retained.
+    // Retain the historical BTree/string/vector capacity allowance as well.
+    // Bindings, sets and ownership maps are also retained.
     // Tracking books, posting buffers and Sim state belong to the separate
     // complete cut-component reservation, not to this preparation capability.
     let indices = mul(i.groups, add(mul(i.scenario_label_bytes, 2)?, 1024)?)?;

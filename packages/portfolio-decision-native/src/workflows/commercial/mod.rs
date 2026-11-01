@@ -7,6 +7,8 @@ mod cut_codec;
 pub mod cut_mixed;
 pub mod cut_proof_capture;
 pub mod cut_proof_inventory;
+#[cfg(test)]
+mod event_index_tests;
 pub mod fee_candidate_treasury;
 pub mod fees;
 pub mod holdings;

@@ -240,3 +240,32 @@ final Value scans, ledger admission or publication refusal. Writer byte/cell
 funding does not establish complete pre-traversal codec accounting. See
 [the source-capture contract](commercial-source-proof-capture.md) and
 [its validation review](../reviews/2026-10-30-commercial-source-proof-capture.md).
+
+## Immutable commercial event indices (2026-11-01 follow-through)
+
+Prepared commercial owners now retain borrowed scenario identities and compact
+event metadata in immutable timelines. The metadata includes the unchanged
+actual posting day, original fractional year and Loan/Fee binding/group index.
+An explicit bottom-up merge sort prepares each timeline once. Daily replay and
+cut-prefix comparison take binary-bounded day slices and merge the loan and fee
+slices through a borrowed iterator. They no longer allocate scenario lookup
+Strings or rebuild/sort a daily scheduling vector. Posting order remains the
+native fractional year, Loan before Fee, binding index and group index. Empty
+days and zero allocations retain the same complete coverage.
+
+For `n >= 2` metadata entries, the sort performs at most
+`n * ceil(log2(n))` key comparisons and `n * (1 + ceil(log2(n)))` metadata copies,
+including its initial scratch copy. No financial state/group is copied into the
+index or scratch. Each day lookup uses at most twice the bit length of its
+timeline length in numeric day comparisons; scenario matching borrows source
+labels. Merging two daily slices consumes each event once without a daily sort.
+The metadata inventory reports these bounds, actual sort counters and observed
+vector capacities. It does not cover allocator overhead, full financial owner
+lifetimes, all Compiled construction/runtime or process RSS.
+
+Historical source, preparation, prefix and ledger admission charges remain
+unchanged. The original public example still refuses at work36,844,632 and
+bytes223,261,940 before dual graph generation. The new index removes actual
+repeated operations; its metadata census alone grants no source/Sim/codec
+admission discount, predecessor authority or successful cut publication. The
+independent publication refusal and every original issue15/25 gate remain.

@@ -1,5 +1,9 @@
 //! Borrowed complete native commercial groups, applied only by the existing Sim.
 //! No deserializable checkpoint, money override, credit loop or source projector.
+pub use super::event_index::{
+    sort_upper as commercial_event_sort_upper, EventIndexInventory, EventSortUpper,
+};
+use super::event_index::{Index, OrderedEvents};
 use crate::owners::consumer::state::{accrue, gl_with_owner, IncomeOwner, Line};
 use crate::transport::types::Spec;
 use portfolio_compute_control::checkpoint;
@@ -192,7 +196,7 @@ pub struct FeeBinding<'a> {
     pub source: &'a dyn FeeSource,
     pub native_years: &'a [f64],
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Scheduled {
     Loan(usize, usize),
     Fee(usize, usize),
@@ -201,9 +205,9 @@ pub struct Compiled<'a> {
     pub(crate) bindings: Vec<Binding<'a>>,
     pub(crate) positions: Vec<usize>,
     pub(crate) position_owners: Vec<bool>,
-    events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
+    events: Index<'a>,
     pub(crate) fees: Vec<FeeBinding<'a>>,
-    fee_events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
+    fee_events: Index<'a>,
     pub work_upper: usize,
     pub retained_bytes_upper: usize,
 }
@@ -273,6 +277,7 @@ impl<'a> Compiled<'a> {
             return Err("fee ownership already bound".into());
         }
         let mut seen = BTreeSet::new();
+        let mut fee_events = Index::default();
         for (fi, f) in fees.iter().enumerate() {
             checkpoint()?;
             let b = self
@@ -290,6 +295,7 @@ impl<'a> Compiled<'a> {
             }
             let compact = f.source.compact_bytes();
             let mut postings = 0usize;
+            let timeline = fee_events.register(b.scenario)?;
             for (i, year) in f.native_years.iter().enumerate() {
                 let g = f.source.group(i);
                 postings = postings
@@ -299,10 +305,12 @@ impl<'a> Compiled<'a> {
                 if f.source.asof() + elapsed as i32 != g.event.ordinal {
                     return Err("fee action cannot be retimed against native calendar".into());
                 }
-                self.fee_events
-                    .entry((b.scenario.into(), b.origin_day + elapsed))
-                    .or_default()
-                    .push((fi, i));
+                fee_events.push(
+                    timeline,
+                    b.origin_day + elapsed,
+                    b.origin_day as f64 / 365. + *year,
+                    Scheduled::Fee(fi, i),
+                )?;
                 let rows = g.postings.len() + 2;
                 if compact.is_none() {
                     self.work_upper = self
@@ -342,42 +350,20 @@ impl<'a> Compiled<'a> {
         if self.work_upper > 8_000_000 || self.retained_bytes_upper > 32 << 20 {
             return Err("joined commercial/fee ledger exceeds8M/32MiB".into());
         }
+        fee_events.seal()?;
+        self.fee_events = fee_events;
         self.fees = fees;
         Ok(())
     }
-    pub(crate) fn ordered_events(&self, scenario: &str, day: usize) -> Vec<Scheduled> {
-        let mut out = self
-            .events(scenario, day)
-            .iter()
-            .map(|&(b, i)| Scheduled::Loan(b, i))
-            .collect::<Vec<_>>();
-        if let Some(events) = self.fee_events.get(&(scenario.into(), day)) {
-            out.extend(events.iter().map(|&(b, i)| Scheduled::Fee(b, i)));
-        }
-        let key = |e: &Scheduled| match *e {
-            Scheduled::Loan(b, i) => (
-                self.bindings[b].origin_day as f64 / 365. + self.bindings[b].accounting.year(i),
-                0,
-                b,
-                i,
-            ),
-            Scheduled::Fee(b, i) => (
-                self.bindings[self.fees[b].loan_binding].origin_day as f64 / 365.
-                    + self.fees[b].native_years[i],
-                1,
-                b,
-                i,
-            ),
-        };
-        out.sort_by(|a, b| {
-            let a = key(a);
-            let b = key(b);
-            a.0.total_cmp(&b.0)
-                .then(a.1.cmp(&b.1))
-                .then(a.2.cmp(&b.2))
-                .then(a.3.cmp(&b.3))
-        });
-        out
+    pub(crate) fn ordered_events(&self, scenario: &str, day: usize) -> OrderedEvents<'_> {
+        OrderedEvents::new(&self.events, &self.fee_events, scenario, day)
+    }
+    /// Metadata observations only. Historical source/construction/runtime
+    /// admission remains unchanged; this is not a complete allocation proof.
+    pub fn event_index_inventory(
+        &self,
+    ) -> Result<(EventIndexInventory, EventIndexInventory), String> {
+        Ok((self.events.inventory()?, self.fee_events.inventory()?))
     }
     pub fn new(spec: &Spec, bindings: Vec<Binding<'a>>) -> Result<Self, String> {
         checkpoint()?;
@@ -386,13 +372,14 @@ impl<'a> Compiled<'a> {
             positions: Vec::new(),
             position_owners: vec![false; spec.positions.len()],
             bindings,
-            events: BTreeMap::new(),
+            events: Index::default(),
             fees: Vec::new(),
-            fee_events: BTreeMap::new(),
+            fee_events: Index::default(),
             work_upper: 0,
             retained_bytes_upper: 0,
         };
         if result.bindings.is_empty() {
+            result.events.seal()?;
             return Ok(result);
         }
         if !spec.reverse_severities.is_empty() {
@@ -466,6 +453,7 @@ impl<'a> Compiled<'a> {
             }
             let mut found = false;
             let mut compact_rows = 0usize;
+            let timeline = result.events.register(b.scenario)?;
             for (index, g) in (0..b.accounting.group_count())
                 .map(|i| (i, b.accounting.group(i)))
                 .filter(|(_, g)| g.path_key == b.path_key)
@@ -480,11 +468,12 @@ impl<'a> Compiled<'a> {
                     .origin_day
                     .checked_add(day(g.year, remaining)?)
                     .ok_or("commercial global day overflow")?;
-                result
-                    .events
-                    .entry((b.scenario.into(), at))
-                    .or_default()
-                    .push((bi, index));
+                result.events.push(
+                    timeline,
+                    at,
+                    b.origin_day as f64 / 365. + b.accounting.year(index),
+                    Scheduled::Loan(bi, index),
+                )?;
                 let rows = g
                     .postings
                     .len()
@@ -564,25 +553,9 @@ impl<'a> Compiled<'a> {
         if result.work_upper > 8_000_000 || result.retained_bytes_upper > 32 << 20 {
             return Err("commercial daily owner exceeds 8M/32MiB before Sim".into());
         }
-        for refs in result.events.values_mut() {
-            refs.sort_by(|&(a, i), &(b, j)| {
-                (result.bindings[a].origin_day as f64 / 365.
-                    + result.bindings[a].accounting.year(i))
-                .total_cmp(
-                    &(result.bindings[b].origin_day as f64 / 365.
-                        + result.bindings[b].accounting.year(j)),
-                )
-                .then(a.cmp(&b))
-                .then(i.cmp(&j))
-            });
-        }
+        result.events.seal()?;
         checkpoint()?;
         Ok(result)
-    }
-    pub(crate) fn events(&self, scenario: &str, day: usize) -> &[(usize, usize)] {
-        self.events
-            .get(&(scenario.into(), day))
-            .map_or(&[], Vec::as_slice)
     }
 }
 impl Binding<'_> {

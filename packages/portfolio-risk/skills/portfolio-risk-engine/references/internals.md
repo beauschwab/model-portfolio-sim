@@ -1576,3 +1576,18 @@ Sim/codec gates and exact predecessor verification are unchanged. The public
 cut example still rejects before dual graph generation; this internal ownership
 refactor establishes neither positive publication nor issues15/25 completion.
 See docs/models/commercial-source-proof-capture.md for the component boundary.
+
+## Immutable commercial scheduling indices (2026-11-01 follow-through)
+
+Commercial loan/fee preparation caches borrowed scenario identities and immutable
+numeric event metadata. Daily replay and cut-prefix checks use binary day slices
+and a borrowed merge iterator, preserving exact fractional-clock, Loan/Fee,
+binding and group order without temporary lookup Strings or a daily scheduling
+Vec/sort. A bounded metadata merge sort runs only during preparation. No source,
+money, group or zero-weight history is pruned or cloned into this index.
+
+The index diagnostic counts metadata comparisons/copies and observes its vector
+capacities. It does not prove complete source/private-allocation/Compiled/Sim/
+codec bounds or global RSS. Historical admission charges/refusals and all
+publication/predecessor/issue15/25 requirements remain unchanged. See
+docs/models/commercial-cut-receipt-admission.md for the bounds and scope.

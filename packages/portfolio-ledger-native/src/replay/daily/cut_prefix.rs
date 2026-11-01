@@ -798,8 +798,9 @@ pub fn commercial_cut_typed_prefix_inventory(
             // Precharge a conservative quadratic ordering bound BEFORE the
             // existing accessor allocates/sorts either complete scheduled union.
             let sorting = mul(mul(groups, groups)?, 32)?;
-            // Each accessor builds a temporary String for loan and fee BTree
-            // lookups. Both source sides perform those calls even on empty days.
+            // Retain the historical conservative charge until the complete
+            // source/Compiled/Sim census is independently proved. Immutable
+            // metadata indices now avoid the old per-day Strings and sort.
             let clone_bytes = mul(4, scenario.len())?;
             let lookup = mul(
                 mul(4, add(groups, 1)?)?,
@@ -816,10 +817,10 @@ pub fn commercial_cut_typed_prefix_inventory(
             if left.len() != right.len() {
                 return Err("typed prefix ordered union coverage differs".into());
             }
-            for (left, right) in left.iter().zip(&right) {
+            for (left, right) in left.zip(right) {
                 tick(1)?;
                 let (sa, sb) =
-                    match (*left, *right) {
+                    match (left, right) {
                         (Scheduled::Loan(x, i), Scheduled::Loan(y, j)) if x == y && i == j => {
                             let a = original.bindings[x].accounting.group(i);
                             let b = future.bindings[y].accounting.group(j);

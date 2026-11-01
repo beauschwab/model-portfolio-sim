@@ -1618,3 +1618,14 @@ Diagnostic transient JSON construction is prepaid under the unchanged source
 allowances. No admission discount, complete allocator/RSS proof, successful cut
 publication or issue15/25 completion follows from this representation change.
 See docs/models/commercial-source-proof-capture.md for lifetimes and boundaries.
+
+## Immutable commercial scheduling (2026-11-01 follow-through)
+
+Commercial daily replay and cut-prefix checks merge borrowed, preordered loan/
+fee event slices. Preparation retains borrowed scenario identities and numeric
+clock/binding metadata; replay does not allocate lookup Strings or sort a daily
+scheduling Vec. Exact fractional-clock and Loan/Fee/binding/group order, empty
+days and zero-weight source coverage remain unchanged. Metadata sort/search
+bounds alone grant no complete source/Sim/codec admission discount, verified
+predecessor or cut-publication authority. Historical admission/refusals and all
+issue15/25 gates remain. See docs/models/commercial-cut-receipt-admission.md.

@@ -199,8 +199,8 @@ fn validate_revision(
             if left.len() != right.len() {
                 return Err("native cut observed event coverage changed".into());
             }
-            for (left, right) in left.iter().zip(&right) {
-                match (*left, *right) {
+            for (left, right) in left.zip(right) {
+                match (left, right) {
                     (Scheduled::Loan(x, i), Scheduled::Loan(y, j)) if x == y && i == j => equal(
                         &*a.bindings[x].accounting.group(i),
                         &*b.bindings[y].accounting.group(j),
@@ -836,12 +836,98 @@ mod tests {
     fn buffer() -> Buffer {
         Buffer(Arc::default())
     }
+    fn frozen_daily_events(
+        c: &Compiled<'_>,
+        scenario: &str,
+        target: usize,
+        horizon: usize,
+    ) -> Vec<Scheduled> {
+        let calendar = |year: f64| {
+            assert!(year.is_finite() && year >= 0. && year <= horizon as f64 / 365.);
+            let elapsed = year * 365.;
+            let integer = elapsed.round() as usize;
+            let mut day = if (integer as f64 / 365.).to_bits() == year.to_bits() {
+                integer
+            } else {
+                elapsed.ceil() as usize
+            };
+            if year > day as f64 / 365. {
+                day += 1;
+            }
+            day
+        };
+        let mut out = Vec::new();
+        for (bi, binding) in c.bindings.iter().enumerate() {
+            if binding.scenario != scenario {
+                continue;
+            }
+            for i in 0..binding.accounting.group_count() {
+                let group = binding.accounting.group(i);
+                if group.path_key == binding.path_key
+                    && binding.origin_day + calendar(group.year) == target
+                {
+                    out.push(Scheduled::Loan(bi, i));
+                }
+            }
+        }
+        for (fi, fee) in c.fees.iter().enumerate() {
+            let binding = &c.bindings[fee.loan_binding];
+            if binding.scenario != scenario {
+                continue;
+            }
+            for (i, year) in fee.native_years.iter().enumerate() {
+                if binding.origin_day + calendar(*year) == target {
+                    out.push(Scheduled::Fee(fi, i));
+                }
+            }
+        }
+        // Frozen former daily comparator, independently reading original
+        // source years rather than the new cached index metadata.
+        let key = |e: &Scheduled| match *e {
+            Scheduled::Loan(b, i) => (
+                c.bindings[b].origin_day as f64 / 365. + c.bindings[b].accounting.year(i),
+                0,
+                b,
+                i,
+            ),
+            Scheduled::Fee(b, i) => (
+                c.bindings[c.fees[b].loan_binding].origin_day as f64 / 365.
+                    + c.fees[b].native_years[i],
+                1,
+                b,
+                i,
+            ),
+        };
+        out.sort_by(|a, b| {
+            let a = key(a);
+            let b = key(b);
+            a.0.total_cmp(&b.0)
+                .then(a.1.cmp(&b.1))
+                .then(a.2.cmp(&b.2))
+                .then(a.3.cmp(&b.3))
+        });
+        out
+    }
+    fn assert_cached_order_matches_sources(c: &Compiled<'_>, s: &Spec) {
+        for scenario in std::iter::once("baseline")
+            .chain(s.scenarios.iter().map(|s| s.name.as_str()))
+            .chain(["absent-run"])
+        {
+            for day in 0..=s.horizon_days {
+                assert_eq!(
+                    c.ordered_events(scenario, day).collect::<Vec<_>>(),
+                    frozen_daily_events(c, scenario, day, s.horizon_days)
+                );
+            }
+        }
+    }
     #[test]
     fn real_cut_state_preserves_future_journal_and_full_closing_at_multiple_cuts() {
         let s = spec();
         let owner = source(17);
         let id = s.positions[0].id.as_str();
         let c = Compiled::new(&s, bindings(&owner, id, 17, 0)).unwrap();
+        assert_cached_order_matches_sources(&c, &s);
         let full = buffer();
         super::super::run_with_commercial(&s, None, &c, Box::new(full.clone())).unwrap();
         let full = tables(&full);
@@ -967,6 +1053,7 @@ mod tests {
                 row.allocated_face = face;
             }
             let c = Compiled::new(&s, rows).unwrap();
+            assert_cached_order_matches_sources(&c, &s);
             let full = buffer();
             super::super::run_with_commercial(&s, None, &c, Box::new(full.clone())).unwrap();
             let full = tables(&full);
@@ -1030,6 +1117,7 @@ mod tests {
                     ],
                 )
                 .unwrap();
+                assert_cached_order_matches_sources(&c, &s);
                 let full = buffer();
                 super::super::run_with_commercial(&s, None, &c, Box::new(full.clone())).unwrap();
                 let full = tables(&full);

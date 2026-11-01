@@ -15,6 +15,9 @@ observed/policy validation and combined scale acceptance remain open.
 Finite commercial proofs now share typed native owners instead of retaining a
 second projection JSON tree. Complete result values and admission limits remain
 unchanged; see [proof ownership](docs/models/commercial-source-proof-capture.md).
+Commercial daily scheduling also uses immutable event indices and borrowed
+loan/fee merges; [cut admission](docs/models/commercial-cut-receipt-admission.md)
+still requires complete source/Sim/codec and predecessor validation.
 
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
