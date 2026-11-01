@@ -84,6 +84,8 @@ pub struct CaptureReceipt {
     pub source_preparation_work_upper: usize,
     pub raw_prefix_work_upper: usize,
     pub capture_work: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_traversal_work: Option<usize>,
     pub admitted_work_upper: usize,
     pub reported_retained_bytes_upper: usize,
     pub encoded_bytes: usize,
@@ -105,6 +107,8 @@ struct Capture<'a> {
     records: usize,
     counts: SourceCounts,
     limit: usize,
+    prepaid: bool,
+    traversal: usize,
 }
 impl Write for Capture<'_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -153,15 +157,20 @@ impl Capture<'_> {
             #[serde(flatten)]
             source: units::UnitSourceObservation<'a>,
         }
-        serde_json::to_writer(
-            &mut *self,
-            &Record {
-                schema: "commercial-cut-source-record-1",
-                side,
-                source,
-            },
-        )
-        .map_err(|e| e.to_string())?;
+        let record = Record {
+            schema: "commercial-cut-source-record-1",
+            side,
+            source,
+        };
+        if self.prepaid {
+            let work = super::cut_codec::write(&mut *self, &record, |n| {
+                checkpoint()?;
+                daily::charge_cut_census_work(n)
+            })?;
+            self.traversal = add(self.traversal, work)?;
+        } else {
+            serde_json::to_writer(&mut *self, &record).map_err(|e| e.to_string())?;
+        }
         self.write_all(b"\n").map_err(|e| e.to_string())?;
         self.records = add(self.records, 1)?;
         Ok(())
@@ -198,6 +207,23 @@ fn expected_counts(r: &cut_mixed::Request) -> Result<SourceCounts, String> {
 /// staging. Failure can leave an incomplete prefix and never returns a receipt.
 /// No JSON request selector, API/worker publication or Sim uses this component.
 pub fn capture(r: &cut_mixed::Request, output: &mut dyn Write) -> Result<CaptureReceipt, String> {
+    capture_internal(r, output, false)
+}
+
+/// Additive selected component: source traversal and formatting receive a work
+/// ticket before reaching serde_json. Historical capture receipts are unchanged.
+pub fn capture_prepaid(
+    r: &cut_mixed::Request,
+    output: &mut dyn Write,
+) -> Result<CaptureReceipt, String> {
+    capture_internal(r, output, true)
+}
+
+fn capture_internal(
+    r: &cut_mixed::Request,
+    output: &mut dyn Write,
+    prepaid: bool,
+) -> Result<CaptureReceipt, String> {
     checkpoint()?;
     if portfolio_compute_control::active().is_none()
         || r.schema != cut_mixed::SCHEMA
@@ -243,6 +269,8 @@ pub fn capture(r: &cut_mixed::Request, output: &mut dyn Write) -> Result<Capture
             records: 0,
             counts: SourceCounts::default(),
             limit: MAX_STREAM,
+            prepaid,
+            traversal: 0,
         });
         let mut old_observer = |source: units::UnitSourceObservation<'_>| {
             sink.borrow_mut().observe(Side::Completed, source)
@@ -308,11 +336,16 @@ pub fn capture(r: &cut_mixed::Request, output: &mut dyn Write) -> Result<Capture
         let capture_work =
             daily::cut_census_work_spent().ok_or("cut source capture final ticket absent")?;
         Ok(CaptureReceipt {
-            schema: "commercial-cut-source-capture-receipt-1",
+            schema: if prepaid {
+                "commercial-cut-source-capture-receipt-2"
+            } else {
+                "commercial-cut-source-capture-receipt-1"
+            },
             typed_request_bytes: raw,
             source_preparation_work_upper: source_work,
             raw_prefix_work_upper: raw_work,
             capture_work,
+            source_traversal_work: prepaid.then_some(sink.traversal),
             admitted_work_upper: add(initial, capture_work)?,
             reported_retained_bytes_upper: retained,
             encoded_bytes: sink.encoded,

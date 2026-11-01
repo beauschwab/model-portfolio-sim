@@ -1,5 +1,6 @@
 # Rates Workbench monorepo
-.PHONY: install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test build build-native check-architecture check-native-service
+.PHONY: install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test-web test build build-native check-architecture check-native-service
+.NOTPARALLEL: test test-web
 
 install:            ## python (editable) + node deps
 	uv sync --project apps/api
@@ -36,8 +37,13 @@ test-py: check-architecture ## engine and API regression suites
 	cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q
 	cd apps/api && uv run --extra dev python -m pytest tests/ -q
 
-test: test-py      ## all regression gates (browser requires Edge on Windows or Playwright Chromium)
+test: test-py test-mcp check-native-service test-web ## full local matrix; build financial native artifacts first
+
+test-web:          ## isolated memory, durable, cohort and Rust-service browser stacks
 	cd apps/web && bun run test:e2e
+	cd apps/web && bun run test:e2e -- -c playwright.cohorts.config.ts
+	cd apps/web && bun run test:e2e -- -c playwright.stream.config.ts
+	cd apps/web && bun run test:e2e -- -c playwright.native.config.ts
 
 build-native:       ## required production financial runtime (HiGHS stays C++)
 	uv run --project apps/api python scripts/build_native.py

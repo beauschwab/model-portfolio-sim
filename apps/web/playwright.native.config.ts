@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { nativeBrowserSpecs } from './playwright.suites';
 
 /* Liquidity lifecycle browser flow against the Rust service only (issue #48). The only servers are
    `workbench-native dev` (Rust API and leased worker in one process, over a throwaway SQLite
@@ -13,10 +14,12 @@ const nativePort = Number(process.env.WORKBENCH_TEST_NATIVE_PORT ?? 8013);
 const webPort = Number(process.env.WORKBENCH_TEST_NATIVE_WEB_PORT ?? 5175);
 const scratch = mkdtempSync(join(tmpdir(), "wbn-browser-"));
 const exe = resolve(dirname(fileURLToPath(import.meta.url)), "../api-rust/target/debug", process.platform === "win32" ? "workbench-native.exe" : "workbench-native");
-const ledger = process.env.WORKBENCH_TEST_LEDGER_EXE ?? "";
+const ledger = process.env.WORKBENCH_TEST_LEDGER_EXE ?? resolve(dirname(fileURLToPath(import.meta.url)),
+  '../../packages/portfolio-decision-native/target/release',
+  process.platform === 'win32' ? 'portfolio-model-ledger.exe' : 'portfolio-model-ledger');
 
 export default defineConfig({
-  testDir: "./tests", testMatch: "liquidity-lifecycle.spec.ts", workers: 1, timeout: 180_000,
+  testDir: "./tests", testMatch: nativeBrowserSpecs, workers: 1, timeout: 180_000,
   use: {
     baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1680, height: 1100 },
     channel: process.platform === "win32" ? "msedge" : undefined,

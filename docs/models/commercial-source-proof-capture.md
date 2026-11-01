@@ -112,3 +112,43 @@ prefix/Sim/output work under the unchanged cut limits, exact published
 predecessor binding, positive independently persisted cut publication, matching
 installed-artifact acceptance and every original requirement under issues #15
 and #25. Invented histories remain synthetic and example policies unreviewed.
+
+## Prepaid source serialization (2026-11-01)
+
+`capture_prepaid` adds receipt version 2 without changing version-1 execution,
+receipts or the complete JSONL source stream. A borrowing serializer adapter
+funds each built-in JSON cell before the downstream serializer sees it. A string
+or object key prepays one cell plus its UTF-8 length before escape scanning;
+a finite native-domain number prepays one cell plus a 32-byte formatting upper.
+Arrays and objects each prepay one cell before traversal. The existing writer
+charge remains in full, including output escaping/forwarding and buffer growth;
+the fixed bounded footer keeps its separately prepaid 2,048-unit allowance.
+
+Transparent wrappers and option values retain their original representation.
+Opaque RawValue/Number serialization, unbounded Display, nonfinite numbers,
+integers outside the native JSON domain and depth above 128 reject. This covers
+the audited built-in source record serializers. It cannot certify arbitrary work
+hidden in caller-supplied Serialize implementations or private allocator/RSS
+capacity. No API selector, Sim execution or production publication is added.
+
+For version 2 the independently reconstructible formula is:
+
+```text
+source_traversal_work = sum(record JSON cell/string/numeric uppers)
+capture_work = 2 * encoded_bytes + 16 * source_records + 2048 + source_traversal_work
+```
+
+The complete fixture's stream remains byte-identical: 27 records and 1,070,233
+bytes, with all original loan/fee quotes and zero-weight sources retained.
+Additional prepaid traversal is 1,510,239 units, capture work 3,653,185 and joined
+reported component work 30,454,141. Retained component capacity remains
+115,257,808 bytes; all caps and existing source charges remain unchanged.
+Independent full-source replay, sixteen tampering controls and all 24 zero-weight
+current sources pass for the version-2 capture as well. Sixty portable reference
+tests retain version-1 behavior and independently verify the additional counter.
+
+This closes pre-traversal funding for the selected source record encoder. The
+current cut's complete source/private-allocation/Sim/output codec bounds,
+repeated preparation/Value scans, predecessor binding and persisted publication
+remain open. This component still has `complete_source_sim_codec_bounds=false`
+and `publication_eligible=false`.

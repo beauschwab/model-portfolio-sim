@@ -5,6 +5,25 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Prepaid commercial source record traversal (2026-11-01)
+
+The additive `capture_prepaid` Rust component now funds JSON cells, string/key
+UTF-8 scans and bounded numeric formatting before the downstream serializer sees
+them. The existing writer charges and all source/capacity limits remain intact.
+Version-1 capture remains unchanged. The complete 27-record stream is byte-identical;
+version 2 adds an independently reconstructed traversal counter of 1,510,239,
+for 30,454,141 reported component work and unchanged 115,257,808 retained bytes.
+Independent replay verifies every source and original loan/fee quote; sixteen
+tampering cases reject and all 24 current sources also replay with zero weights.
+Sixty portable reference controls pass. See the
+[source capture contract](commercial-source-proof-capture.md#prepaid-source-serialization-2026-11-01).
+
+This closes selected source-record traversal funding only. The actual cut route's
+complete admission, repeated preparation/Value scans, exact published predecessor,
+positive persisted publication and every wider issue requirement remain open.
+The component grants no cut or publication authority. Full-suite results are
+recorded separately from this implementation checkpoint.
+
 ## Complete source projection capture during preparation (2026-10-30)
 
 Finite native commercial preparation can now lend each complete source proof to

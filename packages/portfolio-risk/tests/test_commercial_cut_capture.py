@@ -11,6 +11,26 @@ from portfolio_risk.analytics.commercial_dto import graph_typed
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_independent_prepaid_cell_string_and_number_formula():
+    value = {'é': [None, True, 7, -0., '😀']}
+    assert reference.source_traversal_work(value) == 1 + 3 + 1 + 1 + 1 + 33 + 33 + 5
+
+
+def test_prepaid_layout_retains_legacy_bytes_and_refuses_traversal_counter_tampering(control):
+    raw, rows, data, receipt = control
+    receipt['schema'] = 'commercial-cut-source-capture-receipt-2'
+    traversal = sum(map(reference.source_traversal_work, rows[:-1]))
+    receipt['source_traversal_work'] = traversal
+    receipt['capture_work'] += traversal
+    receipt['admitted_work_upper'] += traversal
+    result = reference.validate_layout(raw, data, receipt)
+    assert result['financial_replay'] is False
+    assert result['capture_work'] == receipt['capture_work']
+    receipt['source_traversal_work'] -= 1
+    with pytest.raises(ArithmeticError, match='source traversal differs'):
+        reference.validate_layout(raw, data, receipt)
+
+
 def encode(rows):
     return b''.join(json.dumps(row, allow_nan=False, separators=(',', ':')).encode() + b'\n'
                     for row in rows)

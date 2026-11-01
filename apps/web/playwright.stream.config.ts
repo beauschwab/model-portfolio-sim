@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { durableBrowserSpecs } from './playwright.suites';
 
 // Dedicated durable stack; never point this configuration at a user's database.
 const apiPort = Number(process.env.WORKBENCH_TEST_API_PORT ?? 8013);
@@ -17,7 +18,7 @@ const env = {
   WORKBENCH_WORKER_URL: `http://127.0.0.1:${workerPort}`,
 };
 export default defineConfig({
-  testDir: './tests', testMatch: ['streamed-balance.spec.ts', 'commercial-models.spec.ts', 'balance-stress.spec.ts','model-contracts.spec.ts','market-indexed.spec.ts','mortgage-closing-capital.spec.ts','modeled-product-ftp.spec.ts','saved-derivative-mixed.spec.ts','joint-deposit-derivative.spec.ts'],
+  testDir: './tests', testMatch: durableBrowserSpecs,
   workers: 1, timeout: 60_000,
   use: { baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1680, height: 1100 },
     channel: process.platform === 'win32' ? 'msedge' : undefined, trace: 'retain-on-failure' },

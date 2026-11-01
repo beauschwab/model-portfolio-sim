@@ -151,15 +151,36 @@ def _parse(data):
     return rows
 
 
+def source_traversal_work(value):
+    """Independent JSON cell/string/numeric upper for prepaid built-in records."""
+    if value is None or type(value) is bool:
+        return 1
+    if type(value) in (int, float):
+        return 33
+    if type(value) is str:
+        return 1 + len(value.encode('utf8'))
+    if type(value) is list:
+        return 1 + sum(map(source_traversal_work, value))
+    if type(value) is dict:
+        return 1 + sum(1 + len(key.encode('utf8')) + source_traversal_work(child)
+                       for key, child in value.items())
+    raise ArithmeticError('prepaid capture JSON value required')
+
+
 def validate_layout(raw, data, receipt, check=lambda: False):
     """Verify bytes/metadata only; financial replay remains explicitly false."""
     check()
     expected = expected_sources(raw)
     rows = _parse(data)
     _finite_tree(receipt)
-    _require(set(receipt) == {'schema', 'counts', 'all_selected_source_records_captured',
-                              *FALSE_RECEIPT, *INTEGER_RECEIPT}, 'capture receipt fields differ')
-    _require(receipt['schema'] == 'commercial-cut-source-capture-receipt-1',
+    prepaid = receipt.get('schema') == 'commercial-cut-source-capture-receipt-2'
+    fields = {'schema', 'counts', 'all_selected_source_records_captured',
+              *FALSE_RECEIPT, *INTEGER_RECEIPT}
+    if prepaid:
+        fields.add('source_traversal_work')
+    _require(set(receipt) == fields, 'capture receipt fields differ')
+    _require(receipt['schema'] in ('commercial-cut-source-capture-receipt-1',
+                                   'commercial-cut-source-capture-receipt-2'),
              'capture receipt schema differs')
     for key in INTEGER_RECEIPT:
         _uint(receipt[key], key)
@@ -197,6 +218,12 @@ def validate_layout(raw, data, receipt, check=lambda: False):
                  'full source cash/projection required')
     _require(receipt['encoded_bytes'] == len(data), 'capture actual byte count differs')
     work = 2 * len(data) + 16 * len(expected) + 2048
+    if prepaid:
+        _uint(receipt['source_traversal_work'], 'source_traversal_work')
+        traversal = sum(map(source_traversal_work, rows[:-1]))
+        _require(receipt['source_traversal_work'] == traversal,
+                 'prepaid capture source traversal differs')
+        work += traversal
     _require(receipt['capture_work'] == work, 'capture actual logical work differs')
     _require(0 < receipt['typed_request_bytes'] <= MAX_RAW
              and receipt['raw_prefix_work_upper'] == 8 * receipt['typed_request_bytes'],

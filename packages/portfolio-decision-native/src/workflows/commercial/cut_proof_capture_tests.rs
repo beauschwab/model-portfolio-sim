@@ -140,6 +140,59 @@ fn captured_current_sources_are_exact_unchanged_legacy_preparation_values() {
 }
 
 #[test]
+fn prepaid_capture_preserves_every_source_byte_with_independent_visit_accounting() {
+    fn visits(value: &Value) -> usize {
+        match value {
+            Value::Null | Value::Bool(_) => 1,
+            Value::Number(_) => 33,
+            Value::String(s) => 1 + s.len(),
+            Value::Array(xs) => 1 + xs.iter().map(visits).sum::<usize>(),
+            Value::Object(xs) => {
+                1 + xs
+                    .iter()
+                    .map(|(k, v)| 1 + k.len() + visits(v))
+                    .sum::<usize>()
+            }
+        }
+    }
+    let request = raw();
+    let (_, legacy) = run(&request);
+    let mut bytes = Vec::new();
+    let receipt = controlled(|| capture_prepaid(&request, &mut bytes)).unwrap();
+    assert_eq!(bytes, legacy);
+    let expected = decoded(&bytes)[..27].iter().map(visits).sum::<usize>();
+    assert_eq!(receipt.schema, "commercial-cut-source-capture-receipt-2");
+    assert_eq!(receipt.source_traversal_work, Some(expected));
+    assert_eq!(
+        receipt.capture_work,
+        2 * bytes.len() + 16 * 27 + 2048 + expected
+    );
+    assert!(receipt.admitted_work_upper <= MAX_WORK);
+    assert!(!receipt.complete_source_sim_codec_bounds && !receipt.publication_eligible);
+    println!(
+        "CUT_PREPAID_SOURCE_CAPTURE_RECEIPT={}",
+        serde_json::to_string(&receipt).unwrap()
+    );
+    if let Ok(folder) = std::env::var("CUT_PREPAID_CAPTURE_ARTIFACT") {
+        let folder = std::path::Path::new(&folder);
+        for (name, data) in [
+            ("sources.jsonl", bytes),
+            (
+                "capture-receipt.json",
+                serde_json::to_vec_pretty(&receipt).unwrap(),
+            ),
+        ] {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(folder.join(name))
+                .unwrap();
+            file.write_all(&data).unwrap();
+        }
+    }
+}
+
+#[test]
 fn zero_allocations_never_remove_or_change_an_unweighted_capture_record() {
     let r = raw();
     let (expected, bytes) = run(&r);
@@ -265,6 +318,8 @@ fn capture_writer_requires_prepaid_work_and_refuses_before_growth_or_external_wr
         records: 0,
         counts: SourceCounts::default(),
         limit: 4,
+        prepaid: false,
+        traversal: 0,
     };
     assert!(sink
         .write_all(b"null")

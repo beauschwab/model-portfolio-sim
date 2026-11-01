@@ -14,12 +14,14 @@
     "dev:web": "cd apps/web && bun run dev",
     "build:native": "uv run --project apps/api python scripts/build_native.py && uv run --project apps/api python scripts/build_ledger_native.py && uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py",
     "build": "bun run build:native && turbo build",
-    "test": "bun run test:py && bun run test:e2e",
+    "test": "bun run test:py && bun run test:mcp && bun run test:native-service && bun run test:e2e",
     "test:py": "bun run check:architecture && bun run test:engine && bun run test:api",
-    "test:e2e": "cd apps/web && bun run test:e2e",
+    "test:e2e": "cd apps/web && bun run test:e2e && bun run test:e2e -- -c playwright.cohorts.config.ts && bun run test:e2e -- -c playwright.stream.config.ts && bun run test:e2e -- -c playwright.native.config.ts",
+    "test:mcp": "uv run --project apps/mcp --extra dev python -m pytest apps/mcp/tests -q && cd apps/api && uv run --extra dev --with-editable ../mcp python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py -q",
+    "test:native-service": "cargo fmt --manifest-path apps/api-rust/Cargo.toml -- --check && cargo clippy --locked --manifest-path apps/api-rust/Cargo.toml --all-targets --features s3,fault-injection -- -D warnings && cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features fault-injection",
     "test:engine": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q",
     "test:api": "cd apps/api && uv run --extra dev python -m pytest tests/ -q",
-    "check:architecture": "python scripts/check_architecture.py && python -m unittest discover -s scripts/tests -v && python scripts/generate_native_contracts.py --check && uv run --project apps/api python scripts/generate_http_contracts.py --check"
+    "check:architecture": "python scripts/check_architecture.py && python -m unittest discover -s scripts/tests -v && python scripts/generate_native_contracts.py --check && uv run --project apps/api python scripts/generate_http_contracts.py --check && uv run --project apps/api python scripts/generate_mcp_contracts.py --check"
   },
   "devDependencies": {
     "turbo": "^2.0.6"
