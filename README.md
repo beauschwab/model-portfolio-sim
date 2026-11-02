@@ -21,6 +21,8 @@ still requires complete source/Sim/codec and predecessor validation.
 Cut-prefix byte comparisons now retain only the smaller complete encoding and
 stream the other against it, with bounded cancellation probes. All historical
 comparison charges, capacity limits and publication gates remain unchanged.
+The typed census also covers reviewed credit claims, policies and legal waivers;
+complete private-owner and publication proofs remain required.
 
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,

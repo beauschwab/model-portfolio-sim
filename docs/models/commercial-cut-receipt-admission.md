@@ -288,3 +288,21 @@ probe cancellation in chunks of at most32768bytes. The ordinary holding raw/tabl
 comparators retain their existing two-pass implementation; no extra sizing work
 is introduced into their separate allowance. This representation change grants
 no admission discount or positive cut-publication authority.
+
+## Reviewed credit snapshot field mapping
+
+The typed prefix diagnostic now exhaustively maps reviewed legal principal,
+model carry, allowance, complete recovery claims and legal waivers. Claim mapping
+includes every accounting-policy variant and identity, signed principal/accrual/
+basis and collection stock, settled-interest identity and remaining recovery
+point. Waiver clocks, reviewed source identity, signed amounts and future-cash
+disposition remain separate. New native fields or enum variants require a
+compile-time mapping review. No economic loss, allowance, chargeoff or recovery
+amount is recalculated by this diagnostic.
+
+Independent real-serde layout controls, every serialized claim/waiver leaf,
+all16 policy combinations, signed zero, optional-state presence and complete
+ordered recovery/settlement tails cover the new mapping. String-layout limits,
+materializing-source refusals and the complete raw-source/private-allocation/
+Sim/codec proof gates remain. Neither this mapping nor an agreeing field count
+grants native cut execution or independent publication authority.

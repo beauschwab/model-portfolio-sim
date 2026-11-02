@@ -1,10 +1,10 @@
 //! Diagnostic typed source census only. No cut admission or execution uses this
-//! module. Exhaustive native destructuring prevents silent field loss; selected
-//! unsupported reviewed states refuse. Money is observed, never calculated.
+//! module. Exhaustive native destructuring prevents silent field loss, including
+//! reviewed credit claims and waivers. Money is observed, never calculated.
 use super::cut_shape;
 use portfolio_model_core::{
     commercial_coupon_accounting::{self as book, AtomicGroup, CouponLot, OwnedPosting, Snapshot},
-    credit_accounting::{AccountCode, Identity, PostingIntent},
+    credit_accounting::{self as credit, AccountCode, Identity, PostingIntent},
     credit_path_income::CanonicalCouponLegalBalance,
     nonintegral_fee as fee,
 };
@@ -309,23 +309,24 @@ typed_struct!(CouponLot,{coupon_id:always,source_event_id:always,source_id:alway
     recognized_cash_applied:always,recognized_remaining:always,default_claim:always});
 typed_struct!(CanonicalCouponLegalBalance,{coupon_id:always,native_audit_index:always,native_cash_index:always,opening_entitlement_principal:always,
     cumulative_factor:always,contractual_earned:always,actual_interest_collected:always,legal_remaining:always});
-impl Typed for book::reviews::ReviewedSnapshot {
-    fn visit(&self, _: &mut Counter) -> R<()> {
-        let Self {
-            legal_principal: _,
-            model_gross_carry: _,
-            allowance: _,
-            claims: _,
-            legal_waivers: _,
-        } = self;
-        Err("typed prefix reviewed-credit state layout is not yet independently mapped".into())
-    }
-    fn same(&self, _: &Self) -> R<bool> {
-        let mut c = Counter::default();
-        self.visit(&mut c)?;
-        Ok(false)
-    }
-}
+typed_enum!(credit::AccruedPolicy, {ReverseIncomeAtDefault=>"reverse_income_at_default",
+    TransferUntilReviewedReversal=>"transfer_until_reviewed_reversal"});
+typed_enum!(credit::BasisPolicy, {TransferUntilReviewedChargeoff=>"transfer_until_reviewed_chargeoff",
+    RecognizeInEarningsAtDefault=>"recognize_in_earnings_at_default"});
+typed_enum!(credit::AllowanceShortfall, {Reject=>"reject",ExpenseAtReviewedChargeoff=>"expense_at_reviewed_chargeoff"});
+typed_enum!(credit::ExcessCashRecovery, {CreditAllowance=>"credit_allowance",RecognizeInEarnings=>"recognize_in_earnings"});
+typed_struct!(credit::AccountingPolicy,{identity:always,accrued:always,basis:always,allowance_shortfall:always,excess_cash_recovery:always});
+typed_struct!(credit::RecoveryPoint,{payment_ordinal:always,amount:always});
+typed_struct!(credit::RecoveryClaim,{claim_id:always,economic_source:always,recovery_schedule_review:always,policy:always,
+    default_ordinal:always,initial_principal:always,economic_principal_loss:always,initial_accrued_interest:always,
+    initial_book_adjustment:always,outstanding_principal:always,outstanding_accrued_interest:always,outstanding_book_adjustment:always,
+    principal_charged_off:always,accrued_reversed:always,basis_recognized:always,recovery_cash_collected:always,
+    recovery_applied_to_principal:always,interest_recovery_cash_collected:always,interest_recovery_applied:always,
+    settled_interest_recovery_ids:always,remaining_recoveries:always});
+typed_struct!(book::reviews::LegalWaiver,{path_key:always,review:always,recognition_ordinal:always,claim_id:always,
+    principal_amount:always,accrued_interest_amount:always,future_cash_disposition:always});
+typed_struct!(book::reviews::ReviewedSnapshot,{legal_principal:always,model_gross_carry:always,allowance:always,
+    claims:always,legal_waivers:always});
 typed_struct!(Snapshot,{path_key:always,year:always,principal:always,recognized_interest:always,legal_interest:always,
     native_legal_reduction_difference:always,book_adjustment:always,gross_carry:always,in_default:always,reviewed_credit_state:some,
     lots:always,pending_coupon_obligation_indices:nonempty,canonical_legal_coupons:nonempty});
@@ -929,7 +930,7 @@ mod tests {
         .unwrap_err()
         .contains("immutable specification"));
     }
-    fn group() -> AtomicGroup {
+    pub(super) fn group() -> AtomicGroup {
         AtomicGroup {
             path_key: 1,
             year: 0.,
@@ -994,7 +995,7 @@ mod tests {
             next: fee::State::default(),
         }
     }
-    fn layout_matches<T: Typed>(value: &T) {
+    pub(super) fn layout_matches<T: Typed>(value: &T) {
         let actual = serde_json::to_vec(value).unwrap();
         let from_layout = serde_json::to_vec(&value.layout_value().unwrap()).unwrap();
         // Native structs emit declaration order; Value maps sort keys. Compare
@@ -1226,11 +1227,14 @@ mod tests {
             claims: vec![],
             legal_waivers: vec![],
         });
-        assert!(
-            cut_shape::with_budget(100_000, || commercial_loan_prefix_shape(&g))
-                .unwrap_err()
-                .contains("not yet independently mapped")
-        );
+        layout_matches(&g);
+        cut_shape::with_budget(100_000, || {
+            let shape = commercial_loan_prefix_shape(&g)?;
+            assert!(shape.encoded_bytes_upper >= cut_shape::shape(&g)?.encoded_bytes_upper);
+            assert!(commercial_loan_prefix_equal(&g, &g)?);
+            Ok(())
+        })
+        .unwrap();
     }
     #[test]
     fn typed_helpers_honor_cancel_after_scope_entry_and_restore_ticket() {
@@ -1247,3 +1251,7 @@ mod tests {
         assert!(portfolio_compute_control::checkpoint().is_ok());
     }
 }
+
+#[cfg(test)]
+#[path = "cut_reviewed_tests.rs"]
+mod reviewed_tests;

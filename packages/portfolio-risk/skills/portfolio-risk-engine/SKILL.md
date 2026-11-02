@@ -1635,3 +1635,7 @@ streams the other serializer against it. Both original size scans, byte-exact
 signed-zero/field/order semantics, combined capacity and full error traversal
 remain; cancellation probes bound long string writes. This reduces a temporary
 encoding owner, without reducing admission charges or granting publication.
+
+The typed prefix diagnostic additionally maps complete reviewed credit claims,
+accounting policies and legal waivers. Its field/layout/equality controls do not
+recalculate accounting amounts or grant source/Sim/codec/publication authority.

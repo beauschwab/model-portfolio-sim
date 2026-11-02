@@ -1600,3 +1600,11 @@ serializer failures and cancellation cannot become successful comparisons.
 Writes probe cancellation at intervals of at most32768bytes. Existing source,
 cut-work and retention allowances remain unchanged. Holding raw/table comparisons
 retain their separate historical two-pass implementation and admission.
+
+Typed prefix census/equality now covers ReviewedSnapshot and every nested
+RecoveryClaim/RecoveryPoint/AccountingPolicy/LegalWaiver field, including all
+four binary policy enums, signed stocks, source/review identities, settled
+interest IDs and complete recovery tails. Exhaustive destructuring/matches and
+independent real-serde layout/leaf mutations guard the mapping. The existing
+string/materialization limits and complete source/private-allocation/Sim/codec
+and publication gates remain; no accounting approval or resource permit follows.
