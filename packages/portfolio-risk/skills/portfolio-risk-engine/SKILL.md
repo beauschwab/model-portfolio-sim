@@ -1629,3 +1629,9 @@ days and zero-weight source coverage remain unchanged. Metadata sort/search
 bounds alone grant no complete source/Sim/codec admission discount, verified
 predecessor or cut-publication authority. Historical admission/refusals and all
 issue15/25 gates remain. See docs/models/commercial-cut-receipt-admission.md.
+
+Cut-prefix canonical comparison stages only the smaller complete encoding and
+streams the other serializer against it. Both original size scans, byte-exact
+signed-zero/field/order semantics, combined capacity and full error traversal
+remain; cancellation probes bound long string writes. This reduces a temporary
+encoding owner, without reducing admission charges or granting publication.

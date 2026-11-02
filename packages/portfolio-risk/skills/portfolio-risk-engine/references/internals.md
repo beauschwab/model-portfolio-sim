@@ -1591,3 +1591,12 @@ capacities. It does not prove complete source/private-allocation/Compiled/Sim/
 codec bounds or global RSS. Historical admission charges/refusals and all
 publication/predecessor/issue15/25 requirements remain unchanged. See
 docs/models/commercial-cut-receipt-admission.md for the bounds and scope.
+
+Cut-prefix comparisons retain the smaller canonical encoding and stream the
+other serializer directly against its bytes. They preserve both complete sizing
+passes, the original combined byte limit and exact serialized field/order and
+signed-zero semantics. Mismatches still traverse the whole second operand;
+serializer failures and cancellation cannot become successful comparisons.
+Writes probe cancellation at intervals of at most32768bytes. Existing source,
+cut-work and retention allowances remain unchanged. Holding raw/table comparisons
+retain their separate historical two-pass implementation and admission.

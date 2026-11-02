@@ -269,3 +269,22 @@ bytes223,261,940 before dual graph generation. The new index removes actual
 repeated operations; its metadata census alone grants no source/Sim/codec
 admission discount, predecessor authority or successful cut publication. The
 independent publication refusal and every original issue15/25 gate remain.
+
+## Single retained canonical comparison encoding
+
+The actual cut prefix comparator now counts both complete serializations before
+staging only the smaller encoding. The other serializer writes directly against
+those immutable bytes, without a second encoding, Value tree, digest or thread.
+For admitted encoded sizes `A` and `B`, the encoding Vec capacity is exactly
+`min(A,B)` or the comparator refuses. This bounds that temporary owner only;
+serializer internals, source/Sim owners and total RSS are separate.
+
+Both per-operand32MiB and combined32MiB limits remain. The same complete sizing
+and serialization passes remain paid by unchanged historical admission charges.
+Every serialized byte, key/order, integer/float category and signed zero retains
+its original exact comparison semantics. A mismatch does not stop serialization:
+late source errors, changed encoded sizes and cancellation still fail. Long writes
+probe cancellation in chunks of at most32768bytes. The ordinary holding raw/table
+comparators retain their existing two-pass implementation; no extra sizing work
+is introduced into their separate allowance. This representation change grants
+no admission discount or positive cut-publication authority.

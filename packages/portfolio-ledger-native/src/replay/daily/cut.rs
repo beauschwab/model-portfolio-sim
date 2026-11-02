@@ -45,19 +45,19 @@ struct CutCheckpoint<'a> {
 }
 
 fn equal<T: serde::Serialize>(a: &T, b: &T) -> R<()> {
-    portfolio_compute_control::checkpoint()?;
-    let comparison_bytes = portfolio_model_core::strict_json::serialized_size(a, 32 << 20)?
-        .checked_add(portfolio_model_core::strict_json::serialized_size(
-            b,
-            32 << 20,
-        )?)
-        .ok_or("native cut comparison capacity overflow")?;
-    if comparison_bytes > 32 << 20 {
-        return Err("native cut comparison exceeds component capacity".into());
-    }
-    if portfolio_model_core::strict_json::encode(a, 32 << 20)?
-        != portfolio_model_core::strict_json::encode(b, 32 << 20)?
-    {
+    if !portfolio_model_core::strict_json::serialized_equal_checked(
+        a,
+        b,
+        32 << 20,
+        32 << 20,
+        portfolio_compute_control::checkpoint,
+    )
+    .map_err(|error| match error.as_str() {
+        "JSON comparison exceeds combined byte admission" => {
+            "native cut comparison exceeds component capacity".into()
+        }
+        _ => error,
+    })? {
         return Err("native cut immutable specification or observed group differs".into());
     }
     Ok(())
