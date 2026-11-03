@@ -1,5 +1,9 @@
 # Commercial sequential cut implementation checkpoint
 
+This review records local commit05ab761. Later prepaid-output counters and
+validation are documented in the component contract; these original receipts
+remain immutable and must not be presented as proof of those later source bytes.
+
 The approved admission replacement now has a native source-lifetime component.
 All original histories, input caps, economic anchors and final tolerances remain.
 The unchanged full request executes through that component with27 source proofs,

@@ -156,6 +156,7 @@ struct Sink {
     ids: HashMap<String, usize>,
     sent: usize,
     reports: report::Reports,
+    prepaid_frames: bool,
 }
 impl Sink {
     fn new(output: Box<dyn Write + Send>) -> Self {
@@ -168,6 +169,7 @@ impl Sink {
             ids: HashMap::new(),
             sent: 0,
             reports: report::Reports::default(),
+            prepaid_frames: false,
         }
     }
     fn intern(&mut self, text: &str) -> usize {
@@ -235,15 +237,18 @@ impl Sink {
     }
     fn flush(&mut self) -> R<()> {
         if !self.journal.value.is_empty() {
-            serde_json::to_writer(
+            write_frame(
                 &mut self.out,
+                self.prepaid_frames,
                 &JournalMessage {
                     table: "journal",
                     columns: &self.journal,
                     dictionary: &self.dictionary[self.sent..],
                 },
-            )
-            .map_err(|e| e.to_string())?;
+            )?;
+            if self.prepaid_frames {
+                cut_shape::charge(2)?;
+            }
             self.out.write_all(b"\n").map_err(|e| e.to_string())?;
             self.sent = self.dictionary.len();
             self.journal = JournalColumns::default();
@@ -252,13 +257,35 @@ impl Sink {
             if rows.is_empty() {
                 continue;
             }
-            serde_json::to_writer(&mut self.out, &RowMessage { rows, table: name })
-                .map_err(|e| e.to_string())?;
+            write_frame(
+                &mut self.out,
+                self.prepaid_frames,
+                &RowMessage { rows, table: name },
+            )?;
+            if self.prepaid_frames {
+                cut_shape::charge(2)?;
+            }
             self.out.write_all(b"\n").map_err(|e| e.to_string())?;
             rows.clear();
         }
         self.count = 0;
         self.out.flush().map_err(|e| e.to_string())
+    }
+}
+
+fn write_frame<T: serde::Serialize>(output: &mut dyn Write, prepaid: bool, value: &T) -> R<()> {
+    if prepaid {
+        portfolio_model_core::transport::prepaid_json::write_with_output_charge(
+            output,
+            value,
+            |work| {
+                portfolio_compute_control::checkpoint()?;
+                cut_shape::charge(work)
+            },
+        )?;
+        Ok(())
+    } else {
+        serde_json::to_writer(output, value).map_err(|e| e.to_string())
     }
 }
 

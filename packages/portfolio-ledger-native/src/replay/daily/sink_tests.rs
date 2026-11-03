@@ -74,6 +74,65 @@ fn sink(limit: usize) -> (Sink, Arc<Mutex<Vec<u8>>>) {
     (sink, output)
 }
 
+fn independent_json_work(value: &Value) -> usize {
+    match value {
+        Value::Null | Value::Bool(_) => 1,
+        Value::Number(_) => 33,
+        Value::String(text) => 1 + text.len(),
+        Value::Array(rows) => 1 + rows.iter().map(independent_json_work).sum::<usize>(),
+        Value::Object(fields) => {
+            1 + fields
+                .iter()
+                .map(|(key, v)| 1 + key.len() + independent_json_work(v))
+                .sum::<usize>()
+        }
+    }
+}
+
+#[test]
+fn prepaid_frames_preserve_all_wire_bytes_and_pay_every_cell_and_newline() {
+    let (mut ordinary, wire) = sink(2 << 20);
+    ordinary.flush().unwrap();
+    let bytes = wire.lock().unwrap().clone();
+    let work = std::str::from_utf8(&bytes)
+        .unwrap()
+        .lines()
+        .map(|line| {
+            independent_json_work(&serde_json::from_str::<Value>(line).unwrap())
+                + 2 * (line.len() + 1)
+        })
+        .sum::<usize>();
+    let (mut paid, actual) = sink(2 << 20);
+    paid.prepaid_frames = true;
+    cut_shape::with_budget(work, || {
+        paid.flush()?;
+        assert_eq!(cut_shape::spent(), Some(work));
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(*actual.lock().unwrap(), bytes);
+    assert_eq!(paid.sent, ordinary.sent);
+    assert!(paid.rows.values().all(Vec::is_empty));
+}
+
+#[test]
+fn exhausted_frame_budget_retains_retry_state_and_cannot_emit_an_unpaid_frame() {
+    let (mut paid, actual) = sink(2 << 20);
+    paid.prepaid_frames = true;
+    let dictionary = paid.dictionary.clone();
+    let rows = paid.count;
+    assert!(cut_shape::with_budget(0, || paid.flush()).is_err());
+    assert!(actual.lock().unwrap().is_empty());
+    assert_eq!(paid.dictionary, dictionary);
+    assert_eq!(paid.sent, 0);
+    assert_eq!(paid.count, rows);
+    assert!(!paid.journal.value.is_empty());
+    assert!(paid.rows.values().any(|v| !v.is_empty()));
+    assert_eq!(cut_shape::spent(), None);
+    cut_shape::with_budget(10_000_000, || paid.flush()).unwrap();
+    assert!(!actual.lock().unwrap().is_empty());
+}
+
 // Frozen pre-change flush, including dictionary ownership and error ordering.
 fn old_flush(sink: &mut Sink) -> R<()> {
     if !sink.journal.value.is_empty() {

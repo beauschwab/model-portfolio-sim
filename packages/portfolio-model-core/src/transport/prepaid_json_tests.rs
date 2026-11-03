@@ -202,3 +202,91 @@ fn nonfinite_and_oversized_number_domains_refuse_before_emitting_null_or_digits(
     compare(&(u64::MAX as u128));
     compare(&(i64::MIN as i128));
 }
+
+#[test]
+fn combined_traversal_and_output_work_match_independent_complete_json_formula() {
+    let value =
+        json!({"signed":-0.0,"claim":{"amount":-2.5,"full_tail":[1,2,3]},"text":"\"\\\n雪😀"});
+    let encoded = serde_json::to_vec(&value).unwrap();
+    let mut output = Vec::new();
+    let mut charged = 0;
+    let actual = write_with_output_charge(&mut output, &value, |n| {
+        charged += n;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(output, encoded);
+    assert_eq!(actual.traversal_work, expected(&value));
+    assert_eq!(actual.encoded_bytes, encoded.len());
+    assert_eq!(actual.total_work, expected(&value) + 2 * encoded.len());
+    assert_eq!(charged, actual.total_work);
+}
+
+#[test]
+fn combined_budget_failure_cannot_forward_an_unpaid_byte_or_return_success() {
+    let value = json!({"large":"\n雪".repeat(4096),"tail":[u64::MAX,-0.0]});
+    let total = expected(&value) + 2 * serde_json::to_vec(&value).unwrap().len();
+    for limit in [0, 1, 100, total - 1] {
+        let mut output = Vec::new();
+        let mut spent = 0;
+        assert!(write_with_output_charge(&mut output, &value, |n| {
+            let next = spent + n;
+            if next > limit {
+                return Err("combined work exhausted".into());
+            }
+            spent = next;
+            Ok(())
+        })
+        .unwrap_err()
+        .contains("combined work exhausted"));
+        assert!(spent <= limit);
+        assert!(2 * output.len() <= spent);
+    }
+}
+
+#[test]
+fn combined_long_string_output_checks_cancellation_in_bounded_chunks() {
+    let text = "x".repeat(1 << 20);
+    let mut output = Vec::new();
+    let mut chunks = 0;
+    let error = write_with_output_charge(&mut output, &text, |n| {
+        if n == 65536 {
+            chunks += 1;
+            if chunks == 3 {
+                return Err("COMPUTE_CANCELLED".into());
+            }
+        }
+        Ok(())
+    })
+    .unwrap_err();
+    assert!(error.contains("COMPUTE_CANCELLED"));
+    assert_eq!(chunks, 3);
+    assert_eq!(output.len(), 1 + 2 * 32768);
+}
+
+#[test]
+fn combined_writer_failure_opaque_values_and_invalid_numbers_produce_no_receipt() {
+    struct Failed;
+    impl Write for Failed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("combined failed output"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(
+        write_with_output_charge(&mut Failed, &json!([1]), |_| Ok(()))
+            .unwrap_err()
+            .contains("combined failed output")
+    );
+    let raw = serde_json::value::RawValue::from_string("{\"unpaid\":1}".into()).unwrap();
+    let mut output = Vec::new();
+    assert!(write_with_output_charge(&mut output, &raw, |_| Ok(()))
+        .unwrap_err()
+        .contains("opaque JSON"));
+    assert!(write_with_output_charge(&mut output, &f64::NAN, |_| Ok(()))
+        .unwrap_err()
+        .contains("nonfinite"));
+    assert!(output.is_empty());
+}

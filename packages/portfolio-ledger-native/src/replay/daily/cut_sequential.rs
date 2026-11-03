@@ -317,7 +317,10 @@ impl SequentialCommercialCut {
             prefix_work,
             add(
                 inventory.census_work_upper,
-                inventory.all_stream.scan_work()?,
+                add(
+                    inventory.all_stream.scan_work()?,
+                    mul(inventory.all_stream.encoded_bytes_upper, 2)?,
+                )?,
             )?,
         )?;
         guard(
@@ -345,6 +348,7 @@ impl SequentialCommercialCut {
             output,
             structural_bytes: None,
         }));
+        sink.prepaid_frames = true;
         let mut states = Vec::with_capacity(spec.scenarios.len() + 1);
         let baseline = cut::baseline();
         for scenario in std::iter::once(&baseline).chain(spec.scenarios.iter()) {
@@ -433,7 +437,10 @@ impl SequentialCommercialCut {
             work,
             add(
                 inventory.census_work_upper,
-                inventory.all_stream.scan_work()?,
+                add(
+                    inventory.all_stream.scan_work()?,
+                    mul(inventory.all_stream.encoded_bytes_upper, 2)?,
+                )?,
             )?,
         )?;
         let bytes = add(
@@ -486,14 +493,15 @@ impl SequentialCommercialCut {
         }
         self.sink.flush()?;
         checkpoint()?;
-        serde_json::to_writer(
+        write_frame(
             &mut self.sink.out,
+            true,
             &json!({"complete":true,"protocol":9,
             "cut_day":self.cut,"native_cut_state_moved":true,"original_calendar_retained":true,
             "new_sim_started_at_cut":true,"prior_publication_verified":false,
             "sequential_source_owners":true}),
-        )
-        .map_err(|e| e.to_string())?;
+        )?;
+        super::cut_shape::charge(2)?;
         self.sink.out.write_all(b"\n").map_err(|e| e.to_string())?;
         Ok(SequentialCutReceipt {
             protocol: 9,

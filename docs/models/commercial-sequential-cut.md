@@ -53,8 +53,13 @@ Sequential source preparation has a maximum reported phase reservation of
 These are existing component reservations, not an aggregate allocator/RSS proof.
 The original12,314-byte comparison survives source release. Including complete
 snapshot clone payload and the shared Sink inventory, the example reports
-3,517,486 component work and24,387,004 component bytes, within the unchanged
+7,124,846 component work and24,387,004 component bytes, within the unchanged
 8M/32MiB component caps. Reported fields alone do not establish raw admission.
+
+The earlier05ab761 checkpoint reported3,517,486 component work before adding
+the emitted-byte term to the complete stream reservation. Its immutable receipts
+remain historical component evidence. The current counter includes two work units
+per possible encoded stream byte in addition to structural traversal.
 
 `commercial-sequential-cut-output-inventory-1` includes protocol9 completion,
 all table families, dictionary resends, ordinary-row high-water vectors, journal
@@ -75,6 +80,29 @@ private allocation, whole-Sim and codec proof is still required.**
 The root limits remain32M work/128MiB, with2MiB raw input,4MiB component output
 and32MiB final output. Component proofs cannot widen or replace those limits.
 The historical full raw API route still refuses before both graphs are generated.
+
+## Shared prepaid output codec
+
+`portfolio-model-core::transport::prepaid_json` owns the common audited serializer
+previously local to commercial source capture. Existing capture and diagnostic
+callers retain their wire bytes and traversal formula. The additive
+`write_with_output_charge` also funds two work units per encoded byte before
+forwarding it, checks output in chunks of at most32KiB, and returns separate
+traversal, byte and total counters only after successful serialization. It accepts
+a caller-funded budget; it supplies no allowance. Opaque raw JSON and arbitrary
+Display formatting remain rejected, and no claim is made about work hidden inside
+an unaudited caller serializer or aggregate allocator/RSS capacity.
+
+Only the sequential component selects prepaid Sink frames. Journal dictionaries,
+ordinary borrowed row frames, newlines and protocol9 completion use the same
+original work/cancellation authority. All historical Sink paths retain their
+existing serializer. Native tests independently count the complete emitted JSON
+tree and newlines, compare every wire byte with the historical serializer and
+verify that an exhausted budget emits no unpaid frame or success receipt. Core
+controls cover exact totals, numeric/opaque refusals, writer failure and bounded
+cancellation within a long string. Full-request and zero-allocation component
+witnesses remain positive. Complete preparation/final-envelope codec admission
+and independent raw-derived resource verification are still outstanding.
 
 ## Validation and outstanding adoption
 
