@@ -53,13 +53,15 @@ Sequential source preparation has a maximum reported phase reservation of
 These are existing component reservations, not an aggregate allocator/RSS proof.
 The original12,314-byte comparison survives source release. Including complete
 snapshot clone payload and the shared Sink inventory, the example reports
-7,124,846 component work and24,387,004 component bytes, within the unchanged
+6,958,778 component work and24,387,004 component bytes, within the unchanged
 8M/32MiB component caps. Reported fields alone do not establish raw admission.
 
 The earlier05ab761 checkpoint reported3,517,486 component work before adding
-the emitted-byte term to the complete stream reservation. Its immutable receipts
-remain historical component evidence. The current counter includes two work units
-per possible encoded stream byte in addition to structural traversal.
+the emitted-byte term to the complete stream reservation. The a085292 checkpoint
+reported7,124,846 before exact funded prefix sizing/storage/comparison replaced
+the prior per-byte prefix multipliers. Both immutable receipt sets remain
+historical component evidence. The current counter includes two work units per
+possible encoded stream byte and the exact funded prefix passes.
 
 `commercial-sequential-cut-output-inventory-1` includes protocol9 completion,
 all table families, dictionary resends, ordinary-row high-water vectors, journal
@@ -103,6 +105,44 @@ controls cover exact totals, numeric/opaque refusals, writer failure and bounded
 cancellation within a long string. Full-request and zero-allocation component
 witnesses remain positive. Complete preparation/final-envelope codec admission
 and independent raw-derived resource verification are still outstanding.
+
+## Funded prefix and direct packet prototype
+
+Sizing and storing the observed prefix now use the shared prepaid serializer.
+The source's exact requested proof capacity is reserved once; the encoding must
+retain both its byte size and funded-work count. Comparison funds complete
+traversal and compared bytes directly against that immutable encoding. Ledger
+execution reservations debit the same nonreplaceable ticket before either Sim
+phase. Exhaustion rejects before unreserved work/visible prefix output; complete
+mismatch, late serializer failure, original cancellation and deadline controls
+remain required. No deserialized monetary state is introduced.
+
+The test-only `commercial-sequential-packet-witness-1` prototype emits each complete
+preparation directly while its native owners are live, then drops that preparation
+before the next source phase. It retains three original source records once and
+all24 current proofs in the complete preparations. A small raw header plus the
+two retained complete candidate requests reconstructs the original input exactly.
+No history, path, cash/right tail, quote or source proof is omitted. A standard
+two-encoding oracle checks every proof, preparation and output table, including
+signed zero and integer/float categories, against the full27-record witness.
+
+For the unchanged full request, the producer reports21,783,742 source work,
+905,400 raw-prefix reservation and8,973,794 controlled work, totaling31,662,936
+under32M. Its source-phase reservation is124,251,744 bytes under128MiB and its
+packet contains1,576,129 bytes. These remain **producer component/convention
+reports**. The decoder reservation is provisional; complete private parser,
+source/allocation/whole-Sim layout and independent raw-derived admission are not
+proved by the arithmetic. `complete_resource_proof` and publication eligibility
+remain false. The prototype and indexed selector are compiled only in tests and
+do not enable a raw CLI or API path.
+
+`commercial_sequential_packet_reference` independently resolves ordered original
+and current proof identities and replays every financial part without inventing
+resource counters. Its source is the external original raw request, canonicalized
+under the existing typed-transport rules. Native financial callbacks are forbidden
+in tests; changed references, source counts/order, amounts, clocks and forged
+authority reject. This reader is explicit analysis and is not registered as a
+production publication verifier.
 
 ## Validation and outstanding adoption
 

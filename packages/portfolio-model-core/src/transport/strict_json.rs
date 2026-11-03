@@ -335,3 +335,27 @@ pub fn serialized_matches_checked<T: Serialize>(
     probe()?;
     Ok(equal)
 }
+
+/// Exact comparison with retained bytes, funding the audited traversal and
+/// every compared byte before visiting/forwarding it. No reference encoding,
+/// parsed Value or monetary checkpoint is constructed. Provenance remains the
+/// caller's responsibility; a mismatch cannot grant resource/publication rights.
+pub fn serialized_matches_counted<T: Serialize>(
+    expected: &[u8],
+    value: &T,
+    maximum_bytes: usize,
+    charge: impl FnMut(usize) -> Result<(), String>,
+) -> Result<(bool, super::prepaid_json::WriteWork), String> {
+    if expected.len() > maximum_bytes {
+        return Err("JSON comparison reference exceeds byte admission".into());
+    }
+    let mut writer = CompareWriter {
+        expected,
+        offset: 0,
+        maximum: maximum_bytes,
+        equal: true,
+        overrun: "serialized JSON exceeds selected byte admission",
+    };
+    let work = super::prepaid_json::write_with_output_charge(&mut writer, value, charge)?;
+    Ok((writer.equal && writer.offset == expected.len(), work))
+}

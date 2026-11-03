@@ -69,7 +69,7 @@ impl Write for RecordWriter {
     }
 }
 
-fn witness(request: &cut_mixed::Request, indexed: bool) -> Result<Value, String> {
+pub(super) fn witness(request: &cut_mixed::Request, indexed: bool) -> Result<Value, String> {
     scope(Some(Control::new(180_000)?), || {
         let cut = cut_mixed::validate_raw_prefix(request).and_then(|_| {
             usize::try_from(request.cut_ordinal - request.completed_candidate.as_of_ordinal)

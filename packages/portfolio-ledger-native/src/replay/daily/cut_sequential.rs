@@ -130,6 +130,35 @@ struct ProofWriter {
     data: Vec<u8>,
     size: usize,
 }
+
+struct ProofSizer {
+    size: usize,
+}
+impl Write for ProofSizer {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let next = self
+            .size
+            .checked_add(bytes.len())
+            .ok_or_else(|| io::Error::other("sequential proof size overflow"))?;
+        if next > MAX_PROOF {
+            return Err(io::Error::other("sequential proof exceeds4MiB"));
+        }
+        self.size = next;
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+fn funded_proof<T: Serialize>(
+    output: &mut dyn Write,
+    value: &T,
+) -> R<portfolio_model_core::transport::prepaid_json::WriteWork> {
+    portfolio_model_core::transport::prepaid_json::write_with_output_charge(output, value, |work| {
+        checkpoint()?;
+        super::cut_shape::charge(work)
+    })
+}
 impl Write for ProofWriter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         checkpoint().map_err(io::Error::other)?;
@@ -298,20 +327,20 @@ impl SequentialCommercialCut {
             bindings: source.bindings.len(),
             fees: source.fees.len(),
         };
-        let size = strict_json::serialized_size(&view, MAX_PROOF)?;
+        let mut sizer = ProofSizer { size: 0 };
+        let sizing = funded_proof(&mut sizer, &view)?;
+        let size = sizer.size;
         let raw = strict_json::serialized_size(spec, 2 << 20)?;
         let (prefix_state_bytes, snapshot_scan_work) = state_reservation(spec, source, raw)?;
         let inventory =
             super::cut_inventory::commercial_sequential_cut_inventory(spec, source, cut)?;
-        let prefix_work = add(
+        let execution_work = add(
             mul(source.work_upper, add(spec.scenarios.len(), 1)?)?,
-            add(
-                mul(size, 16)?,
-                add(
-                    snapshot_scan_work,
-                    add(mul(raw, 8)?, mul(lookup_work(spec, source, cut)?, 2)?)?,
-                )?,
-            )?,
+            add(mul(raw, 8)?, mul(lookup_work(spec, source, cut)?, 2)?)?,
+        )?;
+        let prefix_work = add(
+            execution_work,
+            add(snapshot_scan_work, mul(sizing.total_work, 2)?)?,
         )?;
         let prefix_work = add(
             prefix_work,
@@ -338,10 +367,11 @@ impl SequentialCommercialCut {
             return Err("sequential proof capacity exceeds exact reservation".into());
         }
         let mut writer = ProofWriter { data, size };
-        serde_json::to_writer(&mut writer, &view).map_err(|e| e.to_string())?;
-        if writer.data.len() != size {
+        let encoded = funded_proof(&mut writer, &view)?;
+        if writer.data.len() != size || encoded != sizing {
             return Err("sequential prefix serialization changed after sizing".into());
         }
+        super::cut_shape::charge(execution_work)?;
         let enabled = Arc::new(AtomicBool::new(false));
         let mut sink = Sink::new(Box::new(cut::WindowWriter {
             enabled: enabled.clone(),
@@ -417,22 +447,17 @@ impl SequentialCommercialCut {
         let (future_state_bytes, snapshot_scan_work) = state_reservation(revised, source, raw)?;
         let inventory =
             super::cut_inventory::commercial_sequential_cut_inventory(revised, source, self.cut)?;
-        let work = add(
-            self.prefix_work,
+        let execution_work = add(
+            mul(source.work_upper, add(revised.scenarios.len(), 1)?)?,
             add(
-                mul(source.work_upper, add(revised.scenarios.len(), 1)?)?,
+                mul(raw, 8)?,
                 add(
-                    mul(self.proof.len(), 8)?,
-                    add(
-                        add(snapshot_scan_work, mul(raw, 8)?)?,
-                        add(
-                            lookup_work(revised, source, self.cut)?,
-                            mul(add(source.bindings.len(), revised.positions.len())?, 128)?,
-                        )?,
-                    )?,
+                    lookup_work(revised, source, self.cut)?,
+                    mul(add(source.bindings.len(), revised.positions.len())?, 128)?,
                 )?,
             )?,
         )?;
+        let work = add(self.prefix_work, add(execution_work, snapshot_scan_work)?)?;
         let work = add(
             work,
             add(
@@ -468,14 +493,21 @@ impl SequentialCommercialCut {
             bindings: self.bindings,
             fees: self.fees,
         };
-        if !strict_json::serialized_matches_checked(
+        let (equal, comparison) = strict_json::serialized_matches_counted(
             &self.proof,
             &view,
             self.proof.len(),
-            checkpoint,
-        )? {
+            |work| {
+                checkpoint()?;
+                super::cut_shape::charge(work)
+            },
+        )?;
+        let work = add(work, comparison.total_work)?;
+        guard(work, bytes)?;
+        if !equal {
             return Err("sequential cut immutable specification, binding or complete observed group differs".into());
         }
+        super::cut_shape::charge(execution_work)?;
         let proof_size = self.proof.len();
         drop(self.proof);
         let runs = self.states.len();

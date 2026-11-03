@@ -255,3 +255,52 @@ fn sequential_original_deadline_expires_between_source_phases_without_visible_ou
     assert_eq!(result.err().unwrap(), "COMPUTE_DEADLINE_EXCEEDED");
     assert!(actual.0.lock().unwrap().is_empty());
 }
+
+#[test]
+fn sequential_prefix_proof_and_real_sim_work_share_one_nonreplaceable_budget() {
+    let s = spec();
+    let owner = source(17);
+    let c = Compiled::new(&s, bindings(&owner, s.positions[0].id.as_str(), 17, 0)).unwrap();
+    let expected = buffer();
+    run_commercial_cut(&s, &s, &c, &c, 5, Box::new(expected.clone())).unwrap();
+    let actual = buffer();
+    super::super::cut_shape::with_budget(8_000_000, || {
+        let checkpoint = SequentialCommercialCut::capture(&s, &c, 5, Box::new(actual.clone()))?;
+        assert!(actual.0.lock().unwrap().is_empty());
+        let prefix_spent = super::super::cut_shape::spent().unwrap();
+        assert!(prefix_spent > 0);
+        let receipt = checkpoint.resume(&s, &c)?;
+        let spent = super::super::cut_shape::spent().unwrap();
+        assert!(spent > prefix_spent);
+        assert!(
+            spent <= receipt.component_work_upper,
+            "paid={spent},upper={}",
+            receipt.component_work_upper
+        );
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(tables(&actual), tables(&expected));
+    assert_eq!(super::super::cut_shape::spent(), None);
+}
+
+#[test]
+fn sequential_exhausted_prefix_sizing_budget_refuses_before_any_visible_output() {
+    let s = spec();
+    let owner = source(17);
+    let c = Compiled::new(&s, bindings(&owner, s.positions[0].id.as_str(), 17, 0)).unwrap();
+    for limit in [0, 1, 100] {
+        let actual = buffer();
+        assert!(
+            super::super::cut_shape::with_budget(limit, || SequentialCommercialCut::capture(
+                &s,
+                &c,
+                5,
+                Box::new(actual.clone())
+            ))
+            .is_err()
+        );
+        assert!(actual.0.lock().unwrap().is_empty());
+        assert_eq!(super::super::cut_shape::spent(), None);
+    }
+}

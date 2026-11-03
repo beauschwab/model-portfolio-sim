@@ -26,6 +26,11 @@ def _require(ok, message):
         raise ArithmeticError(message)
 
 
+_PART_KEYS = frozenset('''raw_request completed_preparation revised_preparation cut_tables
+    producer_completion component_receipt source_records joined_raw_admission_proved
+    publication_eligible'''.split())
+
+
 def verify(raw, actual, check=lambda: False):
     """Verify all financial rows/proofs while explicitly denying publication."""
     _require(type(actual) is dict, 'sequential witness object required')
@@ -44,6 +49,24 @@ def verify(raw, actual, check=lambda: False):
              and exact_json_identity(raw, actual['raw_request']), 'sequential witness identity differs')
     _require(actual['joined_raw_admission_proved'] is False
              and actual['publication_eligible'] is False, 'unpublished sequential boundary differs')
+    # These bounds remain reported metadata. Agreement is not a raw resource proof.
+    for key in ('source_record_bytes', 'source_preparation_work_upper_reported',
+                'source_preparation_sum_bytes_upper_reported',
+                'source_preparation_phase_bytes_upper_reported', 'source_capture_work',
+                'source_traversal_work'):
+        _require(type(actual[key]) is int and actual[key] > 0, 'sequential reported counter differs')
+    return verify_parts(raw, {k: actual[k] for k in _PART_KEYS}, check)
+
+
+def verify_parts(raw, actual, check=lambda: False):
+    """Replay complete financial parts without inventing resource metadata."""
+    _require(type(actual) is dict and set(actual) == _PART_KEYS,
+             'sequential complete financial parts required')
+    _finite_tree(actual)
+    _require(exact_json_identity(raw, actual['raw_request'])
+             and actual['joined_raw_admission_proved'] is False
+             and actual['publication_eligible'] is False,
+             'sequential financial identity/evidence boundary differs')
     raw_prefix(raw, check)
     old = raw['completed_candidate']; new = raw['revised_candidate']
     cut = raw['cut_ordinal'] - old['as_of_ordinal']
@@ -68,12 +91,6 @@ def verify(raw, actual, check=lambda: False):
                        ('complete_observed_prefix_bytes', 4 << 20)]:
         _require(type(receipt[key]) is int and 0 < receipt[key] <= limit,
                  'sequential reported component cap differs')
-    # These bounds remain reported metadata. Agreement is not a raw resource proof.
-    for key in ('source_record_bytes', 'source_preparation_work_upper_reported',
-                'source_preparation_sum_bytes_upper_reported',
-                'source_preparation_phase_bytes_upper_reported', 'source_capture_work',
-                'source_traversal_work'):
-        _require(type(actual[key]) is int and actual[key] > 0, 'sequential reported counter differs')
     expected_records = finite_source_order(raw)
     records = actual['source_records']
     _require(type(records) is list and len(records) == len(expected_records),

@@ -251,3 +251,100 @@ fn every_cancellation_probe_can_abort_including_long_unescaped_string_writes() {
         assert_eq!(seen, stop);
     }
 }
+#[test]
+fn counted_retained_comparison_matches_independent_encodings_and_pays_complete_mismatches() {
+    let original = serde_json::json!({"head":-0.0,"tail":[1,2.0,"雪\n"]});
+    let bytes = serde_json::to_vec(&original).unwrap();
+    for changed in [
+        original.clone(),
+        serde_json::json!({"head":0.0,"tail":[1,2.0,"雪\n"]}),
+        serde_json::json!({"head":-0.0,"tail":[1,2.0,"changed\n"]}),
+    ] {
+        let expected = serde_json::to_vec(&changed).unwrap();
+        let mut charged = 0;
+        let (same, work) = portfolio_model_core::strict_json::serialized_matches_counted(
+            &bytes,
+            &changed,
+            1024,
+            |n| {
+                charged += n;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(same, bytes == expected);
+        assert_eq!(work.encoded_bytes, expected.len());
+        assert_eq!(work.total_work, work.traversal_work + 2 * expected.len());
+        assert_eq!(charged, work.total_work);
+    }
+}
+
+#[test]
+fn counted_retained_comparison_refuses_unfunded_tail_overrun_and_cancelled_work() {
+    let original = serde_json::json!({"first":1,"tail":"x".repeat(65536)});
+    let bytes = serde_json::to_vec(&original).unwrap();
+    let (_, work) = portfolio_model_core::strict_json::serialized_matches_counted(
+        &bytes,
+        &original,
+        bytes.len(),
+        |_| Ok(()),
+    )
+    .unwrap();
+    for limit in [0, 1, work.total_work - 1] {
+        let mut spent = 0;
+        assert!(
+            portfolio_model_core::strict_json::serialized_matches_counted(
+                &bytes,
+                &original,
+                bytes.len(),
+                |n| {
+                    if n > limit - spent {
+                        return Err("unfunded comparison".into());
+                    }
+                    spent += n;
+                    Ok(())
+                }
+            )
+            .unwrap_err()
+            .contains("unfunded comparison")
+        );
+        assert!(spent <= limit);
+    }
+    assert!(
+        portfolio_model_core::strict_json::serialized_matches_counted(b"[]", &original, 2, |_| Ok(
+            ()
+        ))
+        .is_err()
+    );
+    assert!(
+        portfolio_model_core::strict_json::serialized_matches_counted(
+            &bytes,
+            &original,
+            bytes.len(),
+            |_| Err("COMPUTE_CANCELLED".into())
+        )
+        .unwrap_err()
+        .contains("COMPUTE_CANCELLED")
+    );
+}
+
+#[test]
+fn counted_mismatch_still_observes_a_late_serializer_failure() {
+    struct Late;
+    impl Serialize for Late {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            use serde::ser::SerializeSeq;
+            let mut sequence = serializer.serialize_seq(Some(2))?;
+            sequence.serialize_element(&"different")?;
+            Err(serde::ser::Error::custom("late counted failure"))
+        }
+    }
+    let error = portfolio_model_core::strict_json::serialized_matches_counted(
+        b"[\"original\",1]",
+        &Late,
+        1024,
+        |_| Ok(()),
+    )
+    .unwrap_err();
+    assert!(error.contains("late counted failure"));
+}

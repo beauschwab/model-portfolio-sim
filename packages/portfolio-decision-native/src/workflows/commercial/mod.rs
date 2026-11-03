@@ -14,4 +14,6 @@ pub mod fees;
 pub mod holdings;
 #[cfg(test)]
 mod sequential_cut_tests;
+#[cfg(test)]
+mod sequential_packet_tests;
 pub mod treasury;
