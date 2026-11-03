@@ -1,6 +1,7 @@
-//! Diagnostic typed source census only. No cut admission or execution uses this
-//! module. Exhaustive native destructuring prevents silent field loss, including
-//! reviewed credit claims and waivers. Money is observed, never calculated.
+//! Typed source census and exact fresh-Snapshot clone payload. Exhaustive native
+//! destructuring prevents silent field loss, including reviewed claims/waivers.
+//! The sequential component uses clone payloads; diagnostic prefix equality and
+//! shape inventories still grant no raw admission. Money is never calculated.
 use super::cut_shape;
 use portfolio_model_core::{
     commercial_coupon_accounting::{self as book, AtomicGroup, CouponLot, OwnedPosting, Snapshot},
@@ -105,12 +106,20 @@ impl Counter {
 trait Typed: Serialize {
     fn visit(&self, c: &mut Counter) -> R<()>;
     fn same(&self, other: &Self) -> R<bool>;
+    /// Heap payload requested by a fresh deep Clone, excluding inline Self.
+    /// This intentionally visits omitted fields too; JSON visibility is not
+    /// native ownership. Source Vec/String spare capacities are not cloned.
+    fn cloned_heap(&self) -> R<usize>;
     #[cfg(test)]
     fn layout_value(&self) -> R<serde_json::Value> {
         serde_json::to_value(self).map_err(|e| e.to_string())
     }
 }
 impl Typed for f64 {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         if !self.is_finite() {
             return Err("typed prefix finite f64 required".into());
@@ -127,12 +136,17 @@ impl Typed for f64 {
 }
 macro_rules! integer {
     ($($t:ty),+) => { $(impl Typed for $t {
+        fn cloned_heap(&self)->R<usize> { tick(1)?; Ok(0) }
         fn visit(&self, c:&mut Counter)->R<()> { c.node(32) }
         fn same(&self, other:&Self)->R<bool> { tick(1)?; Ok(self==other) }
     })+ };
 }
 integer!(usize, u64, u32, i32, i64);
 impl Typed for bool {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(5)
     }
@@ -142,6 +156,10 @@ impl Typed for bool {
     }
 }
 impl Typed for str {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(0)?;
         c.text(self)
@@ -155,6 +173,10 @@ impl Typed for str {
     }
 }
 impl Typed for String {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(add(self.len(), 1)?)?;
+        Ok(self.len())
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         self.as_str().visit(c)
     }
@@ -163,6 +185,10 @@ impl Typed for String {
     }
 }
 impl<T: Typed> Typed for Option<T> {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        self.as_ref().map_or(Ok(0), Typed::cloned_heap)
+    }
     #[cfg(test)]
     fn layout_value(&self) -> R<serde_json::Value> {
         match self {
@@ -186,6 +212,14 @@ impl<T: Typed> Typed for Option<T> {
     }
 }
 impl<T: Typed> Typed for Vec<T> {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        let mut bytes = mul(self.len(), std::mem::size_of::<T>())?;
+        for value in self {
+            bytes = add(bytes, value.cloned_heap()?)?;
+        }
+        Ok(bytes)
+    }
     #[cfg(test)]
     fn layout_value(&self) -> R<serde_json::Value> {
         self.iter()
@@ -233,6 +267,13 @@ macro_rules! visible {
 macro_rules! typed_struct {
     ($t:ty, {$($f:ident:$visibility:ident),+ $(,)?})=>{
         impl Typed for $t {
+            fn cloned_heap(&self)->R<usize> {
+                let Self { $($f:_,)+ }=self;
+                tick(1)?;
+                let mut bytes=0;
+                $(tick(1)?; bytes=add(bytes,self.$f.cloned_heap()?)?;)+
+                Ok(bytes)
+            }
             #[cfg(test)]
             fn layout_value(&self)->R<serde_json::Value> {
                 let Self { $($f:_,)+ }=self;
@@ -272,6 +313,11 @@ macro_rules! typed_struct {
 macro_rules! typed_enum {
     ($t:ty, {$($variant:ident=>$label:literal),+ $(,)?})=>{
         impl Typed for $t {
+            fn cloned_heap(&self)->R<usize> {
+                let _=match self { $(Self::$variant=>$label,)+ };
+                tick(1)?;
+                Ok(0)
+            }
             #[cfg(test)]
             fn layout_value(&self)->R<serde_json::Value> {Ok(serde_json::Value::String(match self {$(Self::$variant=>$label,)+}.into()))}
             fn visit(&self,c:&mut Counter)->R<()> {
@@ -366,6 +412,33 @@ fn census<T: Typed>(value: &T) -> R<TypedPrefixShape> {
     let mut c = Counter::default();
     value.visit(&mut c)?;
     Ok(c.0)
+}
+
+/// Exact requested clone payload for a complete immutable loan Snapshot on the
+/// pinned Rust Vec/String Clone implementation. Includes all reviewed claims,
+/// identities, waivers and full tails even when an optional JSON field omits.
+/// This is neither original-source capacity nor an allocator/RSS bound.
+#[derive(Debug, Serialize)]
+pub struct SnapshotCloneLayout {
+    pub inline_bytes: usize,
+    pub heap_bytes: usize,
+    pub census_work: usize,
+}
+pub fn commercial_snapshot_clone_layout(value: &Snapshot) -> R<SnapshotCloneLayout> {
+    if cut_shape::spent().is_none() {
+        return cut_shape::with_budget(8_000_000, || commercial_snapshot_clone_layout(value));
+    }
+    let started = cut_shape::spent().ok_or("snapshot clone ticket absent")?;
+    let heap_bytes = value.cloned_heap()?;
+    let census_work = cut_shape::spent()
+        .ok_or("snapshot clone ticket absent")?
+        .checked_sub(started)
+        .ok_or("snapshot clone ticket changed")?;
+    Ok(SnapshotCloneLayout {
+        inline_bytes: std::mem::size_of::<Snapshot>(),
+        heap_bytes,
+        census_work,
+    })
 }
 pub fn commercial_loan_prefix_shape(group: &AtomicGroup) -> R<TypedPrefixShape> {
     census(group)

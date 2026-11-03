@@ -12,4 +12,6 @@ mod event_index_tests;
 pub mod fee_candidate_treasury;
 pub mod fees;
 pub mod holdings;
+#[cfg(test)]
+mod sequential_cut_tests;
 pub mod treasury;

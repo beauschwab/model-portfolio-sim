@@ -1875,3 +1875,16 @@ is the independent oracle that reconstructs the derivative source, hedged-item
 benchmark values, hypothetical values, lifecycle, assessments and the ordered
 journal from raw inputs only. Neither module prices or posts in Python for
 production. See `docs/models/hedge-accounting.md`.
+
+## Approved commercial cut admission replacement (2026-11-03)
+
+The user approved replacing the historical commercial-cut admission calculation
+with a proved bounded implementation. This supersedes preservation of that
+request's historical refusal once the complete proof and independent positive
+publication pass. Preserve the full original positive fixture, all source/credit/
+fee/rights tails, fixed OAS/EIR/CRN, numerical tolerances and existing request/work/
+capacity limits. Keep historical receipts readable and unrelated candidate/source
+policies unchanged. A different genuinely over-budget request must retain negative
+admission coverage. Partial source, lifetime or component proofs cannot enable the
+new raw route. Complete joint pre-Sim admission, raw-derived independent verification,
+persisted publication fences and every original issue15/25 gate remain required.

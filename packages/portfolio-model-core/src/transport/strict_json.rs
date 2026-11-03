@@ -237,6 +237,7 @@ struct CompareWriter<'a> {
     offset: usize,
     maximum: usize,
     equal: bool,
+    overrun: &'static str,
 }
 impl Write for CompareWriter<'_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -245,7 +246,7 @@ impl Write for CompareWriter<'_> {
             .checked_add(bytes.len())
             .ok_or_else(|| io::Error::other("JSON comparison offset overflow"))?;
         if end > self.maximum {
-            return Err(io::Error::other("JSON serialization changed after sizing"));
+            return Err(io::Error::other(self.overrun));
         }
         self.equal &= self.expected.get(self.offset..end) == Some(bytes);
         self.offset = end;
@@ -294,6 +295,7 @@ fn compare_encoding<A: Serialize, B: Serialize, F: FnMut() -> Result<(), String>
             offset: 0,
             maximum: streamed_size,
             equal: retained_size == streamed_size,
+            overrun: "JSON serialization changed after sizing",
         },
         probe: writer.probe,
     };
@@ -302,4 +304,34 @@ fn compare_encoding<A: Serialize, B: Serialize, F: FnMut() -> Result<(), String>
         return Err("JSON serialization changed after sizing".into());
     }
     Ok(writer.output.equal)
+}
+
+/// Compare a serializer directly with previously retained immutable bytes.
+/// No encoding or Value tree is allocated. The caller owns the provenance of
+/// `expected`; this function establishes byte equality, not source authority.
+/// Complete traversal is retained until an explicit byte/cancellation refusal.
+pub fn serialized_matches_checked<T: Serialize>(
+    expected: &[u8],
+    value: &T,
+    maximum_bytes: usize,
+    mut probe: impl FnMut() -> Result<(), String>,
+) -> Result<bool, String> {
+    if expected.len() > maximum_bytes {
+        return Err("JSON comparison reference exceeds byte admission".into());
+    }
+    probe()?;
+    let mut writer = ProbedWriter {
+        output: CompareWriter {
+            expected,
+            offset: 0,
+            maximum: maximum_bytes,
+            equal: true,
+            overrun: "serialized JSON exceeds selected byte admission",
+        },
+        probe: &mut probe,
+    };
+    serde_json::to_writer(&mut writer, value).map_err(|e| e.to_string())?;
+    let equal = writer.output.equal && writer.output.offset == expected.len();
+    probe()?;
+    Ok(equal)
 }

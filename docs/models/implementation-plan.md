@@ -2076,6 +2076,17 @@ commercial-credit-convergence.md for exact supported policies and remaining gate
 
 ## Checked numerical fitting and cut diagnostics (local 0.29.20 development)
 
+Follow-through on2026-11-03: the user approved replacing the historical cut
+admission calculation after a complete bounded proof. The new
+[sequential native component](commercial-sequential-cut.md) releases completed
+owners before revised preparation, moves actual state for every run, and retains
+both full preparations and all27 source proofs. Independent full financial replay
+is covered with native callbacks forbidden. Joined raw admission, complete
+source/private allocation/Sim/codec bounds, unchanged positive API publication,
+persisted replay and exact predecessor binding remain open. The test-only indexed
+construction census grants no production admission. All original issue gates below
+remain required.
+
 Rust continuation and coupon/spread-history fitting share bounded checked native
 least squares. Preserve each caller's original matrix shape, decomposition
 epsilon and computed singular cutoff. Valid checked legacy candidates retain

@@ -7,10 +7,10 @@ use std::sync::{
     Arc,
 };
 
-struct WindowWriter {
-    enabled: Arc<AtomicBool>,
-    output: Box<dyn Write + Send>,
-    structural_bytes: Option<(usize, usize)>,
+pub(super) struct WindowWriter {
+    pub(super) enabled: Arc<AtomicBool>,
+    pub(super) output: Box<dyn Write + Send>,
+    pub(super) structural_bytes: Option<(usize, usize)>,
 }
 impl Write for WindowWriter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -67,7 +67,7 @@ fn equal<T: serde::Serialize>(a: &T, b: &T) -> R<()> {
 /// All nested inputs remain borrowed; their own serializers retain every field.
 /// Exhaustive destructuring makes a new Spec field a compile-time review gate.
 #[derive(serde::Serialize)]
-struct RevisionSpec<'a> {
+pub(super) struct RevisionSpec<'a> {
     horizon_days: usize,
     accounts: &'a [Account],
     positions: &'a [Position],
@@ -78,7 +78,7 @@ struct RevisionSpec<'a> {
     cashflows: &'a [Cashflow],
     ruleset: &'a str,
 }
-fn revision_spec<'a>(spec: &'a Spec, retained: &'a [Position]) -> RevisionSpec<'a> {
+pub(super) fn revision_spec<'a>(spec: &'a Spec, retained: &'a [Position]) -> RevisionSpec<'a> {
     let Spec {
         horizon_days,
         accounts,
@@ -137,23 +137,7 @@ fn validate_revision(
     if a.position_owners != b.position_owners[..old.positions.len()] {
         return Err("native cut existing position ownership changed".into());
     }
-    for (i, p) in new.positions.iter().enumerate().skip(old.positions.len()) {
-        if !b.position_owners[i]
-            || p.classification != "ac"
-            || [
-                p.balance,
-                p.book_adjustment,
-                p.opening_accrued,
-                p.allowance,
-                p.commitment,
-            ]
-            .iter()
-            .any(|x| *x != 0.)
-            || !p.collateral_position.is_empty()
-        {
-            return Err("native cut new candidate requires exclusive future AC ownership and zero opening money".into());
-        }
-    }
+    validate_new_positions(old, new, b)?;
     for (left, right) in a.bindings.iter().zip(&b.bindings) {
         equal(
             &(
@@ -217,6 +201,27 @@ fn validate_revision(
     Ok(())
 }
 
+pub(super) fn validate_new_positions(old: &Spec, new: &Spec, b: &Compiled<'_>) -> R<()> {
+    for (i, p) in new.positions.iter().enumerate().skip(old.positions.len()) {
+        if !b.position_owners[i]
+            || p.classification != "ac"
+            || [
+                p.balance,
+                p.book_adjustment,
+                p.opening_accrued,
+                p.allowance,
+                p.commitment,
+            ]
+            .iter()
+            .any(|x| *x != 0.)
+            || !p.collateral_position.is_empty()
+        {
+            return Err("native cut new candidate requires exclusive future AC ownership and zero opening money".into());
+        }
+    }
+    Ok(())
+}
+
 impl<'a> CutCheckpoint<'a> {
     fn capture(mut sim: Sim<'a>, day: usize) -> R<Self> {
         let previously_sent_dictionary = sim.sink.sent;
@@ -230,69 +235,80 @@ impl<'a> CutCheckpoint<'a> {
             previously_sent_dictionary,
         })
     }
-    fn resume(mut self, spec: &'a Spec, source: &'a Compiled<'a>) -> R<Sim<'a>> {
-        let old_count = self.sim.positions.len();
-        for p in spec.positions.iter().skip(old_count) {
-            let index = self.sim.positions.len();
-            self.sim.pid.insert(p.id.to_string(), index);
-            self.sim.positions.push(p.clone());
-            self.sim.market.push(p.opening_market_price);
-            self.sim.marks.push(0.);
-            self.sim.accrued.push(0.);
-            self.sim.commitments.push(0.);
-            self.sim.schedule_balance.push(0.);
-            self.sim.htm_sold.push(0.);
-            self.sim.claims_by_position.push(vec![]);
-            self.sim.opening_links.push(vec![]);
-        }
-        self.sim
-            .commercial_state
-            .as_mut()
-            .ok_or("native cut owner state absent")?
-            .extend_cut(source)?;
-        // Build a distinct Sim by moving every live field, never reconstructing
-        // money from JSON or replaying acquisition. Original calendar persists.
-        let mut resumed = Sim {
+    fn resume(self, spec: &'a Spec, source: &'a Compiled<'a>) -> R<Sim<'a>> {
+        // Move actual live fields; the original clock and monetary state remain.
+        let resumed = Sim {
             spec,
             commercials: Some(source),
             ..self.sim
         };
-        // Muted prefix flushes did not publish their dictionary additions.
-        resumed.sink.sent = self.previously_sent_dictionary;
-        resumed
-            .sink
-            .reports
-            .begin_cut_window(&resumed.scenario.name);
-        let mut keys = resumed.gl.keys().copied().collect::<Vec<_>>();
-        keys.sort_by(|x, y| {
-            (
-                &resumed.accounts[x.0].id,
-                &resumed.sink.dictionary[x.1],
-                &resumed.sink.dictionary[x.2],
-            )
-                .cmp(&(
-                    &resumed.accounts[y.0].id,
-                    &resumed.sink.dictionary[y.1],
-                    &resumed.sink.dictionary[y.2],
-                ))
-        });
-        for (a, g, i) in keys {
-            let gl = resumed.sink.dictionary[g].clone();
-            let instrument = resumed.sink.dictionary[i].clone();
-            resumed.sink.journal(
-                0,
-                &resumed.scenario.name,
-                self.day,
-                &resumed.accounts[a].id,
-                "native_verified_cut_opening",
-                &gl,
-                &instrument,
-                resumed.gl[&(a, g, i)],
-            )?;
-        }
-        resumed.close_day(self.day)?;
-        Ok(resumed)
+        begin_resumed_sim(resumed, self.day, Some(self.previously_sent_dictionary))
     }
+}
+
+pub(super) fn begin_resumed_sim<'a>(
+    mut resumed: Sim<'a>,
+    day: usize,
+    published_dictionary: Option<usize>,
+) -> R<Sim<'a>> {
+    let spec = resumed.spec;
+    let source = resumed.commercials.ok_or("native cut source absent")?;
+    let old_count = resumed.positions.len();
+    for p in spec.positions.iter().skip(old_count) {
+        let index = resumed.positions.len();
+        resumed.pid.insert(p.id.to_string(), index);
+        resumed.positions.push(p.clone());
+        resumed.market.push(p.opening_market_price);
+        resumed.marks.push(0.);
+        resumed.accrued.push(0.);
+        resumed.commitments.push(0.);
+        resumed.schedule_balance.push(0.);
+        resumed.htm_sold.push(0.);
+        resumed.claims_by_position.push(vec![]);
+        resumed.opening_links.push(vec![]);
+    }
+    resumed
+        .commercial_state
+        .as_mut()
+        .ok_or("native cut owner state absent")?
+        .extend_cut(source)?;
+    // Muted prefix flushes did not publish their dictionary additions.
+    if let Some(sent) = published_dictionary {
+        resumed.sink.sent = sent;
+    }
+    resumed
+        .sink
+        .reports
+        .begin_cut_window(&resumed.scenario.name);
+    let mut keys = resumed.gl.keys().copied().collect::<Vec<_>>();
+    keys.sort_by(|x, y| {
+        (
+            &resumed.accounts[x.0].id,
+            &resumed.sink.dictionary[x.1],
+            &resumed.sink.dictionary[x.2],
+        )
+            .cmp(&(
+                &resumed.accounts[y.0].id,
+                &resumed.sink.dictionary[y.1],
+                &resumed.sink.dictionary[y.2],
+            ))
+    });
+    for (a, g, i) in keys {
+        let gl = resumed.sink.dictionary[g].clone();
+        let instrument = resumed.sink.dictionary[i].clone();
+        resumed.sink.journal(
+            0,
+            &resumed.scenario.name,
+            day,
+            &resumed.accounts[a].id,
+            "native_verified_cut_opening",
+            &gl,
+            &instrument,
+            resumed.gl[&(a, g, i)],
+        )?;
+    }
+    resumed.close_day(day)?;
+    Ok(resumed)
 }
 
 /// Explicit component route. The coordinator must additionally admit both raw
@@ -430,21 +446,7 @@ fn run_commercial_cut_inner(
         output,
         structural_bytes: all_frame_bytes_upper.map(|limit| (0, limit)),
     }));
-    let baseline = Scenario {
-        name: "baseline".into(),
-        start_day: 1,
-        rate_shift: 0.,
-        spread_shift: 0.,
-        deposit_flight: 0.,
-        pd_multiplier: 1.,
-        migration_multiplier: 1.,
-        lgd_add: 0.,
-        draw_multiplier: 0.,
-        rollover_loss: 0.,
-        haircut_add: 0.,
-        market_shock: 0.,
-        outage_days: 0,
-    };
+    let baseline = baseline();
     for scenario in std::iter::once(&baseline).chain(completed.scenarios.iter()) {
         enabled.store(false, Ordering::Relaxed);
         let sim = Sim::new(
@@ -1267,6 +1269,7 @@ mod tests {
         assert!(!bytes.is_empty());
         assert!(!String::from_utf8_lossy(&bytes).contains("\"complete\":true"));
     }
+    include!("cut_sequential_tests.rs");
 }
 
 #[cfg(test)]
@@ -1298,5 +1301,23 @@ mod inventory_tests {
         };
         assert_eq!(writer.write(b"ordinary prefix").unwrap(), 15);
         assert!(writer.structural_bytes.is_none());
+    }
+}
+
+pub(super) fn baseline() -> Scenario {
+    Scenario {
+        name: "baseline".into(),
+        start_day: 1,
+        rate_shift: 0.,
+        spread_shift: 0.,
+        deposit_flight: 0.,
+        pd_multiplier: 1.,
+        migration_multiplier: 1.,
+        lgd_add: 0.,
+        draw_multiplier: 0.,
+        rollover_loss: 0.,
+        haircut_add: 0.,
+        market_shock: 0.,
+        outage_days: 0,
     }
 }

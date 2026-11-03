@@ -225,3 +225,108 @@ fn reviewed_state_presence_signed_zero_recovery_order_and_complete_tail_are_pres
     let a = reviewed();
     assert!(cut_shape::with_budget(1, || census(&a)).is_err());
 }
+
+/// Count actual requested capacities in the native clone independently of the
+/// Typed visitor and JSON serializer. Inline fields are counted by size_of.
+fn observed_snapshot_heap(s: &Snapshot) -> usize {
+    use std::mem::size_of;
+    let identity = |i: &Identity| i.id.capacity() + i.revision.capacity();
+    let mut n = s.lots.capacity() * size_of::<CouponLot>()
+        + s.pending_coupon_obligation_indices.capacity() * size_of::<usize>()
+        + s.canonical_legal_coupons.capacity() * size_of::<CanonicalCouponLegalBalance>();
+    for lot in &s.lots {
+        n += lot.coupon_id.capacity()
+            + lot.source_event_id.capacity()
+            + lot.source_id.capacity()
+            + lot.source_revision.capacity();
+    }
+    for c in &s.canonical_legal_coupons {
+        n += c.coupon_id.capacity();
+    }
+    if let Some(r) = &s.reviewed_credit_state {
+        n += r.claims.capacity() * size_of::<credit::RecoveryClaim>()
+            + r.legal_waivers.capacity() * size_of::<book::reviews::LegalWaiver>();
+        for c in &r.claims {
+            n += c.claim_id.capacity()
+                + identity(&c.economic_source)
+                + identity(&c.recovery_schedule_review)
+                + identity(&c.policy.identity)
+                + c.settled_interest_recovery_ids.capacity() * size_of::<Identity>()
+                + c.remaining_recoveries.capacity() * size_of::<credit::RecoveryPoint>();
+            for i in &c.settled_interest_recovery_ids {
+                n += identity(i);
+            }
+        }
+        for w in &r.legal_waivers {
+            n += identity(&w.review) + w.claim_id.capacity() + w.future_cash_disposition.capacity();
+        }
+    }
+    n
+}
+
+#[test]
+fn complete_snapshot_clone_payload_matches_actual_owned_capacities_with_reviewed_full_tails() {
+    let mut source = group().next;
+    source.reviewed_credit_state = Some(reviewed());
+    source.pending_coupon_obligation_indices = vec![0, 9, 17];
+    source.canonical_legal_coupons = vec![CanonicalCouponLegalBalance {
+        coupon_id: "canonical 雪".into(),
+        native_audit_index: 1,
+        native_cash_index: 2,
+        opening_entitlement_principal: 100.,
+        cumulative_factor: 0.02,
+        contractual_earned: 2.,
+        actual_interest_collected: 0.,
+        legal_remaining: 2.,
+    }];
+    // Original spare capacity is intentionally NOT cloned by immutable Snapshot::clone.
+    source.lots.reserve(80);
+    source.pending_coupon_obligation_indices.reserve(80);
+    let reviewed = source.reviewed_credit_state.as_mut().unwrap();
+    reviewed.claims.reserve(80);
+    reviewed.legal_waivers.reserve(80);
+    reviewed.claims[0].settled_interest_recovery_ids.reserve(80);
+    reviewed.claims[0].remaining_recoveries.reserve(80);
+    reviewed.claims[0].claim_id.reserve(1000);
+    let layout = commercial_snapshot_clone_layout(&source).unwrap();
+    let actual = source.clone();
+    assert_eq!(layout.inline_bytes, std::mem::size_of::<Snapshot>());
+    assert_eq!(layout.heap_bytes, observed_snapshot_heap(&actual));
+    assert!(observed_snapshot_heap(&source) > layout.heap_bytes);
+    assert!(layout.census_work > 100);
+    let n = layout.census_work;
+    cut_shape::with_budget(n, || {
+        assert_eq!(
+            commercial_snapshot_clone_layout(&source)?.heap_bytes,
+            layout.heap_bytes
+        );
+        assert_eq!(cut_shape::spent(), Some(n));
+        Ok(())
+    })
+    .unwrap();
+    assert!(cut_shape::with_budget(n - 1, || commercial_snapshot_clone_layout(&source)).is_err());
+    assert_eq!(cut_shape::spent(), None);
+}
+
+#[test]
+fn empty_omitted_snapshot_vectors_and_numeric_values_do_not_hide_owned_payload() {
+    let mut a = group().next;
+    a.lots.clear();
+    a.pending_coupon_obligation_indices.clear();
+    a.canonical_legal_coupons.clear();
+    a.reviewed_credit_state = None;
+    assert_eq!(commercial_snapshot_clone_layout(&a).unwrap().heap_bytes, 0);
+    let before = commercial_snapshot_clone_layout(&a).unwrap();
+    a.principal = 0.;
+    a.recognized_interest = -0.;
+    a.in_default = true;
+    assert_eq!(
+        commercial_snapshot_clone_layout(&a).unwrap().heap_bytes,
+        before.heap_bytes
+    );
+    assert_eq!(observed_snapshot_heap(&a.clone()), 0);
+    assert_eq!(
+        cut_shape::with_budget(1000, || fee::State::default().cloned_heap()).unwrap(),
+        0
+    );
+}

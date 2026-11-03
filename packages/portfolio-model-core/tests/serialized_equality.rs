@@ -1,10 +1,84 @@
 use portfolio_model_core::strict_json::serialized_equal_checked;
+use portfolio_model_core::strict_json::serialized_matches_checked;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
 use std::{cell::RefCell, rc::Rc};
 
 fn compare(a: &Value, b: &Value, each: usize, combined: usize) -> Result<bool, String> {
     serialized_equal_checked(a, b, each, combined, || Ok(()))
+}
+
+#[test]
+fn retained_bytes_compare_without_reencoding_reference_and_preserve_exact_categories_and_limits() {
+    let values = [
+        json!(-0.),
+        json!(0.),
+        json!(0),
+        json!(null),
+        json!("\n非😀"),
+        json!({"state":[1.,true,{"rights":[],"amount":-0.}]}),
+        json!([1, 2]),
+        json!([1, 2, 3]),
+    ];
+    for a in &values {
+        for b in &values {
+            let expected = serde_json::to_vec(a).unwrap();
+            let actual = serde_json::to_vec(b).unwrap();
+            assert_eq!(
+                serialized_matches_checked(&expected, b, 4096, || Ok(())).unwrap(),
+                expected == actual
+            );
+            assert!(
+                serialized_matches_checked(&expected, b, expected.len() - 1, || Ok(())).is_err()
+            );
+        }
+    }
+    let expected = serde_json::to_vec(&json!("x")).unwrap();
+    assert!(serialized_matches_checked(&expected, &"xxxxxxxx", expected.len(), || Ok(())).is_err());
+    assert!(!serialized_matches_checked(b"invalid-json", &json!(null), 100, || Ok(())).unwrap());
+}
+
+#[test]
+fn streamed_comparison_retains_late_serializer_failure_and_every_long_write_cancellation() {
+    struct Fails;
+    impl Serialize for Fails {
+        fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+            use serde::ser::SerializeSeq;
+            let mut seq = s.serialize_seq(Some(2))?;
+            seq.serialize_element(&1)?;
+            Err(serde::ser::Error::custom("late streamed refusal"))
+        }
+    }
+    assert!(serialized_matches_checked(b"[2,0]", &Fails, 100, || Ok(()))
+        .unwrap_err()
+        .contains("late streamed refusal"));
+    let text = "x".repeat(100_000);
+    let expected = serde_json::to_vec(&text).unwrap();
+    let mut probes = 0;
+    assert!(
+        serialized_matches_checked(&expected, &text, expected.len(), || {
+            probes += 1;
+            Ok(())
+        })
+        .unwrap()
+    );
+    assert!(probes >= 6);
+    for stop in 1..=probes {
+        let mut seen = 0;
+        assert!(
+            serialized_matches_checked(&expected, &text, expected.len(), || {
+                seen += 1;
+                if seen == stop {
+                    Err("stream comparison cancelled".into())
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap_err()
+            .contains("stream comparison cancelled")
+        );
+        assert_eq!(seen, stop);
+    }
 }
 
 #[test]

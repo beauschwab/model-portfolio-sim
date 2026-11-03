@@ -139,6 +139,46 @@ enum PreparationMode {
     Execute,
     AdmitOrdinary,
     AdmitBorrowed,
+    #[cfg(test)]
+    ExecuteIndexedBorrowed,
+    #[cfg(test)]
+    AdmitIndexedBorrowed,
+}
+impl PreparationMode {
+    fn executes(self) -> bool {
+        #[cfg(test)]
+        {
+            matches!(self, Self::Execute | Self::ExecuteIndexedBorrowed)
+        }
+        #[cfg(not(test))]
+        {
+            matches!(self, Self::Execute)
+        }
+    }
+    fn indexed(self) -> bool {
+        #[cfg(test)]
+        {
+            matches!(
+                self,
+                Self::ExecuteIndexedBorrowed | Self::AdmitIndexedBorrowed
+            )
+        }
+        #[cfg(not(test))]
+        {
+            let _ = self;
+            false
+        }
+    }
+    fn admits_borrowed(self) -> bool {
+        #[cfg(test)]
+        {
+            matches!(self, Self::AdmitBorrowed | Self::AdmitIndexedBorrowed)
+        }
+        #[cfg(not(test))]
+        {
+            matches!(self, Self::AdmitBorrowed)
+        }
+    }
 }
 
 type FiniteConsumer<'consumer> = dyn for<'source> FnMut(
@@ -182,9 +222,7 @@ fn prepare_and_run_observed(
     observer: Option<&mut units::SourceObserver<'_>>,
 ) -> Result<(Option<Preparation>, i32, usize, Admission), String> {
     portfolio_compute_control::checkpoint()?;
-    if observer.is_some()
-        && (generated || consumer.is_none() || !matches!(mode, PreparationMode::Execute))
-    {
+    if observer.is_some() && (generated || consumer.is_none() || !mode.executes()) {
         return Err(
             "source capture requires an explicit finite borrowed preparation consumer".into(),
         );
@@ -193,6 +231,9 @@ fn prepare_and_run_observed(
         return Err(
             "finite native preparation callback cannot borrow compact generated owners".into(),
         );
+    }
+    if mode.indexed() && (generated || (mode.executes() && consumer.is_none())) {
+        return Err("indexed preparation requires an exclusive finite borrowed consumer".into());
     }
     validate_ordinal(r.as_of_ordinal)?;
     validate_ordinal(r.reporting_end_ordinal)?;
@@ -263,7 +304,7 @@ fn prepare_and_run_observed(
             }
         }
     }
-    let preparation_only = consumer.is_some() || matches!(mode, PreparationMode::AdmitBorrowed);
+    let preparation_only = consumer.is_some() || mode.admits_borrowed();
     let mut work = add(mul(raw_bytes, 8)?, units::audit_source_work(&r.commercial)?)?;
     let mut bytes = mul(raw_bytes, 20)?;
     let mut s = spec::normalize(r.specification.clone(), 512, 8_000_000)?;
@@ -317,6 +358,7 @@ fn prepare_and_run_observed(
     let mut generated_owner_bytes = 0usize;
     let mut generated_retained_bytes = 0usize;
     let mut fee_groups_upper = 0usize;
+    let mut fee_records = 0usize;
     let mut preparation_groups = 0usize;
     for ((u, a), o) in r.commercial.units.iter().zip(&r.allocation).zip(&r.owners) {
         if a.unit_id != u.unit_id
@@ -417,6 +459,7 @@ fn prepare_and_run_observed(
             if let Some(fees) = &u.graph.positions[0].fees {
                 for set in &fees.histories {
                     for history in &set.physical {
+                        fee_records = add(fee_records, history.policy.fees.len())?;
                         let tail = usize::try_from(
                             history.policy.complete_end_ordinal - u.graph.as_of_ordinal,
                         )
@@ -478,7 +521,7 @@ fn prepare_and_run_observed(
             mul(r.commercial.units.len(), ledger_runs.len())?,
             r.commercial.reporting_ordinals.len(),
         )?;
-        let capacity = preparation_capacity::census(preparation_capacity::Input {
+        let input = preparation_capacity::Input {
             groups: add(preparation_groups, fee_groups_upper)?,
             bindings: add(reservations.len(), fee_groups_upper)?,
             positions: s.positions.len(),
@@ -486,7 +529,47 @@ fn prepare_and_run_observed(
             scenario_label_bytes: ledger_runs.iter().map(|s| s.len()).max().unwrap_or(0),
             coefficient_cells: mul(cells, 11)?,
             graph_bytes,
-        })?;
+        };
+        let capacity = if mode.indexed() {
+            let maximum_identity_utf8_bytes =
+                s.accounts
+                    .iter()
+                    .map(|a| a.id.as_str())
+                    .chain(
+                        s.positions
+                            .iter()
+                            .flat_map(|p| [p.id.as_str(), p.account.as_str()]),
+                    )
+                    .chain(s.scenarios.iter().map(|s| s.name.as_str()))
+                    .chain(r.owners.iter().flat_map(|o| {
+                        [
+                            o.unit_id.as_str(),
+                            o.position_id.as_str(),
+                            o.account_id.as_str(),
+                        ]
+                    }))
+                    .chain(r.run_mapping.iter().flat_map(|m| {
+                        [m.source_scenario_id.as_str(), m.ledger_scenario_id.as_str()]
+                    }))
+                    .chain(r.commercial.units.iter().flat_map(|u| {
+                        std::iter::once(u.unit_id.as_str())
+                            .chain(u.graph.positions.iter().map(|p| p.position_id.as_str()))
+                    }))
+                    .map(str::len)
+                    .max()
+                    .unwrap_or(0)
+                    .max("baseline".len());
+            preparation_capacity::indexed_census(preparation_capacity::IndexedInput {
+                legacy: input,
+                units: r.commercial.units.len(),
+                scenarios: ledger_runs.len(),
+                maximum_identity_utf8_bytes,
+                specification_bytes: strict_json::serialized_size(&s, 2 << 20)?,
+                fee_records,
+            })?
+        } else {
+            preparation_capacity::census(input)?
+        };
         work = add(work, capacity.work)?;
         bytes = add(bytes, capacity.bytes)?;
     } else {
@@ -525,7 +608,7 @@ fn prepare_and_run_observed(
             .ok_or("candidate ordinal overflow")?,
         output_bytes_upper: MAX_BYTES,
     };
-    if !matches!(mode, PreparationMode::Execute) {
+    if !mode.executes() {
         return Ok((None, admission.full_end_ordinal, 0, admission));
     }
     let prepared = match observer {
@@ -699,6 +782,42 @@ pub(super) fn admit_finite_preparation(r: &Request) -> Result<Admission, String>
         None,
     )?;
     Ok(admission)
+}
+
+/// New construction census only; unchanged financial source and byte bounds.
+/// A caller must still establish complete joint raw/Sim/codec admission.
+#[cfg(test)]
+pub(super) fn admit_indexed_finite_preparation(r: &Request) -> Result<Admission, String> {
+    let (_, _, _, a) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        (0, 0),
+        PreparationMode::AdmitIndexedBorrowed,
+        None,
+    )?;
+    Ok(a)
+}
+
+#[cfg(test)]
+pub(super) fn with_indexed_finite_compiled_observer(
+    r: &Request,
+    reservation: (usize, usize),
+    observer: &mut units::SourceObserver<'_>,
+    consumer: &mut FiniteConsumer<'_>,
+) -> Result<(Preparation, Admission), String> {
+    let (prepared, _, _, a) = prepare_and_run_observed(
+        r,
+        false,
+        None,
+        Box::new(std::io::sink()),
+        reservation,
+        PreparationMode::ExecuteIndexedBorrowed,
+        Some(consumer),
+        Some(observer),
+    )?;
+    Ok((prepared.ok_or("indexed finite preparation absent")?, a))
 }
 
 /// Native-only borrow scope. Prepared source and Compiled remain genuine and

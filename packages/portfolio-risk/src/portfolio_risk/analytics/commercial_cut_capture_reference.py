@@ -96,9 +96,25 @@ class Expected:
 def expected_sources(raw):
     """Derive exact native observer order solely from the selected raw DTO."""
     _finite_tree(raw)
-    _require(raw.get('schema') == 'commercial-cut-mixed-journal-1',
+    _require(type(raw) is dict and raw.get('schema') == 'commercial-cut-mixed-journal-1',
              'explicit raw cut schema required')
     authority(raw)
+    return _finite_source_order(raw)
+
+
+def finite_source_order(raw):
+    """Finite financial witness ordering only; grants no admission authority.
+
+    The selected capture entrypoint above still requires its original resource
+    authority. Financial component replay also covers ordinary origination.
+    """
+    _finite_tree(raw)
+    _require(type(raw) is dict and raw.get('schema') == 'commercial-cut-mixed-journal-1',
+             'explicit raw cut schema required')
+    return _finite_source_order(raw)
+
+
+def _finite_source_order(raw):
     expected = []
     for side, key in (('completed', 'completed_candidate'), ('revised', 'revised_candidate')):
         candidate = raw[key]

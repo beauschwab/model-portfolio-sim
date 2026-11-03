@@ -492,6 +492,29 @@ pub fn commercial_cut_inventory(
     b: &Compiled<'_>,
     cut: usize,
 ) -> Result<CommercialCutInventory, String> {
+    inventory_pair(old, new, a, b, cut, false)
+}
+
+/// Complete one-owner output superset for a sequential component phase.
+/// The revised phase includes all retained positions/groups, so its opening
+/// inventory also bounds the surviving subset's cut opening. This inventories
+/// output/Sink only; raw sources, all Sim fields and joint admission are separate.
+pub fn commercial_sequential_cut_inventory(
+    spec: &Spec,
+    source: &Compiled<'_>,
+    cut: usize,
+) -> Result<CommercialCutInventory, String> {
+    inventory_pair(spec, spec, source, source, cut, true)
+}
+
+fn inventory_pair(
+    old: &Spec,
+    new: &Spec,
+    a: &Compiled<'_>,
+    b: &Compiled<'_>,
+    cut: usize,
+    sequential: bool,
+) -> Result<CommercialCutInventory, String> {
     let started = spent();
     supported(old, a)?;
     supported(new, b)?;
@@ -539,9 +562,11 @@ pub fn commercial_cut_inventory(
         .dictionary
         .checked_add(lb.dictionary)?
         .times(mul(scenes, 2)?)?;
-    let mut completion = shape(
-        &serde_json::json!({"complete":true,"protocol":8,"cut_day":cut,"native_cut_state_moved":true,"original_calendar_retained":true,"new_sim_started_at_cut":true,"prior_publication_verified":false}),
-    )?;
+    let mut completion_value = serde_json::json!({"complete":true,"protocol":if sequential{9}else{8},"cut_day":cut,"native_cut_state_moved":true,"original_calendar_retained":true,"new_sim_started_at_cut":true,"prior_publication_verified":false});
+    if sequential {
+        completion_value["sequential_source_owners"] = serde_json::Value::Bool(true);
+    }
+    let mut completion = shape(&completion_value)?;
     completion.encoded_bytes_upper = add(completion.encoded_bytes_upper, 1)?;
     let extra = header_frames
         .checked_add(dictionary)?
@@ -579,7 +604,11 @@ pub fn commercial_cut_inventory(
         _ => add(declared_census_work_upper, stream_batch_census_work_upper)?,
     };
     Ok(CommercialCutInventory {
-        schema: "commercial-cut-output-inventory-2",
+        schema: if sequential {
+            "commercial-sequential-cut-output-inventory-1"
+        } else {
+            "commercial-cut-output-inventory-2"
+        },
         prefix,
         visible,
         all_stream,

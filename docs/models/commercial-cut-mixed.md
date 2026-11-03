@@ -1,5 +1,11 @@
 # Native cut-started commercial coordinator
 
+The2026-11-03 [sequential component follow-through](commercial-sequential-cut.md)
+releases completed graph owners before revised preparation and independently
+validates the full example's financial replay. The user approved a complete
+admission replacement; joint raw admission and positive API publication remain
+required before enabling it. Historical protocols and receipts remain readable.
+
 `commercial-cut-mixed-journal-1` is an explicit raw-source coordinator for a
 native commercial Sim prefix and a distinct resumed Sim. The native cut
 primitive is implemented and has positive component controls. **The public raw
