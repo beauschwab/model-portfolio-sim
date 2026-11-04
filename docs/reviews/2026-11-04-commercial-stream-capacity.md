@@ -163,3 +163,28 @@ It retains the complete package source manifest, logs and debug strategy hash.
 The earlier release artifacts are unchanged; a release rebuild is still required
 before this later intake change is deployed. Architecture and generated contract
 checks pass, and all 40 MCP tests pass after the documentation refresh.
+
+## Exhaustive fixed-source input layout
+
+The next additive `finite_raw_layout` helper enumerates every supported typed
+fixed-source input field, including private and nonserialized defaults. Struct
+field additions fail compilation until inventoried; inline fields that acquire
+owned storage reject. Empty vectors retain their actual spare-capacity charge.
+Strings and nested vectors have separate actual retained and requested clone
+payload counts. Unsupported transfer, draw, exercise-related and contingent
+source variants require their own inventories and reject rather than disappearing.
+
+All 27 source uses from the unchanged full cut example pass exact clone-layout
+checks. Separate allocator instrumentation measures precisely the declared clone
+heap and peak for each source. Their combined input heap is 50,166 bytes; each
+source's inline request size is 2,096 bytes on the pinned target. These counts
+concern typed source inputs only, including all roles; they do not cover the
+subsequent factors, carry, accounting, graph or coordinator owner allocations.
+The helper grants no preparse, whole-resource or publication authority.
+
+The complete risk-native all-target suite passes 712 tests, plus three doc tests,
+with formatting and strict all-feature Clippy passing. The source/log/probe
+receipt is `artifacts/commercial-fixed-raw-layout-2026-11-04/receipt.json`, SHA-256
+`f988b7bf803ba7b701b7c54879455e5467ffd2938504ddd3166aacc9ad3fd785`.
+Release installation and the original successful-publication failure remain
+unchanged by this helper.

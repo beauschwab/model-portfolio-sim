@@ -173,7 +173,14 @@ expected dimensions, infer unsupported advanced policies, or grant publication.
 The early CLI intake now borrows original wire selectors before generic Value
 construction. A shared raw-JSON capacity census reserves the selected strict
 tree and workspace before allocation; duplicate rejection and original deadlines
-remain. Typed request clones and private source lifetimes remain separate gates.
+remain. The additive `finite_raw_layout` census now exhaustively names each
+supported fixed-source input field, including omitted/default fields. It counts
+actual retained String/Vec capacities separately from exact requested clone
+payloads and rejects advanced owners needing separate inventories. All 27 source
+inputs match independently measured clone allocations; together they retain
+50,166 heap bytes plus their inline headers. This is a typed-input inventory,
+not preparse admission or a bound on generated financial owners. Complete outer
+request/source-owner lifetimes remain separate gates.
 
 The full matrix at `cd76d6a` still has the original positive cut-publication failure
 and one browser module-fetch failure. Original logs, exact installed identities
