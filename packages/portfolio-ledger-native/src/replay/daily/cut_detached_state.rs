@@ -16,6 +16,16 @@ macro_rules! owned_state {
                     || sim.lifecycle_state.is_some() || sim.commercials.is_none()
                     || sim.commercial_state.is_none()
                 { return Err("sequential cut requires exclusive native commercial ownership".into()); }
+                if !sim.netting.is_empty() || !sim.claims.is_empty()
+                    || sim.claims_by_position.iter().any(|v| !v.is_empty())
+                    || !sim.claim_maturities.is_empty()
+                    || sim.opening_links.iter().any(|v| !v.is_empty())
+                    || !sim.recovery_claims.is_empty() || !sim.recoveries.is_empty()
+                    || !sim.intercompany.is_empty() || !sim.flows.is_empty()
+                    || !sim.scheduled_ids.is_empty() || !sim.source_portfolio_cursors.is_empty()
+                    || !sim.margin_targets.is_empty() || !sim.pending.is_empty()
+                    || !sim.used.is_empty() || !sim.scheduled.is_empty()
+                { return Err("sequential cut retained a generic overlay outside its capacity inventory".into()); }
                 // No `..`: every new Sim field requires an ownership review.
                 let Sim { spec: _, sink: _, streamed_flows: _, dated: _,
                     consumers: _, mortgages: _, deposit_revisions: _, source_principals: _,

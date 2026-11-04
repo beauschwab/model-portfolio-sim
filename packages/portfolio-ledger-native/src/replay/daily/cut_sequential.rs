@@ -232,11 +232,34 @@ fn lookup_work(spec: &Spec, source: &Compiled<'_>, cut: usize) -> R<usize> {
     )
 }
 fn state_reservation(spec: &Spec, source: &Compiled<'_>, raw: usize) -> R<(usize, usize)> {
+    if super::cut_shape::spent().is_none() {
+        return super::cut_shape::with_budget(MAX_WORK, || state_reservation(spec, source, raw));
+    }
+    let before = super::cut_shape::spent();
+    let specification_clone = super::cut_spec::specification_clone_bytes(spec)?;
+    let specification_scan_work = match (before, super::cut_shape::spent()) {
+        (Some(a), Some(b)) => b
+            .checked_sub(a)
+            .ok_or("specification clone ticket regressed")?,
+        _ => 0,
+    };
+    let runtime = crate::owners::commercial::intents::finite_runtime_capacity(source, |work| {
+        checkpoint()?;
+        super::cut_shape::charge(work)
+    })?;
+    let runtime_bytes = add(
+        mul(runtime.runtime_bytes_upper, 3)?,
+        runtime.temporary_bytes_upper,
+    )?;
+    let sim = super::cut_sim_capacity::inventory(spec, source)?;
     // Retain the existing conservative owner/spec/position conventions for
     // EACH detached run. This is a component reservation, not process RSS.
     let per_run = add(
-        mul(source.retained_bytes_upper, 2)?,
-        add(mul(spec.positions.len(), 4096)?, mul(raw, 20)?)?,
+        mul(source.retained_bytes_upper, 2)?.max(runtime_bytes),
+        add(
+            mul(spec.positions.len(), 4096)?,
+            mul(raw, 20)?.max(specification_clone),
+        )?,
     )?;
     let conventional = add(
         mul(add(spec.scenarios.len(), 1)?, per_run)?,
@@ -249,7 +272,13 @@ fn state_reservation(spec: &Spec, source: &Compiled<'_>, raw: usize) -> R<(usize
     // count. Visit every source snapshot, including after the report date and
     // at zero allocation. Each run retains at most one snapshot per binding;
     // an active staged clone and replacement are separately reserved below.
-    let (mut snapshots, mut scan_work) = (0usize, 0usize);
+    let (mut snapshots, mut scan_work) = (
+        0usize,
+        add(
+            add(specification_scan_work, runtime.census_work)?,
+            sim.census_work,
+        )?,
+    );
     for b in &source.bindings {
         let mut maximum = 0;
         for index in 0..b.accounting.group_count() {
@@ -265,7 +294,13 @@ fn state_reservation(spec: &Spec, source: &Compiled<'_>, raw: usize) -> R<(usize
         snapshots = add(snapshots, maximum)?;
     }
     Ok((
-        add(conventional, mul(snapshots, add(spec.scenarios.len(), 3)?)?)?,
+        add(
+            conventional.max(add(
+                sim.all_runs_and_scratch_bytes,
+                mul(runtime_bytes, add(spec.scenarios.len(), 1)?)?,
+            )?),
+            mul(snapshots, add(spec.scenarios.len(), 3)?)?,
+        )?,
         scan_work,
     ))
 }

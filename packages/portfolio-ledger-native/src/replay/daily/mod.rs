@@ -6,6 +6,7 @@ mod cut_inventory;
 mod cut_prefix;
 mod cut_sequential;
 mod cut_shape;
+mod cut_sim_capacity;
 mod cut_sink;
 mod cut_spec;
 pub use cut::{

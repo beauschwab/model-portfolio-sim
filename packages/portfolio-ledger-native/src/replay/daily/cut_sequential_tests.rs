@@ -2,6 +2,105 @@
 // full-origin/dual-owner journal decoder and reviewed hand controls.
 use crate::daily::SequentialCommercialCut;
 
+#[test]
+fn complete_sim_container_inventory_is_paid_and_cannot_prune_zero_money_or_labels() {
+    let s = spec();
+    let owner = source(17);
+    let mut c = Compiled::new(&s, bindings(&owner, s.positions[0].id.as_str(), 17, 0)).unwrap();
+    let measured = super::super::cut_shape::with_budget(100000, || {
+        let bound = super::super::cut_sim_capacity::inventory(&s, &c)?;
+        assert_eq!(bound.census_work, super::super::cut_shape::spent().unwrap());
+        Ok(bound)
+    })
+    .unwrap();
+    assert!(measured.all_runs_and_scratch_bytes > 32768);
+    for binding in &mut c.bindings {
+        binding.allocated_face = 0.;
+    }
+    let zero = super::super::cut_sim_capacity::inventory(&s, &c).unwrap();
+    assert_eq!(
+        measured.all_runs_and_scratch_bytes,
+        zero.all_runs_and_scratch_bytes
+    );
+    let mut longer = s.clone();
+    longer.accounts[0].entity.push_str(&"雪😀".repeat(100));
+    assert!(
+        super::super::cut_sim_capacity::inventory(&longer, &c)
+            .unwrap()
+            .all_runs_and_scratch_bytes
+            > measured.all_runs_and_scratch_bytes
+    );
+    assert!(
+        super::super::cut_shape::with_budget(measured.census_work - 1, || {
+            super::super::cut_sim_capacity::inventory(&s, &c)
+        })
+        .is_err()
+    );
+    assert!(super::super::cut_shape::spent().is_none());
+    let mut overlay = s.clone();
+    overlay.positions[0].collateral_position = "other".into();
+    assert!(super::super::cut_sim_capacity::inventory(&overlay, &c).is_err());
+}
+
+#[test]
+fn finite_runtime_capacity_retains_full_fee_and_loan_state_at_zero_participation() {
+    use crate::owners::commercial::intents::{finite_runtime_capacity, FeeBinding};
+    let s = spec();
+    let loan = source(17);
+    let id = s.positions[0].id.as_str();
+    let fee = prepaid(-1., id);
+    let years = [0., 20. / 365.];
+    let mut c = Compiled::new(&s, bindings(&loan, id, 17, 0)).unwrap();
+    c.attach_fees(
+        &s,
+        vec![
+            FeeBinding {
+                loan_binding: 0,
+                native_position_id: id,
+                source: &fee,
+                native_years: &years,
+            },
+            FeeBinding {
+                loan_binding: 1,
+                native_position_id: id,
+                source: &fee,
+                native_years: &years,
+            },
+        ],
+    )
+    .unwrap();
+    let mut paid = 0;
+    let a = finite_runtime_capacity(&c, |work| {
+        paid += work;
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(a.census_work, paid);
+    assert!(a.runtime_bytes_upper > 10000);
+    assert!(a.temporary_bytes_upper > 0);
+    for binding in &mut c.bindings {
+        binding.allocated_face = 0.;
+    }
+    let b = finite_runtime_capacity(&c, |_| Ok(())).unwrap();
+    assert_eq!(a.runtime_bytes_upper, b.runtime_bytes_upper);
+    assert_eq!(a.temporary_bytes_upper, b.temporary_bytes_upper);
+    assert_eq!(a.census_work, b.census_work);
+    let error = finite_runtime_capacity(&c, |_| Err("original deadline".into()))
+        .err()
+        .unwrap();
+    assert_eq!(error, "original deadline");
+    let mut spent = 0;
+    assert!(finite_runtime_capacity(&c, |work| {
+        if spent + work > paid - 1 {
+            return Err("exhausted".into());
+        }
+        spent += work;
+        Ok(())
+    })
+    .is_err());
+    assert_eq!(spent, paid - 1);
+}
+
 struct DroppedSource(HandSource, Arc<AtomicBool>);
 impl Drop for DroppedSource {
     fn drop(&mut self) {

@@ -13,6 +13,9 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet},
 };
+#[path = "runtime_capacity.rs"]
+mod runtime_capacity;
+pub(crate) use runtime_capacity::finite_runtime_capacity;
 
 /// Native accounting capability; caller JSON cannot create a sealed source.
 mod sealed {

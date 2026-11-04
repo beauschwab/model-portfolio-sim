@@ -64,12 +64,19 @@ impl Counter {
 trait Typed: Serialize {
     fn visit(&self, c: &mut Counter) -> R<()>;
     fn same(&self, other: &Self) -> R<bool>;
+    /// Requested heap of a fresh native Clone, excluding inline Self. Shared
+    /// Arc text and borrowed views retain their existing owners without copies.
+    fn cloned_heap(&self) -> R<usize>;
     #[cfg(test)]
     fn layout_value(&self) -> R<serde_json::Value> {
         serde_json::to_value(self).map_err(|e| e.to_string())
     }
 }
 impl<T: Typed + ?Sized> Typed for &T {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         (**self).visit(c)
     }
@@ -82,6 +89,10 @@ impl<T: Typed + ?Sized> Typed for &T {
     }
 }
 impl Typed for f64 {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         // Charge even a rejected nonfinite observation before inspecting it.
         c.node(32)?;
@@ -99,6 +110,10 @@ impl Typed for f64 {
     }
 }
 impl Typed for usize {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(32)
     }
@@ -108,6 +123,10 @@ impl Typed for usize {
     }
 }
 impl Typed for bool {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(5)
     }
@@ -117,6 +136,10 @@ impl Typed for bool {
     }
 }
 impl Typed for str {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        Ok(0)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(0)?;
         c.text(self)
@@ -140,8 +163,12 @@ impl Typed for str {
     }
 }
 macro_rules! text {
-    ($t:ty) => {
+    ($t:ty, $shared:expr) => {
         impl Typed for $t {
+            fn cloned_heap(&self) -> R<usize> {
+                tick(1)?;
+                Ok(if $shared { 0 } else { self.as_str().len() })
+            }
             fn visit(&self, c: &mut Counter) -> R<()> {
                 self.as_str().visit(c)
             }
@@ -151,9 +178,14 @@ macro_rules! text {
         }
     };
 }
-text!(String);
-text!(SharedText);
+text!(String, false);
+text!(SharedText, true);
 impl<T: Typed> Typed for [T] {
+    fn cloned_heap(&self) -> R<usize> {
+        tick(1)?;
+        self.iter()
+            .try_fold(0, |bytes, value| add(bytes, value.cloned_heap()?))
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         c.node(add(2, self.len().saturating_sub(1))?)?;
         for v in self {
@@ -182,6 +214,13 @@ impl<T: Typed> Typed for [T] {
     }
 }
 impl<T: Typed> Typed for Vec<T> {
+    fn cloned_heap(&self) -> R<usize> {
+        let slots = self
+            .len()
+            .checked_mul(std::mem::size_of::<T>())
+            .ok_or("typed specification clone overflow")?;
+        add(slots, self.as_slice().cloned_heap()?)
+    }
     fn visit(&self, c: &mut Counter) -> R<()> {
         self.as_slice().visit(c)
     }
@@ -196,6 +235,13 @@ impl<T: Typed> Typed for Vec<T> {
 macro_rules! typed_struct {
     ($t:ty, {$($f:ident),+ $(,)?}) => {
         impl Typed for $t {
+            fn cloned_heap(&self) -> R<usize> {
+                let Self { $($f: _,)+ } = self;
+                tick(1)?;
+                let mut heap = 0usize;
+                $(heap = add(heap, self.$f.cloned_heap()?)?;)+
+                Ok(heap)
+            }
             fn visit(&self, c: &mut Counter) -> R<()> {
                 // No `..`: every added native field requires an explicit review.
                 let Self { $($f: _,)+ } = self;
@@ -242,6 +288,13 @@ typed_struct!(Scenario, {name, start_day, rate_shift, spread_shift, deposit_flig
     lgd_add, draw_multiplier, rollover_loss, haircut_add, market_shock, outage_days});
 typed_struct!(Cashflow, {position, day, principal, cash_interest, accrual_interest, book_amortization, scenario});
 typed_struct!(Spec, {horizon_days, accounts, positions, netting_sets, policies, scenarios, reverse_severities, cashflows, ruleset});
+
+/// Exact requested allocations of the retained normalized specification. The
+/// original owners of shared Position strings remain a separate source phase.
+/// No JSON shape multiplier or input spare-capacity assumption enters this term.
+pub(super) fn specification_clone_bytes(spec: &Spec) -> R<usize> {
+    add(std::mem::size_of::<Spec>(), spec.cloned_heap()?)
+}
 
 /// The same complete serialization as Spec, borrowing a chosen position list.
 #[derive(Serialize)]

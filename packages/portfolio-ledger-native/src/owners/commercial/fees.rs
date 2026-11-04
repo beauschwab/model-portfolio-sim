@@ -34,7 +34,7 @@ fn money(v: f64) -> Result<f64, String> {
 #[derive(Clone, Default)]
 pub(crate) struct FeeTracking {
     pub states: BTreeMap<String, State>,
-    stocks: BTreeMap<(String, &'static str), f64>,
+    pub(super) stocks: BTreeMap<(String, &'static str), f64>,
 }
 type StagedFee = (FeeTracking, Vec<(&'static str, f64)>, f64, f64);
 impl FeeTracking {

@@ -15,12 +15,17 @@ def _require(ok, message):
         raise ArithmeticError(message)
 
 
-def financial_parts(raw, packet):
-    _require(type(packet) is dict and set(packet) == set('''schema raw_request_header
-        completed_phase revised_phase cut_tables producer_completion component_receipt
-        joined_raw_admission_proved publication_eligible'''.split()), 'complete direct packet required')
+def financial_parts(raw, packet, check=lambda: False):
+    check()
+    _require(type(packet) is dict, 'complete direct packet required')
+    stream = packet.get('schema') == 'commercial-sequential-packet-witness-2'
+    keys = set('''schema raw_request_header completed_phase revised_phase component_receipt
+        joined_raw_admission_proved publication_eligible'''.split())
+    keys.update(('cut_stream',) if stream else ('cut_tables', 'producer_completion'))
+    _require(set(packet) == keys, 'complete direct packet required')
     _finite_tree(packet)
-    _require(packet['schema'] == 'commercial-sequential-packet-witness-1'
+    _require(packet['schema'] in ('commercial-sequential-packet-witness-1',
+                                 'commercial-sequential-packet-witness-2')
              and packet['joined_raw_admission_proved'] is False
              and packet['publication_eligible'] is False, 'direct packet evidence boundary differs')
     canonical = graph_typed(raw)
@@ -70,13 +75,18 @@ def financial_parts(raw, packet):
         for unit, graph in enumerate(graphs):
             _require(current.get((side, unit), 0) == len(graph['native_sources']),
                      'direct packet extra current proof')
+    if stream:
+        from .commercial_cut_stream_transport import decode
+        tables, completion = decode(packet['cut_stream'], check)
+    else:
+        tables, completion = packet['cut_tables'], packet['producer_completion']
     return dict(raw_request=canonical, completed_preparation=phases['completed']['preparation'],
-        revised_preparation=phases['revised']['preparation'], cut_tables=packet['cut_tables'],
-        producer_completion=packet['producer_completion'], component_receipt=packet['component_receipt'],
+        revised_preparation=phases['revised']['preparation'], cut_tables=tables,
+        producer_completion=completion, component_receipt=packet['component_receipt'],
         source_records=records, joined_raw_admission_proved=False, publication_eligible=False)
 
 
 def verify(raw, packet, check=lambda: False):
     check()
-    parts = financial_parts(raw, packet)
+    parts = financial_parts(raw, packet, check)
     return verify_parts(parts['raw_request'], parts, check)

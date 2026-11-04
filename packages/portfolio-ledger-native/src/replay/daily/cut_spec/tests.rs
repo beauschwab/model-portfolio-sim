@@ -15,6 +15,100 @@ fn spec() -> Spec {
     }))
     .unwrap()
 }
+
+#[test]
+fn specification_clone_census_matches_actual_capacity_and_shared_position_ownership() {
+    use std::mem::size_of;
+    let mut original = spec();
+    original.accounts[0].id = "account 雪😀".into();
+    original.accounts[0].id.reserve(10000);
+    original.accounts.reserve(1000);
+    original.positions.reserve(1000);
+    original.ruleset.reserve(10000);
+    let copy = original.clone();
+    let mut actual = size_of::<Spec>()
+        + copy.accounts.capacity() * size_of::<Account>()
+        + copy.positions.capacity() * size_of::<Position>()
+        + copy.netting_sets.capacity() * size_of::<NettingSet>()
+        + copy.policies.capacity() * size_of::<Policy>()
+        + copy.scenarios.capacity() * size_of::<Scenario>()
+        + copy.reverse_severities.capacity() * size_of::<f64>()
+        + copy.cashflows.capacity() * size_of::<Cashflow>()
+        + copy.ruleset.capacity();
+    for a in &copy.accounts {
+        actual += [
+            &a.id,
+            &a.entity,
+            &a.currency,
+            &a.lcr_applicability,
+            &a.nsfr_applicability,
+            &a.htm_accounting,
+        ]
+        .iter()
+        .map(|s| s.capacity())
+        .sum::<usize>();
+    }
+    for n in &copy.netting_sets {
+        actual += [&n.id, &n.account, &n.counterparty]
+            .iter()
+            .map(|s| s.capacity())
+            .sum::<usize>();
+    }
+    for p in &copy.policies {
+        actual += [
+            &p.id,
+            &p.account,
+            &p.kind,
+            &p.position,
+            &p.destination,
+            &p.sale_reason,
+        ]
+        .iter()
+        .map(|s| s.capacity())
+        .sum::<usize>();
+    }
+    actual += copy
+        .scenarios
+        .iter()
+        .map(|s| s.name.capacity())
+        .sum::<usize>();
+    actual += copy
+        .cashflows
+        .iter()
+        .map(|f| f.position.capacity() + f.scenario.capacity())
+        .sum::<usize>();
+    // SharedText clones increment their existing Arc; they allocate no payload.
+    assert!(std::ptr::eq(
+        original.positions[0].id.as_str(),
+        copy.positions[0].id.as_str()
+    ));
+    let work = cut_shape::with_budget(10000, || {
+        assert_eq!(specification_clone_bytes(&original)?, actual);
+        assert_eq!(original.positions[0].cloned_heap()?, 0);
+        ticket()
+    })
+    .unwrap();
+    assert!(work > 100);
+    assert!(cut_shape::with_budget(1, || specification_clone_bytes(&original)).is_err());
+    assert!(cut_shape::spent().is_none());
+}
+
+#[test]
+fn clone_census_includes_long_unescaped_payload_and_ignores_numeric_values() {
+    let mut a = spec();
+    let before = specification_clone_bytes(&a).unwrap();
+    let old = a.accounts[0].entity.len();
+    a.accounts[0].entity = "雪\\\"\n".repeat(2000);
+    let delta = a.accounts[0].entity.len() - old;
+    a.accounts[0].cash = -0.;
+    a.positions[0].balance = f64::MAX;
+    assert_eq!(specification_clone_bytes(&a).unwrap(), before + delta);
+    let empty: Spec = serde_json::from_value(json!({})).unwrap();
+    assert_eq!(
+        specification_clone_bytes(&empty).unwrap(),
+        size_of::<Spec>() + empty.ruleset.len()
+    );
+}
 fn check_layout<T: Typed>(value: &T) {
     let native = serde_json::to_value(value).unwrap();
     let layout = value.layout_value().unwrap();

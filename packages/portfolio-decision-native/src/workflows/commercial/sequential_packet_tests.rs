@@ -117,6 +117,15 @@ fn write_packet(
     output: &mut dyn Write,
     limit: Option<usize>,
 ) -> Result<Usage, String> {
+    write_packet_format(request, output, limit, false)
+}
+
+fn write_packet_format(
+    request: &cut_mixed::Request,
+    output: &mut dyn Write,
+    limit: Option<usize>,
+    stream_transport: bool,
+) -> Result<Usage, String> {
     scope(Some(Control::new(180_000)?), || {
         if request.schema != cut_mixed::SCHEMA || request.preparation_receipt_policy.is_some() {
             return Err(
@@ -152,7 +161,11 @@ fn write_packet(
         let spent = daily::with_cut_census_budget(budget, || {
             syntax(
                 &output,
-                b"{\"schema\":\"commercial-sequential-packet-witness-1\",\"raw_request_header\":",
+                if stream_transport {
+                    b"{\"schema\":\"commercial-sequential-packet-witness-2\",\"raw_request_header\":"
+                } else {
+                    b"{\"schema\":\"commercial-sequential-packet-witness-1\",\"raw_request_header\":"
+                },
             )?;
             // Complete candidate requests remain in their preparation receipts.
             // The reader reconstructs the outer request by identity, with no
@@ -244,15 +257,25 @@ fn write_packet(
             syntax(&output, b"],\"preparation\":")?;
             emit(&output, &new).map_err(|e| format!("revised preparation encoding: {e}"))?;
             drop(new);
-            syntax(&output, b"},\"cut_tables\":")?;
             let data = std::mem::take(&mut *stream.0.lock().map_err(|_| "packet stream lock")?);
-            // Explicit provisional charge; not a complete private parser/layout proof.
-            tick(mul(data.len(), 4)?)?;
-            let (tables, completion) = candidates::decode_stream_bounded(&data, 9, 64 << 20)?;
-            drop(data);
-            emit(&output, &tables).map_err(|e| format!("cut-table encoding: {e}"))?;
-            syntax(&output, b",\"producer_completion\":")?;
-            emit(&output, &completion)?;
+            if stream_transport {
+                // Move the original columnar stream into an ordinary JSON string.
+                // UTF-8 validation is prepaid. No native parse, Value expansion,
+                // dictionary clone or second encoded stream is necessary.
+                tick(data.len())?;
+                let data = String::from_utf8(data).map_err(|e| e.to_string())?;
+                syntax(&output, b"},\"cut_stream\":")?;
+                emit(&output, &data).map_err(|e| format!("cut-stream encoding: {e}"))?;
+            } else {
+                syntax(&output, b"},\"cut_tables\":")?;
+                // Historical prototype retained for exact reader compatibility.
+                tick(mul(data.len(), 4)?)?;
+                let (tables, completion) = candidates::decode_stream_bounded(&data, 9, 64 << 20)?;
+                drop(data);
+                emit(&output, &tables).map_err(|e| format!("cut-table encoding: {e}"))?;
+                syntax(&output, b",\"producer_completion\":")?;
+                emit(&output, &completion)?;
+            }
             syntax(&output, b",\"component_receipt\":")?;
             emit(&output, &receipt.ok_or("packet receipt absent")?)?;
             syntax(
@@ -440,5 +463,79 @@ fn zero_allocation_direct_packet_retains_every_original_and_current_source() {
             .open(path)
             .unwrap();
         file.write_all(&output).unwrap();
+    }
+}
+
+#[test]
+fn moved_columnar_stream_preserves_all_source_and_journal_bytes_without_native_decoding() {
+    for zero in [false, true] {
+        let mut request: cut_mixed::Request = serde_json::from_str(include_str!(
+            "../../../../../examples/models/commercial-cut-mixed-journal-1.json"
+        ))
+        .unwrap();
+        if zero {
+            for candidate in [
+                &mut request.completed_candidate,
+                &mut request.revised_candidate,
+            ] {
+                for allocation in &mut candidate.allocation {
+                    allocation.face = 0.;
+                }
+            }
+        }
+        let mut old = Vec::new();
+        let previous = write_packet(&request, &mut old, None).unwrap();
+        let old: Value = serde_json::from_slice(&old).unwrap();
+        let mut output = Vec::new();
+        output.try_reserve_exact(COMPONENT).unwrap();
+        let usage = write_packet_format(&request, &mut output, None, true).unwrap();
+        assert!(output.len() < COMPONENT);
+        assert!(usage.joined_reported_work < previous.joined_reported_work);
+        let packet: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(packet["schema"], "commercial-sequential-packet-witness-2");
+        assert!(packet.get("cut_tables").is_none());
+        assert!(packet.get("producer_completion").is_none());
+        for key in [
+            "raw_request_header",
+            "completed_phase",
+            "revised_phase",
+            "component_receipt",
+            "joined_raw_admission_proved",
+            "publication_eligible",
+        ] {
+            exact(&packet[key], &old[key]);
+        }
+        // Independent test reader only: production of this packet never calls
+        // the decoder and therefore owns no parsed stream or expanded Values.
+        let wire = packet["cut_stream"].as_str().unwrap().as_bytes();
+        let (tables, completion) = candidates::decode_stream(wire, 9).unwrap();
+        exact(&serde_json::to_value(tables).unwrap(), &old["cut_tables"]);
+        exact(&completion, &old["producer_completion"]);
+        eprintln!(
+            "stream packet zero={zero}: {} bytes={}",
+            serde_json::to_string(&usage).unwrap(),
+            output.len()
+        );
+        let name = if zero {
+            "COMMERCIAL_ZERO_STREAM_PACKET_ARTIFACT"
+        } else {
+            "COMMERCIAL_STREAM_PACKET_ARTIFACT"
+        };
+        if let Some(path) = std::env::var_os(name) {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+                .unwrap();
+            file.write_all(&output).unwrap();
+            let mut name = path;
+            name.push(".usage.json");
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(name)
+                .unwrap();
+            serde_json::to_writer(file, &usage).unwrap();
+        }
     }
 }
