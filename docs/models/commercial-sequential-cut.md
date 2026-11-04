@@ -144,6 +144,42 @@ in tests; changed references, source counts/order, amounts, clocks and forged
 authority reject. This reader is explicit analysis and is not registered as a
 production publication verifier.
 
+## Direct stream packet and independent source census (2026-11-04)
+
+The test-only `commercial-sequential-packet-witness-2` moves the complete existing
+protocol-9 stream into a JSON string after dropping the revised preparation.
+UTF-8 validation and serialization consume the same prepaid ticket. No native
+table parse, dictionary expansion or final table Value construction occurs.
+Version 1 remains readable. The independent decoder validates every original
+frame and dictionary index before the existing complete financial replay.
+
+For the unchanged full request, this version reports 30,828,146 joined work,
+124,251,744 source-phase bytes and a 1,582,326-byte packet. Zero allocation retains
+every source and reports 30,729,811 work and a 1,572,438-byte packet. Neither packet
+claims complete resource proof or publication eligibility.
+
+The component now inventories complete finite loan/fee Tracking containers,
+snapshot heaps, all cloned Spec fields, Sim maps/vectors and report scratch.
+Generic overlay state rejects at the exclusive finite-owner boundary. Each census
+uses the existing work and cancellation authority. These component inventories
+do not establish complete source-owner allocation or process RSS bounds.
+
+`commercial_fixed_admission_reference` independently derives all 27 ordinary
+fixed-source admission objects and both indexed preparation dimensions from raw
+input. Its completed/revised work bounds are 7,297,778 and 14,485,964; corresponding
+byte bounds are 40,235,472 and 77,716,168. It does not accept native counters as
+expected dimensions, infer unsupported advanced policies, or grant publication.
+
+The early CLI intake now borrows original wire selectors before generic Value
+construction. A shared raw-JSON capacity census reserves the selected strict
+tree and workspace before allocation; duplicate rejection and original deadlines
+remain. Typed request clones and private source lifetimes remain separate gates.
+
+The full matrix at `cd76d6a` still has the original positive cut-publication failure
+and one browser module-fetch failure. Original logs, exact installed identities
+and subsequent scoped checks are recorded in the
+[November 4 review](../reviews/2026-11-04-commercial-stream-capacity.md).
+
 ## Validation and outstanding adoption
 
 Native controls compare every decoded output table with the historical dual-owner

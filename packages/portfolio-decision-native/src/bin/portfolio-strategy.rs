@@ -14,23 +14,17 @@ fn main() {
         if input.len() > 128 * 1024 * 1024 {
             return Err("request exceeds 128 MiB".into());
         }
-        let request = portfolio_decision_native::commercial_intake::parse(&input)?;
-        if request["op"] == "analyze_commercial_cut_mixed_journal" {
-            if request["request"]["preparation_receipt_policy"].is_string() {
-                drop(request);
-                let mut output = io::stdout().lock();
-                portfolio_decision_native::commercial_cut_mixed::run_owned_cli_started(
-                    input,
-                    started,
-                    &mut output,
-                )?;
-                ftp_handled = true;
-                return Ok(serde_json::Value::Null);
-            }
-            return portfolio_decision_native::commercial_cut_mixed::run_envelope_started(
-                &input, started,
-            );
+        if portfolio_decision_native::commercial_intake::selects_cut(&input)? {
+            let mut output = io::stdout().lock();
+            portfolio_decision_native::commercial_cut_mixed::run_cli_started(
+                input,
+                started,
+                &mut output,
+            )?;
+            ftp_handled = true;
+            return Ok(serde_json::Value::Null);
         }
+        let request = portfolio_decision_native::commercial_intake::parse(&input)?;
         if request["op"] == "analyze_commercial_candidate_holding_journal" {
             return portfolio_decision_native::commercial_candidate_holding::run_envelope_started(
                 &input, started,

@@ -667,7 +667,14 @@ fn parse_envelope(
     bytes: &[u8],
     started: Instant,
 ) -> Result<(Envelope, Value, portfolio_compute_control::Control), String> {
-    let raw = strict_json::parse_checked(bytes, MAX_RAW, checkpoint)?;
+    // This covers only the first strict tree and parser workspace. Original
+    // request cloning, typed DTOs and complete source/Sim phases are separate.
+    let (raw, _) = portfolio_model_core::transport::value_capacity::parse_checked(
+        bytes,
+        MAX_RAW,
+        VALUE_PHASE_BYTES,
+        checkpoint,
+    )?;
     let original = raw["request"].clone();
     let envelope: Envelope = serde_json::from_value(raw).map_err(|e| e.to_string())?;
     if envelope.op != "analyze_commercial_cut_mixed_journal" || envelope.schema != SCHEMA {
@@ -710,14 +717,35 @@ pub fn run_owned_cli_started(
     started: Instant,
     output: &mut dyn Write,
 ) -> Result<(), String> {
+    run_cli_internal(bytes, started, output, true)
+}
+
+/// Early original-wire CLI dispatch. The borrowed selector allocates no peek
+/// Value; strict parsing below owns duplicate/shape validation. Both historical
+/// receipt policies retain their existing financial admission and output schema.
+pub fn run_cli_started(
+    bytes: Vec<u8>,
+    started: Instant,
+    output: &mut dyn Write,
+) -> Result<(), String> {
+    run_cli_internal(bytes, started, output, false)
+}
+
+fn run_cli_internal(
+    bytes: Vec<u8>,
+    started: Instant,
+    output: &mut dyn Write,
+    require_selected: bool,
+) -> Result<(), String> {
     let owned_wire = (bytes.len(), bytes.capacity());
     let (envelope, original, control) = parse_envelope(&bytes, started)?;
-    if envelope.request.preparation_receipt_policy.is_none() {
+    let selected = envelope.request.preparation_receipt_policy.is_some();
+    if require_selected && !selected {
         return Err("owned cut wire requires the explicit native receipt policy".into());
     }
     drop(bytes);
     let stdout_control = control.clone();
-    let value = execute_envelope(envelope, original, control, Some(owned_wire))?;
+    let value = execute_envelope(envelope, original, control, selected.then_some(owned_wire))?;
     portfolio_compute_control::scope(Some(stdout_control), || {
         #[derive(Serialize)]
         struct Success<'a> {

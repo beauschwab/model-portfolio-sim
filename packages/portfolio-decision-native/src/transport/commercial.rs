@@ -1,6 +1,7 @@
 //! Original-byte admission for commercial strategy creation and retained actors.
 //! Routing examines every original selector before Value can erase duplicates.
 //! Historical noncommercial Value-first decoding retains its existing behavior.
+pub use super::cut_selection::is_selected as selects_cut;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::{value::RawValue, Value};

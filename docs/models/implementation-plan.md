@@ -5,6 +5,23 @@ This document records implementation stages, not a reduced definition of complet
 Every child issue's acceptance criteria remain required. A numerical implementation
 is not an empirical calibration, a regulatory methodology approval or a deployment.
 
+## Commercial cut capacity and full-suite checkpoint (2026-11-04)
+
+Sequential runtime/specification/snapshot inventories, direct protocol-9 stream
+transport and the independent raw fixed-source/preparation census are implemented.
+All source roles and zero-allocation histories remain. The complete local matrix
+at `cd76d6a` passes 1,710 native and 4,137 engine tests, but retains the original
+positive commercial-cut API publication failure (1,454 other API tests pass).
+One streamed-browser test also recorded a Chromium module-fetch buffer error;
+the immutable original result and separate rerun are retained in the
+[evidence review](../reviews/2026-11-04-commercial-stream-capacity.md).
+
+Early original-wire selection and strict-parser capacity checks are subsequent
+scoped work. Full typed/private-source allocation coverage, combined admission
+before the first Sim, production adoption, exact verified predecessor binding and
+positive independent persisted publication remain required. This is not issue
+#15/#25 completion. All product, empirical, policy and scale gates below remain.
+
 ## Prepaid commercial source record traversal (2026-11-01)
 
 The additive `capture_prepaid` Rust component now funds JSON cells, string/key
