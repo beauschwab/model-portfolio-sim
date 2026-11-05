@@ -11,6 +11,8 @@ use portfolio_model_core::floating_rate::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+pub(crate) const PATH_DISCLOSURE: &str = "Explicit supplied conditional index path, not calibrated projection. Calendar identities/lookbacks and interval coverage retained; business-day calendar mapping is supplied and not independently verified. No default, prepayment, option exercise, OAS solve or book amortization. Complete maturity tail retained beyond report horizon.";
+
 #[derive(Debug, Clone, Serialize)]
 pub struct EarnedFactorPoint {
     pub period_id: String,
@@ -1076,5 +1078,15 @@ fn build_path_owned(
         work::Op::OutputBytes,
         portfolio_model_core::strict_json::serialized_size(&schedule, 32 << 20)?,
     )?;
-    Ok(ContractPathResult{schema:SCHEMA.into(),model_version:MODEL_VERSION.into(),contract:request.contract.clone(),assumption:request.assumption.clone(),path:request.path.clone(),schedule,audit,principal_after_reporting:after_report.max(0.),disclosure:"Explicit supplied conditional index path, not calibrated projection. Calendar identities/lookbacks and interval coverage retained; business-day calendar mapping is supplied and not independently verified. No default, prepayment, option exercise, OAS solve or book amortization. Complete maturity tail retained beyond report horizon.".into()})
+    Ok(ContractPathResult {
+        schema: SCHEMA.into(),
+        model_version: MODEL_VERSION.into(),
+        contract: request.contract.clone(),
+        assumption: request.assumption.clone(),
+        path: request.path.clone(),
+        schedule,
+        audit,
+        principal_after_reporting: after_report.max(0.),
+        disclosure: PATH_DISCLOSURE.into(),
+    })
 }

@@ -12,6 +12,10 @@ use serde::Serialize;
 use std::cell::Cell;
 use std::collections::BTreeMap;
 
+#[path = "fixed_capacity.rs"]
+mod fixed_capacity;
+pub use fixed_capacity::FixedCapacity;
+
 #[cfg(test)]
 thread_local! { pub(crate) static SOURCE_CALLS: Cell<usize> = const { Cell::new(0) }; }
 
@@ -709,6 +713,25 @@ impl NativeFactors {
         )?;
         let meter = admission.counted_work.as_ref().map(WorkMeter::new);
         work::bump(meter.as_ref(), Op::InputBytes, verified_bytes.get())?;
+        let fixed_capacity = if !transferred
+            && basis.is_none()
+            && finite.is_none()
+            && meter.is_none()
+            && policy.terminal_obligations.is_none()
+            && matches!(raw.principal_plan, indexed::PrincipalPlan::Supplied { .. })
+            && raw
+                .periods
+                .iter()
+                .all(|p| matches!(p.coupon, Coupon::Fixed { .. }))
+        {
+            let capacity = Self::fixed_capacity(&raw, &policy)?;
+            if capacity.construction_bytes_upper > admission.retained_bytes_upper {
+                return Err("fixed factor construction exceeds original source reservation".into());
+            }
+            Some(capacity)
+        } else {
+            None
+        };
         let s = admission.segment_bound;
         let mut segments = Vec::new();
         segments.try_reserve_exact(s).map_err(|e| e.to_string())?;
@@ -836,7 +859,7 @@ impl NativeFactors {
         if let Some(meter) = meter.as_ref() {
             meter.check()?;
         }
-        Ok(Self {
+        let result = Self {
             raw,
             source,
             policy,
@@ -845,7 +868,15 @@ impl NativeFactors {
             admission,
             queries_used: Cell::new(0),
             meter,
-        })
+        };
+        if let Some(capacity) = fixed_capacity {
+            if result.fixed_retained_capacity()? > capacity.retained_bytes_upper {
+                return Err(
+                    "fixed factor retention exceeds raw-derived construction inventory".into(),
+                );
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn count_terminal_scan(&self) -> Result<(), String> {

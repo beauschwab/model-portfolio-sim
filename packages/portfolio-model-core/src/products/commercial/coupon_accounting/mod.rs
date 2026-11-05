@@ -7,6 +7,7 @@ use crate::accounting::credit::income::{
 use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 
+mod fixed_capacity;
 pub mod reviews;
 
 pub const SCHEMA: &str = "commercial-coupon-accounting-proof-1";

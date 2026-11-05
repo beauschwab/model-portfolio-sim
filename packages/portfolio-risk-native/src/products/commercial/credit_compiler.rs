@@ -12,7 +12,11 @@ use serde::{Deserialize, Serialize};
 
 #[path = "credit_raw_capacity.rs"]
 mod raw_capacity;
-pub use raw_capacity::{finite_raw_layout, RawLayout};
+pub use raw_capacity::{
+    finite_graph_raw_layout, finite_raw_layout, finite_units_raw_layout,
+    fixed_construction_capacity, FixedConstructionCapacity, RawLayout,
+};
+pub(crate) use raw_capacity::{fixed_contract_heap, fixed_policy_heap};
 
 use crate::products::commercial::factor_source::draws::{
     draw_event_id, project_draws, project_draws_for_acquisition, source_end_year, validate_draws,

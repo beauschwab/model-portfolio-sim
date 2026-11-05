@@ -82,6 +82,49 @@ pub struct PendingCouponObligation<'a> {
 }
 
 impl FactorSegment {
+    /// Fixed descriptors own only their period label. Exhaustive field binding
+    /// prevents an added private owner from silently escaping this inventory.
+    pub(crate) fn fixed_heap_capacity(&self) -> Result<usize, String> {
+        let Self {
+            period_id,
+            audit_index,
+            start,
+            end,
+            observation_start,
+            observation_end,
+            day_count,
+            shifted,
+            full_factor,
+            source,
+            kind,
+            observable_information,
+            observable_information_year,
+        } = self;
+        fn copy_only<T: Copy>(_: T) {}
+        // Copy values, not their references, so an owning field cannot pass.
+        copy_only((
+            *audit_index,
+            *start,
+            *end,
+            *observation_start,
+            *observation_end,
+            *day_count,
+            *shifted,
+            *full_factor,
+            *observable_information,
+            *observable_information_year,
+        ));
+        match kind {
+            Kind::Fixed { annual_rate } if source.is_none() => {
+                copy_only(*annual_rate);
+                Ok(period_id.capacity())
+            }
+            Kind::Fixed { .. } | Kind::Indexed { .. } => {
+                Err("fixed factor capacity requires an unindexed descriptor".into())
+            }
+        }
+    }
+
     pub(crate) fn fixed(
         period_id: &str,
         start: i32,

@@ -7,6 +7,7 @@ use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 
+pub(crate) mod fixed_capacity;
 pub mod tail_bounds;
 mod terminal;
 pub use terminal::{NativeTerminalCouponStep, NativeTerminalQuery};

@@ -187,6 +187,36 @@ and one browser module-fetch failure. Original logs, exact installed identities
 and subsequent scoped checks are recorded in the
 [November 4 review](../reviews/2026-11-04-commercial-stream-capacity.md).
 
+## Fixed-source allocation inventory (2026-11-05)
+
+Ordinary supplied fixed factors now derive retained schedules, audit rows, sealed
+segments, cash indices, copied metadata, binding trees, validation tables and sort
+scratch before construction. The compiler refuses a construction bound above its
+existing source reservation and checks every retained private field afterward.
+Financial values, source admission receipts and numerical tolerances are unchanged.
+
+The source census also inventories prepared credit requests, full credit traces,
+coupon cash/recoveries, earned contributions, canonical balances, every Physical
+accounting group and closing snapshot. Empty vectors retain their allocated slots;
+Clones charge their requested lengths. Graph and unit input wrappers include every
+repeated history. Advanced transfer, exercise, generated, fee and reviewed-claim
+owners need their separate inventories and reject at this fixed-only boundary.
+
+Ordinary carry/book construction estimates include bounded jumps, all 32 recovery
+records, three origin lots per coupon, every group posting, vector growth overlap
+and scratch. The joined fixed-source diagnostic includes both factor clocks and
+prepared inputs. It excludes preparse/preparation scratch and the graph, candidate,
+Sim and final transport owners; it does not enable raw cut publication.
+
+A separate allocator probe using the repository's locked dependencies checked all
+27 original fixture sources (6 Physical, 21 Pricing). Declared retained heap matched
+measured allocations exactly, totaling 518,493 bytes across the separate owners.
+The largest observed complete compiler peak was 40,880 bytes; the largest new
+source construction reservation was 1,366,820 bytes. These are source-level checks,
+not aggregate process/RSS evidence or empirical model validation. The unchanged
+positive API cut case still requires joined admission and publication integration.
+See the [November 5 review](../reviews/2026-11-05-commercial-source-capacity.md).
+
 ## Validation and outstanding adoption
 
 Native controls compare every decoded output table with the historical dual-owner

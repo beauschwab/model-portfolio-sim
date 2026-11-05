@@ -10,6 +10,10 @@ use portfolio_model_core::credit_accounting;
 use serde::Serialize;
 use std::mem::{needs_drop, size_of};
 
+#[path = "credit_graph_capacity.rs"]
+mod graph_capacity;
+pub use graph_capacity::{finite_graph_raw_layout, finite_units_raw_layout};
+
 type R<T> = Result<T, String>;
 fn add(a: usize, b: usize) -> R<usize> {
     a.checked_add(b).ok_or("fixed raw layout overflow".into())
@@ -69,6 +73,11 @@ fn inline<T>(_: &T) -> R<()> {
     }
 }
 impl Layout for f64 {
+    fn heap(&self) -> R<Heap> {
+        Ok(Heap::default())
+    }
+}
+impl Layout for i32 {
     fn heap(&self) -> R<Heap> {
         Ok(Heap::default())
     }
@@ -328,6 +337,16 @@ pub struct RawLayout {
     pub cloned_heap_bytes: usize,
     pub retained_with_one_clone_bytes: usize,
 }
+/// Retained input storage and requested clone storage, excluding the inline
+/// header. These share the exhaustive fixed-source DTO inventory above.
+pub(crate) fn fixed_contract_heap(r: &term::indexed::ContractPathRequest) -> R<(usize, usize)> {
+    let h = r.heap()?;
+    Ok((h.retained, h.cloned))
+}
+pub(crate) fn fixed_policy_heap(r: &FactorPolicy) -> R<(usize, usize)> {
+    let h = r.heap()?;
+    Ok((h.retained, h.cloned))
+}
 /// Read-only layout of one already typed fixed request. This is not a preparse
 /// admission or a census of its later financial source/carry/accounting owners.
 pub fn finite_raw_layout(request: &Request) -> R<RawLayout> {
@@ -343,6 +362,195 @@ pub fn finite_raw_layout(request: &Request) -> R<RawLayout> {
             add(heap.retained, heap.cloned)?,
         )?,
     })
+}
+
+fn nested_heap<T>(total: usize) -> R<usize> {
+    total
+        .checked_sub(size_of::<T>())
+        .ok_or("fixed nested owner storage underflow".into())
+}
+
+#[derive(Debug, Serialize)]
+pub struct FixedConstructionCapacity {
+    pub original_factors: super::super::factor_source::owner::FixedCapacity,
+    pub current_factors: super::super::factor_source::owner::FixedCapacity,
+    pub carry_bytes_upper: usize,
+    pub book_bytes_upper: usize,
+    pub metadata_bytes_upper: usize,
+    pub total_bytes_upper: usize,
+}
+/// Supplied fixed-source construction after raw admission/preparation. Includes
+/// the borrowed input so parents can conservatively sum source phases. It is
+/// not a bound on preparse/preparation allocations or graph/Sim/codec owners.
+pub fn fixed_construction_capacity(
+    r: &Request,
+    measure: portfolio_model_core::credit::CreditMeasure,
+) -> R<FixedConstructionCapacity> {
+    let raw = finite_raw_layout(r)?;
+    let physical = measure == portfolio_model_core::credit::CreditMeasure::Physical;
+    let prepared = super::prepare(
+        r,
+        0,
+        0,
+        measure,
+        &[],
+        if physical {
+            super::AccountingOwner::ReviewedBook
+        } else {
+            super::AccountingOwner::EconomicCarry
+        },
+    )?;
+    let original_factors =
+        super::NativeFactors::fixed_capacity(&r.source.original, &r.factor_policy)?;
+    let current_factors =
+        super::NativeFactors::fixed_capacity(&r.source.current, &r.factor_policy)?;
+    let periods = r.source.current.periods.len();
+    let carry_bytes_upper = prepared.credit.fixed_construction_capacity(periods)?;
+    let book_bytes_upper = if physical {
+        prepared.policy.fixed_construction_capacity(
+            prepared.admission.carry_points_upper,
+            r.credit.paths.len(),
+            periods,
+        )?
+    } else {
+        0
+    };
+    // Result raw clone, live prepared request/policy and SourceAdapter vectors
+    // coexist. Both complete factor phases and both core construction scratch
+    // inventories are added, even where their maxima cannot occur together.
+    let metadata_bytes_upper = [
+        raw.retained_with_one_clone_bytes,
+        size_of::<super::ResultData>().max(size_of::<super::EconomicResult>()),
+        prepared.credit.fixed_heap_capacity()?.0,
+        prepared.policy.fixed_heap_capacity()?.0,
+        size_of::<super::SourceAdapter<'_>>(),
+        mul(add(mul(r.credit.paths.len(), 3)?, 8)?, size_of::<u64>())?,
+        mul(
+            add(mul(prepared.credit.raw_credit_path.intervals.len(), 3)?, 8)?,
+            size_of::<f64>(),
+        )?,
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    let total_bytes_upper = [
+        original_factors.construction_bytes_upper,
+        current_factors.construction_bytes_upper,
+        carry_bytes_upper,
+        book_bytes_upper,
+        metadata_bytes_upper,
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    Ok(FixedConstructionCapacity {
+        original_factors,
+        current_factors,
+        carry_bytes_upper,
+        book_bytes_upper,
+        metadata_bytes_upper,
+        total_bytes_upper,
+    })
+}
+
+// A new adapter field must be assigned to the ordinary source reservation.
+const _: fn(&super::SourceAdapter<'_>) = |super::SourceAdapter {
+                                              selected_finite_tail: _,
+                                              source: _,
+                                              path_keys: _,
+                                              stops: _,
+                                              prepayment_terms: _,
+                                              maturity_basis_policy: _,
+                                              draw_sources: _,
+                                              active_draws: _,
+                                              accounting: _,
+                                              complete_end_year: _,
+                                              interval_starts: _,
+                                              transfer: _,
+                                          }| {};
+fn empty_capacity<T>(v: &Vec<T>) -> R<usize> {
+    if !v.is_empty() {
+        return Err("fixed source requires separate stopped/drawn owner inventory".into());
+    }
+    mul(v.capacity(), size_of::<T>())
+}
+impl super::ResultData {
+    /// Every retained field of an ordinary fixed Physical owner. Full raw,
+    /// prepared credit, carry, account snapshots and both source clocks remain
+    /// included; shared parent inline headers are counted exactly once.
+    pub fn fixed_retained_capacity(&self) -> R<usize> {
+        let Self {
+            schema,
+            raw_request,
+            admission,
+            selected_accounting_owner,
+            original_source,
+            current_source,
+            original_cash_quote,
+            secondary_acquisition,
+            prepared_credit_request,
+            carry,
+            accounting,
+            original_anchor_refitted,
+            prospective_accounting_rate_policy,
+            mixed_ledger_adoption,
+            empirical_adoption,
+            accounting_approval,
+            native_stops,
+            draw_sources,
+        } = self;
+        inline(schema)?;
+        inline(admission)?;
+        inline(selected_accounting_owner)?;
+        inline(original_cash_quote)?;
+        inline(original_anchor_refitted)?;
+        inline(prospective_accounting_rate_policy)?;
+        inline(mixed_ledger_adoption)?;
+        inline(empirical_adoption)?;
+        inline(accounting_approval)?;
+        absent(secondary_acquisition)?;
+        [
+            size_of::<Self>(),
+            raw_request.heap()?.retained,
+            nested_heap::<super::NativeFactors>(original_source.fixed_retained_capacity()?)?,
+            nested_heap::<super::NativeFactors>(current_source.fixed_retained_capacity()?)?,
+            prepared_credit_request.fixed_heap_capacity()?.0,
+            nested_heap::<carry::ResultData>(carry.fixed_retained_capacity()?)?,
+            nested_heap::<book::ResultData>(accounting.fixed_retained_capacity()?)?,
+            empty_capacity(native_stops)?,
+            empty_capacity(draw_sources)?,
+        ]
+        .into_iter()
+        .try_fold(0, add)
+    }
+}
+impl super::EconomicResult {
+    /// Pricing owns its native carry and factors but no Physical coupon book.
+    pub fn fixed_retained_capacity(&self) -> R<usize> {
+        let Self {
+            secondary_acquisition,
+            original_source,
+            current_source,
+            carry,
+            admission,
+            selected_accounting_owner,
+            physical_journal_eligible,
+            native_stops,
+            draw_sources,
+        } = self;
+        absent(secondary_acquisition)?;
+        inline(admission)?;
+        inline(selected_accounting_owner)?;
+        inline(physical_journal_eligible)?;
+        [
+            size_of::<Self>(),
+            nested_heap::<super::NativeFactors>(original_source.fixed_retained_capacity()?)?,
+            nested_heap::<super::NativeFactors>(current_source.fixed_retained_capacity()?)?,
+            nested_heap::<carry::ResultData>(carry.fixed_retained_capacity()?)?,
+            empty_capacity(native_stops)?,
+            empty_capacity(draw_sources)?,
+        ]
+        .into_iter()
+        .try_fold(0, add)
+    }
 }
 
 #[cfg(test)]
@@ -372,6 +580,50 @@ mod tests {
             }
         }
         sources
+    }
+    #[test]
+    fn full_physical_and_pricing_owner_storage_keeps_all_original_sources() {
+        let sources = sources();
+        assert_eq!(sources.len(), 27);
+        for source in sources {
+            if source.source.current.measure
+                == portfolio_model_core::cashflow::CashflowMeasure::Physical
+            {
+                let c = fixed_construction_capacity(
+                    &source,
+                    portfolio_model_core::credit::CreditMeasure::Physical,
+                )
+                .unwrap();
+                let owner = super::super::evaluate(&source).unwrap();
+                let bytes = owner.fixed_retained_capacity().unwrap();
+                assert!(bytes <= owner.admission().joined_bytes_upper);
+                assert!(bytes > finite_raw_layout(&source).unwrap().retained_heap_bytes);
+                assert!(bytes <= c.total_bytes_upper);
+                assert!(
+                    c.total_bytes_upper <= owner.admission().joined_bytes_upper,
+                    "{c:?}"
+                );
+            } else {
+                let owner = super::super::evaluate_economic_with_measure(
+                    &source,
+                    portfolio_model_core::credit::CreditMeasure::Pricing,
+                )
+                .unwrap();
+                let bytes = owner.fixed_retained_capacity().unwrap();
+                let c = fixed_construction_capacity(
+                    &source,
+                    portfolio_model_core::credit::CreditMeasure::Pricing,
+                )
+                .unwrap();
+                assert!(bytes <= owner.admission().joined_bytes_upper);
+                assert!(bytes > owner.current_source().fixed_retained_capacity().unwrap());
+                assert!(bytes <= c.total_bytes_upper);
+                assert!(
+                    c.total_bytes_upper <= owner.admission().joined_bytes_upper,
+                    "{c:?}"
+                );
+            }
+        }
     }
     #[test]
     fn all_original_and_current_sources_have_exact_clone_payloads() {
