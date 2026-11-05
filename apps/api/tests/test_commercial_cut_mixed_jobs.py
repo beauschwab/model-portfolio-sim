@@ -1,4 +1,4 @@
-"""Actual queued cut admission fails closed; no accepted cut-publication claim."""
+"""Queued cut refusal for a distinct over-budget request and authority fences."""
 from pathlib import Path
 import json
 import time
@@ -9,16 +9,30 @@ from test_persistence import durable
 ROOT=Path(__file__).resolve().parents[3]
 def request():return json.loads((ROOT/'examples/models/commercial-cut-mixed-journal-1.json').read_text())
 
-def queued():
-    raw=request();jid=model_routes.submit(model_routes.ModelRunRequest(schema_name=raw['schema'],request=raw,expected_revision=0)).id
+def queued(raw=None):
+    raw=request() if raw is None else raw
+    jid=model_routes.submit(model_routes.ModelRunRequest(schema_name=raw['schema'],request=raw,expected_revision=0)).id
     db.WORKER='cut-mixed-admission-test';worker.STOP.clear();assert db.REPO.acquire(db.WORKER)
     return jid,db.REPO.claim(db.WORKER),raw
 
-def test_actual_native_joined_refusal_publishes_no_cut_result_or_manifest(durable):
-    jid,job,raw=queued();payload=db.CODEC.load(job['request'])['args'][0]
+def test_actual_overbudget_cut_refusal_publishes_no_result_or_manifest(durable):
+    raw=request()
+    # The unchanged original example must publish successfully. Negative
+    # coverage now requests larger complete credit paths within their valid
+    # jump-count domain, retaining every source and zero-allocation policy.
+    for side in ('completed_candidate','revised_candidate'):
+        for unit in raw[side]['commercial']['units']:
+            position=unit['graph']['positions'][0]
+            histories=list(position['original_pricing'])
+            for scenario in position['histories']:
+                for role in ('physical','pricing','pricing_down','pricing_up'):
+                    histories.extend(scenario[role])
+            for history in histories:
+                history['source']['credit']['max_jumps_per_path']=4096
+    jid,job,raw=queued(raw);payload=db.CODEC.load(job['request'])['args'][0]
     worker.execute(job);row=db.REPO.job(jid)
     assert row['status']=='error',row['detail']
-    assert row['result']is None and 'before dual graph generation'in row['detail']
+    assert row['result']is None and 'exceeds128MiB'in row['detail']
     assert payload['request']==raw and type(payload['publication_deadline_unix'])is float
     assert db.CODEC.load(row['request'])['args'][0]==payload
 

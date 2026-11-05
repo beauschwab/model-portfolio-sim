@@ -737,6 +737,69 @@ fn run_cli_internal(
     output: &mut dyn Write,
     require_selected: bool,
 ) -> Result<(), String> {
+    // Classify only after bounded strict parsing. The fixed route consumes this
+    // tree directly into typed input and drops the wire before source creation.
+    // It never owns an original Value clone or a final expanded Value result.
+    if !require_selected {
+        let (raw, _) = portfolio_model_core::transport::value_capacity::parse_checked(
+            &bytes,
+            MAX_RAW,
+            VALUE_PHASE_BYTES,
+            checkpoint,
+        )?;
+        if super::cut_fixed_intake::supports(&raw) {
+            let input = super::cut_fixed_intake::derive(&bytes, bytes.capacity(), &raw)?;
+            let envelope: Envelope = serde_json::from_value(raw).map_err(|e| e.to_string())?;
+            if envelope.op != "analyze_commercial_cut_mixed_journal" || envelope.schema != SCHEMA {
+                return Err("explicit fixed native cut operation required".into());
+            }
+            let control = match portfolio_compute_control::active() {
+                Some(c) => c.child_started(envelope.execution_timeout_ms, started)?,
+                None => portfolio_compute_control::Control::from_started(
+                    envelope.execution_timeout_ms,
+                    started,
+                )?,
+            };
+            drop(bytes);
+            return portfolio_compute_control::scope(Some(control), || {
+                struct Success<'a> {
+                    output: &'a mut dyn Write,
+                    started: bool,
+                }
+                impl Write for Success<'_> {
+                    fn write(&mut self, b: &[u8]) -> io::Result<usize> {
+                        checkpoint().map_err(io::Error::other)?;
+                        if !self.started {
+                            self.output.write_all(b"{\"ok\":")?;
+                            self.started = true;
+                        }
+                        self.output.write(b)
+                    }
+                    fn flush(&mut self) -> io::Result<()> {
+                        checkpoint().map_err(io::Error::other)?;
+                        self.output.flush()
+                    }
+                }
+                let mut success = Success {
+                    output,
+                    started: false,
+                };
+                super::cut_fixed_packet::write_packet(
+                    &envelope.request,
+                    input.typed_bytes_upper,
+                    &mut success,
+                    None,
+                )?;
+                checkpoint()?;
+                success
+                    .output
+                    .write_all(b"}\n")
+                    .map_err(|e| e.to_string())?;
+                success.output.flush().map_err(|e| e.to_string())
+            });
+        }
+        drop(raw);
+    }
     let owned_wire = (bytes.len(), bytes.capacity());
     let (envelope, original, control) = parse_envelope(&bytes, started)?;
     let selected = envelope.request.preparation_receipt_policy.is_some();

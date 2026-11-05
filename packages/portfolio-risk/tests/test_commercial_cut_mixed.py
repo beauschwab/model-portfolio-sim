@@ -1,8 +1,4 @@
-"""Explicit raw cut authority, independent window hand controls and refusal gate.
-
-The public raw fixture currently refuses joined capacity. These tests do not
-claim it has published an admitted integrated cut journal.
-"""
+"""Explicit raw cut authority, independent replay and bounded admission."""
 from copy import deepcopy
 from pathlib import Path
 import json
@@ -74,5 +70,58 @@ def test_transport_original_scalar_deadline_and_size_are_bounded():
     raw['oversized']='x'*(2<<20)
     with pytest.raises(ValueError,match='2MiB'):run(raw)
 
-def test_native_joined_fixture_refuses_without_fallback_or_publication():
-    with pytest.raises(ValueError,match='before dual graph generation.*work=36844632,bytes=223261940'):run(request())
+@pytest.fixture(scope='module')
+def fixed_result():
+    return run(request())[0]
+
+
+def test_native_original_joined_fixture_passes_complete_independent_replay(fixed_result):
+    from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
+    receipt = verify(request(), fixed_result)
+    assert receipt['verified'] and receipt['raw_resource_allowance_recomputed']
+    assert receipt['complete_source_proofs'] == 27
+    assert not receipt['empirical_validation']
+
+
+@pytest.mark.parametrize('field', ['maximum_bytes', 'maximum_work',
+    'typed_input_bytes_upper', 'source_phase_bytes_upper',
+    'completed_preparation_bytes_upper', 'raw_prefix_work_reservation'])
+def test_fixed_raw_resource_admission_cannot_be_forged(fixed_result, field):
+    from portfolio_risk.analytics.commercial_fixed_capacity_reference import verify_packet_resources
+    packet = deepcopy(fixed_result['native_packet'])
+    packet['resource_admission'][field] += 1
+    with pytest.raises(ArithmeticError, match='resource admission differs'):
+        verify_packet_resources(request(), packet)
+
+
+@pytest.mark.parametrize('field', ['raw_source', 'cut_tables', 'producer_completion'])
+def test_fixed_persisted_source_and_journal_cannot_be_substituted(fixed_result, field):
+    from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
+    changed = deepcopy(fixed_result)
+    changed[field] = {}
+    with pytest.raises(ArithmeticError):
+        verify(request(), changed)
+
+
+def test_fixed_zero_allocation_retains_complete_unweighted_source_proofs():
+    from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
+    raw = request()
+    for side in ('completed_candidate', 'revised_candidate'):
+        raw[side]['allocation'][0]['face'] = 0.
+    result, _ = run(raw)
+    assert verify(raw, result)['complete_source_proofs'] == 27
+
+
+def test_native_overbudget_complete_sources_refuse_without_fallback():
+    raw = request()
+    for side in ('completed_candidate', 'revised_candidate'):
+        for unit in raw[side]['commercial']['units']:
+            position = unit['graph']['positions'][0]
+            histories = list(position['original_pricing'])
+            for scenario in position['histories']:
+                for role in ('physical', 'pricing', 'pricing_down', 'pricing_up'):
+                    histories.extend(scenario[role])
+            for history in histories:
+                history['source']['credit']['max_jumps_per_path'] = 4096
+    with pytest.raises(ValueError, match='exceeds128MiB'):
+        run(raw)

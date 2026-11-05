@@ -11,6 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 pub const SCHEMA: &str = "commercial-product-graph-1";
+#[path = "graph_fixed_capacity.rs"]
+mod fixed_capacity;
+pub use fixed_capacity::{fixed_construction_capacity, FixedConstructionCapacity};
 pub const MAX_WORK: usize = 32_000_000;
 pub const MAX_BYTES: usize = 128 << 20;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

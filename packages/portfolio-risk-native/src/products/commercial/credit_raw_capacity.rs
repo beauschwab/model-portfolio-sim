@@ -87,6 +87,7 @@ impl Layout for i32 {
 // an inline field to an owning type rejects until its storage is inventoried.
 macro_rules! fields {
     ($ty:path, [$($owned:ident),*], [$($scalar:ident),*]) => {
+        const _: () = assert!(size_of::<$ty>() <= 8192);
         impl Layout for $ty {
             fn heap(&self) -> R<Heap> {
                 let Self { $($owned,)* $($scalar,)* } = self;
@@ -98,6 +99,14 @@ macro_rules! fields {
         }
     };
 }
+const _: () = {
+    assert!(size_of::<path::DrawStream>() <= 8192);
+    assert!(size_of::<term::indexed::Coupon>() <= 8192);
+    assert!(size_of::<term::indexed::PrincipalPlan>() <= 8192);
+    assert!(size_of::<source_income::Request>() <= 8192);
+    assert!(size_of::<FactorPolicy>() <= 8192);
+    assert!(size_of::<Request>() <= 8192);
+};
 fields!(term::Identity, [id, revision], []);
 fields!(credit_accounting::Identity, [id, revision], []);
 fields!(
@@ -372,6 +381,7 @@ fn nested_heap<T>(total: usize) -> R<usize> {
 
 #[derive(Debug, Serialize)]
 pub struct FixedConstructionCapacity {
+    pub preparation: FixedPreparationCapacity,
     pub original_factors: super::super::factor_source::owner::FixedCapacity,
     pub current_factors: super::super::factor_source::owner::FixedCapacity,
     pub carry_bytes_upper: usize,
@@ -379,14 +389,152 @@ pub struct FixedConstructionCapacity {
     pub metadata_bytes_upper: usize,
     pub total_bytes_upper: usize,
 }
-/// Supplied fixed-source construction after raw admission/preparation. Includes
+#[derive(Debug, Serialize)]
+pub struct FixedPreparationCapacity {
+    pub intervals_upper: usize,
+    pub boundaries_upper: usize,
+    pub paths: usize,
+    pub retained_bytes_upper: usize,
+    pub construction_bytes_upper: usize,
+}
+fn vector<T>(count: usize) -> R<usize> {
+    if count == 0 {
+        return Ok(0);
+    }
+    mul(add(mul(count, 3)?, 8)?, size_of::<T>())
+}
+/// Prospective metadata expansion, before `prepare` constructs its daily clock.
+/// Counts the complete recovery clock, repeated recovery vectors and reviews;
+/// no financial source, cut checkpoint or serialized native receipt is trusted.
+pub fn fixed_preparation_capacity(r: &Request) -> R<FixedPreparationCapacity> {
+    let raw = finite_raw_layout(r)?;
+    let full = super::full_credit_end_year(r)?;
+    let days = (full * 365.).ceil();
+    if !days.is_finite()
+        || !(1. ..=4096.).contains(&days)
+        || r.credit.intervals.is_empty()
+        || r.credit.intervals.len() > 4096
+        || r.accounting_rates.len() != r.credit.intervals.len()
+        || r.accounting.recognition.len() != r.credit.intervals.len()
+    {
+        return Err("fixed preparation requires bounded complete clock and reviews".into());
+    }
+    // The sort/dedup can only remove cuts; `prepared` enforces <=4096 after
+    // dedup. Reserve the larger pre-dedup vector independently.
+    let cuts = add(add(r.credit.intervals.len(), days as usize)?, 1)?;
+    let intervals_upper = cuts.min(4096);
+    let boundaries_upper = r.source.current.periods.len();
+    let paths = r.credit.paths.len();
+    let recovery_heap = r.credit.intervals.iter().try_fold(0, |upper, i| {
+        Ok::<_, String>(upper.max(i.complete_recovery_tails.heap()?.cloned))
+    })?;
+    let rate_heap = r
+        .accounting_rates
+        .iter()
+        .try_fold(0, |upper, v| Ok::<_, String>(upper.max(v.heap()?.cloned)))?;
+    let review_heap = r
+        .accounting
+        .recognition
+        .iter()
+        .try_fold(0, |upper, v| Ok::<_, String>(upper.max(v.heap()?.cloned)))?;
+    let boundary_labels = r.source.current.periods.iter().try_fold(0, |sum, p| {
+        add(sum, add(p.period_id.len(), r.accounting.identity.id.len())?)
+    })?;
+    let path_labels = r
+        .credit
+        .paths
+        .iter()
+        .try_fold(0, |sum, p| add(sum, p.path_id.len()))?;
+    let source = &r.source.current;
+    let labels = [
+        carry::SCHEMA.len(),
+        path::SCHEMA.len(),
+        source.monetary_unit.len(),
+        source.contract.id.len(),
+        source.contract.revision.len(),
+        r.credit.identity.id.len(),
+        r.accounting.identity.id.len(),
+        "cash_reduces_gross_no_proportional_basis_disposal-1".len(),
+        "stop_income_transfer_actual_gross_retain_nominal_claims-1".len(),
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    let retained_bytes_upper = [
+        size_of::<carry::Request>(),
+        size_of::<book::Policy>(),
+        labels,
+        vector::<path::PathInterval>(intervals_upper)?,
+        mul(intervals_upper, recovery_heap)?,
+        vector::<carry::RecognitionRate>(intervals_upper)?,
+        mul(intervals_upper, rate_heap)?,
+        // Policy clone followed by clear()/push(): count both old capacity
+        // and a fresh expanded vector, including transient growth overlap.
+        r.accounting.heap()?.cloned,
+        vector::<book::RecognitionReview>(intervals_upper)?,
+        mul(intervals_upper, review_heap)?,
+        mul(boundaries_upper, size_of::<path::PathBoundary>())?,
+        boundary_labels,
+        mul(paths, size_of::<path::PathOpening>())?,
+        path_labels,
+        mul(
+            paths,
+            add(
+                size_of::<carry::OriginalAnchor>(),
+                r.source.acquisition.original_yield_anchor.id.len(),
+            )?,
+        )?,
+        r.credit.draw_stream.heap()?.cloned,
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    // Admission serializes original/current inputs into bounded temporary
+    // buffers. Their JSON lengths can be computed without allocation; Vec
+    // growth includes old/new allocations. Validation trees contain borrowed
+    // keys only, at most one node per path/boundary/period/review. Reserve a
+    // 4096-byte node per entry (larger than the pinned hash/BTree layouts).
+    let encoded = portfolio_model_core::strict_json::serialized_size(r, 1 << 20)?;
+    let entries = [
+        paths,
+        boundaries_upper,
+        r.source.original.periods.len(),
+        intervals_upper,
+        r.accounting.recognition.len(),
+        16,
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    let construction_bytes_upper = [
+        raw.retained_heap_bytes,
+        retained_bytes_upper,
+        vector::<f64>(cuts)?,
+        mul(cuts, size_of::<f64>())?,
+        vector::<f64>(intervals_upper)?,
+        mul(boundaries_upper, size_of::<path::PathBoundary>())?,
+        vector::<u8>(encoded)?,
+        mul(entries, 4096)?,
+    ]
+    .into_iter()
+    .try_fold(0, add)?;
+    if construction_bytes_upper > 128 << 20 {
+        return Err("fixed source preparation exceeds128MiB before expansion".into());
+    }
+    Ok(FixedPreparationCapacity {
+        intervals_upper,
+        boundaries_upper,
+        paths,
+        retained_bytes_upper,
+        construction_bytes_upper,
+    })
+}
+/// Supplied fixed-source construction including raw preparation. Includes
 /// the borrowed input so parents can conservatively sum source phases. It is
-/// not a bound on preparse/preparation allocations or graph/Sim/codec owners.
+/// not a bound on parsing or graph/Sim/codec owners.
 pub fn fixed_construction_capacity(
     r: &Request,
     measure: portfolio_model_core::credit::CreditMeasure,
 ) -> R<FixedConstructionCapacity> {
     let raw = finite_raw_layout(r)?;
+    let preparation = fixed_preparation_capacity(r)?;
     let physical = measure == portfolio_model_core::credit::CreditMeasure::Physical;
     let prepared = super::prepare(
         r,
@@ -400,6 +548,22 @@ pub fn fixed_construction_capacity(
             super::AccountingOwner::EconomicCarry
         },
     )?;
+    let prepared_bytes = add(
+        add(
+            size_of::<carry::Request>(),
+            prepared.credit.fixed_heap_capacity()?.0,
+        )?,
+        add(
+            size_of::<book::Policy>(),
+            prepared.policy.fixed_heap_capacity()?.0,
+        )?,
+    )?;
+    if prepared.credit.raw_credit_path.intervals.len() > preparation.intervals_upper
+        || prepared.credit.raw_credit_path.boundaries.len() > preparation.boundaries_upper
+        || prepared_bytes > preparation.retained_bytes_upper
+    {
+        return Err("fixed prepared source exceeds prospective metadata inventory".into());
+    }
     let original_factors =
         super::NativeFactors::fixed_capacity(&r.source.original, &r.factor_policy)?;
     let current_factors =
@@ -433,6 +597,7 @@ pub fn fixed_construction_capacity(
     .into_iter()
     .try_fold(0, add)?;
     let total_bytes_upper = [
+        preparation.construction_bytes_upper,
         original_factors.construction_bytes_upper,
         current_factors.construction_bytes_upper,
         carry_bytes_upper,
@@ -442,6 +607,7 @@ pub fn fixed_construction_capacity(
     .into_iter()
     .try_fold(0, add)?;
     Ok(FixedConstructionCapacity {
+        preparation,
         original_factors,
         current_factors,
         carry_bytes_upper,

@@ -4,6 +4,8 @@ pub mod candidate_holdings;
 pub mod candidates;
 pub mod credit;
 mod cut_codec;
+mod cut_fixed_intake;
+mod cut_fixed_packet;
 pub mod cut_mixed;
 pub mod cut_proof_capture;
 pub mod cut_proof_inventory;

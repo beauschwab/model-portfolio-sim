@@ -14,7 +14,8 @@ use serde::{Deserialize, Serialize};
 mod raw_capacity;
 pub use raw_capacity::{
     finite_graph_raw_layout, finite_raw_layout, finite_units_raw_layout,
-    fixed_construction_capacity, FixedConstructionCapacity, RawLayout,
+    fixed_construction_capacity, fixed_preparation_capacity, FixedConstructionCapacity,
+    FixedPreparationCapacity, RawLayout,
 };
 pub(crate) use raw_capacity::{fixed_contract_heap, fixed_policy_heap};
 

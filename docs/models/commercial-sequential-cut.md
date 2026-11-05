@@ -2,9 +2,40 @@
 
 The user approved replacing the historical admission calculation on
 2026-11-03, conditional on a complete bounded implementation with unchanged
-histories, caps and numerical tolerances. The component below advances that
-implementation. **It does not yet grant raw coordinator or API publication
-admission.** The original positive API test and original request remain required.
+histories, caps and numerical tolerances. The ordinary supplied-fixed CLI now meets the complete bounded admission and
+independent positive publication gates described below. Historical component
+receipts remain diagnostic; advanced owners require their own inventories.
+
+## Fixed commercial cut publication (2026-11-05)
+
+The ordinary supplied-fixed CLI now uses sequential complete-source preparation
+with prospective typed-input, source, graph, unit, candidate, Sim and codec heap
+allowances. It retains all 27 original/current Physical/Pricing/bump source proofs,
+complete cash/credit/rights/recovery tails and zero-allocation owners. It keeps the
+existing 32 million work and 128 MiB requested-heap limits. These are not process
+RSS limits. Advanced owner selections retain their historical admission routes.
+
+The unchanged positive API worker fixture now passes independent raw-source and
+persisted journal replay, table paging and restart. The original source reservation
+is 120,159,804 bytes; the measured counted execution is 31,007,891 work units. A
+separate request with larger complete credit-path jump bounds retains negative
+admission coverage. Targeted validation passes 8 native route checks and 36 engine/
+worker checks, including forged resource receipts, exact persisted input/table
+identity, zero allocation, cancellation, deadlines and final source/executable
+fences. Full release/matrix results are recorded separately; these focused results
+do not replace the requested full-suite validation.
+
+`commercial_fixed_capacity_reference` independently reconstructs the allowance
+from original raw dimensions and then replays every financial source and journal.
+The native complete allocation inventory must fit that allowance before graph
+construction. The packet's native admission flag grants no publication authority;
+the worker still verifies the persisted partitions and original execution fences.
+Historical diagnostic packets retain their false admission/publication flags.
+
+Exact verified predecessor binding, broader saved-book/cohort/strategy/accounting/
+FTP adoption and complete mixed-book scale acceptance remain separate issue gates.
+Synthetic fixtures establish implementation/parity, not observed predictive
+accuracy or reviewed policy approval. No deployment or worker restart is implied.
 
 ## Ownership and exact replay
 
@@ -235,12 +266,11 @@ completion types/fields and forged admission/publication flags. Schema1 diagnost
 witnesses remain readable. Resource fields remain reported metadata; the verifier
 always returns `complete_resource_proof:false` and `publication_eligible:false`.
 
-Required next steps are complete joint pre-Sim resource admission from raw input,
-an independently derived resource census, bounded complete output transport,
-successful unchanged positive API execution, independent persisted replay and
-publication mutation controls, and exact verified predecessor binding. Only after
-that positive case succeeds may dedicated refusal coverage move to a distinct
-genuinely over-budget request. The original positive test must not be weakened.
+The new fixed CLI route completes joint pre-Sim raw-input admission, independent
+resource recomputation, bounded output transport and the unchanged positive API
+publication with persisted replay and mutation controls. Historical component
+witnesses above retain their original authority boundaries. Exact verified
+predecessor binding remains required for broader opening adoption.
 
 All remaining #15/#25 gates in the implementation plan still apply, including
 broader saved-book/cohort/strategy/product accounting and FTP adoption, observed

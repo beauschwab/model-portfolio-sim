@@ -1,5 +1,37 @@
 # Remaining commercial acceptance work
 
+## Fixed commercial cut publication (2026-11-05)
+
+The ordinary supplied-fixed CLI now uses sequential complete-source preparation
+with prospective typed-input, source, graph, unit, candidate, Sim and codec heap
+allowances. It retains all 27 original/current Physical/Pricing/bump source proofs,
+complete cash/credit/rights/recovery tails and zero-allocation owners. It keeps the
+existing 32 million work and 128 MiB requested-heap limits. These are not process
+RSS limits. Advanced owner selections retain their historical admission routes.
+
+The unchanged positive API worker fixture now passes independent raw-source and
+persisted journal replay, table paging and restart. The original source reservation
+is 120,159,804 bytes; the measured counted execution is 31,007,891 work units. A
+separate request with larger complete credit-path jump bounds retains negative
+admission coverage. Targeted validation passes 8 native route checks and 36 engine/
+worker checks, including forged resource receipts, exact persisted input/table
+identity, zero allocation, cancellation, deadlines and final source/executable
+fences. Full release/matrix results are recorded separately; these focused results
+do not replace the requested full-suite validation.
+
+`commercial_fixed_capacity_reference` independently reconstructs the allowance
+from original raw dimensions and then replays every financial source and journal.
+The native complete allocation inventory must fit that allowance before graph
+construction. The packet's native admission flag grants no publication authority;
+the worker still verifies the persisted partitions and original execution fences.
+Historical diagnostic packets retain their false admission/publication flags.
+
+Exact verified predecessor binding, broader saved-book/cohort/strategy/accounting/
+FTP adoption and complete mixed-book scale acceptance remain separate issue gates.
+Synthetic fixtures establish implementation/parity, not observed predictive
+accuracy or reviewed policy approval. No deployment or worker restart is implied.
+
+
 ## Current installed reconciliation (2026-10-16)
 
 The complete installed 0.29.20 attempt passes **1,464 native tests** (834 fresh

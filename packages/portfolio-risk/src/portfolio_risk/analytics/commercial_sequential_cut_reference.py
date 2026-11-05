@@ -10,7 +10,7 @@ import json
 from .commercial_cut_capture_reference import (
     PROOF_KEYS, RECORD_KEYS, _finite_tree, finite_source_order,
 )
-from .commercial_cut_mixed_reference import raw_prefix, _observed_prefix, _window
+from .commercial_cut_controls_reference import raw_prefix, _observed_prefix, _window
 from .commercial_candidate_reference import verify_preparation
 from .commercial_dto import graph_identity
 from .commercial_fee_reference import verify_tables

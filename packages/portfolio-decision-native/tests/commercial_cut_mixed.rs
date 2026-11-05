@@ -51,13 +51,52 @@ fn envelope() -> Vec<u8> {
 }
 
 #[test]
-fn early_owned_cli_keeps_full_original_admission_and_publishes_no_partial_output() {
+fn early_owned_cli_admits_complete_original_within_unchanged_limits() {
     let mut output = Vec::new();
-    let error = cut::run_cli_started(envelope(), Instant::now(), &mut output).unwrap_err();
+    cut::run_cli_started(envelope(), Instant::now(), &mut output).unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(value["ok"]["schema"], "commercial-fixed-sequential-cut-1");
+    assert_eq!(value["ok"]["joined_raw_admission_proved"], true);
+    assert_eq!(value["ok"]["publication_eligible"], false);
     assert_eq!(
-        error,
-        "native cut joined32M/128MiB before dual graph generation: work=36844632,bytes=223261940"
+        value["ok"]["resource_admission"]["maximum_work"],
+        32_000_000
     );
+    assert_eq!(
+        value["ok"]["resource_admission"]["maximum_bytes"],
+        128 << 20
+    );
+}
+
+#[test]
+fn overbudget_complete_sources_refuse_before_any_success_bytes() {
+    let mut input: serde_json::Value = serde_json::from_slice(&envelope()).unwrap();
+    for side in ["completed_candidate", "revised_candidate"] {
+        for unit in input["request"][side]["commercial"]["units"]
+            .as_array_mut()
+            .unwrap()
+        {
+            let position = &mut unit["graph"]["positions"][0];
+            for h in position["original_pricing"].as_array_mut().unwrap() {
+                h["source"]["credit"]["max_jumps_per_path"] = 4096.into();
+            }
+            for scenario in position["histories"].as_array_mut().unwrap() {
+                for role in ["physical", "pricing", "pricing_down", "pricing_up"] {
+                    for h in scenario[role].as_array_mut().unwrap() {
+                        h["source"]["credit"]["max_jumps_per_path"] = 4096.into();
+                    }
+                }
+            }
+        }
+    }
+    let mut output = Vec::new();
+    let error = cut::run_cli_started(
+        serde_json::to_vec(&input).unwrap(),
+        Instant::now(),
+        &mut output,
+    )
+    .unwrap_err();
+    assert!(error.contains("exceeds128MiB"), "{error}");
     assert!(output.is_empty());
 }
 
@@ -108,12 +147,15 @@ fn real_cli_dispatches_original_cut_before_generic_tree_and_rejects_hidden_dupli
         child.stdin.take().unwrap().write_all(&raw).unwrap();
         let result = child.wait_with_output().unwrap();
         let value: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
-        let error = value["error"].as_str().unwrap();
-        assert!(
-            error.contains("work=36844632,bytes=223261940")
-                || error.contains("duplicate object key"),
-            "{error}"
-        );
-        assert!(value.get("ok").is_none());
+        if raw == envelope() {
+            assert_eq!(value["ok"]["schema"], "commercial-fixed-sequential-cut-1");
+            assert!(value.get("error").is_none());
+        } else {
+            assert!(value["error"]
+                .as_str()
+                .unwrap()
+                .contains("duplicate object key"));
+            assert!(value.get("ok").is_none());
+        }
     }
 }

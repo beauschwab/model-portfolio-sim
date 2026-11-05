@@ -132,6 +132,8 @@ fn days(year: f64) -> Result<usize, String> {
     }
     Ok(result as usize)
 }
+#[path = "candidate_fixed_capacity.rs"]
+mod fixed_capacity;
 #[path = "candidate_preparation_capacity.rs"]
 mod preparation_capacity;
 #[derive(Clone, Copy)]
@@ -139,6 +141,8 @@ enum PreparationMode {
     Execute,
     AdmitOrdinary,
     AdmitBorrowed,
+    ExecuteFixedBorrowed,
+    AdmitFixedBorrowed,
     #[cfg(test)]
     ExecuteIndexedBorrowed,
     #[cfg(test)]
@@ -148,11 +152,14 @@ impl PreparationMode {
     fn executes(self) -> bool {
         #[cfg(test)]
         {
-            matches!(self, Self::Execute | Self::ExecuteIndexedBorrowed)
+            matches!(
+                self,
+                Self::Execute | Self::ExecuteIndexedBorrowed | Self::ExecuteFixedBorrowed
+            )
         }
         #[cfg(not(test))]
         {
-            matches!(self, Self::Execute)
+            matches!(self, Self::Execute | Self::ExecuteFixedBorrowed)
         }
     }
     fn indexed(self) -> bool {
@@ -160,24 +167,32 @@ impl PreparationMode {
         {
             matches!(
                 self,
-                Self::ExecuteIndexedBorrowed | Self::AdmitIndexedBorrowed
+                Self::ExecuteIndexedBorrowed
+                    | Self::AdmitIndexedBorrowed
+                    | Self::ExecuteFixedBorrowed
+                    | Self::AdmitFixedBorrowed
             )
         }
         #[cfg(not(test))]
         {
-            let _ = self;
-            false
+            matches!(self, Self::ExecuteFixedBorrowed | Self::AdmitFixedBorrowed)
         }
     }
     fn admits_borrowed(self) -> bool {
         #[cfg(test)]
         {
-            matches!(self, Self::AdmitBorrowed | Self::AdmitIndexedBorrowed)
+            matches!(
+                self,
+                Self::AdmitBorrowed | Self::AdmitIndexedBorrowed | Self::AdmitFixedBorrowed
+            )
         }
         #[cfg(not(test))]
         {
-            matches!(self, Self::AdmitBorrowed)
+            matches!(self, Self::AdmitBorrowed | Self::AdmitFixedBorrowed)
         }
+    }
+    fn fixed(self) -> bool {
+        matches!(self, Self::ExecuteFixedBorrowed | Self::AdmitFixedBorrowed)
     }
 }
 
@@ -305,6 +320,11 @@ fn prepare_and_run_observed(
         }
     }
     let preparation_only = consumer.is_some() || mode.admits_borrowed();
+    let fixed_bound = if mode.fixed() {
+        Some(fixed_capacity::derive(r)?)
+    } else {
+        None
+    };
     let mut work = add(mul(raw_bytes, 8)?, units::audit_source_work(&r.commercial)?)?;
     let mut bytes = mul(raw_bytes, 20)?;
     let mut s = spec::normalize(r.specification.clone(), 512, 8_000_000)?;
@@ -510,13 +530,17 @@ fn prepare_and_run_observed(
         reserved = (add(reserved.0, fee_work)?, add(reserved.1, fee_bytes)?);
     }
     if preparation_only {
-        let graph_bytes = r.commercial.units.iter().try_fold(0usize, |total, unit| {
-            add(
-                total,
-                portfolio_risk_native::commercial_graph::audit_capacity(&unit.graph)?
-                    .retained_bytes_upper,
-            )
-        })?;
+        let graph_bytes = if let Some(bound) = &fixed_bound {
+            bound.portable_reservation_bytes
+        } else {
+            r.commercial.units.iter().try_fold(0usize, |total, unit| {
+                add(
+                    total,
+                    portfolio_risk_native::commercial_graph::audit_capacity(&unit.graph)?
+                        .retained_bytes_upper,
+                )
+            })?
+        };
         let cells = mul(
             mul(r.commercial.units.len(), ledger_runs.len())?,
             r.commercial.reporting_ordinals.len(),
@@ -615,6 +639,11 @@ fn prepare_and_run_observed(
         Some(observer) => units::prepare_with_source_observer(&r.commercial, observer)?,
         None => units::prepare(&r.commercial)?,
     };
+    if let Some(bound) = &fixed_bound {
+        if prepared.fixed_retained_capacity()? > bound.units.total_bytes_upper {
+            return Err("fixed prepared units exceeded prospective construction inventory".into());
+        }
+    }
     let allocation_replay = units::evaluate(&prepared, &r.allocation)?;
     if generated {
         return generated_stream::execute(
@@ -818,6 +847,43 @@ pub(super) fn with_indexed_finite_compiled_observer(
         Some(observer),
     )?;
     Ok((prepared.ok_or("indexed finite preparation absent")?, a))
+}
+
+pub(super) fn fixed_raw_reservation(r: &Request) -> Result<usize, String> {
+    fixed_capacity::reservation(r)
+}
+pub(super) fn admit_fixed_finite_preparation(r: &Request) -> Result<Admission, String> {
+    let (_, _, _, admission) = prepare_and_run(
+        r,
+        false,
+        None,
+        Box::new(io::sink()),
+        (0, 0),
+        PreparationMode::AdmitFixedBorrowed,
+        None,
+    )?;
+    Ok(admission)
+}
+pub(super) fn with_fixed_finite_compiled_observer(
+    r: &Request,
+    reservation: (usize, usize),
+    observer: &mut units::SourceObserver<'_>,
+    consumer: &mut FiniteConsumer<'_>,
+) -> Result<(Preparation, Admission), String> {
+    let (prepared, _, _, admission) = prepare_and_run_observed(
+        r,
+        false,
+        None,
+        Box::new(io::sink()),
+        reservation,
+        PreparationMode::ExecuteFixedBorrowed,
+        Some(consumer),
+        Some(observer),
+    )?;
+    Ok((
+        prepared.ok_or("fixed finite preparation absent")?,
+        admission,
+    ))
 }
 
 /// Native-only borrow scope. Prepared source and Compiled remain genuine and

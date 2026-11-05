@@ -7,6 +7,7 @@ use std::mem::size_of;
 
 macro_rules! fields {
     ($ty:path, [$($owned:ident),*], [$($scalar:ident),*]) => {
+        const _: () = assert!(size_of::<$ty>() <= 8192);
         impl Layout for $ty {
             fn heap(&self) -> R<Heap> {
                 let Self { $($owned,)* $($scalar,)* } = self;
@@ -18,6 +19,11 @@ macro_rules! fields {
         }
     };
 }
+const _: () = {
+    assert!(size_of::<CurveRole>() <= 8192);
+    assert!(size_of::<advanced_graph::OasTarget>() <= 8192);
+    assert!(size_of::<graph::Position>() <= 8192);
+};
 fields!(
     advanced_graph::GraphIdentity,
     [

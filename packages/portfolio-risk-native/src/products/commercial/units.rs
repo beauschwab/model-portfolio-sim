@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 pub const SCHEMA: &str = "commercial-units-1";
+#[path = "units_fixed_capacity.rs"]
+mod fixed_capacity;
+pub use fixed_capacity::{fixed_construction_capacity, FixedConstructionCapacity};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
