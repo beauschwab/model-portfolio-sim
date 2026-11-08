@@ -1,18 +1,21 @@
 # Product model enhancement implementation and evidence
 
-## Fixed cut predecessor binding (2026-11-08)
+## Fixed cut predecessor chains and advancing dates (2026-11-08)
 
-The explicit `/models/cut-mixed-journals` route binds an ordinary completed fixed
-cut publication at its exact published cut. It server-selects the completed raw
-candidate, independently replays the persisted predecessor and matches opening
-postings and unweighted loan states. The final SQL guard rechecks predecessor
-objects/authority and the current job's original deadline and ownership.
-See [the contract and limits](commercial-cut-prior-opening.md).
+The explicit `/models/cut-mixed-journals` route server-selects the completed raw
+candidate from a fixed cut publication and independently replays every predecessor.
+It supports the published cut or a later cut within the complete published tail,
+including zero allocation and dates after repayment. Up to eight predecessors use
+one cumulative object/decode/prefix budget and the current job's original deadline.
+The final SQL guard rechecks every ancestor's objects and authority. Version 2
+execution receipts distinguish a rolled-forward journal from an exact prior cut;
+ordinary same-cut version 1 receipts remain compatible. See
+[the contract and limits](commercial-cut-prior-opening.md).
 
-This covers the ordinary fixed route only. Advanced/fee owners, recursive chains,
-advancing cuts, broader adoption, observed/reviewed evidence and complete mixed
-scale acceptance remain open. Native producer verification flags stay false;
-separate execution evidence records the verified modeled predecessor.
+Advanced/fee owners, broader saved/cohort/strategy/accounting/FTP adoption,
+observed/reviewed evidence and complete mixed scale acceptance remain open.
+Native producer verification flags stay false; separate execution evidence records
+verified modeled predecessors. Synthetic histories do not establish observed accuracy.
 
 
 Tracking scope: [GitHub issue 25](https://github.com/beauschwab/model-portfolio-sim/issues/25).
@@ -46,8 +49,9 @@ construction. The packet's native admission flag grants no publication authority
 the worker still verifies the persisted partitions and original execution fences.
 Historical diagnostic packets retain their false admission/publication flags.
 
-Exact verified predecessor binding, broader saved-book/cohort/strategy/accounting/
-FTP adoption and complete mixed-book scale acceptance remain separate issue gates.
+At this November 5 checkpoint predecessor binding was still open; the November 8
+stage above adds bounded fixed-cut binding. Broader saved-book/cohort/strategy/
+accounting/FTP adoption and complete mixed-book scale acceptance remain separate gates.
 Synthetic fixtures establish implementation/parity, not observed predictive
 accuracy or reviewed policy approval. No deployment or worker restart is implied.
 

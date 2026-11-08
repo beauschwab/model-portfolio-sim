@@ -34,12 +34,13 @@ def descriptor(ref,form,limit=LIMIT):
 
 class Reader:
     """Strict bounded Codec reader with cumulative compressed and logical admission."""
-    def __init__(self,codec,check):self.codec,self.check=codec,check;self.refs=[];self.bytes=0;self.decoded=0;self.logical=0;self._identities=set()
+    def __init__(self,codec,check,*,meter=None):self.codec,self.check=codec,check;self.refs=[];self.bytes=0;self.decoded=0;self.logical=0;self._identities=set();self.meter=meter
     def body(self,ref,form='bin',limit=LIMIT):
         descriptor(ref,form,limit);probe(self.check)
         identity=encoded(ref)
         if identity not in self._identities and len(self._identities)>=MAX_OBJECTS:raise ValueError('completed source object count admission')
         self._identities.add(identity)
+        if self.meter is not None:self.meter.read(ref)
         data=self.codec.objects.get_bounded(ref,limit);probe(self.check)
         self.refs.append(deepcopy(ref));self.bytes+=len(data)
         if self.bytes>2*LIMIT:raise ValueError('completed source cumulative read admission')
@@ -75,12 +76,15 @@ class Reader:
             import pyarrow.parquet as pq
             footer=pq.read_metadata(io.BytesIO(data))
             expanded=sum(footer.row_group(i).column(j).total_uncompressed_size for i in range(footer.num_row_groups)for j in range(footer.num_columns))
+            if self.meter is not None:self.meter.expand(expanded)
             self.decoded+=expanded
             if footer.num_rows>65536 or self.decoded>2*LIMIT:raise ValueError('bounded completed source decoded tables')
             # Dictionary pages do not bound materialized UTF8 cells. One-row
             # Arrow admission precedes Polars; this is no aggregate RSS claim.
             for batch in pq.ParquetFile(io.BytesIO(data)).iter_batches(batch_size=1):
-                probe(self.check);self.logical+=batch.nbytes
+                probe(self.check)
+                if self.meter is not None:self.meter.materialize(batch.nbytes)
+                self.logical+=batch.nbytes
                 if self.logical>2*LIMIT:raise ValueError('bounded completed source logical tables')
                 probe(self.check)
             probe(self.check)

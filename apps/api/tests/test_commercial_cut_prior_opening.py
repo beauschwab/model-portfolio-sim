@@ -68,20 +68,16 @@ def test_cut_bound_publication_replays_opening_gross_rights_and_restart(durable,
     assert db.CODEC.load(db.result_ref(jid))['execution']['prior_opening_verification'] == receipt
 
 
-@pytest.mark.parametrize('target', ['wrong_cut', 'foreign_source', 'wrong_schema', 'recursive'])
+@pytest.mark.parametrize('target', ['wrong_cut', 'foreign_source', 'wrong_schema'])
 def test_cut_prior_rejects_invalid_source_authority(durable, target):
     from fastapi import HTTPException
     sid, raw, revised = completed()
     request = selection(sid, raw, revised)
-    if target == 'wrong_cut': request.cut_ordinal += 1
+    if target == 'wrong_cut': request.cut_ordinal -= 1
     elif target == 'foreign_source': request.source_job_id = 'not-in-this-workspace'
     elif target == 'wrong_schema':
         from test_commercial_candidate_prior_opening import completed as other
         request.source_job_id = other()[0]
-    else:
-        job = model_routes.published_cut_mixed(request)
-        row = execute(job.id, 'cut-first-bound'); assert row['status'] == 'done', row['detail']
-        request.source_job_id = job.id
     with pytest.raises(HTTPException): model_routes.published_cut_mixed(request)
 
 
