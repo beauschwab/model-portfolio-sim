@@ -674,7 +674,7 @@ def run(owner,request,stopping):
         from .commercial_prior_dispatch import source_for
         source=source_for(request['schema'])
         check=publication_check(request['publication_deadline_unix'],db.ACTIVE_JOB.get(),stopping)
-        expected=source.materialize(request['prior_publication'],request['request']['revised_candidate'if request['schema']=='commercial-candidate-holding-journal-1'else 'revised_sources'],request['request']['cut_ordinal'])
+        expected=source.materialize(request['prior_publication'],request['request']['revised_sources'if request['schema']=='commercial-holding-journal-1'else 'revised_candidate'],request['request']['cut_ordinal'])
         from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
         if not exact_json_identity(expected,request['request']):raise ValueError('server-bound prior holding input changed')
         prior=source.reopen(db.REPO,db.CODEC,request['prior_publication'],check)

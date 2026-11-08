@@ -99,6 +99,10 @@ class PublishedCandidateHoldingRequest(BaseModel):
     timeout:float=Field(default=1800.,ge=.001,le=1800,allow_inf_nan=False)
 
 
+class PublishedCutMixedRequest(PublishedCandidateHoldingRequest):
+    pass
+
+
 async def _published_holding_body(http:Request):
     import time
     from .completed_source_reader import loads
@@ -135,8 +139,18 @@ def published_holding(request:PublishedHoldingRequest,raw_body:Annotated[tuple|N
 
 @router.post('/candidate-holding-journals',response_model=JobStatus)
 def published_candidate_holding(request:PublishedCandidateHoldingRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
-    import time
     from . import commercial_candidate_prior_source as source
+    return _published_candidate(request,raw_body,source)
+
+
+@router.post('/cut-mixed-journals',response_model=JobStatus)
+def published_cut_mixed(request:PublishedCutMixedRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
+    from . import commercial_cut_prior_source as source
+    return _published_candidate(request,raw_body,source)
+
+
+def _published_candidate(request,raw_body,source):
+    import time
     started=time.time()if raw_body is None else raw_body[1]
     if raw_body is not None:
         from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
@@ -251,7 +265,7 @@ def enqueue(request,kind,operation,*,accepted_start=None,prior_publication=None)
     payload=dict(schema=request.schema_name,request=request.request,timeout=request.timeout,
         threads=state['settings'].n_threads or get_num_threads(),binary_sha256=identity,source_sha256=source_identity())
     if prior_publication is not None:
-        if request.schema_name not in {'commercial-holding-journal-1','commercial-candidate-holding-journal-1'}:raise HTTPException(422,'holding prior binding requires holding native contract')
+        if request.schema_name not in {'commercial-holding-journal-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1'}:raise HTTPException(422,'holding prior binding requires holding native contract')
         from copy import deepcopy
         payload['prior_publication']=deepcopy(prior_publication)
     if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:

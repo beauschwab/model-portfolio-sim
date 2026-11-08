@@ -89,7 +89,7 @@ def prepare_publication(request,output,*,payload_identity,expected_deadline,job,
         source=source_for(raw['schema'])
         from .completed_source_reader import exact as source_exact
         from .model_tables import restore_sources
-        source_exact(source.materialize(raw['prior_publication'],raw['request']['revised_candidate'if raw['schema']=='commercial-candidate-holding-journal-1'else 'revised_sources'],raw['request']['cut_ordinal']),raw['request'],'server-bound prior input changed')
+        source_exact(source.materialize(raw['prior_publication'],raw['request']['revised_sources'if raw['schema']=='commercial-holding-journal-1'else 'revised_candidate'],raw['request']['cut_ordinal']),raw['request'],'server-bound prior input changed')
         prior=source.reopen(repo,codec,raw['prior_publication'],budget.checkpoint)
         prior.match(restore_sources(saved['model_result'],saved['execution']['table_layouts']),budget.checkpoint)
         source_exact(prior.receipt(),saved['execution'].get('prior_opening_verification'),'persisted prior-opening evidence changed')

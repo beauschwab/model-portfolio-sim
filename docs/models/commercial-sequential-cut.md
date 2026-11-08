@@ -1,5 +1,20 @@
 # Sequential native commercial cut component
 
+## Fixed cut predecessor binding (2026-11-08)
+
+The explicit `/models/cut-mixed-journals` route binds an ordinary completed fixed
+cut publication at its exact published cut. It server-selects the completed raw
+candidate, independently replays the persisted predecessor and matches opening
+postings and unweighted loan states. The final SQL guard rechecks predecessor
+objects/authority and the current job's original deadline and ownership.
+See [the contract and limits](commercial-cut-prior-opening.md).
+
+This covers the ordinary fixed route only. Advanced/fee owners, recursive chains,
+advancing cuts, broader adoption, observed/reviewed evidence and complete mixed
+scale acceptance remain open. Native producer verification flags stay false;
+separate execution evidence records the verified modeled predecessor.
+
+
 The user approved replacing the historical admission calculation on
 2026-11-03, conditional on a complete bounded implementation with unchanged
 histories, caps and numerical tolerances. The ordinary supplied-fixed CLI now meets the complete bounded admission and

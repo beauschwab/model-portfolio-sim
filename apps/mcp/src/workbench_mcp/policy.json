@@ -246,6 +246,10 @@
     "job": true,
     "permission": "publish"
   },
+  "POST /models/cut-mixed-journals": {
+    "permission": "compute",
+    "job": true
+  },
   "POST /models/candidate-holding-journals": {
     "job": true,
     "permission": "compute"
