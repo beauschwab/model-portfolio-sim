@@ -1606,3 +1606,71 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Finite commercial proof ownership (2026-11-01 follow-through)
+
+Finite Physical projections serialize the same sealed accounting owner used by
+the journal; Pricing bundles/proofs share immutable typed native results. No
+second finite projection JSON tree is retained. Complete fields and financial
+values remain unchanged; direct serialization may change object key order and
+therefore newly encoded capture hashes. Historical artifacts remain immutable.
+Diagnostic transient JSON construction is prepaid under the unchanged source
+allowances. No admission discount, complete allocator/RSS proof, successful cut
+publication or issue15/25 completion follows from this representation change.
+See docs/models/commercial-source-proof-capture.md for lifetimes and boundaries.
+
+## Immutable commercial scheduling (2026-11-01 follow-through)
+
+Commercial daily replay and cut-prefix checks merge borrowed, preordered loan/
+fee event slices. Preparation retains borrowed scenario identities and numeric
+clock/binding metadata; replay does not allocate lookup Strings or sort a daily
+scheduling Vec. Exact fractional-clock and Loan/Fee/binding/group order, empty
+days and zero-weight source coverage remain unchanged. Metadata sort/search
+bounds alone grant no complete source/Sim/codec admission discount, verified
+predecessor or cut-publication authority. Historical admission/refusals and all
+issue15/25 gates remain. See docs/models/commercial-cut-receipt-admission.md.
+
+Cut-prefix canonical comparison stages only the smaller complete encoding and
+streams the other serializer against it. Both original size scans, byte-exact
+signed-zero/field/order semantics, combined capacity and full error traversal
+remain; cancellation probes bound long string writes. This reduces a temporary
+encoding owner, without reducing admission charges or granting publication.
+
+The typed prefix diagnostic additionally maps complete reviewed credit claims,
+accounting policies and legal waivers. Its field/layout/equality controls do not
+recalculate accounting amounts or grant source/Sim/codec/publication authority.
+
+## Bounded commercial cut publication and fee continuation (0.29.20)
+
+The ordinary fixed `commercial-cut-mixed-journal-1` route now publishes complete
+independently replayed cuts. Its sequential native preparation retains all
+original/current Physical/Pricing/bump owners, gross rights, zero-allocation
+evidence and complete contractual/recovery tails. The original no-fee example
+retains 27 source proofs; the ordinary fee example retains 18 complete loan/fee
+proofs, including service rights and acquired cost. Original OAS/EIR and financial
+tolerances remain unchanged. Joined admission stays at 32 million work/128 MiB;
+the sequential component stays at 8 million work/32 MiB. These are bounded work
+and requested allocation allowances, not aggregate process RSS limits.
+
+The explicit `/models/cut-mixed-journals` endpoint selects the completed raw
+candidate from a published source and independently verifies up to eight bounded
+predecessors. Same/later cuts must precede the verified complete tail. Daily replay
+continues between sparse path reporting dates after day 30. Gross fee ownership
+uses version 3 predecessor evidence; ordinary no-fee versions 1 and 2 remain
+readable. Source/object, current deadline, executable, lease/attempt and final SQL
+checks remain publication requirements. A producer flag alone grants no authority.
+
+Generated, exercise, transferred and original-physical acquisition selections
+retain separate admission requirements. Historical encoded diagnostic receipts
+remain diagnostic. Wider saved/cohort/strategy/accounting/FTP adoption, complete
+60,000-position mixed acceptance, observed histories and reviewed policies remain
+required by issues #15/#25. Synthetic examples do not establish empirical accuracy
+or policy approval. Use matching rebuilt native artifacts, restart deployed
+API/workers and explicitly rebuild saved libraries/sessions before new execution;
+local validation does not imply deployment.
+
+See `docs/models/commercial-fixed-fee-cut.md`,
+`docs/models/commercial-cut-prior-opening.md` and the current implementation plan
+at the repository root for supported inputs and validation evidence. This section
+supersedes earlier fixed-cut refusal descriptions without removing their retained
+failed evidence or the separate advanced-owner acceptance requirements.

@@ -1554,3 +1554,92 @@ The last fully accepted installed checkpoint remains0.29.19 until matching
 combined artifacts, complete regressions and publication checks pass. Rebuild
 matching native artifacts, restart deployed workers and explicitly rebuild saved
 libraries/sessions before executing changed economics; no deployment is implied.
+
+## Finite commercial proof ownership (2026-11-01 follow-through)
+
+Finite Physical graph projections now serialize their sealed native accounting
+owner directly. Pricing source proofs share the immutable economic result with
+the continuation/anchor bundle using request-local Rc; no financial state is cloned or
+recomputed for proof serialization. Original Pricing references are released
+after complete source observation and anchor checks, before current scenarios.
+Factor evidence serializes borrowed segments without a temporary descriptor Vec.
+
+Complete JSON values remain compatible, including signed zero and all optional
+rights/recovery/fee fields. Object key emission order can change, so newly
+captured encoded records get their own immutable byte identity. Generated
+metadata and recipes retain their existing representation. The refusal-only
+inventory funds one transient JSON view before inspecting it, retains the old
+source/Value allowance and releases that view before the next source.
+
+Ordinary/selected admission, independent raw-derived source/private-allocation/
+Sim/codec gates and exact predecessor verification are unchanged. The public
+cut example still rejects before dual graph generation; this internal ownership
+refactor establishes neither positive publication nor issues15/25 completion.
+See docs/models/commercial-source-proof-capture.md for the component boundary.
+
+## Immutable commercial scheduling indices (2026-11-01 follow-through)
+
+Commercial loan/fee preparation caches borrowed scenario identities and immutable
+numeric event metadata. Daily replay and cut-prefix checks use binary day slices
+and a borrowed merge iterator, preserving exact fractional-clock, Loan/Fee,
+binding and group order without temporary lookup Strings or a daily scheduling
+Vec/sort. A bounded metadata merge sort runs only during preparation. No source,
+money, group or zero-weight history is pruned or cloned into this index.
+
+The index diagnostic counts metadata comparisons/copies and observes its vector
+capacities. It does not prove complete source/private-allocation/Compiled/Sim/
+codec bounds or global RSS. Historical admission charges/refusals and all
+publication/predecessor/issue15/25 requirements remain unchanged. See
+docs/models/commercial-cut-receipt-admission.md for the bounds and scope.
+
+Cut-prefix comparisons retain the smaller canonical encoding and stream the
+other serializer directly against its bytes. They preserve both complete sizing
+passes, the original combined byte limit and exact serialized field/order and
+signed-zero semantics. Mismatches still traverse the whole second operand;
+serializer failures and cancellation cannot become successful comparisons.
+Writes probe cancellation at intervals of at most32768bytes. Existing source,
+cut-work and retention allowances remain unchanged. Holding raw/table comparisons
+retain their separate historical two-pass implementation and admission.
+
+Typed prefix census/equality now covers ReviewedSnapshot and every nested
+RecoveryClaim/RecoveryPoint/AccountingPolicy/LegalWaiver field, including all
+four binary policy enums, signed stocks, source/review identities, settled
+interest IDs and complete recovery tails. Exhaustive destructuring/matches and
+independent real-serde layout/leaf mutations guard the mapping. The existing
+string/materialization limits and complete source/private-allocation/Sim/codec
+and publication gates remain; no accounting approval or resource permit follows.
+
+## Bounded commercial cut publication and fee continuation (0.29.20)
+
+The ordinary fixed `commercial-cut-mixed-journal-1` route now publishes complete
+independently replayed cuts. Its sequential native preparation retains all
+original/current Physical/Pricing/bump owners, gross rights, zero-allocation
+evidence and complete contractual/recovery tails. The original no-fee example
+retains 27 source proofs; the ordinary fee example retains 18 complete loan/fee
+proofs, including service rights and acquired cost. Original OAS/EIR and financial
+tolerances remain unchanged. Joined admission stays at 32 million work/128 MiB;
+the sequential component stays at 8 million work/32 MiB. These are bounded work
+and requested allocation allowances, not aggregate process RSS limits.
+
+The explicit `/models/cut-mixed-journals` endpoint selects the completed raw
+candidate from a published source and independently verifies up to eight bounded
+predecessors. Same/later cuts must precede the verified complete tail. Daily replay
+continues between sparse path reporting dates after day 30. Gross fee ownership
+uses version 3 predecessor evidence; ordinary no-fee versions 1 and 2 remain
+readable. Source/object, current deadline, executable, lease/attempt and final SQL
+checks remain publication requirements. A producer flag alone grants no authority.
+
+Generated, exercise, transferred and original-physical acquisition selections
+retain separate admission requirements. Historical encoded diagnostic receipts
+remain diagnostic. Wider saved/cohort/strategy/accounting/FTP adoption, complete
+60,000-position mixed acceptance, observed histories and reviewed policies remain
+required by issues #15/#25. Synthetic examples do not establish empirical accuracy
+or policy approval. Use matching rebuilt native artifacts, restart deployed
+API/workers and explicitly rebuild saved libraries/sessions before new execution;
+local validation does not imply deployment.
+
+See `docs/models/commercial-fixed-fee-cut.md`,
+`docs/models/commercial-cut-prior-opening.md` and the current implementation plan
+at the repository root for supported inputs and validation evidence. This section
+supersedes earlier fixed-cut refusal descriptions without removing their retained
+failed evidence or the separate advanced-owner acceptance requirements.

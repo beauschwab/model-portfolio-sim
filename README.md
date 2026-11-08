@@ -9,15 +9,18 @@ independent persisted replay. See [the current work breakdown](docs/models/comme
 [numerical controls](docs/models/commercial-credit-convergence.md).
 The last sealed installed checkpoint is 0.29.19; combined 0.29.20 release validation
 is pending. Matching native artifacts and explicit saved-library/session rebuilding
-are required. Cut coordinator publication, broader issue #15/#25 adoption,
-observed/policy validation and combined scale acceptance remain open.
+are required. Ordinary fixed and fee cuts now publish with independently verified
+predecessors and complete tails; broader issue #15/#25 adoption, observed/policy
+validation and combined scale acceptance remain open.
 
 Finite commercial proofs now share typed native owners instead of retaining a
 second projection JSON tree. Complete result values and admission limits remain
 unchanged; see [proof ownership](docs/models/commercial-source-proof-capture.md).
 Commercial daily scheduling also uses immutable event indices and borrowed
-loan/fee merges; [cut admission](docs/models/commercial-cut-receipt-admission.md)
-still requires complete source/Sim/codec and predecessor validation.
+loan/fee merges. [Ordinary fee cuts](docs/models/commercial-fixed-fee-cut.md) retain
+18 complete source proofs under unchanged admission limits;
+[predecessor continuation](docs/models/commercial-cut-prior-opening.md) verifies
+up to eight prior publications. Encoded diagnostic receipts remain separate.
 Cut-prefix byte comparisons now retain only the smaller complete encoding and
 stream the other against it, with bounded cancellation probes. All historical
 comparison charges, capacity limits and publication gates remain unchanged.
