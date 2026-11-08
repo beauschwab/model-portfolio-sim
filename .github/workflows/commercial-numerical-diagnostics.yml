@@ -26,8 +26,8 @@ jobs:
           assert text.count(old) == 1
           text = text.replace(old, 'return Err(format!("Jacobi rotation cannot be represented safely: sweep={sweep} p={p} q={q} np={np:e} nq={nq:e} rho={rho:e} r={r:e} g={g:e} delta={delta:e} t={t:e}"));')
           old = 'let f = repair(&a, &mut meter, bound, &mut || Ok(())).unwrap();'
-          assert text.count(old) == 1
-          text = text.replace(old, 'eprintln!("WIDE_CASE m={m} rank={rank}"); ' + old)
+          at = text.index(old, text.index('fn wide_transpose_repair_is_minimum_norm_and_bounded()'))
+          text = text[:at] + 'eprintln!("WIDE_CASE m={m} rank={rank}"); ' + text[at:]
           p.write_text(text)
           p = Path('packages/portfolio-risk-native/src/products/commercial/stochastic_exercise/regression_svd_audit.rs')
           text = p.read_text()
