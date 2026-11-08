@@ -1,0 +1,55 @@
+name: Commercial numerical diagnostics
+on:
+  push:
+    branches: ['codex/commercial-linux-numerics']
+    paths: ['.github/workflows/commercial-numerical-diagnostics.yml']
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PORTFOLIO_REGRESSION_AUDIT_DIR: ${{ github.workspace }}/artifacts/linux-numerics/cubic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.93.1
+      - name: Instrument diagnostics without changing financial execution
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('packages/portfolio-risk-native/src/math/checked_least_squares.rs')
+          text = p.read_text()
+          old = 'return Err("Jacobi rotation cannot be represented safely".into());'
+          assert text.count(old) == 1
+          text = text.replace(old, 'return Err(format!("Jacobi rotation cannot be represented safely: sweep={sweep} p={p} q={q} np={np:e} nq={nq:e} rho={rho:e} r={r:e} g={g:e} delta={delta:e} t={t:e}"));')
+          old = 'let f = repair(&a, &mut meter, bound, &mut || Ok(())).unwrap();'
+          assert text.count(old) == 1
+          text = text.replace(old, 'eprintln!("WIDE_CASE m={m} rank={rank}"); ' + old)
+          p.write_text(text)
+          p = Path('packages/portfolio-risk-native/src/products/commercial/stochastic_exercise/regression_svd_audit.rs')
+          text = p.read_text()
+          old = '''assert_eq!(
+                          actual.as_f64().unwrap().to_bits(),
+                          expected.as_f64().unwrap().to_bits()
+                      );'''
+          # Match the exact formatter indentation from the retained source.
+          import re
+          pattern = r'assert_eq!\(\s*actual\.as_f64\(\)\.unwrap\(\)\.to_bits\(\),\s*expected\.as_f64\(\)\.unwrap\(\)\.to_bits\(\)\s*\);'
+          text, count = re.subn(pattern, 'if actual.as_f64().unwrap().to_bits() != expected.as_f64().unwrap().to_bits() { eprintln!("BIT_DIFFERENCE actual={actual} expected={expected}"); }', text)
+          assert count == 1
+          text = text.replace('for name in ["means", "scales", "coefficients", "singular_values"] {', 'for name in ["means", "scales", "coefficients", "singular_values"] { eprintln!("CUBIC_CONTEXT case={index} date={date_index} field={name}");')
+          p.write_text(text)
+      - name: Capture wide repair failure
+        continue-on-error: true
+        run: cargo test --locked --manifest-path packages/portfolio-risk-native/Cargo.toml --lib wide_transpose_repair_is_minimum_norm_and_bounded -- --nocapture
+      - name: Capture platform fixture differences
+        continue-on-error: true
+        run: cargo test --locked --manifest-path packages/portfolio-risk-native/Cargo.toml --lib full_cubic_actual_matrix_preserves_factors_across_admission_refinement -- --nocapture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-numerical-diagnostics
+          path: artifacts/linux-numerics
