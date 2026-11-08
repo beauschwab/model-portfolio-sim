@@ -1,5 +1,26 @@
 # Checked native history least squares
 
+## Subnormal rotation and platform evidence follow-through (2026-11-08)
+
+Hosted Linux validation exposed a rank-deficient wide repair whose smallest
+column norm reached `5e-324`; its ratio to the other column underflowed to zero.
+The resulting zero-angle rotation is now an identity operation. Both columns and
+singular modes remain; the original rank cutoff and complete reconstruction,
+retained-mode and minimum-norm certificate still govern acceptance. Nonfinite
+rotations still reject. Work/byte ceilings and final-output tolerances are unchanged.
+A new native case reproduces the old failure and checks that the subnormal mode
+is retained, while all thirteen shared-helper tests pass with the correction.
+
+The cubic compatibility gate retains exact same-platform matrix, target, coefficient
+and spectrum comparisons. Its original Windows snapshot remains unchanged; an
+additional x86_64 GNU/Linux snapshot records exact IEEE bits and identical raw
+requests. Eight Linux captures from unchanged financial source `bec87ff` pass the
+existing independent NumPy comparison tolerances. Their maximum coefficient error
+is `1.28e-13`; maximum training prediction error is `8.25e-13`. The Linux capture is
+from diagnostic run `42527779515`, whose expected failing tests are retained as
+diagnostics, not acceptance. Corrected cross-platform and final full-suite acceptance
+must be recorded separately after execution.
+
 The coupon-history and spread-history fitters use the shared private native
 `math/checked_least_squares.rs` owner. Stochastic continuation retains its existing
 explicit tall-domain wrapper, EPS5 candidate and unchanged admission receipts.
