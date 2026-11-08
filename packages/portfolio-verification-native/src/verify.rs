@@ -114,6 +114,7 @@ pub fn verify_stream(request_bytes: &[u8], stream: stream::Stream) -> Result<Rec
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    crate::ongoing::check(&plan, &executions, &contracts)?;
     let mut valuations: HashMap<(String, i64), expect::Valuation> = HashMap::new();
     let entries = receipt
         .get("hedge_entries")
@@ -172,6 +173,7 @@ pub fn verify_stream(request_bytes: &[u8], stream: stream::Stream) -> Result<Rec
                     .iter()
                     .map(|t| (&t.lot_id, t.effective_ordinal)),
             )
+            .chain(x.derivative_updates.iter().map(|u| (&u.lot_id, u.ordinal)))
         {
             if !valuations.contains_key(&(lot.clone(), ordinal)) {
                 return Err(format!(
@@ -604,6 +606,17 @@ pub fn verify_stream(request_bytes: &[u8], stream: stream::Stream) -> Result<Rec
                                 f(g, field)?,
                                 *value,
                             )?;
+                        }
+                        for field in ["derivative_income", "derivative_mark_pnl"] {
+                            if !w.amounts.iter().any(|(key, _)| *key == field)
+                                && g.get(field).is_some()
+                            {
+                                money(
+                                    &format!("monthly report {} {field}", w.month),
+                                    f(g, field)?,
+                                    0.,
+                                )?;
+                            }
                         }
                     }
                 }

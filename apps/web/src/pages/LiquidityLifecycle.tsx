@@ -34,6 +34,7 @@ const INSTRUCTION_LABELS: Record<string, string> = {
   purchases: 'Purchase', financings: 'Financing advance', facility_draws: 'Facility draw', repayments: 'Funding repayment',
   sales: 'Security sale', hedge_entries: 'Hedge entry', terminations: 'Derivative termination',
   facility_repayments: 'Facility repayment', initial_margin: 'Initial margin', dynamic_margin: 'IM recomputation',
+  derivative_updates: 'Swap valuation and coupon', variation_margin_reviews: 'Variation margin review', facility_interest: 'Facility interest policy',
 };
 
 // Proleptic Gregorian day ordinals as in the engine (2000-01-01 is 730120).
@@ -258,6 +259,7 @@ export default function LiquidityLifecycle() {
     // The lowest usable cash after any event in the month: a positive close cannot hide a dip.
     'minimum usable cash (any event)': money(m.minimum_usable_cash), 'closing usable cash': money(m.closing_usable_cash),
     'facility drawn': money(m.closing_facility_drawn), 'interest and fees': money(m.interest_expense + m.fees),
+    'swap coupon income': money(m.derivative_income ?? 0), 'swap mark P&L': money(m.derivative_mark_pnl ?? 0),
     'margin posted / returned': `${money(m.margin_posted)} / ${money(m.margin_returned)}`,
     'funding decisions': String(m.policy_decisions), 'failed / blocked': `${m.failed_events} / ${m.blocked_events}`,
   }));

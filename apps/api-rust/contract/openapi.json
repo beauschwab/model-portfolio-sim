@@ -1616,6 +1616,12 @@
           "closing_usable_cash": {
             "type": "number"
           },
+          "derivative_income": {
+            "type": "number"
+          },
+          "derivative_mark_pnl": {
+            "type": "number"
+          },
           "events": {
             "type": "integer"
           },

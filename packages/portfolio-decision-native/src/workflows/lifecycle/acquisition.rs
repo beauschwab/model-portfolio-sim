@@ -111,6 +111,9 @@ fn empty_block(asof: i32) -> AcquisitionRequest {
         initial_margin: vec![],
         business_plan: None,
         dynamic_margin: vec![],
+        derivative_updates: vec![],
+        variation_margin_reviews: vec![],
+        facility_interest: vec![],
     }
 }
 
@@ -202,6 +205,92 @@ fn margin_sensitivities(
     Ok(out)
 }
 
+fn validate_ongoing_contracts(
+    request: &Request,
+    plan: &lifecycle::LifecycleRequest,
+) -> Result<(), String> {
+    for acq in &request.acquisitions {
+        let selected: BTreeSet<&str> = acq
+            .derivative_updates
+            .iter()
+            .map(|u| u.lot_id.as_str())
+            .collect();
+        for id in selected {
+            let lot = plan
+                .lots
+                .iter()
+                .find(|l| l.lot_id == id)
+                .ok_or("ongoing derivative lot missing")?;
+            let contracts: Vec<_> = request
+                .hedge_contracts
+                .iter()
+                .filter(|c| c.lot_id == id)
+                .collect();
+            let first = contracts
+                .first()
+                .ok_or("ongoing derivative needs raw contracts")?;
+            let anchor = serde_json::to_value(&first.swap).map_err(|e| e.to_string())?;
+            let mut seen = BTreeSet::new();
+            for c in &contracts {
+                let value = serde_json::to_value(&c.swap).map_err(|e| e.to_string())?;
+                if !seen.insert(c.swap.asof_ordinal) {
+                    return Err("duplicate ongoing derivative contract/date".into());
+                }
+                for key in [
+                    "contract",
+                    "position_id",
+                    "currency",
+                    "monetary_unit",
+                    "notional",
+                    "side",
+                    "fixed_rate",
+                    "fixed_periods",
+                    "floating_periods",
+                    "tail_end_ordinal",
+                    "index_basis",
+                    "rate_path",
+                ] {
+                    if value[key] != anchor[key] {
+                        return Err(format!("ongoing derivative `{id}` changes its immutable supplied path/terms: {key}"));
+                    }
+                }
+                if value["payment_timing"] != "after_scheduled_payments" {
+                    return Err("ongoing derivative values must be after scheduled payments".into());
+                }
+            }
+            let start = plan.as_of_ordinal.max(lot.acquisition_ordinal);
+            let tail = acq.horizon_end_ordinal.min(first.swap.tail_end_ordinal);
+            let mut required = BTreeSet::new();
+            if tail > start {
+                required.insert(tail);
+            }
+            for key in ["fixed_periods", "floating_periods"] {
+                for period in anchor[key]
+                    .as_array()
+                    .ok_or("ongoing derivative periods missing")?
+                {
+                    let date = period["payment_ordinal"]
+                        .as_i64()
+                        .ok_or("payment date missing")? as i32;
+                    if date > start && date <= tail {
+                        required.insert(date);
+                    }
+                }
+            }
+            let provided: BTreeSet<_> = acq
+                .derivative_updates
+                .iter()
+                .filter(|u| u.lot_id == id)
+                .map(|u| u.ordinal)
+                .collect();
+            if !required.is_subset(&provided) {
+                return Err(format!("ongoing derivative `{id}` must cover every coupon date and reporting/tail date, including failed-termination survival"));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
     portfolio_compute_control::checkpoint()?;
     let original = strict_json::parse(bytes, MAX_TIER_BYTES)?;
@@ -270,6 +359,9 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
     // Native valuations from the raw contracts at every entry and termination date.
     let mut dates: BTreeSet<(String, i32)> = BTreeSet::new();
     for acq in &request.acquisitions {
+        for u in &acq.derivative_updates {
+            dates.insert((u.lot_id.clone(), u.ordinal));
+        }
         for h in &acq.hedge_entries {
             dates.insert((h.lot_id.clone(), h.entry_ordinal));
         }
@@ -279,6 +371,7 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
     }
     let mut hedge_entries = Vec::new();
     let mut resolved = Vec::new();
+    validate_ongoing_contracts(&request, p)?;
     for (lot_id, ordinal) in &dates {
         portfolio_compute_control::checkpoint()?;
         let lot = p.lots.iter().find(|l| &l.lot_id == lot_id).ok_or_else(|| {
@@ -493,7 +586,15 @@ pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, S
         margin_sensitivities: prepared.margin_sensitivities.clone(),
         formal_hedge_accounting: false,
         scale_tier: prepared.scale_tier.clone(),
-        disclosure: if !prepared.margin_sensitivities.is_empty() {
+        disclosure: if prepared.journals.iter().any(|j| {
+            j.receipt.events.iter().any(|e| {
+                e.event_id.starts_with("derivative_update:")
+                    || e.event_id.starts_with("facility_accrual:")
+                    || e.event_id.starts_with("vm_review:")
+            })
+        }) {
+            "Explicit ongoing economic cashflows: immutable supplied swap coupon paths, native post-payment valuations, once-only coupons and termination consideration; current legal-population VM with reviewed thresholds and settlement lag; reviewed daily simple facility interest on prior-day closing drawn principal with separate accrual and payment. Mark P&L, coupon income and funding expense are separate. Unpaid facility interest survives the reporting cutoff. Research IM, when selected, retains its reviewed method and independent sensitivity verification. All intents share the dated journal and independent Rust persisted replay. No formal ASC 815 qualification, provider margin certification, observed calibration or regulatory acceptance is inferred."
+        } else if !prepared.margin_sensitivities.is_empty() {
             DYNAMIC_DISCLOSURE
         } else {
             "Native acquisition and unwind replay. Purchases carry cost (no par gain); financing advances post once with their pledge; hedge entries carry the native clean value with equal upfront consideration; cash VM settles after the agreement lag and supplied exact IM binds to the live portfolio, with received IM as custody memo. Sales remove carrying pro rata and realize consideration less carrying; voluntary repayments carry actual accrued and break costs and release pledges; terminations stop rights at the effective date, hold consideration and due cash as an unpaid claim until settlement, and return or apply VM exactly once; bridge facilities draw and repay within their commitment. Settlement is gated by declared dependencies: a failed leg blocks its dependents and nothing settled is undone. Intents post once in the shared daily Sim beside the dated backbook. Undesignated economic treatment only: sale and termination facts are reported for the ASC 815 owner, which posts no basis or OCI here. Post-entry derivative marks and coupons, dynamic margin, the independent Rust verifier and the Rust service are later stages."

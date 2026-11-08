@@ -30,7 +30,7 @@ pub const SCHEMA: &str = "liquidity-allocation-1";
 pub const MAX_PACKAGES: usize = 32;
 pub const MAX_REFINEMENTS: u32 = 8;
 pub const MAX_BYTES: usize = 32 * 1024 * 1024;
-const INSTRUCTION_KINDS: [&str; 10] = [
+const INSTRUCTION_KINDS: [&str; 13] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -41,6 +41,9 @@ const INSTRUCTION_KINDS: [&str; 10] = [
     "facility_repayments",
     "initial_margin",
     "dynamic_margin",
+    "derivative_updates",
+    "variation_margin_reviews",
+    "facility_interest",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -247,6 +250,15 @@ fn measure(stream: &[u8], asof: i64, end: i64) -> Result<BTreeMap<String, Measur
             }
             Some("lifecycle_journal_lineage") => {
                 for row in v["rows"].as_array().into_iter().flatten() {
+                    if row["gl_account"].as_str() == Some("pnl:lifecycle_derivative_income") {
+                        *nii.entry(row["scenario"].as_str().unwrap_or("").to_string())
+                            .or_default() -= f(row, "debit_amount");
+                    }
+                    if row["gl_account"].as_str() == Some("pnl:lifecycle_derivative_mark") {
+                        if let Some(m) = out.get_mut(row["scenario"].as_str().unwrap_or("")) {
+                            m.trading_pnl -= f(row, "debit_amount");
+                        }
+                    }
                     if row["gl_account"].as_str() == Some("pnl:lifecycle_interest") {
                         *interest
                             .entry(row["scenario"].as_str().unwrap_or("").to_string())
@@ -325,7 +337,14 @@ pub fn merge(base: &Value, selected: &[&Value]) -> Result<Value, String> {
                     let into = entry.as_array_mut().ok_or("instruction list")?;
                     for x in list {
                         // One IM recomputation of an agreement on a date serves every package.
-                        if k != "dynamic_margin" || !into.contains(x) {
+                        if !matches!(
+                            k,
+                            "dynamic_margin"
+                                | "derivative_updates"
+                                | "variation_margin_reviews"
+                                | "facility_interest"
+                        ) || !into.contains(x)
+                        {
                             into.push(x.clone());
                         }
                     }
@@ -482,6 +501,31 @@ pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, S
         .max()
         .ok_or("base horizon")?;
     // Preparation: exact replays of the baseline and every package alone.
+    for package in &request.packages {
+        for base in request.base["acquisitions"]
+            .as_array()
+            .ok_or("base execution blocks")?
+        {
+            let candidate = package.request["acquisitions"]
+                .as_array()
+                .ok_or("package execution blocks")?
+                .iter()
+                .find(|a| a["scenario_id"] == base["scenario_id"])
+                .ok_or("package scenario missing")?;
+            for kind in [
+                "derivative_updates",
+                "variation_margin_reviews",
+                "facility_interest",
+            ] {
+                let empty = json!([]);
+                if base.get(kind).unwrap_or(&empty) != candidate.get(kind).unwrap_or(&empty) {
+                    return Err(format!(
+                        "baseline and packages must retain the same ongoing {kind} policy"
+                    ));
+                }
+            }
+        }
+    }
     let base_stream =
         replay(&request.base).map_err(|e| format!("the hold baseline does not run: {e}"))?;
     let base = measure(&base_stream, asof, end)?;

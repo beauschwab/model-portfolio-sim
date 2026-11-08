@@ -404,6 +404,8 @@ export type MonthlyReport = {
   closing_posted_margin: number;
   closing_security_quantity: number;
   closing_usable_cash: number;
+  derivative_income?: number;
+  derivative_mark_pnl?: number;
   events: number;
   failed_events: number;
   fees: number;
