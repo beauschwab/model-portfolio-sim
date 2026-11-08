@@ -502,6 +502,9 @@ pub fn run(bytes: &[u8], mut output: Box<dyn Write + Send>) -> Result<Receipt, S
         .ok_or("base horizon")?;
     // Preparation: exact replays of the baseline and every package alone.
     for package in &request.packages {
+        if package.request["hedge_contracts"] != request.base["hedge_contracts"] {
+            return Err("baseline and packages must retain the same raw hedge sources".into());
+        }
         for base in request.base["acquisitions"]
             .as_array()
             .ok_or("base execution blocks")?

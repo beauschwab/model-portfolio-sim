@@ -85,6 +85,25 @@ pub fn check(plan: &Plan, executions: &[Execution], contracts: &[Value]) -> Resu
                 .ordinal
                 .checked_add(agreement.settlement_lag_days)
                 .ok_or("independent VM settlement date overflow")?;
+            for t in execution
+                .terminations
+                .iter()
+                .filter(|t| t.agreement_id == review.agreement_id)
+            {
+                let collateral_end = t
+                    .settlement_ordinal
+                    .checked_add(if agreement.vm_at_termination == "return_separately" {
+                        agreement.settlement_lag_days
+                    } else {
+                        0
+                    })
+                    .ok_or("independent termination collateral date overflow")?;
+                if t.effective_ordinal <= settlement && collateral_end >= review.ordinal {
+                    return Err(
+                        "independent VM overlaps pending termination collateral settlement".into(),
+                    );
+                }
+            }
             if [
                 review.terms.receive_threshold,
                 review.terms.post_threshold,
@@ -107,8 +126,10 @@ pub fn check(plan: &Plan, executions: &[Execution], contracts: &[Value]) -> Resu
                 })
                 || execution.hedge_entries.iter().any(|h| {
                     h.agreement_id == review.agreement_id
-                        && h.entry_ordinal >= review.ordinal
                         && h.entry_ordinal <= settlement
+                        && h.entry_ordinal
+                            .checked_add(agreement.settlement_lag_days)
+                            .is_none_or(|entry_settlement| entry_settlement >= review.ordinal)
                 })
             {
                 return Err("independent VM terms or pending settlement overlap".into());

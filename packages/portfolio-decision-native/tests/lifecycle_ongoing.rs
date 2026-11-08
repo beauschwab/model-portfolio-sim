@@ -39,6 +39,10 @@ fn held_swap_and_facility_interest_reconcile_and_verify() {
     portfolio_verification_native::verify(&serde_json::to_vec(&v).unwrap(), &stream).unwrap();
     for j in r["journals"].as_array().unwrap() {
         let receipt = &j["receipt"];
+        assert_eq!(
+            receipt["open_claims"], true,
+            "matured swap still has unreturned VM and IM"
+        );
         near(receipt["closing_cash"].as_f64().unwrap(), 995.7);
         near(
             receipt["gross_derivative_liabilities"].as_f64().unwrap(),
@@ -242,6 +246,16 @@ fn allocation_retains_hold_economics_and_refuses_missing_baseline_owners() {
     near(coefficient["external_nii"].as_f64().unwrap(), 0.);
     near(coefficient["trading_pnl"].as_f64().unwrap(), 0.);
     near(coefficient["funding_cost"].as_f64().unwrap(), 0.3);
+    let mut changed = request.clone();
+    for contract in changed["packages"][0]["request"]["hedge_contracts"]
+        .as_array_mut()
+        .unwrap()
+    {
+        contract["swap"]["fixed_rate"] = json!(0.);
+    }
+    let error =
+        allocation::run(&serde_json::to_vec(&changed).unwrap(), Box::new(Vec::new())).unwrap_err();
+    assert!(error.contains("raw hedge sources"), "{error}");
     request["base"]["acquisitions"][0]["derivative_updates"] = json!([]);
     let error =
         allocation::run(&serde_json::to_vec(&request).unwrap(), Box::new(Vec::new())).unwrap_err();
@@ -304,4 +318,132 @@ fn segregated_vm_return_releases_cash_and_only_new_posted_margin_needs_funding()
         .unwrap()
         .remove(1);
     assert!(execute(&v).unwrap_err().contains("current native value"));
+}
+
+#[test]
+fn vm_reviews_refuse_pending_termination_collateral_returns() {
+    let v = fixture();
+    let (_, stream) = execute(&v).unwrap();
+    for day in [738891, 738892, 738893] {
+        let mut changed = v.clone();
+        for a in changed["acquisitions"].as_array_mut().unwrap() {
+            a["terminations"] = json!([{"lot_id":"swap-lot","agreement_id":"swap-csa","effective_ordinal":738891,"settlement_ordinal":738892,"consideration":{"kind":"model_clean_value"},"fees":0.,"consent":{"id":"termination","revision":"r1"}}]);
+            a["variation_margin_reviews"] = json!([{"agreement_id":"swap-csa","ordinal":day,"terms":{"receive_threshold":0.,"post_threshold":0.,"minimum_transfer":0.}}]);
+        }
+        assert!(execute(&changed)
+            .unwrap_err()
+            .contains("termination collateral"));
+        let error =
+            portfolio_verification_native::verify(&serde_json::to_vec(&changed).unwrap(), &stream)
+                .unwrap_err();
+        assert!(error.contains("termination collateral"), "{error}");
+    }
+    // An earlier entry's unsettled VM is another owner of the agreement's collateral.
+    let mut pending_entry = v.clone();
+    for a in pending_entry["acquisitions"].as_array_mut().unwrap() {
+        a["hedge_entries"] = json!([{"lot_id":"swap-lot","agreement_id":"swap-csa","entry_ordinal":738887,"upfront_consideration":-4.,"variation_margin":{"receive_threshold":0.,"post_threshold":0.,"minimum_transfer":0.}}]);
+        a["variation_margin_reviews"] = json!([{"agreement_id":"swap-csa","ordinal":738888,"terms":{"receive_threshold":0.,"post_threshold":0.,"minimum_transfer":0.}}]);
+    }
+    assert!(execute(&pending_entry)
+        .unwrap_err()
+        .contains("overlapping pending VM"));
+    let error = portfolio_verification_native::verify(
+        &serde_json::to_vec(&pending_entry).unwrap(),
+        &stream,
+    )
+    .unwrap_err();
+    assert!(error.contains("pending settlement overlap"), "{error}");
+}
+
+#[test]
+fn zero_market_value_does_not_complete_a_live_contract() {
+    use portfolio_model_core::lifecycle::{
+        self,
+        acquisition::{self, AcquisitionRequest, ResolvedHedge},
+        Revision,
+    };
+    let v = fixture();
+    let plan = lifecycle::admit(&serde_json::to_vec(&v["plan"]).unwrap()).unwrap();
+    let acq: AcquisitionRequest = serde_json::from_value(v["acquisitions"][0].clone()).unwrap();
+    for (tail, claims) in [(738897, true), (738916, false)] {
+        let values: Vec<_> = acq
+            .derivative_updates
+            .iter()
+            .map(|u| ResolvedHedge {
+                lot_id: u.lot_id.clone(),
+                ordinal: u.ordinal,
+                tail_end_ordinal: tail,
+                clean_value: 0.,
+                due_cash: 0.,
+                pricing_source: Revision {
+                    id: "independent-test-value".into(),
+                    revision: "r1".into(),
+                },
+            })
+            .collect();
+        let journal =
+            acquisition::replay(&plan, &acq, &values, &plan.request.accounts[0].account_id)
+                .unwrap();
+        assert_eq!(journal.receipt.open_claims, claims);
+    }
+}
+
+#[test]
+fn independent_accrual_horizon_refuses_before_event_expansion() {
+    let v = fixture();
+    let (_, stream) = execute(&v).unwrap();
+    for end in [738886 + 367, i64::MAX, i64::MIN] {
+        let mut changed = v.clone();
+        changed["acquisitions"][0]["horizon_end_ordinal"] = json!(end);
+        let error =
+            portfolio_verification_native::verify(&serde_json::to_vec(&changed).unwrap(), &stream)
+                .unwrap_err();
+        assert!(error.contains("execution horizon"), "{error}");
+    }
+}
+
+#[test]
+fn independent_swap_equation_applies_index_then_all_in_bounds() {
+    let (_, uncapped) = execute(&fixture()).unwrap();
+    for (index, margin, all_in, income) in [
+        (
+            json!({"floor":null,"cap":null}),
+            0.,
+            json!({"floor":null,"cap":0.005}),
+            -4.5,
+        ),
+        (
+            json!({"floor":0.02,"cap":null}),
+            0.01,
+            json!({"floor":null,"cap":0.025}),
+            -2.5,
+        ),
+        (
+            json!({"floor":null,"cap":0.005}),
+            -0.02,
+            json!({"floor":0.,"cap":null}),
+            -5.,
+        ),
+    ] {
+        let mut v = fixture();
+        for contract in v["hedge_contracts"].as_array_mut().unwrap() {
+            for period in contract["swap"]["floating_periods"].as_array_mut().unwrap() {
+                period["coupon"]["index_bounds"] = index.clone();
+                period["coupon"]["margin"] = json!(margin);
+                period["coupon"]["all_in_bounds"] = all_in.clone();
+            }
+        }
+        let (r, stream) = execute(&v).unwrap();
+        portfolio_verification_native::verify(&serde_json::to_vec(&v).unwrap(), &stream).unwrap();
+        assert!(
+            portfolio_verification_native::verify(&serde_json::to_vec(&v).unwrap(), &uncapped)
+                .is_err()
+        );
+        near(
+            r["journals"][0]["receipt"]["monthly"][0]["derivative_income"]
+                .as_f64()
+                .unwrap(),
+            income,
+        );
+    }
 }

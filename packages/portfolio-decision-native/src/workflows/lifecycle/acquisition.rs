@@ -423,6 +423,7 @@ pub fn prepare(bytes: &[u8]) -> Result<Prepared, String> {
         resolved.push(ResolvedHedge {
             lot_id: lot_id.clone(),
             ordinal: *ordinal,
+            tail_end_ordinal: swap.tail_end_ordinal,
             clean_value: value.clean_value,
             due_cash,
             pricing_source,

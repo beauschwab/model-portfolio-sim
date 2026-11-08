@@ -654,9 +654,13 @@ would extinguish them: successful termination consumes that day's coupon once an
 updates have no live position; failed or blocked termination leaves the complete scheduled cash
 path active. New entries start with their separately paid upfront value. This lane does not generate
 future fixings or add derivative defaults, fee schedules or formal hedge-accounting designation.
+Contractual completion follows the supplied complete tail, independently of market value. A live
+zero-value swap remains active; collateral retained after its agreement's last live swap completes
+sets `open_claims` without inventing a collateral return.
 
 VM calls cannot overlap another pending call or a population change before settlement. A new
 entry on the call date is also refused, because it already owns its entry VM instruction. Calls
+also refuse overlapping pending entry-VM and termination consideration/collateral-return windows. Calls
 outside the reporting horizon refuse rather than silently discard a settlement. Dynamic IM still
 recomputes from native sensitivities in its existing phase after the derivative/VM events, with
 the existing exact-population refresh requirements. None of these transfers is trading income.
@@ -666,13 +670,17 @@ facility accrual and each VM call/settlement. Monthly output adds optional `deri
 and `derivative_mark_pnl`; facility expense remains in `interest_expense`. Allocation counts coupon
 income as external NII, marks as trading P&L, and funding interest as funding cost. Saved-package
 composition requires identical ongoing policies across packages and retains them in the hold
-baseline; exact-equal policies are deduplicated during composition. Interactive evaluation still
-uses prepared coefficients only. Financial admission, exact replay and independent publication
+baseline; exact-equal policies are deduplicated during composition. Preparation also requires
+identical raw hedge sources in the baseline and every package, preventing changed coupon terms
+from manufacturing incremental income. Interactive evaluation uses prepared coefficients only.
+Financial admission, exact replay and independent publication
 verification remain required for the selected result.
 
 The independent Rust verifier uses raw-source swap equations, checks immutable schedules and
 coupon coverage, separately reconstructs daily funding accruals and VM targets, and compares
-ordered journal postings, gross closing stocks, cash steps and monthly reports. Hashes alone
-are not evidence of economic correctness. This stage does not close the broader #20/#51 gates:
+ordered journal postings, gross closing stocks, cash steps and monthly reports. The independent
+equation applies supplied index and all-in coupon bounds. The verifier rejects execution horizons
+beyond 366 days before expanding daily accruals. Hashes alone are not evidence of economic
+correctness. This stage does not close the broader #20/#51 gates:
 formal ASC 815 lifecycle adoption, provider IM, combined graph/credit/solver scale, empirical
 validation and deployment remain separate.

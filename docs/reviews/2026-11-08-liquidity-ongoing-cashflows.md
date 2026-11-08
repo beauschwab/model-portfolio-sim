@@ -24,7 +24,7 @@ failed termination retains the contractual cash path and blocks dependent margin
 Segregated VM return releases its cash restriction; only new posted margin needs borrowing.
 ACT/360 and ACT/365F, signed rates, unpaid rights and same-day draw/repay are explicit cases.
 
-## Validation
+## Initial local validation
 
 | Gate | Result |
 |---|---|
@@ -54,7 +54,8 @@ existing static repository boundary/contract checks, not feature execution or ve
 An initial parallel build exhausted available memory. Targeted release builds were rerun
 with a single Cargo worker, preserving the release profile, equations and tolerances.
 
-Artifacts used by the final live/browser checks (SHA-256):
+Artifacts used by the initial live/browser checks, before the integration-review corrections below
+(SHA-256):
 
 - Native release producer: `88d1fc6818b5f5cde737257ca565e72479f9c62e67efc94f97e69971036afbcf`.
 - Rust test service (`fault-injection` build): `f3f73218048b12d32d7a7d55a33f3580d7c444d3f9512ba11a28990e7eb4f026`.
@@ -62,6 +63,19 @@ Artifacts used by the final live/browser checks (SHA-256):
 
 The browser evidence is retained locally under `apps/web/test-results/`.
 The live CI job now runs the ongoing release suite and the shared service/browser tests.
+
+## Integration review
+
+PR review identified five additional boundaries. Allocation now requires exact raw hedge-source
+identity against the hold baseline, so changed coupon terms cannot create a profitable coefficient.
+VM reviews reject pending termination settlement/collateral-return windows. Contractual completion
+uses the supplied tail rather than zero market value, and unreleased collateral remains an open
+claim. Independent accrual generation checks an overflow-safe 366-day horizon and bounded work
+before allocating events. The independent swap equation applies index bounds before margin and
+all-in bounds afterwards. Regression cases include changed-source and changed-stream refusals,
+live zero-value swaps, pending returns, extreme dates and signed capped/floored coupons.
+The expanded suite has 13 cases. Current-commit hosted checks on PR #122 must validate the final
+producer and verifier together; the artifact hashes above identify the initial local evidence only.
 
 ## Acceptance boundaries
 

@@ -322,6 +322,7 @@ pub struct PlanIn {
 pub struct Valuation {
     pub clean_value: f64,
     pub due_cash: f64,
+    pub tail_end_ordinal: i64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -814,6 +815,30 @@ pub fn replay(
         .ok_or("unknown plan account")?;
     let asof = plan.as_of_ordinal;
     let end = acq.horizon_end_ordinal;
+    if end
+        .checked_sub(asof)
+        .is_none_or(|days| !(0..=366).contains(&days))
+    {
+        return Err("independent execution horizon must lie within 366 days".into());
+    }
+    let days = (end - asof) as usize;
+    let ongoing_work = acq
+        .facility_interest
+        .iter()
+        .try_fold(0usize, |work, f| {
+            work.checked_add(days)?
+                .checked_add(f.payment_ordinals.len())
+        })
+        .and_then(|work| work.checked_add(acq.derivative_updates.len()))
+        .and_then(|work| {
+            acq.variation_margin_reviews
+                .len()
+                .checked_mul(2)?
+                .checked_add(work)
+        });
+    if ongoing_work.is_none_or(|work| work > 4096) {
+        return Err("independent ongoing work exceeds the instruction bound".into());
+    }
     let lots: HashMap<&str, &Lot> = plan.lots.iter().map(|l| (l.lot_id.as_str(), l)).collect();
     let agreements: HashMap<&str, &Agreement> = plan
         .margin_agreements
@@ -1613,7 +1638,11 @@ pub fn replay(
                                     ("derivative_income", &u.lot_id, -value.due_cash),
                                 ],
                             )?;
-                            carrying.insert(u.lot_id.clone(), value.clean_value);
+                            if ordinal >= value.tail_end_ordinal {
+                                carrying.remove(&u.lot_id);
+                            } else {
+                                carrying.insert(u.lot_id.clone(), value.clean_value);
+                            }
                         }
                     }
                     Body::VmReview(v, a) => {
@@ -2278,7 +2307,17 @@ pub fn replay(
             0.,
         )
         || (carrying.is_empty()
-            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)));
+            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)))
+        || plan.margin_agreements.iter().any(|a| {
+            acq.derivative_updates
+                .iter()
+                .any(|u| a.lot_ids.contains(&u.lot_id))
+                && a.lot_ids.iter().all(|id| !carrying.contains_key(id))
+                && (["posted_vm", "received_vm", "posted_im"]
+                    .iter()
+                    .any(|kind| !near(book.balance(kind, &a.agreement_id), 0.))
+                    || !near(custody.get(&a.agreement_id).copied().unwrap_or(0.), 0.))
+        });
     let closing: BTreeMap<(String, String), f64> = book
         .financial
         .iter()

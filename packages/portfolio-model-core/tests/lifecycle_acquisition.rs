@@ -21,6 +21,7 @@ fn run(v: &Value, clean: f64) -> Result<acquisition::AcquisitionJournal, Refusal
     let hedges = vec![ResolvedHedge {
         lot_id: "swap-lot".into(),
         ordinal: 738887,
+        tail_end_ordinal: i32::MAX,
         clean_value: clean,
         due_cash: 0.,
         pricing_source: Revision {

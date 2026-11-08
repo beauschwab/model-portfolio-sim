@@ -156,6 +156,9 @@ pub fn verify_stream(request_bytes: &[u8], stream: stream::Stream) -> Result<Rec
                 expect::Valuation {
                     clean_value: clean,
                     due_cash: due,
+                    tail_end_ordinal: swap_value["tail_end_ordinal"]
+                        .as_i64()
+                        .ok_or("swap tail missing")?,
                 },
             )
             .is_some()

@@ -289,6 +289,7 @@ pub struct MarginCall {
 pub struct ResolvedHedge {
     pub lot_id: String,
     pub ordinal: i32,
+    pub tail_end_ordinal: i32,
     pub clean_value: f64,
     pub due_cash: f64,
     pub pricing_source: Revision,
@@ -959,7 +960,10 @@ pub fn replay_with_margin(
         .ok_or_else(|| mapping(format!("unknown account `{account_id}`")))?;
     let asof = r.as_of_ordinal;
     let end = acq.horizon_end_ordinal;
-    if end < asof || end - asof > MAX_EXECUTION_DAYS {
+    if end
+        .checked_sub(asof)
+        .is_none_or(|days| !(0..=MAX_EXECUTION_DAYS).contains(&days))
+    {
         return Err(Refusal::new(
             BOUND_EXCEEDED,
             "execution horizon must lie within 366 days of the as-of date",
@@ -1141,6 +1145,27 @@ pub fn replay_with_margin(
             .checked_add(a.settlement_lag_days as i32)
             .ok_or_else(|| unsupported("VM settlement date overflow".into()))?;
         within(settlement, "VM settlement")?;
+        for t in acq
+            .terminations
+            .iter()
+            .filter(|t| t.agreement_id == v.agreement_id)
+        {
+            let return_end = t
+                .settlement_ordinal
+                .checked_add(
+                    if a.vm_at_termination == VmAtTermination::ReturnSeparately {
+                        a.settlement_lag_days as i32
+                    } else {
+                        0
+                    },
+                )
+                .ok_or_else(|| unsupported("termination collateral date overflow".into()))?;
+            if t.effective_ordinal <= settlement && return_end >= v.ordinal {
+                return Err(unsupported(
+                    "overlapping pending VM review and termination collateral settlement".into(),
+                ));
+            }
+        }
         if acq.variation_margin_reviews.iter().any(|other| {
             other.agreement_id == v.agreement_id
                 && other.ordinal > v.ordinal
@@ -1151,8 +1176,10 @@ pub fn replay_with_margin(
                 && t.effective_ordinal <= settlement
         }) || acq.hedge_entries.iter().any(|h| {
             h.agreement_id == v.agreement_id
-                && h.entry_ordinal >= v.ordinal
                 && h.entry_ordinal <= settlement
+                && h.entry_ordinal
+                    .checked_add(a.settlement_lag_days as i32)
+                    .is_none_or(|entry_settlement| entry_settlement >= v.ordinal)
         }) {
             return Err(unsupported("overlapping pending VM reviews or population changes require a separate settlement window".into()));
         }
@@ -2200,7 +2227,11 @@ pub fn replay_with_margin(
                                     (Kind::DerivativeIncome, &l.lot_id, -value.due_cash),
                                 ],
                             )?;
-                            derivative_carrying.insert(&u.lot_id, value.clean_value);
+                            if ordinal >= value.tail_end_ordinal {
+                                derivative_carrying.remove(u.lot_id.as_str());
+                            } else {
+                                derivative_carrying.insert(&u.lot_id, value.clean_value);
+                            }
                         }
                     }
                     Body::VmReview(v, a) => {
@@ -2888,7 +2919,23 @@ pub fn replay_with_margin(
             0.,
         )
         || (derivative_carrying.is_empty()
-            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)));
+            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)))
+        || r.margin_agreements.iter().any(|a| {
+            acq.derivative_updates
+                .iter()
+                .any(|u| a.lot_ids.contains(&u.lot_id))
+                && a.lot_ids
+                    .iter()
+                    .all(|id| !derivative_carrying.contains_key(id.as_str()))
+                && [
+                    Kind::PostedVm,
+                    Kind::ReceivedVm,
+                    Kind::PostedIm,
+                    Kind::CustodyAsset,
+                ]
+                .iter()
+                .any(|kind| !near(book.balance(*kind, &a.agreement_id), 0.))
+        });
     // Stage G: renewals are replacement-debt facts for the ASC 815 owner; monthly reports are
     // derived from the dated intents and steps and must reconcile to them exactly.
     facts.append(&mut book.replacements);

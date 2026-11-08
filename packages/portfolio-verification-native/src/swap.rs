@@ -30,6 +30,26 @@ fn s<'a>(v: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("swap field `{key}` missing"))
 }
 
+fn bounded_rate(rate: f64, bounds: &Value) -> Result<f64, String> {
+    let bound = |key: &str| -> Result<Option<f64>, String> {
+        match bounds.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(value) => value
+                .as_f64()
+                .filter(|v| v.is_finite())
+                .map(Some)
+                .ok_or_else(|| format!("invalid swap rate {key}")),
+        }
+    };
+    let floor = bound("floor")?;
+    let cap = bound("cap")?;
+    if matches!((floor, cap), (Some(lo), Some(hi)) if lo > hi) {
+        return Err("swap rate floor exceeds cap".into());
+    }
+    let above_floor = floor.map_or(rate, |lo| rate.max(lo));
+    Ok(cap.map_or(above_floor, |hi| above_floor.min(hi)))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Valuation {
     pub clean_value: f64,
@@ -108,7 +128,8 @@ pub fn value(swap: &Value) -> Result<Valuation, String> {
         if observations.len() != 1 {
             return Err("one observation per term period is expected".into());
         }
-        let rate = f(&observations[0], "rate")? + f(coupon, "margin")?;
+        let index = bounded_rate(f(&observations[0], "rate")?, &coupon["index_bounds"])?;
+        let rate = bounded_rate(index + f(coupon, "margin")?, &coupon["all_in_bounds"])?;
         let tau = year_fraction(
             i(p, "start_ordinal")?,
             i(p, "end_ordinal")?,
