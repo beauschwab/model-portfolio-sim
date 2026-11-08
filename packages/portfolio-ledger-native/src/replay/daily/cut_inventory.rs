@@ -30,6 +30,8 @@ pub struct CommercialCutInventory {
     pub prefix: Tables,
     pub visible: Tables,
     pub all_stream: Shape,
+    #[serde(skip)]
+    pub(super) prefix_stream: Shape,
     pub visible_stream: Shape,
     pub decoded_tables: Shape,
     pub dictionary_upper: Shape,
@@ -492,7 +494,7 @@ pub fn commercial_cut_inventory(
     b: &Compiled<'_>,
     cut: usize,
 ) -> Result<CommercialCutInventory, String> {
-    inventory_pair(old, new, a, b, cut, false)
+    inventory_pair(old, new, a, b, cut, false, None)
 }
 
 /// Complete one-owner output superset for a sequential component phase.
@@ -504,7 +506,16 @@ pub fn commercial_sequential_cut_inventory(
     source: &Compiled<'_>,
     cut: usize,
 ) -> Result<CommercialCutInventory, String> {
-    inventory_pair(spec, spec, source, source, cut, true)
+    inventory_pair(spec, spec, source, source, cut, true, None)
+}
+
+pub(super) fn sequential_phase_inventory(
+    spec: &Spec,
+    source: &Compiled<'_>,
+    cut: usize,
+    capture: bool,
+) -> Result<CommercialCutInventory, String> {
+    inventory_pair(spec, spec, source, source, cut, true, Some(capture))
 }
 
 fn inventory_pair(
@@ -514,6 +525,7 @@ fn inventory_pair(
     b: &Compiled<'_>,
     cut: usize,
     sequential: bool,
+    phase: Option<bool>,
 ) -> Result<CommercialCutInventory, String> {
     let started = spent();
     supported(old, a)?;
@@ -526,15 +538,23 @@ fn inventory_pair(
     }
     let la = labels(old, a)?;
     let lb = labels(new, b)?;
-    let (prefix, ca) = inventory(old, a, add(cut, 1)?, false, initial_keys(old)?, &la)?;
-    let (visible, cb) = inventory(
-        new,
-        b,
-        add(new.horizon_days - cut, 1)?,
-        true,
-        keys(old, a)?,
-        &lb,
-    )?;
+    let (prefix, ca) = if phase == Some(false) {
+        (Tables::new(), 0)
+    } else {
+        inventory(old, a, add(cut, 1)?, false, initial_keys(old)?, &la)?
+    };
+    let (visible, cb) = if phase == Some(true) {
+        (Tables::new(), 0)
+    } else {
+        inventory(
+            new,
+            b,
+            add(new.horizon_days - cut, 1)?,
+            true,
+            keys(old, a)?,
+            &lb,
+        )?
+    };
     let p = stream_total(&prefix)?;
     let v = stream_total(&visible)?;
     let decoded_tables = total(&visible)?;
@@ -572,6 +592,7 @@ fn inventory_pair(
         .checked_add(dictionary)?
         .checked_add(completion)?;
     let all_stream = p.checked_add(v)?.checked_add(extra)?;
+    let prefix_stream = p.checked_add(extra)?;
     let visible_stream = v.checked_add(extra)?;
     let templates = prefix
         .values()
@@ -612,6 +633,7 @@ fn inventory_pair(
         prefix,
         visible,
         all_stream,
+        prefix_stream,
         visible_stream,
         decoded_tables,
         dictionary_upper: dictionary,
@@ -623,6 +645,22 @@ fn inventory_pair(
 }
 
 impl CommercialCutInventory {
+    /// Capture emits only the muted prefix. Resume has already dropped every
+    /// prefix Value; its retained row-vector high water is reserved by the cut.
+    /// Both phases retain the complete dictionary bound, including resends.
+    pub(super) fn phase_sink_memory(
+        &self,
+        capture: bool,
+    ) -> Result<(super::cut_sink::CutSinkMemory, usize), String> {
+        let empty = BTreeMap::new();
+        let tables = if capture { &self.prefix } else { &self.visible };
+        super::cut_sink::inventory(
+            tables,
+            &empty,
+            total(tables)?.encoded_bytes_upper,
+            self.dictionary_upper,
+        )
+    }
     pub fn verify_tables(&self, tables: &BTreeMap<String, Vec<Value>>) -> Result<(), String> {
         for (name, rows) in tables {
             let bound = self

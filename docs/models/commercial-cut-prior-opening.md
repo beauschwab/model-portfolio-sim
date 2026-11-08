@@ -57,6 +57,14 @@ verified predecessor publications. An advancing receipt explicitly reports
 verified journal at the later date. Stored receipts never grant authority: every
 ancestor's raw source, native result and receipt are independently checked again.
 
+The ordinary fee extension uses version 3 when the independently replayed predecessor
+contains separately owned service/acquired-cost fee rights. It retains the version 2
+chain/date evidence when applicable and reports `separate_fee_adoption=true` and
+`gross_unweighted_fee_cut_matched=true`. All selected fee proofs must be objects;
+null is not an optional verification shortcut. Ordinary no-fee versions 1 and 2
+retain their historical meaning. This receipt does not grant transferred/generated
+fee ownership or accounting-policy approval.
+
 One chain admits at most eight predecessor publications, with no repeated job ID,
 and at most 1,024 distinct source objects. Initial replay reads, decoded Parquet
 bytes and logical Arrow bytes each have a cumulative 64 MiB allowance across all
@@ -76,10 +84,10 @@ operation in the generated MCP catalog and has a generated HTTP request contract
 ## Supported scope and remaining gates
 
 This tier binds fixed sequential cut publications, including bounded verified
-chains and advancing dates as described above. Fee-bearing,
-indexed/generated/exercise owners retain their existing separate admission and
-are not upgraded by this binding. The receipt explicitly reports separate fee
-adoption false. General mixed books, saved/cohort/strategy/accounting/FTP adoption and the complete
+chains and advancing dates as described above. The ordinary fee-bearing extension
+passes targeted rebuilt-artifact publication and advancing-chain checks; full
+regression remains required. See [its capacity and validation record](commercial-fixed-fee-cut.md).
+Indexed/generated/exercise and transferred fee owners still require separate admission. General mixed books, saved/cohort/strategy/accounting/FTP adoption and the complete
 60,000-position joint acceptance remain separate work. Synthetic fixtures and
 modeled journal reconciliation do not establish observed accuracy, observed bank
 reconciliation or reviewed accounting/regulatory policy approval.

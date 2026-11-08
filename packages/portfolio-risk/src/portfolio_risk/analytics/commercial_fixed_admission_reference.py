@@ -172,7 +172,7 @@ def source(raw, role, check=lambda: False):
     return a, old, new, p
 
 
-def graph(raw, check=lambda: False):
+def graph(raw, check=lambda: False, *, ordinary_fees=False):
     _guard(raw, check)
     raw = graph_typed(raw)
     work = 8 * length(raw)
@@ -181,8 +181,8 @@ def graph(raw, check=lambda: False):
     physical = []
     for pos in raw["positions"]:
         if any(
-            pos.get(k) is not None for k in ("generated_policy", "exercise", "fees")
-        ) or pos.get("original_physical"):
+            pos.get(k) is not None for k in ("generated_policy", "exercise")
+        ) or pos.get("original_physical") or (pos.get('fees') is not None and not ordinary_fees):
             raise ArithmeticError("separate advanced graph census required")
         families = [("pricing", pos["original_pricing"])]
         families += [
@@ -199,11 +199,16 @@ def graph(raw, check=lambda: False):
                 retained += a["joined_bytes_upper"] * (2 if role == "physical" else 1)
                 if role == "physical":
                     physical.append(a)
+        if ordinary_fees and pos.get('fees') is not None:
+            from .commercial_fixed_fee_capacity_reference import graph_allowance
+            fee_work, fee_bytes = graph_allowance(pos)
+            work += fee_work
+            retained += fee_bytes
     work += count * len(raw["reporting_ordinals"]) * 4096
     return work, retained, physical
 
 
-def candidate(raw, check=lambda: False):
+def candidate(raw, check=lambda: False, *, ordinary_fees=False):
     _guard(raw, check)
     from dataclasses import fields
     from .commercial_reports_reference import normalize_specification
@@ -212,9 +217,11 @@ def candidate(raw, check=lambda: False):
     raw = _candidate_dto(raw)
     units = raw["commercial"]["units"]
     _require(0 < len(units) <= 32, "bounded complete unit grid required")
-    gs = [graph(u["graph"], check) for u in units]
+    gs = [graph(u["graph"], check, ordinary_fees=ordinary_fees) for u in units]
     spec = normalize_specification(raw["specification"])
     horizon = spec["horizon_days"]
+    fee_groups = 0
+    fee_records = 0
     for u, g in zip(units, gs):
         for a in g[2]:
             y = a["full_credit_end_year"]
@@ -226,6 +233,14 @@ def candidate(raw, check=lambda: False):
             horizon = max(
                 horizon, u["graph"]["as_of_ordinal"] - raw["as_of_ordinal"] + days
             )
+        if ordinary_fees:
+            from .commercial_fixed_fee_capacity_reference import histories, events
+            for position in u['graph']['positions']:
+                for history, _, physical, extra in histories(position):
+                    if physical:
+                        fee_records += len(history["policy"]["fees"])
+                        horizon = max(horizon, history['policy']['complete_end_ordinal'] - raw['as_of_ordinal'])
+                        fee_groups += events(history['policy']) + extra
     spec["horizon_days"] = horizon
     for key, cls in [
         ("accounts", Account),
@@ -237,8 +252,8 @@ def candidate(raw, check=lambda: False):
                 if field.type is float:
                     row[field.name] = float(row[field.name])
     physical = [a for g in gs for a in g[2]]
-    groups = sum(a["accounting_groups_upper"] + 8 for a in physical)
-    bindings = len(physical)
+    groups = sum(a["accounting_groups_upper"] + 8 for a in physical) + fee_groups
+    bindings = len(physical) + fee_groups
     positions = len(spec["positions"])
     accounts = len(spec["accounts"])
     scenes = ["baseline"] + [s["name"] for s in spec["scenarios"]]
@@ -271,6 +286,7 @@ def candidate(raw, check=lambda: False):
         + (4 * identities**2 + bindings**2 * scenarios) * label
         + (bindings + len(units)) * (positions + accounts + scenarios + 1) * label
         + (positions + accounts + len(units) + bindings + scenarios) * 128
+        + fee_records * label
         + cells * 128
         + length(spec) * 8
         + 128
@@ -289,7 +305,7 @@ def candidate(raw, check=lambda: False):
         + sum(g[0] for g in gs)
         + len(units)
         * len(units[0]["graph"]["scenarios"])
-        * 10
+        * (11 if ordinary_fees and any(p.get("fees") is not None for u in units for p in u["graph"]["positions"]) else 10)
         * (len(raw["commercial"]["reporting_ordinals"]) - 1)
         * 128
     )

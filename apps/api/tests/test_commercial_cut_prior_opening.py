@@ -215,12 +215,22 @@ def test_cut_prior_materialization_retains_raw_identity_and_bound():
         source.materialize(dict(raw=raw), revised, raw['cut_ordinal'])
 
 
-def test_fee_cut_retains_its_existing_admission_refusal(durable):
+def test_oversized_fee_cut_retains_admission_refusal(durable):
     raw = model_routes.example('commercial-candidate-holding-journal-1')['request']
     raw['schema'] = 'commercial-cut-mixed-journal-1'
     raw['revised_candidate'] = deepcopy(raw['completed_candidate'])
+    # A distinct over-budget input keeps negative coverage; the complete
+    # original fee fixture is now a positive publication gate.
+    for side in ('completed_candidate', 'revised_candidate'):
+        position = raw[side]['commercial']['units'][0]['graph']['positions'][0]
+        histories = list(position['original_pricing'])
+        for scene in position['histories']:
+            for role in ('physical', 'pricing', 'pricing_down', 'pricing_up'):
+                histories.extend(scene[role])
+        for history in histories:
+            history['source']['credit']['max_jumps_per_path'] = 4096
     job = model_routes.submit(model_routes.ModelRunRequest(expected_revision=0,
         schema_name=raw['schema'], request=raw))
     row = execute(job.id, 'advanced-cut-refusal')
     assert row['status'] == 'error' and row['result'] is None
-    assert 'before dual graph generation' in row['detail']
+    assert any(word in row['detail'] for word in ('exceed', 'admission', 'capacity'))

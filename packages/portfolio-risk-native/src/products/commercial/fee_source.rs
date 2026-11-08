@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[path = "fee_adoption.rs"]
 pub mod adoption;
+#[path = "fee_fixed_capacity.rs"]
+pub mod fixed_capacity;
 
 pub const SCHEMA: &str = "commercial-native-fees-1";
 #[derive(Debug, Clone, Serialize, Deserialize)]

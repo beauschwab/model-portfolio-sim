@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 #[path = "credit_raw_capacity.rs"]
 mod raw_capacity;
 pub use raw_capacity::{
-    finite_graph_raw_layout, finite_raw_layout, finite_units_raw_layout,
-    fixed_construction_capacity, fixed_preparation_capacity, FixedConstructionCapacity,
-    FixedPreparationCapacity, RawLayout,
+    finite_fee_allocations_raw_layout, finite_fee_history_raw_layout, finite_graph_raw_layout,
+    finite_raw_layout, finite_units_raw_layout, fixed_construction_capacity,
+    fixed_preparation_capacity, FixedConstructionCapacity, FixedPreparationCapacity, RawLayout,
 };
 pub(crate) use raw_capacity::{fixed_contract_heap, fixed_policy_heap};
 

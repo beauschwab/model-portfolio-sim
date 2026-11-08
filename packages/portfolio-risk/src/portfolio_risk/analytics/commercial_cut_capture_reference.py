@@ -229,6 +229,8 @@ def validate_layout(raw, data, receipt, check=lambda: False):
         _require(type(proof) is dict and set(proof) == keys, 'full source proof fields differ')
         actual = {key: proof[key] for key in item.proof_metadata}
         _require(exact_json_identity(item.proof_metadata, actual), 'exact capture source metadata differs')
+        if item.position.get('fees'):
+            _require(type(proof.get('fee_projection')) is dict, 'complete selected fee proof required')
         graph_identity(item.history['source'], proof['source_request'])
         _require(type(proof['cash']) is list and type(proof['projection']) is dict,
                  'full source cash/projection required')

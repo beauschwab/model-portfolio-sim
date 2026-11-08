@@ -225,7 +225,16 @@ fn sequential_keeps_signed_unweighted_prepaid_fee_rights_and_fee_closing_after_o
                 ],
             )
             .unwrap();
-            for cut in [1, 10, 20] {
+            for cut in [1, 10, 20, 29] {
+                let all = super::super::commercial_sequential_cut_inventory(&s, &c, cut).unwrap();
+                let prefix = super::super::cut_inventory::sequential_phase_inventory(&s, &c, cut, true).unwrap();
+                let future = super::super::cut_inventory::sequential_phase_inventory(&s, &c, cut, false).unwrap();
+                assert!(prefix.visible.is_empty());
+                assert!(future.prefix.is_empty());
+                assert_eq!(serde_json::to_value(&prefix.prefix).unwrap(), serde_json::to_value(&all.prefix).unwrap());
+                assert_eq!(serde_json::to_value(&future.visible).unwrap(), serde_json::to_value(&all.visible).unwrap());
+                assert_eq!(serde_json::to_value(prefix.dictionary_upper).unwrap(), serde_json::to_value(all.dictionary_upper).unwrap());
+                assert_eq!(serde_json::to_value(future.dictionary_upper).unwrap(), serde_json::to_value(all.dictionary_upper).unwrap());
                 let expected = buffer();
                 run_commercial_cut(&s, &s, &c, &c, cut, Box::new(expected.clone())).unwrap();
                 let actual = buffer();
@@ -261,6 +270,8 @@ fn sequential_keeps_signed_unweighted_prepaid_fee_rights_and_fee_closing_after_o
                 };
                 checkpoint.resume(&s, &c).unwrap();
                 assert_eq!(tables(&actual), tables(&expected));
+                future.verify_tables(&tables(&actual)).unwrap();
+                assert!(actual.0.lock().unwrap().len() <= future.visible_stream.encoded_bytes_upper);
             }
         }
     }

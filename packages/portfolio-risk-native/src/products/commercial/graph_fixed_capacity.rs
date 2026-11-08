@@ -58,6 +58,14 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
     let mut source_bytes_upper = 0;
     let mut wrapper_bytes = 0;
     for p in &r.positions {
+        if p.fees
+            .as_ref()
+            .is_some_and(|f| !f.original_physical.is_empty())
+        {
+            return Err(
+                "fixed fee graph requires separate original Physical acquisition inventory".into(),
+            );
+        }
         if !p.original_physical.is_empty() {
             return Err(
                 "fixed graph requires separate original Physical acquisition inventory".into(),
@@ -82,7 +90,7 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
         let histories = p
             .original_pricing
             .iter()
-            .map(|h| (h, Role::Pricing, &r.original_scenario))
+            .map(|h| (h, Role::Pricing, &r.original_scenario, true))
             .chain(
                 p.histories
                     .iter()
@@ -95,9 +103,11 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
                             .into_iter()
                             .flat_map(move |(role, hs)| hs.iter().map(move |h| (h, role, scene)))
                     })
-                    .map(|(h, role, scene)| (h, role, scene.unwrap_or(&r.original_scenario))),
+                    .map(|(h, role, scene)| {
+                        (h, role, scene.unwrap_or(&r.original_scenario), false)
+                    }),
             );
-        for (h, role, scene) in histories {
+        for (h, role, scene, original) in histories {
             check()?;
             source_count = add(source_count, 1)?;
             let physical = role == Role::Physical;
@@ -110,6 +120,24 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
                 },
             )?;
             source_bytes_upper = add(source_bytes_upper, bound.total_bytes_upper)?;
+            if let Some(fees) = &p.fees {
+                let history = fees.history(&scene.scenario_id, role, &h.path_id, original)?;
+                let fee_bound =
+                    crate::products::commercial::fee_source::fixed_capacity::construction(
+                        history,
+                        &fees.allocations,
+                    )?;
+                source_bytes_upper = add(source_bytes_upper, fee_bound)?;
+                if physical {
+                    physical_cash_upper = add(
+                        physical_cash_upper,
+                        crate::products::commercial::fee_source::fixed_capacity::events(
+                            history,
+                            fees.allocations.len(),
+                        )?,
+                    )?;
+                }
+            }
             // One possible cash row for every source boundary/jump and all 32
             // complete default recoveries, regardless of value or participation.
             let cash = mul(
@@ -200,7 +228,9 @@ impl NativeSource {
         scalar(path_key)?;
         scalar(weight)?;
         scalar(role)?;
-        absent(fee_projection)?;
+        let fee_bytes = fee_projection
+            .as_ref()
+            .map_or(Ok(0), |f| f.fixed_retained_capacity())?;
         absent(generated_fee_projection)?;
         absent(generated_projection)?;
         let projection = match &projection.0 {
@@ -237,6 +267,7 @@ impl NativeSource {
             mul(cash.capacity(), size_of::<EconomicCash>())?,
             cash_labels,
             projection,
+            fee_bytes,
         ])
     }
 }

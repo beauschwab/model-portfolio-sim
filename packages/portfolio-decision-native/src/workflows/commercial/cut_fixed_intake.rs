@@ -136,7 +136,7 @@ pub(super) fn supports(envelope: &Value) -> bool {
                 return false;
             }
             for p in positions {
-                if ["exercise", "generated_policy", "fees"]
+                if ["exercise", "generated_policy"]
                     .iter()
                     .any(|k| !p[k].is_null())
                     || p["original_physical"]
@@ -144,6 +144,31 @@ pub(super) fn supports(envelope: &Value) -> bool {
                         .is_some_and(|a| !a.is_empty())
                 {
                     return false;
+                }
+                if let Some(fees) = p.get("fees").filter(|f| !f.is_null()) {
+                    if fees["original_physical"]
+                        .as_array()
+                        .is_some_and(|a| !a.is_empty())
+                    {
+                        return false;
+                    }
+                    let Some(original) = fees["original_pricing"].as_array() else {
+                        return false;
+                    };
+                    let Some(sets) = fees["histories"].as_array() else {
+                        return false;
+                    };
+                    if original
+                        .iter()
+                        .chain(sets.iter().flat_map(|s| {
+                            ["physical", "pricing", "pricing_down", "pricing_up"]
+                                .into_iter()
+                                .flat_map(move |k| s[k].as_array().into_iter().flatten())
+                        }))
+                        .any(|h| !h["policy"]["transfer"].is_null())
+                    {
+                        return false;
+                    }
                 }
                 let Some(originals) = p["original_pricing"].as_array() else {
                     return false;

@@ -200,6 +200,9 @@ fn main() {
     match result {
         Ok(v) => println!("{}", serde_json::json!({"ok":v})),
         Err(e) => {
+            // A selected streaming route may already have emitted a partial
+            // success object. Keep a separately parseable rejection channel.
+            eprintln!("{}", serde_json::json!({"error":&e}));
             println!("{}", serde_json::json!({"error":e}));
             std::process::exit(2);
         }

@@ -12,6 +12,33 @@ use std::mem::size_of;
 
 pub(super) const BATCH_ROWS: usize = 16_384;
 
+/// Consume unpublished native rows without numeric formatting or byte output.
+/// Each owned cell/key/string is paid before visiting or dropping its payload.
+/// The sequential component reserves the complete structural scan upper first.
+pub(super) fn discard_row(value: Value, depth: usize) -> Result<(), String> {
+    portfolio_compute_control::checkpoint()?;
+    if depth > 128 {
+        return Err("discarded cut row nesting exceeds128".into());
+    }
+    charge(1)?;
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                discard_row(value, depth + 1)?;
+            }
+        }
+        Value::Object(fields) => {
+            for (key, value) in fields {
+                charge(add(1, key.len())?)?;
+                discard_row(value, depth + 1)?;
+            }
+        }
+        Value::String(text) => charge(text.len())?,
+        Value::Null | Value::Bool(_) | Value::Number(_) => (),
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct CutSinkMemory {
     pub schema: &'static str,

@@ -108,7 +108,9 @@ def verify_graph(raw,result,check=lambda:False):
                 compare(wanted,{k:actual[k] for k in wanted},check=check);identity(h['source'],actual['source_request'])
                 replayed=verify_compiler(h['source'],actual['projection'],check,stops=stops,original_acquisition=acquisition)
                 compare(_cash(replayed['replay']['credit']),actual['cash'],check=check)
-                if fees:fee_reference.project(fees,raw['original_scenario']['scenario_id'],'physical',h,replayed['replay'],actual.get('fee_projection'),check,original=True,stops=stops)
+                if fees:
+                    if type(actual.get('fee_projection')) is not dict:raise ArithmeticError('complete original fee source ownership required')
+                    fee_reference.project(fees,raw['original_scenario']['scenario_id'],'physical',h,replayed['replay'],actual['fee_projection'],check,original=True,stops=stops)
         for scenario in raw['scenarios']:
             hs=next(h for h in p['histories'] if h['scenario_id']==scenario['scenario_id']);bundle=[]
             current_policies={}
@@ -128,7 +130,7 @@ def verify_graph(raw,result,check=lambda:False):
                     cash=_cash(ref['credit']);compare(cash,actual['cash'],check=check)
                     fee_projection=None
                     if fees:
-                        if 'fee_projection'not in actual:raise ArithmeticError('fee native source ownership absent')
+                        if type(actual.get('fee_projection')) is not dict:raise ArithmeticError('complete fee native source ownership required')
                         fee_projection=fee_reference.project(fees,scenario['scenario_id'],role,history,ref,actual['fee_projection'],check,stops=stops)
                     elif 'fee_projection'in actual:raise ArithmeticError('unselected fee source ownership')
                     value=dict(**wanted,source_request=deepcopy(history['source']),cash=cash,reference=ref,groups=gs,fee_projection=fee_projection);bundle.append(value);sources.append(value)

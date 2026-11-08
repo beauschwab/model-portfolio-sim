@@ -2,6 +2,7 @@
 //! requests and spare vector capacity. No economic source generation occurs.
 use super::{absent, add, inline, mul, Heap, Layout, RawLayout, R};
 use crate::market::analysis::curves::{CurveRole, SuppliedCurve};
+use crate::products::commercial::fee_source::{self as fees, adoption};
 use crate::{advanced_graph, aged_units, commercial_graph as graph, commercial_units as units};
 use std::mem::size_of;
 
@@ -23,6 +24,7 @@ const _: () = {
     assert!(size_of::<CurveRole>() <= 8192);
     assert!(size_of::<advanced_graph::OasTarget>() <= 8192);
     assert!(size_of::<graph::Position>() <= 8192);
+    assert!(size_of::<fees::Policy>() <= 8192);
 };
 fields!(
     advanced_graph::GraphIdentity,
@@ -107,13 +109,14 @@ impl Layout for graph::Position {
         inline(original_signed_cash_quote)?;
         absent(exercise)?;
         absent(generated_policy)?;
-        absent(fees)?;
+        let fee_heap = fees.as_ref().map_or(Ok(Heap::default()), Layout::heap)?;
         position_id
             .heap()?
             .add(oas_target.heap()?)?
             .add(original_pricing.heap()?)?
             .add(original_physical.heap()?)?
-            .add(histories.heap()?)
+            .add(histories.heap()?)?
+            .add(fee_heap)
     }
 }
 fields!(
@@ -181,6 +184,105 @@ pub fn finite_graph_raw_layout(r: &graph::Request) -> R<RawLayout> {
     layout(r)
 }
 pub fn finite_units_raw_layout(r: &units::Request) -> R<RawLayout> {
+    layout(r)
+}
+
+impl Layout for portfolio_model_core::nonintegral_fee::Fee {
+    fn heap(&self) -> R<Heap> {
+        let h = portfolio_model_core::nonintegral_fee::fixed_capacity::fee_raw(self)?;
+        Ok(Heap {
+            retained: h.retained_heap_bytes,
+            cloned: h.cloned_heap_bytes,
+        })
+    }
+}
+impl Layout for portfolio_model_core::nonintegral_fee::Event {
+    fn heap(&self) -> R<Heap> {
+        let h = portfolio_model_core::nonintegral_fee::fixed_capacity::event_raw(self)?;
+        Ok(Heap {
+            retained: h.retained_heap_bytes,
+            cloned: h.cloned_heap_bytes,
+        })
+    }
+}
+fields!(fees::Recovery, [], [lag_days, fraction]);
+fields!(
+    fees::ExitPolicy,
+    [review, recoveries],
+    [
+        cancel_future_service,
+        cancel_future_cash,
+        cancel_unearned_entitlement,
+        waive_unpaid_earned_fraction,
+        refund_prepaid_fraction,
+        refund_earned_fraction
+    ]
+);
+impl Layout for fees::Policy {
+    fn heap(&self) -> R<Heap> {
+        let Self {
+            transfer,
+            schema,
+            policy,
+            complete_end_ordinal,
+            fees,
+            events,
+            default,
+            prepayment,
+            exercise,
+            maturity,
+            coincident_order,
+        } = self;
+        absent(transfer)?;
+        inline(complete_end_ordinal)?;
+        schema
+            .heap()?
+            .add(policy.heap()?)?
+            .add(fees.heap()?)?
+            .add(events.heap()?)?
+            .add(default.heap()?)?
+            .add(prepayment.heap()?)?
+            .add(exercise.heap()?)?
+            .add(maturity.heap()?)?
+            .add(coincident_order.heap()?)
+    }
+}
+fields!(adoption::Allocation, [fee_id, review], [allocated_cost]);
+fields!(
+    adoption::Release,
+    [fee_id, review],
+    [ordinal, sequence, amount]
+);
+fields!(
+    adoption::History,
+    [path_id, policy, acquisition_releases],
+    []
+);
+fields!(
+    adoption::Histories,
+    [scenario_id, physical, pricing, pricing_down, pricing_up],
+    []
+);
+fields!(
+    adoption::Selection,
+    [
+        schema,
+        identity,
+        allocations,
+        original_pricing,
+        original_physical,
+        histories
+    ],
+    [
+        discount_spread,
+        original_signed_fee_quote,
+        total_purchase_cost
+    ]
+);
+pub fn finite_fee_history_raw_layout(r: &adoption::History) -> R<RawLayout> {
+    layout(r)
+}
+pub fn finite_fee_allocations_raw_layout(r: &Vec<adoption::Allocation>) -> R<RawLayout> {
     layout(r)
 }
 

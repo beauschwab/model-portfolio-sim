@@ -19,10 +19,14 @@ def prefix(native, target_ordinal=None, check=lambda: False):
     cut = target - origin
     tables = native['cut_tables']
     if target != raw['cut_ordinal']:
-        days = {r['day'] for r in tables.get('path', [])}
-        if cut not in days or cut >= max(days):
-            raise ValueError('advanced cut must precede the complete published tail')
         specification = native['native_packet']['revised_phase']['preparation']['resolved_specification']
+        days = {r['day'] for r in tables.get('path', [])}
+        # Path reports become sparse after day 30. The independently verified
+        # native specification owns the complete daily replay horizon; requiring
+        # a path report on the requested day incorrectly rejects valid fee tails.
+        horizon = specification['horizon_days']
+        if type(horizon) is not int or cut >= horizon or max(days, default=-1) != horizon:
+            raise ValueError('advanced cut must precede the complete published tail')
         # Columnar output omits empty tables, including zero-participation cash
         # summaries. Restore only those empty collection slots for the oracle.
         complete = dict(tables)

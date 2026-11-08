@@ -6,6 +6,9 @@ use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+#[path = "fees_capacity.rs"]
+pub mod fixed_capacity;
+
 pub const SCHEMA: &str = "nonintegral-fee-accounting-1";
 pub const MAX_INPUT: usize = 2 << 20;
 pub const MAX_OUTPUT: usize = 32 << 20;

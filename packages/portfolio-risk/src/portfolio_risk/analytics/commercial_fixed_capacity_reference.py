@@ -24,8 +24,10 @@ def reservation(raw, check=lambda: False):
     for unit in raw['commercial']['units']:
         for position in unit['graph']['positions']:
             _require(not any(position.get(k) for k in
-                ('exercise', 'generated_policy', 'fees', 'original_physical')),
+                ('exercise', 'generated_policy', 'original_physical')),
                 'fixed allowance needs a separate advanced-owner inventory')
+            from .commercial_fixed_fee_capacity_reference import reservation as fee_reservation
+            total += fee_reservation(position)
             histories = [(h, False) for h in position['original_pricing']]
             for scene in position['histories']:
                 histories.extend((h, role == 'physical') for role in
@@ -59,10 +61,10 @@ def reservation(raw, check=lambda: False):
 
 
 def candidate(raw, check=lambda: False):
-    expected, specification = indexed_candidate(raw, check)
+    expected, specification = indexed_candidate(raw, check, ordinary_fees=True)
     typed = _candidate_dto(raw)
     portable, sources = reservation(raw, check)
-    old_graphs = sum(indexed_graph(u['graph'], check)[1] for u in typed['commercial']['units'])
+    old_graphs = sum(indexed_graph(u['graph'], check, ordinary_fees=True)[1] for u in typed['commercial']['units'])
     expected['retained_bytes_upper'] += portable - old_graphs
     _require(0 < expected['retained_bytes_upper'] <= 128 << 20,
              'fixed candidate allowance exceeds128MiB')

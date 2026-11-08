@@ -68,11 +68,21 @@ def _run(request,*,schema,command,threads=1,expected_binary=None,cancelled=None,
                 if error_path.stat().st_size>65536:raise ValueError('product strategy error output exceeded bounded transport')
                 stdout.seek(0);raw=stdout.read(output_limit+1)
                 if len(raw)>output_limit:raise ValueError('product strategy output exceeded bounded transport')
+                stderr.seek(0);native_error=stderr.read(65537)
                 if child.returncode not in {0,2}:raise RuntimeError('product strategy process failed; no fallback')
             finally:
                 if child.poll() is None:child.kill()
                 child.wait()
     if binary_identity()!=identity:raise RuntimeError('MODEL_VERSION_CHANGED: product strategy executable changed during execution')
+    if child.returncode == 2:
+        # Streaming admission can fail after stdout has started. Exit status is
+        # authoritative; never decode that partial success as a financial result.
+        for payload in (native_error, raw):
+            try: rejected=json.loads(payload)
+            except (ValueError, UnicodeDecodeError):continue
+            if isinstance(rejected,dict) and isinstance(rejected.get('error'),str):
+                raise ValueError(f"native product strategy rejected input: {rejected['error']}")
+        raise ValueError('native product strategy rejected input during streamed output')
     response=json.loads(raw)
     if 'error' in response:raise ValueError(f"native product strategy rejected input: {response['error']}")
     if not isinstance(response.get('ok'),dict):raise ValueError('invalid native product strategy response')

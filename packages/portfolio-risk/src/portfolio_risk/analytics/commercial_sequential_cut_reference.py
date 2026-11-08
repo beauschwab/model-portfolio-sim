@@ -111,6 +111,8 @@ def verify_parts(raw, actual, check=lambda: False):
                  and exact_json_identity(item.proof_metadata,
                      {k: proof[k] for k in item.proof_metadata}),
                  'sequential exact complete proof fields differ')
+        if item.position.get('fees'):
+            _require(type(proof.get('fee_projection')) is dict, 'complete selected fee proof required')
         graph_identity(item.history['source'], proof['source_request'])
         if item.metadata['role'] == 'physical':
             reference = verify_compiler(item.history['source'], proof['projection'], check)['replay']

@@ -62,6 +62,9 @@ def _receipt(provenance):
             published_journal_rolled_forward=target != provenance['cut_ordinal'],
             verified_publications=1 + provenance.get('ancestor_verification', {}).get('verified_publications',
                 1 if 'ancestor_verification' in provenance else 0))
+    if provenance.get("ordinary_fee_owners_verified") is True:
+        receipt.update(schema="commercial-cut-prior-opening-verification-3",
+            separate_fee_adoption=True, gross_unweighted_fee_cut_matched=True)
     return receipt
 
 
@@ -95,6 +98,10 @@ class _CutAdapter:
         return reopen(repo, codec, captured, check, _chain=chain)
 
     def _provenance(self, provenance, captured, parent):
+        candidate = captured["raw"]["revised_candidate"]
+        if any(p.get("fees") is not None for u in candidate["commercial"]["units"]
+                for p in u["graph"]["positions"]):
+            provenance["ordinary_fee_owners_verified"] = True
         if self.target != self.original:
             provenance['matched_cut_ordinal'] = self.target
         if parent is not None:

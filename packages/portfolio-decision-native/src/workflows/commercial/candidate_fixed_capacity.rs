@@ -19,7 +19,6 @@ pub(super) fn reservation(r: &Request) -> Result<usize, String> {
         for p in &u.graph.positions {
             if p.exercise.is_some()
                 || p.generated_policy.is_some()
-                || p.fees.is_some()
                 || !p.original_physical.is_empty()
             {
                 return Err(
@@ -57,6 +56,27 @@ pub(super) fn reservation(r: &Request) -> Result<usize, String> {
                     );
                 }
                 bytes = add(bytes, allowance)?;
+            }
+            if let Some(fees) = &p.fees {
+                for history in fees
+                    .original_pricing
+                    .iter()
+                    .chain(fees.histories.iter().flat_map(|s| {
+                        s.physical
+                            .iter()
+                            .chain(&s.pricing)
+                            .chain(&s.pricing_down)
+                            .chain(&s.pricing_up)
+                    }))
+                {
+                    bytes = add(
+                        bytes,
+                        portfolio_risk_native::commercial_fee_source::fixed_capacity::reservation(
+                            history,
+                            fees.allocations.len(),
+                        )?,
+                    )?;
+                }
             }
         }
     }
@@ -112,6 +132,16 @@ pub(super) fn derive(r: &Request) -> Result<Capacity, String> {
     let n = r.commercial.units.len();
     let s = r.commercial.units[0].graph.scenarios.len();
     let h = r.commercial.reporting_ordinals.len() - 1;
+    let coefficients = if r
+        .commercial
+        .units
+        .iter()
+        .any(|u| u.graph.positions.iter().any(|p| p.fees.is_some()))
+    {
+        11
+    } else {
+        10
+    };
     let raw_shape = daily::cut_json_shape(r)?;
     let spec_shape = daily::cut_json_shape(&r.specification)?;
     // Normalization consumes a Value clone, then constructs typed defaulted
@@ -138,7 +168,7 @@ pub(super) fn derive(r: &Request) -> Result<Capacity, String> {
     // vectors and their Value cells; zero face still retains every source.
     let replay_cells = sum([
         mul(mul(s, units.funding_dates_upper)?, 15)?,
-        mul(mul(s, h)?, 10)?,
+        mul(mul(s, h)?, coefficients)?,
         mul(n, 20)?,
         mul(s, 32)?,
         128,

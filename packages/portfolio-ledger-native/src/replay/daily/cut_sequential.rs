@@ -10,6 +10,8 @@ use std::sync::{atomic::AtomicBool, atomic::Ordering, Arc};
 #[path = "cut_detached_state.rs"]
 mod detached;
 use detached::DetachedState;
+#[path = "cut_source_prefix.rs"]
+mod source_prefix;
 
 const MAX_PROOF: usize = 4 << 20;
 const MAX_WORK: usize = 8_000_000;
@@ -75,7 +77,7 @@ impl Serialize for Events<'_> {
                             "loan",
                             b,
                             i,
-                            &*self.source.bindings[b].accounting.group(i),
+                            source_prefix::LoanGroup(&self.source.bindings[b].accounting.group(i)),
                         ))?,
                         Scheduled::Fee(b, i) => seq.serialize_element(&(
                             scene,
@@ -84,7 +86,7 @@ impl Serialize for Events<'_> {
                             b,
                             i,
                             self.source.fees[b].native_years[i],
-                            &*self.source.fees[b].source.group(i),
+                            source_prefix::FeeGroup(&self.source.fees[b].source.group(i)),
                         ))?,
                     }
                 }
@@ -131,25 +133,6 @@ struct ProofWriter {
     size: usize,
 }
 
-struct ProofSizer {
-    size: usize,
-}
-impl Write for ProofSizer {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        let next = self
-            .size
-            .checked_add(bytes.len())
-            .ok_or_else(|| io::Error::other("sequential proof size overflow"))?;
-        if next > MAX_PROOF {
-            return Err(io::Error::other("sequential proof exceeds4MiB"));
-        }
-        self.size = next;
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
 fn funded_proof<T: Serialize>(
     output: &mut dyn Write,
     value: &T,
@@ -169,7 +152,7 @@ impl Write for ProofWriter {
             .is_none_or(|n| n > self.size)
         {
             return Err(io::Error::other(
-                "sequential prefix serialization changed after sizing",
+                "sequential prefix exceeds bounded proof buffer",
             ));
         }
         self.data.extend_from_slice(bytes);
@@ -230,6 +213,40 @@ fn lookup_work(spec: &Spec, source: &Compiled<'_>, cut: usize) -> R<usize> {
         mul(mul(add(spec.scenarios.len(), 1)?, add(cut, 1)?)?, lookup)?,
         mul(add(a.entries, b.entries)?, 8)?,
     )
+}
+/// Complete finite row work for the days this phase actually executes. Count
+/// every posting, coupon lot and fee group, including zero participation and
+/// complete future sources; only the executed day range changes between phases.
+fn phase_source_work(source: &Compiled<'_>, days: usize) -> R<(usize, usize)> {
+    let mut rows = 0;
+    let mut census = 0;
+    for binding in &source.bindings {
+        if binding.accounting.compact_bytes().is_some() {
+            return Err("cut phase work requires borrowed finite loan groups".into());
+        }
+        for i in 0..binding.accounting.group_count() {
+            checkpoint()?;
+            super::cut_shape::charge(1)?;
+            census = add(census, 1)?;
+            let g = binding.accounting.group(i);
+            rows = add(
+                rows,
+                add(g.postings.len(), add(mul(g.next.lots.len(), 2)?, 1)?)?,
+            )?;
+        }
+    }
+    for fee in &source.fees {
+        if fee.source.compact_bytes().is_some() {
+            return Err("cut phase work requires borrowed finite fee groups".into());
+        }
+        for i in 0..fee.source.group_count() {
+            checkpoint()?;
+            super::cut_shape::charge(1)?;
+            census = add(census, 1)?;
+            rows = add(rows, add(fee.source.group(i).postings.len(), 2)?)?;
+        }
+    }
+    Ok((mul(mul(rows, days)?, 16)?, census))
 }
 fn state_reservation(spec: &Spec, source: &Compiled<'_>, raw: usize) -> R<(usize, usize)> {
     if super::cut_shape::spent().is_none() {
@@ -306,7 +323,9 @@ fn state_reservation(spec: &Spec, source: &Compiled<'_>, raw: usize) -> R<(usize
 }
 fn guard(work: usize, bytes: usize) -> R<()> {
     if work > MAX_WORK || bytes > MAX_BYTES {
-        return Err("sequential cut component exceeds8M/32MiB".into());
+        return Err(format!(
+            "sequential cut component exceeds8M/32MiB: work={work}, bytes={bytes}"
+        ));
     }
     Ok(())
 }
@@ -325,7 +344,8 @@ pub struct SequentialCommercialCut {
     enabled: Arc<AtomicBool>,
     prefix_work: usize,
     prefix_state_bytes: usize,
-    prefix_row_vector_bytes: usize,
+    prefix_buffer_bytes: usize,
+    prefix_peak_bytes: usize,
 }
 
 #[derive(Serialize)]
@@ -362,50 +382,64 @@ impl SequentialCommercialCut {
             bindings: source.bindings.len(),
             fees: source.fees.len(),
         };
-        let mut sizer = ProofSizer { size: 0 };
-        let sizing = funded_proof(&mut sizer, &view)?;
-        let size = sizer.size;
         let raw = strict_json::serialized_size(spec, 2 << 20)?;
         let (prefix_state_bytes, snapshot_scan_work) = state_reservation(spec, source, raw)?;
-        let inventory =
-            super::cut_inventory::commercial_sequential_cut_inventory(spec, source, cut)?;
+        let inventory = super::cut_inventory::sequential_phase_inventory(spec, source, cut, true)?;
+        let (prefix_sink, phase_census_work) = inventory.phase_sink_memory(true)?;
+        let prefix_sink_bytes = prefix_sink.total()?;
+        let (source_work, source_census_work) = phase_source_work(source, add(cut, 1)?)?;
         let execution_work = add(
-            mul(source.work_upper, add(spec.scenarios.len(), 1)?)?,
+            mul(source_work, add(spec.scenarios.len(), 1)?)?,
             add(mul(raw, 8)?, mul(lookup_work(spec, source, cut)?, 2)?)?,
         )?;
-        let prefix_work = add(
-            execution_work,
-            add(snapshot_scan_work, mul(sizing.total_work, 2)?)?,
-        )?;
+        let prefix_work = add(execution_work, snapshot_scan_work)?;
+        let prefix_drop_work = inventory.prefix_stream.scan_work()?;
         let prefix_work = add(
             prefix_work,
             add(
-                inventory.census_work_upper,
                 add(
-                    inventory.all_stream.scan_work()?,
-                    mul(inventory.all_stream.encoded_bytes_upper, 2)?,
+                    inventory.census_work_upper,
+                    add(phase_census_work, source_census_work)?,
                 )?,
+                prefix_drop_work,
             )?,
         )?;
-        guard(
-            prefix_work,
+        // Serialize the immutable evidence once into a bounded buffer. Reserve
+        // old plus new allocations before compacting it for the detached state;
+        // no second full financial-source traversal is required for sizing.
+        let capture_bytes = add(
+            add(prefix_state_bytes, mul(MAX_PROOF, 2)?)?,
+            prefix_sink_bytes,
+        )?;
+        guard(prefix_work, capture_bytes)?;
+        let prefix_buffer_bytes = add(
+            prefix_sink.row_vector_bytes_upper,
             add(
-                add(prefix_state_bytes, size)?,
-                inventory.stream_batch_retained_bytes_upper,
+                prefix_sink.journal_vector_bytes_upper,
+                prefix_sink.table_container_bytes_upper,
             )?,
         )?;
-        let prefix_row_vector_bytes = inventory.stream_batch_memory.row_vector_bytes_upper;
         drop(inventory);
         let mut data = Vec::new();
-        data.try_reserve_exact(size).map_err(|e| e.to_string())?;
-        if data.capacity() != size {
+        data.try_reserve_exact(MAX_PROOF)
+            .map_err(|e| e.to_string())?;
+        if data.capacity() != MAX_PROOF {
             return Err("sequential proof capacity exceeds exact reservation".into());
         }
-        let mut writer = ProofWriter { data, size };
+        let mut writer = ProofWriter {
+            data,
+            size: MAX_PROOF,
+        };
         let encoded = funded_proof(&mut writer, &view)?;
-        if writer.data.len() != size || encoded != sizing {
-            return Err("sequential prefix serialization changed after sizing".into());
+        let prefix_work = add(prefix_work, encoded.total_work)?;
+        guard(prefix_work, capture_bytes)?;
+        writer.data.shrink_to_fit();
+        if writer.data.capacity() != writer.data.len() {
+            return Err("sequential proof compaction exceeds exact reservation".into());
         }
+        // All rows/reports and dictionaries still materialize. Their complete
+        // scan/drop upper is reserved above; flush pays actual visited cells.
+        // Bytes which cannot reach a reader are never encoded or charged.
         super::cut_shape::charge(execution_work)?;
         let enabled = Arc::new(AtomicBool::new(false));
         let mut sink = Sink::new(Box::new(cut::WindowWriter {
@@ -414,6 +448,7 @@ impl SequentialCommercialCut {
             structural_bytes: None,
         }));
         sink.prepaid_frames = true;
+        sink.discard_frames = true;
         let mut states = Vec::with_capacity(spec.scenarios.len() + 1);
         let baseline = cut::baseline();
         for scenario in std::iter::once(&baseline).chain(spec.scenarios.iter()) {
@@ -453,7 +488,8 @@ impl SequentialCommercialCut {
             enabled,
             prefix_work,
             prefix_state_bytes,
-            prefix_row_vector_bytes,
+            prefix_buffer_bytes,
+            prefix_peak_bytes: capture_bytes,
         })
     }
 
@@ -481,9 +517,13 @@ impl SequentialCommercialCut {
         let raw = strict_json::serialized_size(revised, 2 << 20)?;
         let (future_state_bytes, snapshot_scan_work) = state_reservation(revised, source, raw)?;
         let inventory =
-            super::cut_inventory::commercial_sequential_cut_inventory(revised, source, self.cut)?;
+            super::cut_inventory::sequential_phase_inventory(revised, source, self.cut, false)?;
+        let (future_sink, phase_census_work) = inventory.phase_sink_memory(false)?;
+        // Resumed opening plus the remaining days and closing/report scratch.
+        let (source_work, source_census_work) =
+            phase_source_work(source, add(revised.horizon_days - self.cut, 2)?)?;
         let execution_work = add(
-            mul(source.work_upper, add(revised.scenarios.len(), 1)?)?,
+            mul(source_work, add(revised.scenarios.len(), 1)?)?,
             add(
                 mul(raw, 8)?,
                 add(
@@ -496,10 +536,13 @@ impl SequentialCommercialCut {
         let work = add(
             work,
             add(
-                inventory.census_work_upper,
                 add(
-                    inventory.all_stream.scan_work()?,
-                    mul(inventory.all_stream.encoded_bytes_upper, 2)?,
+                    inventory.census_work_upper,
+                    add(phase_census_work, source_census_work)?,
+                )?,
+                add(
+                    inventory.visible_stream.scan_work()?,
+                    mul(inventory.visible_stream.encoded_bytes_upper, 2)?,
                 )?,
             )?,
         )?;
@@ -507,19 +550,20 @@ impl SequentialCommercialCut {
             self.prefix_state_bytes,
             add(future_state_bytes, self.proof.capacity())?,
         )?;
-        // Muted prefix Values and journal columns were flushed/dropped before
-        // detachment. Ordinary-row Vecs retain their high-water allocations.
+        // Muted prefix Values were dropped before detachment. Row vectors,
+        // journal column buffers and table keys retain their high-water storage.
         // Exact observed-prefix equality below proves that every live prefix
         // dictionary label also belongs to the complete revised inventory.
-        let bytes = add(
-            bytes,
-            add(
-                inventory.stream_batch_retained_bytes_upper,
-                self.prefix_row_vector_bytes,
-            )?,
-        )?;
+        let bytes = add(bytes, add(future_sink.total()?, self.prefix_buffer_bytes)?)?;
+        let bytes = bytes.max(self.prefix_peak_bytes);
         drop(inventory);
-        guard(work, bytes)?;
+        guard(work, bytes).map_err(|e| {
+            format!(
+                "{e}; resume old_state={}, new_state={future_state_bytes}, proof={}",
+                self.prefix_state_bytes,
+                self.proof.capacity()
+            )
+        })?;
         let view = PrefixView {
             spec: revised,
             source,
@@ -538,7 +582,7 @@ impl SequentialCommercialCut {
             },
         )?;
         let work = add(work, comparison.total_work)?;
-        guard(work, bytes)?;
+        guard(work, bytes).map_err(|e| format!("{e}; prefix={}, execution={execution_work}, snapshots={snapshot_scan_work}, comparison={}", self.prefix_work, comparison.total_work))?;
         if !equal {
             return Err("sequential cut immutable specification, binding or complete observed group differs".into());
         }
@@ -546,6 +590,7 @@ impl SequentialCommercialCut {
         let proof_size = self.proof.len();
         drop(self.proof);
         let runs = self.states.len();
+        self.sink.discard_frames = false;
         self.enabled.store(true, Ordering::Relaxed);
         for state in self.states {
             checkpoint()?;

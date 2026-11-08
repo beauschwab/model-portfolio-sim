@@ -158,6 +158,9 @@ struct Sink {
     sent: usize,
     reports: report::Reports,
     prepaid_frames: bool,
+    // Only the sequential cut's already-funded, unpublished prefix selects this.
+    // Financial reports and dictionary interning still execute before flush.
+    discard_frames: bool,
 }
 impl Sink {
     fn new(output: Box<dyn Write + Send>) -> Self {
@@ -171,6 +174,7 @@ impl Sink {
             sent: 0,
             reports: report::Reports::default(),
             prepaid_frames: false,
+            discard_frames: false,
         }
     }
     fn intern(&mut self, text: &str) -> usize {
@@ -237,6 +241,22 @@ impl Sink {
         Ok(())
     }
     fn flush(&mut self) -> R<()> {
+        if self.discard_frames {
+            portfolio_compute_control::checkpoint()?;
+            if !self.journal.value.is_empty() {
+                cut_shape::charge(9)?;
+                self.journal = JournalColumns::default();
+            }
+            for rows in self.rows.values_mut() {
+                for row in rows.drain(..) {
+                    cut_sink::discard_row(row, 0)?;
+                }
+            }
+            self.count = 0;
+            // No dictionary entry has reached the receiver. Retain every label
+            // and the row-vector high-water capacity for the resumed stream.
+            return self.out.flush().map_err(|e| e.to_string());
+        }
         if !self.journal.value.is_empty() {
             write_frame(
                 &mut self.out,

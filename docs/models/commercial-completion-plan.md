@@ -1,5 +1,26 @@
 # Remaining commercial acceptance work
 
+## Ordinary fee cuts and verified continuation (2026-11-08)
+
+The ordinary fixed route now retains all 18 loan/fee proofs, acquired costs,
+gross fee rights and complete tails under the unchanged 32-million-work /128-MiB
+joined and 8-million-work /32-MiB component limits. Seven native cut dates pass,
+including dates after repayment and fee settlement. Version 3 predecessor evidence
+records independently matched gross fee owners while retaining bounded ancestor,
+source, restart and final SQL checks. Sparse path reporting after day 30 does not
+shorten the independently verified daily horizon.
+
+Targeted validation passes 84 ledger tests, 63 independent replay/transport checks,
+15 fee-verifier tests after the horizon correction and ten worker tests against
+rebuilt release artifacts. Full regression on this final source remains pending;
+the earlier chain-only matrix does not cover this extension. See
+[the ordinary fee contract and evidence](commercial-fixed-fee-cut.md).
+
+Generated, exercise, transferred and original-physical acquisition owners retain
+separate admission requirements. Broader saved/cohort/strategy/accounting/FTP,
+complete mixed-book scale, observed histories and reviewed policy gates remain.
+This is a local implementation checkpoint, with no deployment or worker restart.
+
 ## Fixed cut predecessor chains and advancing dates (2026-11-08)
 
 The explicit `/models/cut-mixed-journals` route server-selects the completed raw

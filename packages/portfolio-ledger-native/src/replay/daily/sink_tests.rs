@@ -133,6 +133,47 @@ fn exhausted_frame_budget_retains_retry_state_and_cannot_emit_an_unpaid_frame() 
     assert!(!actual.lock().unwrap().is_empty());
 }
 
+#[test]
+fn discarded_prefix_keeps_reports_dictionary_and_buffers_without_encoding_frames() {
+    let (mut original, original_wire) = sink(2 << 20);
+    original.flush().unwrap();
+    original.sent = 0;
+    original_wire.lock().unwrap().clear();
+    let (mut muted, actual) = sink(2 << 20);
+    muted.prepaid_frames = true;
+    muted.discard_frames = true;
+    // The cut reserves full structural work before execution. Dropping pays
+    // actual visited ownership, without formatting numbers or writing bytes.
+    cut_shape::with_budget(1_000_000, || {
+        muted.flush()?;
+        assert!(cut_shape::spent().unwrap() > 0);
+        Ok(())
+    })
+    .unwrap();
+    assert!(actual.lock().unwrap().is_empty());
+    assert_eq!(state(&muted), state(&original));
+    assert_eq!(
+        muted.reports.attribution(&[]),
+        original.reports.attribution(&[])
+    );
+    muted.discard_frames = false;
+    cut_shape::with_budget(1_000_000, || {
+        for output in [&mut original, &mut muted] {
+            output.journal(123, "stress", 10, "bank", "resumed", "cash", "new", 4.)?;
+            output.flush()?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(*actual.lock().unwrap(), *original_wire.lock().unwrap());
+    let (mut refused, refused_wire) = sink(2 << 20);
+    refused.discard_frames = true;
+    let before = state(&refused);
+    assert!(cut_shape::with_budget(0, || refused.flush()).is_err());
+    assert!(refused_wire.lock().unwrap().is_empty());
+    assert_eq!(state(&refused), before);
+}
+
 // Frozen pre-change flush, including dictionary ownership and error ordering.
 fn old_flush(sink: &mut Sink) -> R<()> {
     if !sink.journal.value.is_empty() {

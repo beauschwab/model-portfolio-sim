@@ -49,6 +49,15 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
     let s = r.units[0].graph.scenarios.len();
     let n = r.units.len();
     let h = r.reporting_ordinals.len() - 1;
+    let coefficients = if r
+        .units
+        .iter()
+        .any(|u| u.graph.positions.iter().any(|p| p.fees.is_some()))
+    {
+        11
+    } else {
+        10
+    };
     let mut graph_bytes_upper = 0;
     let mut cash_events_upper = mul(s, n)?; // unconditional acquisition row per scenario/unit
     let mut source_count = 0;
@@ -80,7 +89,7 @@ pub fn fixed_construction_capacity(r: &Request) -> R<FixedConstructionCapacity> 
         // <=256 bytes. Purchase event ID adds its fixed prefix to the unit ID.
         mul(2, add(vector::<String>(s)?, mul(s, 256)?)?)?,
         vector::<&str>(10)?,
-        mul(mul(mul(mul(s, n)?, 10)?, h)?, size_of::<f64>())?,
+        mul(mul(mul(mul(s, n)?, coefficients)?, h)?, size_of::<f64>())?,
         vector::<CashEvent>(cash_events_upper)?,
         mul(cash_events_upper, 3 * 256 + 9)?,
         mul(cash_events_upper, size_of::<CashEvent>())?,
@@ -130,9 +139,6 @@ impl ResultData {
         scalar(shape)?;
         scalar(admitted_work_upper)?;
         scalar(scope)?;
-        if !fee_income_values.is_empty() {
-            return Err("fixed units require separate fee owner inventory".into());
-        }
         let labels = units.iter().try_fold(0, |n, u| {
             let UnitIdentity {
                 unit_id,
@@ -230,6 +236,43 @@ impl ResultData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn complete_fee_owners_and_income_coefficients_fit_fixed_inventory() {
+        let raw: Value = serde_json::from_slice(include_bytes!(
+            "../../../../../examples/models/commercial-candidate-holding-journal-1.json"
+        ))
+        .unwrap();
+        for side in ["completed_candidate", "revised_candidate"] {
+            let r: Request = serde_json::from_value(raw[side]["commercial"].clone()).unwrap();
+            let cap = fixed_construction_capacity(&r).unwrap();
+            let prepared = prepare(&r).unwrap();
+            assert!(prepared.fixed_retained_capacity().unwrap() <= cap.total_bytes_upper);
+            assert!(!prepared.source().fee_income_values.is_empty());
+            assert!(prepared.source().funding.cash_events.len() <= cap.cash_events_upper);
+            assert!(prepared.source().funding.ordinals.len() <= cap.funding_dates_upper);
+            let mut count = 0;
+            for (unit, graph) in r.units.iter().zip(&prepared.source().native_graphs) {
+                assert!(
+                    graph.fixed_retained_capacity().unwrap()
+                        <= super::graph::fixed_construction_capacity(&unit.graph)
+                            .unwrap()
+                            .total_bytes_upper
+                );
+                for source in &graph.native_sources {
+                    let fee = source.fee_projection.as_ref().unwrap();
+                    let bound =
+                        crate::products::commercial::fee_source::fixed_capacity::construction(
+                            &fee.raw_fee_history,
+                            &fee.allocations,
+                        )
+                        .unwrap();
+                    assert!(fee.fixed_retained_capacity().unwrap() <= bound);
+                    count += 1;
+                }
+            }
+            assert!(count > 0);
+        }
+    }
     #[test]
     fn complete_cut_graph_and_unit_owners_fit_prospective_inventory() {
         let raw: Value = serde_json::from_slice(include_bytes!(

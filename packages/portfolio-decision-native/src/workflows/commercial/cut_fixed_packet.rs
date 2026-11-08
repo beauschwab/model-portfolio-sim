@@ -346,6 +346,66 @@ mod tests {
     use portfolio_compute_control::{scope, Control};
     use serde_json::{json, Value};
     #[test]
+    fn complete_fee_cut_packet_preserves_all_loan_and_fee_proofs() {
+        for advance in [0, 1, 2, 8, 14, 16, 28] {
+            complete_fee_cut_packet_at(advance);
+        }
+    }
+    fn complete_fee_cut_packet_at(advance: i64) {
+        let mut raw: Value = serde_json::from_slice(include_bytes!(
+            "../../../../../examples/models/commercial-candidate-holding-journal-1.json"
+        ))
+        .unwrap();
+        raw["schema"] = json!(cut_mixed::SCHEMA);
+        raw["revised_candidate"] = raw["completed_candidate"].clone();
+        raw["cut_ordinal"] = json!(raw["cut_ordinal"].as_i64().unwrap() + advance);
+        let envelope = json!({"op":"analyze_commercial_cut_mixed_journal","schema":cut_mixed::SCHEMA,"execution_timeout_ms":180000,"request":raw});
+        assert!(super::super::cut_fixed_intake::supports(&envelope));
+        let bytes = serde_json::to_vec(&envelope).unwrap();
+        let input =
+            super::super::cut_fixed_intake::derive(&bytes, bytes.capacity(), &envelope).unwrap();
+        let request: cut_mixed::Request =
+            serde_json::from_value(envelope["request"].clone()).unwrap();
+        let mut output = Vec::new();
+        output.try_reserve_exact(COMPONENT).unwrap();
+        let usage = scope(Some(Control::new(180000).unwrap()), || {
+            write_packet(&request, input.typed_bytes_upper, &mut output, None)
+        })
+        .unwrap();
+        assert!(usage.joined_reported_work <= ROOT_WORK);
+        // The test output Vec is an external receiver; production writes to a pipe.
+        assert!(usage.source_phase_bytes_upper_reported <= 128 << 20);
+        let packet: Value = serde_json::from_slice(&output).unwrap();
+        let mut proofs = 0;
+        for side in ["completed_phase", "revised_phase"] {
+            for source in packet[side]["original_sources"].as_array().unwrap() {
+                assert!(!source.to_string().contains("\"fee_projection\":null"));
+                assert!(source.to_string().contains("\"fee_projection\""));
+                proofs += 1;
+            }
+            for graph in packet[side]["preparation"]["native_preparation"]["source"]
+                ["native_graphs"]
+                .as_array()
+                .unwrap()
+            {
+                for source in graph["native_sources"].as_array().unwrap() {
+                    assert!(source["fee_projection"].is_object());
+                    proofs += 1;
+                }
+            }
+        }
+        assert_eq!(proofs, 18);
+        eprintln!(
+            "fee fixed packet: {}",
+            serde_json::to_string(&usage).unwrap()
+        );
+        if let Some(path) =
+            std::env::var_os("COMMERCIAL_FIXED_FEE_PACKET_ARTIFACT").filter(|_| advance == 0)
+        {
+            std::fs::write(path, output).unwrap();
+        }
+    }
+    #[test]
     fn complete_fixed_packet_respects_original_authority_and_all_sources() {
         let raw: Value = serde_json::from_slice(include_bytes!(
             "../../../../../examples/models/commercial-cut-mixed-journal-1.json"

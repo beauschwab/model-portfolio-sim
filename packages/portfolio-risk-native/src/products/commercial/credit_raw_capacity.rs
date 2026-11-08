@@ -12,7 +12,10 @@ use std::mem::{needs_drop, size_of};
 
 #[path = "credit_graph_capacity.rs"]
 mod graph_capacity;
-pub use graph_capacity::{finite_graph_raw_layout, finite_units_raw_layout};
+pub use graph_capacity::{
+    finite_fee_allocations_raw_layout, finite_fee_history_raw_layout, finite_graph_raw_layout,
+    finite_units_raw_layout,
+};
 
 type R<T> = Result<T, String>;
 fn add(a: usize, b: usize) -> R<usize> {
