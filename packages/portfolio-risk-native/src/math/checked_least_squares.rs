@@ -322,8 +322,17 @@ fn jacobi(
                 } else {
                     2. * g / (delta + delta.signum() * delta.hypot(2. * g))
                 };
-                if !t.is_finite() || t == 0. {
+                if !t.is_finite() {
                     return Err("Jacobi rotation cannot be represented safely".into());
+                }
+                if t == 0. {
+                    // A subnormal column/norm ratio can underflow the rotation
+                    // to the identity. Keep both columns and modes unchanged;
+                    // do not fabricate a rotation, erase the small column or
+                    // change the rank cutoff. The original reconstruction,
+                    // retained-mode and minimum-norm certificate still decides
+                    // whether the completed decomposition is acceptable.
+                    continue;
                 }
                 let c = 1. / 1.0_f64.hypot(t);
                 let s = c * t;
@@ -1015,6 +1024,34 @@ mod tests {
                 assert!(meter.check <= 2 * bound.check);
             }
         }
+    }
+    #[test]
+    fn unrepresentable_rotation_retains_subnormal_column_and_original_certificate() {
+        let mut a = DMatrix::from_element(10, 2, 0.);
+        for i in 0..10 {
+            a[(i, 0)] = 1.;
+        }
+        a[(0, 1)] = f64::from_bits(1);
+        let y = vec![2.; 10];
+        let bound = WorkBound::new(10, 2).unwrap();
+        let mut meter = Meter::default();
+        let factors = repair(&a, &mut meter, bound, &mut || Ok(())).unwrap();
+        // No column or singular mode is erased by the rotation representation.
+        assert_eq!(factors.s[1].to_bits(), 1);
+        let beta = project(&factors, &y, &mut meter, bound.jacobi, &mut || Ok(())).unwrap();
+        certificate(
+            &a,
+            &y,
+            &factors,
+            &beta,
+            &mut meter,
+            2 * bound.check,
+            &mut || Ok(()),
+        )
+        .unwrap();
+        meter.finish(bound).unwrap();
+        assert!((beta[0] - 2.).abs() < 1e-12);
+        assert_eq!(beta[1], 0.);
     }
     #[test]
     fn wide_transpose_repair_is_minimum_norm_and_bounded() {
