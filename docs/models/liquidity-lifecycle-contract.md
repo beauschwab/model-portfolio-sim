@@ -615,12 +615,72 @@ Not in stage I:
   the default bounds.
 - ISDA SIMM, CCP and provider methods, and calibrated risk weights or correlations.
 - curve sensitivity of the floating projection.
-- VM thresholds under recomputed IM.
+- Overlapping pending VM calls and intervening population changes. The explicit ongoing lane
+  below supports supplied VM thresholds alongside the separately reviewed IM owner.
 - the #35 liability-layer, HTM, FX and net-investment, and amendment lanes. They are never inferred
   from economic capability.
 - empirical, accounting-standard and regulatory acceptance under #25 and #35.
 
 ## Not in stages A to I
 
-Post-entry derivative marks and coupons, and the items listed under stage I, remain open under
-#51, #35 and #25.
+The items listed under stage I remain open under #51, #35 and #25. The explicit ongoing
+economic schedules below add post-entry derivative marks/coupons and facility interest.
+
+## Ongoing derivative and facility cashflows (#20 / #51)
+
+Execution blocks optionally select three additional instruction arrays. Omitting them preserves
+historical economics and output. Rebuild the decision/ledger executable and Rust service together;
+existing queued executable identities and publication fences continue to apply.
+
+| Instruction | Required inputs | Native behavior |
+|---|---|---|
+| `derivative_updates` | `lot_id`, `ordinal`; one raw swap contract at each date | After-payment valuation and contractual cash due, priced by Risk and posted once to the shared journal. Marks cross gross asset/liability accounts through separate mark P&L; coupons enter separate derivative income. |
+| `variation_margin_reviews` | `agreement_id`, call `ordinal`, `terms` (`receive_threshold`, `post_threshold`, `minimum_transfer`) | Review the current live legal population after derivative events; every live lot requires an update that day. Retain the called target and settle it after the agreement lag. Segregated receipts remain restricted; returning them does not require borrowing against the same cash twice. |
+| `facility_interest` | `facility_id`, `annual_rate`, `day_count` (`act360` or `act365_fixed`), `payment_ordinals`, reviewed `review` identity | Daily simple interest on the previous day's closing drawn principal, including explicit and policy-driven draws/repayments and renewal generations. Accrual creates gross payable/receivable and interest expense; scheduled payment clears the right without recognizing expense twice. |
+
+Interest policy applies from the plan's opening with **zero opening accrued interest**; it is an
+explicit supplied constant rate in [-1, 1], not an inferred fixing or fitted funding curve. Draw day
+is excluded and repayment day includes the previous day's balance. A same-day draw and repayment
+has zero overnight accrual. An unpaid balance survives the reporting cutoff and sets `open_claims`.
+Negative rates create a receivable and negative expense. No terminal payment or renewal rate is
+invented. Existing funding-lot repayments retain their supplied accrued interest and break costs;
+the new policy owns facility interest only, so it cannot double-charge that separate owner.
+
+Selected swaps must retain identical contract, notional, side, schedule and supplied coupon-path
+identities across all valuation dates; only dated discount observations and valuation cutoffs may
+change. Every contractual coupon date through the reporting date, plus the earlier of reporting and
+contract-tail date, needs an update. These dates remain supplied even when a planned termination
+would extinguish them: successful termination consumes that day's coupon once and subsequent
+updates have no live position; failed or blocked termination leaves the complete scheduled cash
+path active. New entries start with their separately paid upfront value. This lane does not generate
+future fixings or add derivative defaults, fee schedules or formal hedge-accounting designation.
+Contractual completion follows the supplied complete tail, independently of market value. A live
+zero-value swap remains active; collateral retained after its agreement's last live swap completes
+sets `open_claims` without inventing a collateral return.
+
+VM calls cannot overlap another pending call or a population change before settlement. A new
+entry on the call date is also refused, because it already owns its entry VM instruction. Calls
+also refuse overlapping pending entry-VM and termination consideration/collateral-return windows. Calls
+outside the reporting horizon refuse rather than silently discard a settlement. Dynamic IM still
+recomputes from native sensitivities in its existing phase after the derivative/VM events, with
+the existing exact-population refresh requirements. None of these transfers is trading income.
+
+Ongoing generation shares the 4,096-instruction admission bound, counting each generated daily
+facility accrual and each VM call/settlement. Monthly output adds optional `derivative_income`
+and `derivative_mark_pnl`; facility expense remains in `interest_expense`. Allocation counts coupon
+income as external NII, marks as trading P&L, and funding interest as funding cost. Saved-package
+composition requires identical ongoing policies across packages and retains them in the hold
+baseline; exact-equal policies are deduplicated during composition. Preparation also requires
+identical raw hedge sources in the baseline and every package, preventing changed coupon terms
+from manufacturing incremental income. Interactive evaluation uses prepared coefficients only.
+Financial admission, exact replay and independent publication
+verification remain required for the selected result.
+
+The independent Rust verifier uses raw-source swap equations, checks immutable schedules and
+coupon coverage, separately reconstructs daily funding accruals and VM targets, and compares
+ordered journal postings, gross closing stocks, cash steps and monthly reports. The independent
+equation applies supplied index and all-in coupon bounds. The verifier rejects execution horizons
+beyond 366 days before expanding daily accruals. Hashes alone are not evidence of economic
+correctness. This stage does not close the broader #20/#51 gates:
+formal ASC 815 lifecycle adoption, provider IM, combined graph/credit/solver scale, empirical
+validation and deployment remain separate.

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 // Run with `bunx playwright test -c playwright.native.config.ts`: only the Rust service and Vite run.
 test('a saved book is mapped, run, verified, published, explained and reopened through the Rust service', async ({ page }) => {
@@ -123,4 +124,30 @@ test('a saved book is mapped, run, verified, published, explained and reopened t
   // Every lifecycle call went to the Rust service.
   expect(nativeCalls.some(c => c.startsWith('POST /native/lifecycle/runs'))).toBe(true);
   expect(nativeCalls.some(c => c.startsWith('GET /native/jobs/') && c.endsWith('/receipt'))).toBe(true);
+});
+
+test('ongoing swap income and funding expense reopen from a verified native run', async ({ page, request }) => {
+  const raw = JSON.parse(readFileSync(new URL('../../../packages/portfolio-decision-native/tests/fixtures/lifecycle-ongoing.json', import.meta.url), 'utf8'));
+  const { revision } = await (await request.get('/native/revisions/head')).json();
+  const submitted = await request.post('/native/lifecycle/runs', {
+    headers: { 'X-Expected-Revision': String(revision), 'X-Deadline-Seconds': '300' }, data: raw,
+  });
+  expect(submitted.status()).toBe(202);
+  const { job_id: id } = await submitted.json();
+  await expect.poll(async () => (await (await request.get(`/native/jobs/${id}`)).json()).status, { timeout: 120_000 }).toBe('native_done');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open Liquidity Lifecycle', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'Liquidity Lifecycle', exact: true });
+  await panel.getByLabel('Job id', { exact: true }).fill(id);
+  await panel.getByRole('button', { name: 'Reopen', exact: true }).click();
+  await expect(panel.getByLabel('Job status')).toContainText('verified and published');
+  await panel.getByRole('tab', { name: 'Monthly', exact: true }).click();
+  const result = panel.getByRole('tabpanel');
+  await expect(result).toContainText('swap coupon income');
+  await expect(result).toContainText('swap mark P&L');
+  await expect(result).toContainText('-4.00');
+  await expect(result).toContainText('0.30');
+  await panel.getByRole('region', { name: 'Lifecycle results' }).screenshot({ path: test.info().outputPath('ongoing-monthly.png') });
+  await panel.getByRole('tab', { name: 'Lifecycle postings', exact: true }).click();
+  await expect(panel.getByRole('tabpanel')).toContainText('facility_accrual');
 });

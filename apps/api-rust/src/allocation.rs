@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 
 pub const SCHEMA: &str = "liquidity-allocation-1";
 pub const MAX_PACKAGES: usize = 32;
-const KINDS: [&str; 10] = [
+const KINDS: [&str; 13] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -26,6 +26,9 @@ const KINDS: [&str; 10] = [
     "facility_repayments",
     "initial_margin",
     "dynamic_margin",
+    "derivative_updates",
+    "variation_margin_reviews",
+    "facility_interest",
 ];
 const OBJECTIVES: [&str; 2] = ["worst_case_external_nii", "worst_case_total_earnings"];
 
@@ -119,7 +122,34 @@ pub fn compose_request(
     packages: &[PackageDoc],
     constraints: Value,
 ) -> Result<Vec<u8>, Refusal> {
-    let hold = json!({"schema": compose::PLAN_SCHEMA, "actions": [], "instructions": {}, "business_plan": {"mode": "runoff"}});
+    let mut hold = json!({"schema": compose::PLAN_SCHEMA, "actions": [], "instructions": {}, "business_plan": {"mode": "runoff"}});
+    // Contractual economics belong to the hold baseline too. Require one common source policy
+    // across candidate plans, so an omitted coupon or rate cannot make a package look profitable.
+    for kind in [
+        "derivative_updates",
+        "variation_margin_reviews",
+        "facility_interest",
+    ] {
+        let expected = packages
+            .first()
+            .and_then(|p| p.plan["instructions"].get(kind))
+            .cloned()
+            .unwrap_or_else(|| json!([]));
+        if packages.iter().any(|p| {
+            p.plan["instructions"]
+                .get(kind)
+                .cloned()
+                .unwrap_or_else(|| json!([]))
+                != expected
+        }) {
+            return Err(malformed(format!(
+                "all packages must share the same {kind} policy"
+            )));
+        }
+        if expected.as_array().is_some_and(|a| !a.is_empty()) {
+            hold["instructions"][kind] = expected;
+        }
+    }
     let base = compose::compose(book, &hold, binding)
         .map_err(|(r, _)| r)?
         .request;
@@ -194,7 +224,14 @@ pub fn merge(base: &Value, selected: &[&Value]) -> Result<Value, String> {
                     if let Some(list) = slot.as_array_mut() {
                         for x in extra {
                             // One recomputation of an agreement on a date serves every package.
-                            if k != "dynamic_margin" || !list.contains(x) {
+                            if !matches!(
+                                k,
+                                "dynamic_margin"
+                                    | "derivative_updates"
+                                    | "variation_margin_reviews"
+                                    | "facility_interest"
+                            ) || !list.contains(x)
+                            {
                                 list.push(x.clone());
                             }
                         }

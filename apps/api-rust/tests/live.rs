@@ -51,6 +51,81 @@ const BOOK: &str = include_str!("fixtures/lifecycle-book.json");
 const PLAN: &str = include_str!("fixtures/lifecycle-plan.json");
 
 #[test]
+fn ongoing_economics_publish_and_reopen_and_missing_coupon_never_publishes() {
+    let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
+        eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; live ongoing test skipped");
+        return;
+    };
+    let raw = include_str!(
+        "../../../packages/portfolio-decision-native/tests/fixtures/lifecycle-ongoing.json"
+    );
+    for backend in backends() {
+        let env = Env::new(backend, "liveongoing");
+        std::fs::copy(&exe, &env.ledger).unwrap();
+        env.ready();
+        let api = env.api();
+        let id = api
+            .submit(0, Some("ongoing"), raw.as_bytes(), Some("600"))
+            .body["job_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut invalid: serde_json::Value = serde_json::from_str(raw).unwrap();
+        invalid["acquisitions"][0]["derivative_updates"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+        let bad = api
+            .submit(
+                0,
+                Some("missing-coupon"),
+                &serde_json::to_vec(&invalid).unwrap(),
+                Some("600"),
+            )
+            .body["job_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let log = finish(env.worker(&[]), Duration::from_secs(300));
+        drop(api);
+        let api = env.api();
+        let view = api.get(&format!("/native/jobs/{id}")).body;
+        assert_eq!(view["status"], "native_done", "{log}\n{view}");
+        assert_eq!(view["result"]["receipt"]["verified"], true);
+        let receipt = api.get(&format!("/native/jobs/{id}/receipt")).body;
+        let journal = &receipt["workflow"]["source_receipt"]["journals"][0]["receipt"];
+        let near = |v: &serde_json::Value, expected: f64| {
+            assert!(
+                (v.as_f64().unwrap() - expected).abs() < 1e-9,
+                "{v} != {expected}"
+            )
+        };
+        near(&journal["closing_cash"], 995.7);
+        near(&journal["monthly"][0]["derivative_income"], -4.);
+        near(&journal["monthly"][0]["derivative_mark_pnl"], 4.);
+        near(&journal["monthly"][0]["interest_expense"], 0.3);
+        let rows = api
+            .get(&format!(
+                "/native/jobs/{id}/tables/lifecycle_journal_lineage?limit=1000"
+            ))
+            .body;
+        let rows = serde_json::to_string(&rows).unwrap();
+        for gl in [
+            "pnl:lifecycle_derivative_income",
+            "pnl:lifecycle_derivative_mark",
+            "lifecycle_funding_interest_payable",
+        ] {
+            assert!(rows.contains(gl), "published lineage is missing {gl}");
+        }
+        let view = api.get(&format!("/native/jobs/{bad}")).body;
+        assert_eq!(view["status"], "native_error", "{log}\n{view}");
+        assert_eq!(view["published"], false);
+        assert!(view["detail"].as_str().unwrap().contains("every coupon"));
+        assert_ne!(api.get(&format!("/native/jobs/{bad}/manifest")).status, 200);
+    }
+}
+
+#[test]
 fn a_saved_book_runs_verifies_publishes_and_reopens_after_restart_through_rust_only() {
     let Ok(exe) = std::env::var("WORKBENCH_TEST_LEDGER_EXE") else {
         eprintln!("WORKBENCH_TEST_LEDGER_EXE not set; live saved-book test skipped");

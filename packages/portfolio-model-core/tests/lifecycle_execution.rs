@@ -18,6 +18,7 @@ fn hedge(lot: &str, ordinal: i32, clean: f64, due: f64) -> ResolvedHedge {
     ResolvedHedge {
         lot_id: lot.into(),
         ordinal,
+        tail_end_ordinal: i32::MAX,
         clean_value: clean,
         due_cash: due,
         pricing_source: Revision {

@@ -28,6 +28,10 @@ pub enum Kind {
     RealizedGainLoss,
     /// Accrued funding interest and break costs paid on repayment.
     InterestExpense,
+    DerivativeMark,
+    DerivativeIncome,
+    FundingInterestReceivable,
+    FundingInterestPayable,
     CustodyAsset,
     CustodyObligation,
 }
@@ -50,6 +54,10 @@ impl Kind {
             Self::FeeExpense => "pnl:lifecycle_fees",
             Self::RealizedGainLoss => "pnl:lifecycle_realized",
             Self::InterestExpense => "pnl:lifecycle_interest",
+            Self::DerivativeMark => "pnl:lifecycle_derivative_mark",
+            Self::DerivativeIncome => "pnl:lifecycle_derivative_income",
+            Self::FundingInterestReceivable => "lifecycle_funding_interest_receivable",
+            Self::FundingInterestPayable => "lifecycle_funding_interest_payable",
             Self::CustodyAsset => "memo:derivative_custodian_asset",
             Self::CustodyObligation => "memo:derivative_custodian_obligation",
         }
@@ -60,7 +68,11 @@ impl Kind {
     pub fn pnl(self) -> bool {
         matches!(
             self,
-            Self::FeeExpense | Self::RealizedGainLoss | Self::InterestExpense
+            Self::FeeExpense
+                | Self::RealizedGainLoss
+                | Self::InterestExpense
+                | Self::DerivativeMark
+                | Self::DerivativeIncome
         )
     }
     pub fn stock(self) -> bool {
@@ -77,6 +89,7 @@ impl Kind {
                 | Self::DerivativeLiability
                 | Self::ReceivedVm
                 | Self::UnpaidPayable
+                | Self::FundingInterestPayable
         )
     }
 }

@@ -310,6 +310,11 @@ fn a_policy_mode_stream_is_replayed_independently_and_tampering_is_refused() {
     assert!(
         refused(POLICY_REQUEST, &join(&l)).contains("monthly report 2024-01 minimum_usable_cash")
     );
+    for field in ["derivative_income", "derivative_mark_pnl"] {
+        let mut l = policy_lines();
+        receipt_mut(&mut l)["monthly"][0][field] = json!(1.0);
+        assert!(refused(POLICY_REQUEST, &join(&l)).contains(field));
+    }
     let mut l = policy_lines();
     receipt_mut(&mut l)["accounting_facts"]
         .as_array_mut()
