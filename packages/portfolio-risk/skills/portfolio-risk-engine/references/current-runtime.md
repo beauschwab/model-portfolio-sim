@@ -66,7 +66,9 @@ already counted. Worst-case NII includes base-book earnings when that lane has
 a baseline; dated incremental libraries do not invent one.
 
 - `/decision/sessions` creates a durable native session from `expected_revision`
-  and optimizer options. IDs/handles are process-local, not tenant authentication.
+  and optimizer options. Native handles are process-local; persisted API session
+  IDs survive compatible worker recovery under their original IDs. Neither is
+  tenant authentication; changed model/code identity requires explicit rebuilding.
 - Updates require revision/version, `book:stable_id` edits and template changes;
   null removes an override. Constraints replace the full options, not a patch;
   scenario changes require rebuilding. Advance state only after independent
