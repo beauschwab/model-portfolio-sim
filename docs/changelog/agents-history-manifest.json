@@ -1,0 +1,2157 @@
+{
+  "base_commit": "01d0254",
+  "note": "Historical sections only; paths and relative links in archived text are relative to their original source. Current rules live in the active contract and linked model documents.",
+  "files": [
+    {
+      "source": "AGENTS.md",
+      "archive": "docs/changelog/agents-history.md",
+      "sections": [
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 55,
+          "archive_line": 8,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 83,
+          "archive_line": 36,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 107,
+          "archive_line": 60,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 146,
+          "archive_line": 99,
+          "sha256": "b588a2584193bcf33531e85742dc8503a89c7b7085b4d02a1fd5ae4ac9190c5d"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 171,
+          "archive_line": 124,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 197,
+          "archive_line": 150,
+          "sha256": "754f33d0cc710626769d8f7a01a24d9d514b85ec839cdd14d031ad37199cca44"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 226,
+          "archive_line": 179,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 248,
+          "archive_line": 201,
+          "sha256": "d6d3579f383d97d887dd0b87c14eaa7414641ef0e8cb52ba297cd0ebe17bf2c8"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 270,
+          "archive_line": 223,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 310,
+          "archive_line": 263,
+          "sha256": "e8b4d50b38b303c5da732570d41e9add4f9c2e9902d18a7d61372350526b3d3e"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 349,
+          "archive_line": 295,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 478,
+          "archive_line": 424,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 506,
+          "archive_line": 452,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 543,
+          "archive_line": 489,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 577,
+          "archive_line": 523,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 616,
+          "archive_line": 562,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 653,
+          "archive_line": 599,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 673,
+          "archive_line": 619,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 706,
+          "archive_line": 652,
+          "sha256": "089d91a9c7e74a1056ee6d6083980404cf309f93857e0f8f44d8e75e5f1c2338"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 754,
+          "archive_line": 700,
+          "sha256": "1058a822e355b5a460004936ad7268309ea99e0fd6e3bb74ebd52f6482b3cda0"
+        },
+        {
+          "heading": "Commercial follow-through (local 0.29.11)",
+          "source_line": 791,
+          "archive_line": 737,
+          "sha256": "dcc3d9e463c3cfc7196576cbd1a0f30e5f16f0f52f82f7e64fdd1178745c3eb6"
+        },
+        {
+          "heading": "Retained-Q commercial original OAS (local 0.29.12)",
+          "source_line": 835,
+          "archive_line": 781,
+          "sha256": "52cf05a41139c820549b7ec78d18f4c40451aa7f5a6ba6e0eceeb19ffa690a76"
+        },
+        {
+          "heading": "Complete-origin commercial holding windows (local 0.29.13)",
+          "source_line": 860,
+          "archive_line": 806,
+          "sha256": "27f9ba9795d99922c7396310048c2322d1f0ad31ff88ce599c3094f75a4247e3"
+        },
+        {
+          "heading": "Complete-origin commercial holding journals (local 0.29.14)",
+          "source_line": 880,
+          "archive_line": 826,
+          "sha256": "6139a5e33c0193429c4a397d92375a34ce77d5655e01b1f03d0dc65519ea6da2"
+        },
+        {
+          "heading": "Verified modeled commercial prior openings (local0.29.15)",
+          "source_line": 902,
+          "archive_line": 848,
+          "sha256": "ab7f773b24d8872f1e2824b4d12157764091a679057398257f565f87563e6960"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 927,
+          "archive_line": 873,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 945,
+          "archive_line": 891,
+          "sha256": "4086277f2a6c66b43d9a94f7d7ed2343b8ff05c9977020205803c845d9ad373f"
+        },
+        {
+          "heading": "Per-pool MBS prepay speed (0.29.6)",
+          "source_line": 967,
+          "archive_line": 913,
+          "sha256": "103df1185c2031a96e0588f37c605086d382de61622eca9730cb1171f4a706cf"
+        },
+        {
+          "heading": "Deposit terminal treatment (0.29.7)",
+          "source_line": 991,
+          "archive_line": 937,
+          "sha256": "cabdfb617f1f8323f8c90f606d75ac3354fd2568dce25646b28f2e5ca1f6ea9b"
+        },
+        {
+          "heading": "Liquidity applicability, transfer approval and HTM accounting (0.29.8)",
+          "source_line": 1025,
+          "archive_line": 971,
+          "sha256": "4aba22b2ae3e055b75d43215fa92e7972544612f8c67eff1883ca0db15f7b448"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1058,
+          "archive_line": 1004,
+          "sha256": "1ad22f4afd375c7ed2c5a2da8d66a231386112905e8158cf4eeeeb66c36d5628"
+        },
+        {
+          "heading": "Formal ASC 815 hedge relationships (local 0.29.19)",
+          "source_line": 1078,
+          "archive_line": 1024,
+          "sha256": "c268eb04e75749ea7465e1459bf2deaaf1f34b93354538fd024f9681fac4b1af"
+        }
+      ],
+      "sha256": "10bcb0b7f28a773717b0d24c6b20359c08c8362978e9d34840d1ce43802e6b76"
+    },
+    {
+      "source": "packages/portfolio-risk/AGENTS.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--AGENTS.md",
+      "sections": [
+        {
+          "heading": "Native built-in product coverage (0.27.0)",
+          "source_line": 107,
+          "archive_line": 8,
+          "sha256": "b1d81746088e97199973997cd6d904abfadcd209df9f6a562cccc880eb609783"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 135,
+          "archive_line": 36,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 157,
+          "archive_line": 58,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 174,
+          "archive_line": 75,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 195,
+          "archive_line": 96,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 221,
+          "archive_line": 122,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 276,
+          "archive_line": 177,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 326,
+          "archive_line": 227,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 354,
+          "archive_line": 255,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 378,
+          "archive_line": 279,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 417,
+          "archive_line": 318,
+          "sha256": "b588a2584193bcf33531e85742dc8503a89c7b7085b4d02a1fd5ae4ac9190c5d"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 442,
+          "archive_line": 343,
+          "sha256": "84f862010ebec772776dae9b6aa62034727d766dc578417b1888a7434bc557f6"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 456,
+          "archive_line": 357,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 482,
+          "archive_line": 383,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 504,
+          "archive_line": 405,
+          "sha256": "0b4f5bc5e40b21fafc0f469381a63c18af4f85765237bbb91f341c28d4818623"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 531,
+          "archive_line": 432,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 571,
+          "archive_line": 472,
+          "sha256": "e8b4d50b38b303c5da732570d41e9add4f9c2e9902d18a7d61372350526b3d3e"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 610,
+          "archive_line": 504,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 739,
+          "archive_line": 633,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 767,
+          "archive_line": 661,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 804,
+          "archive_line": 698,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 838,
+          "archive_line": 732,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 877,
+          "archive_line": 771,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 914,
+          "archive_line": 808,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 934,
+          "archive_line": 828,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 967,
+          "archive_line": 861,
+          "sha256": "089d91a9c7e74a1056ee6d6083980404cf309f93857e0f8f44d8e75e5f1c2338"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1015,
+          "archive_line": 909,
+          "sha256": "1058a822e355b5a460004936ad7268309ea99e0fd6e3bb74ebd52f6482b3cda0"
+        },
+        {
+          "heading": "Commercial follow-through (local 0.29.11)",
+          "source_line": 1052,
+          "archive_line": 946,
+          "sha256": "dcc3d9e463c3cfc7196576cbd1a0f30e5f16f0f52f82f7e64fdd1178745c3eb6"
+        },
+        {
+          "heading": "Retained-Q commercial original OAS (local 0.29.12)",
+          "source_line": 1096,
+          "archive_line": 990,
+          "sha256": "52cf05a41139c820549b7ec78d18f4c40451aa7f5a6ba6e0eceeb19ffa690a76"
+        },
+        {
+          "heading": "Complete-origin commercial holding windows (local 0.29.13)",
+          "source_line": 1121,
+          "archive_line": 1015,
+          "sha256": "27f9ba9795d99922c7396310048c2322d1f0ad31ff88ce599c3094f75a4247e3"
+        },
+        {
+          "heading": "Complete-origin commercial holding journals (local 0.29.14)",
+          "source_line": 1141,
+          "archive_line": 1035,
+          "sha256": "6139a5e33c0193429c4a397d92375a34ce77d5655e01b1f03d0dc65519ea6da2"
+        },
+        {
+          "heading": "Verified modeled commercial prior openings (local0.29.15)",
+          "source_line": 1163,
+          "archive_line": 1057,
+          "sha256": "ab7f773b24d8872f1e2824b4d12157764091a679057398257f565f87563e6960"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1188,
+          "archive_line": 1082,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1206,
+          "archive_line": 1100,
+          "sha256": "4086277f2a6c66b43d9a94f7d7ed2343b8ff05c9977020205803c845d9ad373f"
+        },
+        {
+          "heading": "Per-pool MBS prepay speed (0.29.6)",
+          "source_line": 1228,
+          "archive_line": 1122,
+          "sha256": "103df1185c2031a96e0588f37c605086d382de61622eca9730cb1171f4a706cf"
+        },
+        {
+          "heading": "Deposit terminal treatment (0.29.7)",
+          "source_line": 1252,
+          "archive_line": 1146,
+          "sha256": "cabdfb617f1f8323f8c90f606d75ac3354fd2568dce25646b28f2e5ca1f6ea9b"
+        },
+        {
+          "heading": "Liquidity applicability, transfer approval and HTM accounting (0.29.8)",
+          "source_line": 1286,
+          "archive_line": 1180,
+          "sha256": "4aba22b2ae3e055b75d43215fa92e7972544612f8c67eff1883ca0db15f7b448"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1319,
+          "archive_line": 1213,
+          "sha256": "80f48fcc13398dbc3c410322f0ea55eebab691e9e3ddb93dadda67efb6ed7955"
+        }
+      ],
+      "sha256": "0e9751e67efb2a273ac3b81bc8e3fc1454bede08ea8cbf3de45ebe893f3849dd"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/AGENTS.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--AGENTS.md",
+      "sections": [
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 35,
+          "archive_line": 8,
+          "sha256": "0680989c964605725a12a4e1456be1e137ba9a258b9c54b7945637143248cdbd"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 66,
+          "archive_line": 39,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 195,
+          "archive_line": 168,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 223,
+          "archive_line": 196,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 260,
+          "archive_line": 233,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 294,
+          "archive_line": 267,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 333,
+          "archive_line": 306,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 370,
+          "archive_line": 343,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 390,
+          "archive_line": 363,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 423,
+          "archive_line": 396,
+          "sha256": "089d91a9c7e74a1056ee6d6083980404cf309f93857e0f8f44d8e75e5f1c2338"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 471,
+          "archive_line": 444,
+          "sha256": "1058a822e355b5a460004936ad7268309ea99e0fd6e3bb74ebd52f6482b3cda0"
+        },
+        {
+          "heading": "Commercial follow-through (local 0.29.11)",
+          "source_line": 508,
+          "archive_line": 481,
+          "sha256": "dcc3d9e463c3cfc7196576cbd1a0f30e5f16f0f52f82f7e64fdd1178745c3eb6"
+        },
+        {
+          "heading": "Retained-Q commercial original OAS (local 0.29.12)",
+          "source_line": 552,
+          "archive_line": 525,
+          "sha256": "52cf05a41139c820549b7ec78d18f4c40451aa7f5a6ba6e0eceeb19ffa690a76"
+        },
+        {
+          "heading": "Complete-origin commercial holding windows (local 0.29.13)",
+          "source_line": 577,
+          "archive_line": 550,
+          "sha256": "27f9ba9795d99922c7396310048c2322d1f0ad31ff88ce599c3094f75a4247e3"
+        },
+        {
+          "heading": "Complete-origin commercial holding journals (local 0.29.14)",
+          "source_line": 597,
+          "archive_line": 570,
+          "sha256": "6139a5e33c0193429c4a397d92375a34ce77d5655e01b1f03d0dc65519ea6da2"
+        },
+        {
+          "heading": "Verified modeled commercial prior openings (local0.29.15)",
+          "source_line": 619,
+          "archive_line": 592,
+          "sha256": "87f5426028a73ee7a6f73c478cf5b514d9305afb04f26137f74ea0f9d722cf79"
+        }
+      ],
+      "sha256": "9d05f41831c2b37b66f53300382ae7ba0284e0ce5e4cb4fdb7220ca8c6f473db"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/SKILL.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--SKILL.md",
+      "sections": [
+        {
+          "heading": "Runtime contract update (0.18.0)",
+          "source_line": 157,
+          "archive_line": 8,
+          "sha256": "989d5cf674d1ee36f36b5abb179185f7960d09cc8bdcbe052456a0a1795b2488"
+        },
+        {
+          "heading": "Incremental pricing (0.19.0)",
+          "source_line": 166,
+          "archive_line": 17,
+          "sha256": "1af752920b640004e614d8a18c2cc94b2a8237b0ef385efa74f9a27ee6c42dfe"
+        },
+        {
+          "heading": "Temporary comparisons and native execution (v0.20.0)",
+          "source_line": 177,
+          "archive_line": 28,
+          "sha256": "6313146d34cd5e913814049d071a3dbb246b3b7737e19aa9dbdff411d61a964a"
+        },
+        {
+          "heading": "Rust decision sessions (0.21.0)",
+          "source_line": 196,
+          "archive_line": 47,
+          "sha256": "bf180b6bf62e487acac45eb781f2cb9cb2ded9d77f70532a0e366ac62f86275e"
+        },
+        {
+          "heading": "Pricing cache reuse (0.21.1)",
+          "source_line": 208,
+          "archive_line": 59,
+          "sha256": "e94ba4e0b6f6066132614305c09bf6d36d7c2c4b4b48df59b7e21f48ef7008ef"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 221,
+          "archive_line": 72,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 240,
+          "archive_line": 91,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 257,
+          "archive_line": 108,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 273,
+          "archive_line": 124,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 297,
+          "archive_line": 148,
+          "sha256": "b769e67898bd6a4fb6e36fb0dcd292cef215c9a17e0558844c9674ca42ace5d8"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 328,
+          "archive_line": 179,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 343,
+          "archive_line": 194,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 365,
+          "archive_line": 216,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 382,
+          "archive_line": 233,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 403,
+          "archive_line": 254,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 429,
+          "archive_line": 280,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 484,
+          "archive_line": 335,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 534,
+          "archive_line": 385,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 562,
+          "archive_line": 413,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 586,
+          "archive_line": 437,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 625,
+          "archive_line": 476,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 655,
+          "archive_line": 506,
+          "sha256": "84f862010ebec772776dae9b6aa62034727d766dc578417b1888a7434bc557f6"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 669,
+          "archive_line": 520,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 695,
+          "archive_line": 546,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 717,
+          "archive_line": 568,
+          "sha256": "d6d3579f383d97d887dd0b87c14eaa7414641ef0e8cb52ba297cd0ebe17bf2c8"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 739,
+          "archive_line": 590,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 779,
+          "archive_line": 630,
+          "sha256": "0680989c964605725a12a4e1456be1e137ba9a258b9c54b7945637143248cdbd"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 810,
+          "archive_line": 661,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 939,
+          "archive_line": 790,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 967,
+          "archive_line": 818,
+          "sha256": "a1dbf9ee5afcfb3edda54c9048efd0ed15b6b46816fb16dc1fa54538f4b7b321"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 979,
+          "archive_line": 830,
+          "sha256": "abf849c28bec33b1da535c6e140b72037924aed18fa4ef0eba9481dd7f86a486"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 989,
+          "archive_line": 840,
+          "sha256": "838a037421a1fc3ab9731f40ae371c20a178aa8f4dc4cef21095cf9be3ec50f8"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 999,
+          "archive_line": 850,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1036,
+          "archive_line": 887,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1056,
+          "archive_line": 907,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1089,
+          "archive_line": 940,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1135,
+          "archive_line": 986,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1156,
+          "archive_line": 1007,
+          "sha256": "1058a822e355b5a460004936ad7268309ea99e0fd6e3bb74ebd52f6482b3cda0"
+        },
+        {
+          "heading": "Commercial follow-through (local 0.29.11)",
+          "source_line": 1193,
+          "archive_line": 1044,
+          "sha256": "dcc3d9e463c3cfc7196576cbd1a0f30e5f16f0f52f82f7e64fdd1178745c3eb6"
+        },
+        {
+          "heading": "Retained-Q commercial original OAS (local 0.29.12)",
+          "source_line": 1237,
+          "archive_line": 1088,
+          "sha256": "52cf05a41139c820549b7ec78d18f4c40451aa7f5a6ba6e0eceeb19ffa690a76"
+        },
+        {
+          "heading": "Complete-origin commercial holding windows (local 0.29.13)",
+          "source_line": 1262,
+          "archive_line": 1113,
+          "sha256": "27f9ba9795d99922c7396310048c2322d1f0ad31ff88ce599c3094f75a4247e3"
+        },
+        {
+          "heading": "Complete-origin commercial holding journals (local 0.29.14)",
+          "source_line": 1282,
+          "archive_line": 1133,
+          "sha256": "6139a5e33c0193429c4a397d92375a34ce77d5655e01b1f03d0dc65519ea6da2"
+        },
+        {
+          "heading": "Verified modeled commercial prior openings (local0.29.15)",
+          "source_line": 1304,
+          "archive_line": 1155,
+          "sha256": "ab7f773b24d8872f1e2824b4d12157764091a679057398257f565f87563e6960"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1329,
+          "archive_line": 1180,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1347,
+          "archive_line": 1198,
+          "sha256": "4086277f2a6c66b43d9a94f7d7ed2343b8ff05c9977020205803c845d9ad373f"
+        },
+        {
+          "heading": "Per-pool MBS prepay speed (0.29.6)",
+          "source_line": 1369,
+          "archive_line": 1220,
+          "sha256": "103df1185c2031a96e0588f37c605086d382de61622eca9730cb1171f4a706cf"
+        },
+        {
+          "heading": "Deposit terminal treatment (0.29.7)",
+          "source_line": 1393,
+          "archive_line": 1244,
+          "sha256": "cabdfb617f1f8323f8c90f606d75ac3354fd2568dce25646b28f2e5ca1f6ea9b"
+        },
+        {
+          "heading": "Liquidity applicability, transfer approval and HTM accounting (0.29.8)",
+          "source_line": 1427,
+          "archive_line": 1278,
+          "sha256": "4aba22b2ae3e055b75d43215fa92e7972544612f8c67eff1883ca0db15f7b448"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1460,
+          "archive_line": 1311,
+          "sha256": "80f48fcc13398dbc3c410322f0ea55eebab691e9e3ddb93dadda67efb6ed7955"
+        }
+      ],
+      "sha256": "ae151487c9d57336457581d86aed2684613e4c8cab429ae1e4ff695d2db73f8a"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/references/internals.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--references--internals.md",
+      "sections": [
+        {
+          "heading": "Conditional forecast income (v0.20.1)",
+          "source_line": 26,
+          "archive_line": 8,
+          "sha256": "9173d7f7aff4d8f93c273f383986c25ad21785964df9d384ef0463c5d529b244"
+        },
+        {
+          "heading": "Research discount-curve projection (v0.19.1)",
+          "source_line": 42,
+          "archive_line": 24,
+          "sha256": "e445f6bb43526d5ea336c2461539f10cf3517a5e74eb4f12595b7309fb4b4242"
+        },
+        {
+          "heading": "Incremental spot pricing (v0.19.0)",
+          "source_line": 52,
+          "archive_line": 34,
+          "sha256": "969f40ce721fa6e1c8a188a1fe1305928b5c51c84ff2b517bfcd996db3aa26c7"
+        },
+        {
+          "heading": "v0.18.0: review correctness and run-scoped reuse",
+          "source_line": 170,
+          "archive_line": 57,
+          "sha256": "002bb198f58646b59cae9ecfe625a52eb1923f6e78734b63b3ba6306b3f65559"
+        },
+        {
+          "heading": "v0.20.0 incremental comparisons and native boundary",
+          "source_line": 206,
+          "archive_line": 93,
+          "sha256": "33f51d359768571162c428f9510c917f0630810f343ecef3b41935888f8c27e7"
+        },
+        {
+          "heading": "Decision graph prototype (0.21.0)",
+          "source_line": 236,
+          "archive_line": 123,
+          "sha256": "82c0b3d11a77b527512b6955823b1752eae257df29df124406466cc8eab351f2"
+        },
+        {
+          "heading": "Pricing cache reuse (0.21.1)",
+          "source_line": 267,
+          "archive_line": 154,
+          "sha256": "e94ba4e0b6f6066132614305c09bf6d36d7c2c4b4b48df59b7e21f48ef7008ef"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 280,
+          "archive_line": 167,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 299,
+          "archive_line": 186,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 316,
+          "archive_line": 203,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 332,
+          "archive_line": 219,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 356,
+          "archive_line": 243,
+          "sha256": "f499d331a1332b322a3adaf5b9c3632bb3e9538bf6fec675f34fab56fa28aa5d"
+        },
+        {
+          "heading": "Native built-in product coverage (0.27.0)",
+          "source_line": 382,
+          "archive_line": 269,
+          "sha256": "b1d81746088e97199973997cd6d904abfadcd209df9f6a562cccc880eb609783"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 410,
+          "archive_line": 297,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 425,
+          "archive_line": 312,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 447,
+          "archive_line": 334,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 464,
+          "archive_line": 351,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 485,
+          "archive_line": 372,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 511,
+          "archive_line": 398,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 566,
+          "archive_line": 453,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 616,
+          "archive_line": 503,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 644,
+          "archive_line": 531,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 668,
+          "archive_line": 555,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 707,
+          "archive_line": 594,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 737,
+          "archive_line": 624,
+          "sha256": "84f862010ebec772776dae9b6aa62034727d766dc578417b1888a7434bc557f6"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 751,
+          "archive_line": 638,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 777,
+          "archive_line": 664,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 799,
+          "archive_line": 686,
+          "sha256": "0b4f5bc5e40b21fafc0f469381a63c18af4f85765237bbb91f341c28d4818623"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 826,
+          "archive_line": 713,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 866,
+          "archive_line": 753,
+          "sha256": "0680989c964605725a12a4e1456be1e137ba9a258b9c54b7945637143248cdbd"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 897,
+          "archive_line": 784,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 1026,
+          "archive_line": 913,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 1054,
+          "archive_line": 941,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 1091,
+          "archive_line": 978,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 1125,
+          "archive_line": 1012,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 1164,
+          "archive_line": 1051,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1201,
+          "archive_line": 1088,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1221,
+          "archive_line": 1108,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1254,
+          "archive_line": 1141,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1300,
+          "archive_line": 1187,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1321,
+          "archive_line": 1208,
+          "sha256": "48953d1b392a7870ae68d6338ed480ddaacfce47ce4284b3b995399bf71096aa"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1367,
+          "archive_line": 1254,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1385,
+          "archive_line": 1272,
+          "sha256": "7628a2a6a9782ee10c5a0a84f70561a6111c895be2ae5344977626abd9c79def"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1408,
+          "archive_line": 1295,
+          "sha256": "80f48fcc13398dbc3c410322f0ea55eebab691e9e3ddb93dadda67efb6ed7955"
+        }
+      ],
+      "sha256": "8da1a5f383a836c7bac416d5a14218b09384901b618bc4db92da94b88e69805a"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/references/schemas.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--references--schemas.md",
+      "sections": [
+        {
+          "heading": "Published forecast replay (v0.20.1)",
+          "source_line": 26,
+          "archive_line": 8,
+          "sha256": "0b41bfa5cc30564792f87833242996a4c6787ef5080a1ad747e9198c7a7adb20"
+        },
+        {
+          "heading": "Incremental pricing (v0.19.0)",
+          "source_line": 39,
+          "archive_line": 21,
+          "sha256": "f91a3b6155450be3b9f3a7439f312e51f60c90b009b5d51f7e9fb35db292edf6"
+        },
+        {
+          "heading": "v0.18.0 run and allocation contract",
+          "source_line": 124,
+          "archive_line": 48,
+          "sha256": "e657aae385746b6532a0c3cfbf71eca7b3f5fc51b5e81f3fdb40cbdfaa8b7bd4"
+        },
+        {
+          "heading": "v0.20.0 temporary instrument assumptions",
+          "source_line": 141,
+          "archive_line": 65,
+          "sha256": "b42906d13ef7dfaa33c1823852dd80e98324434e785c46053d776d827ebae55a"
+        },
+        {
+          "heading": "Decision session API (0.21.0)",
+          "source_line": 163,
+          "archive_line": 87,
+          "sha256": "bd1b3308027013d47eb51776cb7db55f86340ed5e492f4c2425dc99212adb804"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 185,
+          "archive_line": 109,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 204,
+          "archive_line": 128,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 221,
+          "archive_line": 145,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 237,
+          "archive_line": 161,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 261,
+          "archive_line": 185,
+          "sha256": "c18a6f5835e03cffe62bb1bd0c23fbfcac484a73985e303daf42f18566453132"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 288,
+          "archive_line": 212,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 303,
+          "archive_line": 227,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 325,
+          "archive_line": 249,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 342,
+          "archive_line": 266,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 363,
+          "archive_line": 287,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 389,
+          "archive_line": 313,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 444,
+          "archive_line": 368,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 494,
+          "archive_line": 418,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 522,
+          "archive_line": 446,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 546,
+          "archive_line": 470,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 585,
+          "archive_line": 509,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 615,
+          "archive_line": 539,
+          "sha256": "5def5c72ab81c992dc6962267eb6f7206afd582dcbf00e8c49d1559cd267a18e"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 638,
+          "archive_line": 562,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 660,
+          "archive_line": 584,
+          "sha256": "e9fe2729ce1d90aaf3abf5f5da2bea6e7148f2d8c4828df8523e05946a179172"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 686,
+          "archive_line": 610,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 726,
+          "archive_line": 650,
+          "sha256": "64b139711651e1c8d21c4a0686f23e2ec0f147743b0c2d903cf20696da455715"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 854,
+          "archive_line": 778,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 882,
+          "archive_line": 806,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 919,
+          "archive_line": 843,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 953,
+          "archive_line": 877,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 992,
+          "archive_line": 916,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1029,
+          "archive_line": 953,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1049,
+          "archive_line": 973,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1082,
+          "archive_line": 1006,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1128,
+          "archive_line": 1052,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1149,
+          "archive_line": 1073,
+          "sha256": "48953d1b392a7870ae68d6338ed480ddaacfce47ce4284b3b995399bf71096aa"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1195,
+          "archive_line": 1119,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1213,
+          "archive_line": 1137,
+          "sha256": "71655ca196ece417333b1063a969500c95bb7a9feab2006621cbe197afcfc69c"
+        }
+      ],
+      "sha256": "af8bde1e40e0c4f549dc346d94d16b380dc9fa18d99f4fb09ecc71825cde7dad"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/portfolio-risk-engine/SKILL.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--portfolio-risk-engine--SKILL.md",
+      "sections": [
+        {
+          "heading": "Runtime contract update (0.18.0)",
+          "source_line": 157,
+          "archive_line": 8,
+          "sha256": "989d5cf674d1ee36f36b5abb179185f7960d09cc8bdcbe052456a0a1795b2488"
+        },
+        {
+          "heading": "Incremental pricing (0.19.0)",
+          "source_line": 166,
+          "archive_line": 17,
+          "sha256": "1af752920b640004e614d8a18c2cc94b2a8237b0ef385efa74f9a27ee6c42dfe"
+        },
+        {
+          "heading": "Temporary comparisons and native execution (v0.20.0)",
+          "source_line": 177,
+          "archive_line": 28,
+          "sha256": "6313146d34cd5e913814049d071a3dbb246b3b7737e19aa9dbdff411d61a964a"
+        },
+        {
+          "heading": "Rust decision sessions (0.21.0)",
+          "source_line": 196,
+          "archive_line": 47,
+          "sha256": "bf180b6bf62e487acac45eb781f2cb9cb2ded9d77f70532a0e366ac62f86275e"
+        },
+        {
+          "heading": "Pricing cache reuse (0.21.1)",
+          "source_line": 208,
+          "archive_line": 59,
+          "sha256": "e94ba4e0b6f6066132614305c09bf6d36d7c2c4b4b48df59b7e21f48ef7008ef"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 221,
+          "archive_line": 72,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 240,
+          "archive_line": 91,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 257,
+          "archive_line": 108,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 273,
+          "archive_line": 124,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 297,
+          "archive_line": 148,
+          "sha256": "b769e67898bd6a4fb6e36fb0dcd292cef215c9a17e0558844c9674ca42ace5d8"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 328,
+          "archive_line": 179,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 343,
+          "archive_line": 194,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 365,
+          "archive_line": 216,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 382,
+          "archive_line": 233,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 403,
+          "archive_line": 254,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 429,
+          "archive_line": 280,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 484,
+          "archive_line": 335,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 534,
+          "archive_line": 385,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 562,
+          "archive_line": 413,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 586,
+          "archive_line": 437,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 625,
+          "archive_line": 476,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 655,
+          "archive_line": 506,
+          "sha256": "84f862010ebec772776dae9b6aa62034727d766dc578417b1888a7434bc557f6"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 669,
+          "archive_line": 520,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 695,
+          "archive_line": 546,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 717,
+          "archive_line": 568,
+          "sha256": "d6d3579f383d97d887dd0b87c14eaa7414641ef0e8cb52ba297cd0ebe17bf2c8"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 739,
+          "archive_line": 590,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 779,
+          "archive_line": 630,
+          "sha256": "0680989c964605725a12a4e1456be1e137ba9a258b9c54b7945637143248cdbd"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 810,
+          "archive_line": 661,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 939,
+          "archive_line": 790,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 967,
+          "archive_line": 818,
+          "sha256": "a1dbf9ee5afcfb3edda54c9048efd0ed15b6b46816fb16dc1fa54538f4b7b321"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 979,
+          "archive_line": 830,
+          "sha256": "abf849c28bec33b1da535c6e140b72037924aed18fa4ef0eba9481dd7f86a486"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 989,
+          "archive_line": 840,
+          "sha256": "838a037421a1fc3ab9731f40ae371c20a178aa8f4dc4cef21095cf9be3ec50f8"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 999,
+          "archive_line": 850,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1036,
+          "archive_line": 887,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1056,
+          "archive_line": 907,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1089,
+          "archive_line": 940,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1135,
+          "archive_line": 986,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1156,
+          "archive_line": 1007,
+          "sha256": "1058a822e355b5a460004936ad7268309ea99e0fd6e3bb74ebd52f6482b3cda0"
+        },
+        {
+          "heading": "Commercial follow-through (local 0.29.11)",
+          "source_line": 1193,
+          "archive_line": 1044,
+          "sha256": "dcc3d9e463c3cfc7196576cbd1a0f30e5f16f0f52f82f7e64fdd1178745c3eb6"
+        },
+        {
+          "heading": "Retained-Q commercial original OAS (local 0.29.12)",
+          "source_line": 1237,
+          "archive_line": 1088,
+          "sha256": "52cf05a41139c820549b7ec78d18f4c40451aa7f5a6ba6e0eceeb19ffa690a76"
+        },
+        {
+          "heading": "Complete-origin commercial holding windows (local 0.29.13)",
+          "source_line": 1262,
+          "archive_line": 1113,
+          "sha256": "27f9ba9795d99922c7396310048c2322d1f0ad31ff88ce599c3094f75a4247e3"
+        },
+        {
+          "heading": "Complete-origin commercial holding journals (local 0.29.14)",
+          "source_line": 1282,
+          "archive_line": 1133,
+          "sha256": "6139a5e33c0193429c4a397d92375a34ce77d5655e01b1f03d0dc65519ea6da2"
+        },
+        {
+          "heading": "Verified modeled commercial prior openings (local0.29.15)",
+          "source_line": 1304,
+          "archive_line": 1155,
+          "sha256": "ab7f773b24d8872f1e2824b4d12157764091a679057398257f565f87563e6960"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1329,
+          "archive_line": 1180,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1347,
+          "archive_line": 1198,
+          "sha256": "4086277f2a6c66b43d9a94f7d7ed2343b8ff05c9977020205803c845d9ad373f"
+        },
+        {
+          "heading": "Per-pool MBS prepay speed (0.29.6)",
+          "source_line": 1369,
+          "archive_line": 1220,
+          "sha256": "103df1185c2031a96e0588f37c605086d382de61622eca9730cb1171f4a706cf"
+        },
+        {
+          "heading": "Deposit terminal treatment (0.29.7)",
+          "source_line": 1393,
+          "archive_line": 1244,
+          "sha256": "cabdfb617f1f8323f8c90f606d75ac3354fd2568dce25646b28f2e5ca1f6ea9b"
+        },
+        {
+          "heading": "Liquidity applicability, transfer approval and HTM accounting (0.29.8)",
+          "source_line": 1427,
+          "archive_line": 1278,
+          "sha256": "4aba22b2ae3e055b75d43215fa92e7972544612f8c67eff1883ca0db15f7b448"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1460,
+          "archive_line": 1311,
+          "sha256": "80f48fcc13398dbc3c410322f0ea55eebab691e9e3ddb93dadda67efb6ed7955"
+        }
+      ],
+      "sha256": "aad8d6e504bed3ba52848b8a95aeba74ed505b4f572d7d071acad7fd9280432d"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/portfolio-risk-engine/references/internals.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--portfolio-risk-engine--references--internals.md",
+      "sections": [
+        {
+          "heading": "Conditional forecast income (v0.20.1)",
+          "source_line": 26,
+          "archive_line": 8,
+          "sha256": "9173d7f7aff4d8f93c273f383986c25ad21785964df9d384ef0463c5d529b244"
+        },
+        {
+          "heading": "Research discount-curve projection (v0.19.1)",
+          "source_line": 42,
+          "archive_line": 24,
+          "sha256": "e445f6bb43526d5ea336c2461539f10cf3517a5e74eb4f12595b7309fb4b4242"
+        },
+        {
+          "heading": "Incremental spot pricing (v0.19.0)",
+          "source_line": 52,
+          "archive_line": 34,
+          "sha256": "969f40ce721fa6e1c8a188a1fe1305928b5c51c84ff2b517bfcd996db3aa26c7"
+        },
+        {
+          "heading": "v0.18.0: review correctness and run-scoped reuse",
+          "source_line": 170,
+          "archive_line": 57,
+          "sha256": "002bb198f58646b59cae9ecfe625a52eb1923f6e78734b63b3ba6306b3f65559"
+        },
+        {
+          "heading": "v0.20.0 incremental comparisons and native boundary",
+          "source_line": 206,
+          "archive_line": 93,
+          "sha256": "33f51d359768571162c428f9510c917f0630810f343ecef3b41935888f8c27e7"
+        },
+        {
+          "heading": "Decision graph prototype (0.21.0)",
+          "source_line": 236,
+          "archive_line": 123,
+          "sha256": "82c0b3d11a77b527512b6955823b1752eae257df29df124406466cc8eab351f2"
+        },
+        {
+          "heading": "Pricing cache reuse (0.21.1)",
+          "source_line": 267,
+          "archive_line": 154,
+          "sha256": "e94ba4e0b6f6066132614305c09bf6d36d7c2c4b4b48df59b7e21f48ef7008ef"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 280,
+          "archive_line": 167,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 299,
+          "archive_line": 186,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 316,
+          "archive_line": 203,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 332,
+          "archive_line": 219,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 356,
+          "archive_line": 243,
+          "sha256": "f499d331a1332b322a3adaf5b9c3632bb3e9538bf6fec675f34fab56fa28aa5d"
+        },
+        {
+          "heading": "Native built-in product coverage (0.27.0)",
+          "source_line": 382,
+          "archive_line": 269,
+          "sha256": "b1d81746088e97199973997cd6d904abfadcd209df9f6a562cccc880eb609783"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 410,
+          "archive_line": 297,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 425,
+          "archive_line": 312,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 447,
+          "archive_line": 334,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 464,
+          "archive_line": 351,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 485,
+          "archive_line": 372,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 511,
+          "archive_line": 398,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 566,
+          "archive_line": 453,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 616,
+          "archive_line": 503,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 644,
+          "archive_line": 531,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 668,
+          "archive_line": 555,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 707,
+          "archive_line": 594,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 737,
+          "archive_line": 624,
+          "sha256": "84f862010ebec772776dae9b6aa62034727d766dc578417b1888a7434bc557f6"
+        },
+        {
+          "heading": "Cohort accuracy and reliability (0.29.1)",
+          "source_line": 751,
+          "archive_line": 638,
+          "sha256": "c5ca6bc076827cc5b0cd5856eaf2ca67e1472b19a0790fe2a4a60ddcb2dcc9fc"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 777,
+          "archive_line": 664,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 799,
+          "archive_line": 686,
+          "sha256": "0b4f5bc5e40b21fafc0f469381a63c18af4f85765237bbb91f341c28d4818623"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 826,
+          "archive_line": 713,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 866,
+          "archive_line": 753,
+          "sha256": "0680989c964605725a12a4e1456be1e137ba9a258b9c54b7945637143248cdbd"
+        },
+        {
+          "heading": "Explicit product states and durable source routes (0.29.7)",
+          "source_line": 897,
+          "archive_line": 784,
+          "sha256": "11763c7df1ab203f284f10a4f3fa3b7135de16df3d7424839aa5dd284cbb512b"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 1026,
+          "archive_line": 913,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 1054,
+          "archive_line": 941,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 1091,
+          "archive_line": 978,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 1125,
+          "archive_line": 1012,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 1164,
+          "archive_line": 1051,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1201,
+          "archive_line": 1088,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1221,
+          "archive_line": 1108,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1254,
+          "archive_line": 1141,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1300,
+          "archive_line": 1187,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1321,
+          "archive_line": 1208,
+          "sha256": "48953d1b392a7870ae68d6338ed480ddaacfce47ce4284b3b995399bf71096aa"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1367,
+          "archive_line": 1254,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1385,
+          "archive_line": 1272,
+          "sha256": "7628a2a6a9782ee10c5a0a84f70561a6111c895be2ae5344977626abd9c79def"
+        },
+        {
+          "heading": "Reviewed earned-fee refunds (0.29.18)",
+          "source_line": 1408,
+          "archive_line": 1295,
+          "sha256": "80f48fcc13398dbc3c410322f0ea55eebab691e9e3ddb93dadda67efb6ed7955"
+        }
+      ],
+      "sha256": "9627e4b129339e3438fd7e185fa0d14dd62a3ba0f43d4508132dce3e2e858d93"
+    },
+    {
+      "source": "packages/portfolio-risk/skills/portfolio-risk-engine/references/schemas.md",
+      "archive": "docs/changelog/agents-history/packages--portfolio-risk--skills--portfolio-risk-engine--references--schemas.md",
+      "sections": [
+        {
+          "heading": "Published forecast replay (v0.20.1)",
+          "source_line": 26,
+          "archive_line": 8,
+          "sha256": "0b41bfa5cc30564792f87833242996a4c6787ef5080a1ad747e9198c7a7adb20"
+        },
+        {
+          "heading": "Incremental pricing (v0.19.0)",
+          "source_line": 39,
+          "archive_line": 21,
+          "sha256": "f91a3b6155450be3b9f3a7439f312e51f60c90b009b5d51f7e9fb35db292edf6"
+        },
+        {
+          "heading": "v0.18.0 run and allocation contract",
+          "source_line": 124,
+          "archive_line": 48,
+          "sha256": "e657aae385746b6532a0c3cfbf71eca7b3f5fc51b5e81f3fdb40cbdfaa8b7bd4"
+        },
+        {
+          "heading": "v0.20.0 temporary instrument assumptions",
+          "source_line": 141,
+          "archive_line": 65,
+          "sha256": "b42906d13ef7dfaa33c1823852dd80e98324434e785c46053d776d827ebae55a"
+        },
+        {
+          "heading": "Decision session API (0.21.0)",
+          "source_line": 163,
+          "archive_line": 87,
+          "sha256": "bd1b3308027013d47eb51776cb7db55f86340ed5e492f4c2425dc99212adb804"
+        },
+        {
+          "heading": "Balance-sheet stress (0.22.0)",
+          "source_line": 185,
+          "archive_line": 109,
+          "sha256": "0f4aa68ccfc244ac30df74e46d2d064cd8fbbe8c022923e561df43cbe8371c82"
+        },
+        {
+          "heading": "Ledger and dynamic replay (0.23.0)",
+          "source_line": 204,
+          "archive_line": 128,
+          "sha256": "36d444f2c8de63472b082f3578f2dc31e6fa7d70480ac83d3c1fc5054de93388"
+        },
+        {
+          "heading": "Security basis and ledger scaling (0.24.0)",
+          "source_line": 221,
+          "archive_line": 145,
+          "sha256": "af2e23b659b6756eb56fa95517f3501da057b0db3d48cee80476d2101c63d5a7"
+        },
+        {
+          "heading": "Native journal pilot (0.25.0)",
+          "source_line": 237,
+          "archive_line": 161,
+          "sha256": "8d2ca700ea15118772fc58327732c23c46fa47fbe1779812119de68547074a2e"
+        },
+        {
+          "heading": "Native daily state and partitioned journals (0.26.0)",
+          "source_line": 261,
+          "archive_line": 185,
+          "sha256": "c18a6f5835e03cffe62bb1bd0c23fbfcac484a73985e303daf42f18566453132"
+        },
+        {
+          "heading": "Native public strategy ownership (0.27.1)",
+          "source_line": 288,
+          "archive_line": 212,
+          "sha256": "7a430ee091bc7cf37bce67b6382e78df6d7dcd333bf3b021a4926ec9bd0233b5"
+        },
+        {
+          "heading": "Native market-path ownership (0.27.2)",
+          "source_line": 303,
+          "archive_line": 227,
+          "sha256": "22512500711196e5aea6c8b5f9fad07eef2d8377fba959a4d8915bf29a6639fd"
+        },
+        {
+          "heading": "Native linear calibration ownership (0.27.3)",
+          "source_line": 325,
+          "archive_line": 249,
+          "sha256": "7a3a4b4604816cc4b4a8cbcda4f487ca4d2501f0ed760eed80ecbef1e711d6ce"
+        },
+        {
+          "heading": "Native nonlinear calibration ownership (0.27.4)",
+          "source_line": 342,
+          "archive_line": 266,
+          "sha256": "aca6d507216327f20f05ad72713055d771d85a4146e2ac39d8df4a80ab779c1a"
+        },
+        {
+          "heading": "Native seeded shared draws (0.27.5)",
+          "source_line": 363,
+          "archive_line": 287,
+          "sha256": "620e8e7b79e97717dd6ad15800dd05fe2527d8d3890ae3aae439819dc5b6ddf8"
+        },
+        {
+          "heading": "Native mortgage risk and forward-stress lifecycles (0.27.6)",
+          "source_line": 389,
+          "archive_line": 313,
+          "sha256": "3a52f0ad80d4c5cee5f516fe9cc255e6312b88ee97ec16a4f77c236705fd7907"
+        },
+        {
+          "heading": "Native corporate and CD spot-risk lifecycles (0.27.7)",
+          "source_line": 444,
+          "archive_line": 368,
+          "sha256": "fa707bdb52320a397f50917ff260acd4a8ae7a47c44a1e504babe7811c51ac9a"
+        },
+        {
+          "heading": "Raw mixed-book lifecycles (0.27.8)",
+          "source_line": 494,
+          "archive_line": 418,
+          "sha256": "51a079126a920490863cf26aa8831dd5e136d416839a9c183c0653d57cd422b1"
+        },
+        {
+          "heading": "Native incremental dependency graph (0.27.9)",
+          "source_line": 522,
+          "archive_line": 446,
+          "sha256": "f7b378d426116074812cc829a422f6be89a6550b9450ebca521ac85fe660133f"
+        },
+        {
+          "heading": "Native workflow ownership (0.28.0)",
+          "source_line": 546,
+          "archive_line": 470,
+          "sha256": "bcf597b48d08f84eacc310b0e5d2366dab40173fcbf660648f724ef8ba0ccb53"
+        },
+        {
+          "heading": "Native public-controller and allocation follow-through (0.28.0)",
+          "source_line": 585,
+          "archive_line": 509,
+          "sha256": "83e4e3e5f19dfa7bcd0553a6a6e6340b7cf1798ff14cddae3d6d744cd05a35fd"
+        },
+        {
+          "heading": "Tape cohort construction (0.29.0)",
+          "source_line": 615,
+          "archive_line": 539,
+          "sha256": "5def5c72ab81c992dc6962267eb6f7206afd582dcbf00e8c49d1559cd267a18e"
+        },
+        {
+          "heading": "Capital coverage and funds transfer pricing (0.29.2)",
+          "source_line": 638,
+          "archive_line": 562,
+          "sha256": "88a0cdff003946919562399b55e99d28492f660567df2bea9ba5651cdb1e27fa"
+        },
+        {
+          "heading": "Source-linked capital and FTP (0.29.3)",
+          "source_line": 660,
+          "archive_line": 584,
+          "sha256": "e9fe2729ce1d90aaf3abf5f5da2bea6e7148f2d8c4828df8523e05946a179172"
+        },
+        {
+          "heading": "Shared model foundations (0.29.5)",
+          "source_line": 686,
+          "archive_line": 610,
+          "sha256": "cd08a9b7bbd191aaf53319ceac4fde979fe68256397e33326668868906642792"
+        },
+        {
+          "heading": "Dated replay and credit accounting foundations (0.29.6)",
+          "source_line": 726,
+          "archive_line": 650,
+          "sha256": "64b139711651e1c8d21c4a0686f23e2ec0f147743b0c2d903cf20696da455715"
+        },
+        {
+          "heading": "Performing mixed dated acquisition stage (local 0.29.7)",
+          "source_line": 854,
+          "archive_line": 778,
+          "sha256": "9941ce416bbfcb22171c0a6fcebb9acda25c92e4d0017d988c0b73aa77b01515"
+        },
+        {
+          "heading": "Acquired consumer-credit event ownership (local 0.29.7)",
+          "source_line": 882,
+          "archive_line": 806,
+          "sha256": "c9790a09e991145f8a10ecfe9dfccba88ca6ccf45bd61c1696a659925039dce8"
+        },
+        {
+          "heading": "Explicit acquired card and tagged credit owners (local 0.29.7)",
+          "source_line": 919,
+          "archive_line": 843,
+          "sha256": "98191dff9c6d6d56ef7fe7a0ad1e4793393b964c6c0db335d8bf729b0c66f94b"
+        },
+        {
+          "heading": "Explicit card interest-basis ownership (local 0.29.7)",
+          "source_line": 953,
+          "archive_line": 877,
+          "sha256": "2f9a293baa6d05f0a0b0c8e04357335664ccf9d6209af39a72ebb4ca7388aa83"
+        },
+        {
+          "heading": "Explicit acquired-mortgage analytical source (local 0.29.7)",
+          "source_line": 992,
+          "archive_line": 916,
+          "sha256": "6737b5d52dab0a51b97b946f02c3172309133f682f0faba16e53015e427b319d"
+        },
+        {
+          "heading": "Strict additive financial instructions (local 0.29.7)",
+          "source_line": 1029,
+          "archive_line": 953,
+          "sha256": "2563b521cec5589c1d647982089af6a7d99c8cd01dbbdb709b4067a84f53744d"
+        },
+        {
+          "heading": "Market indexed sources and acquired mortgage mixed replay (local 0.29.7)",
+          "source_line": 1049,
+          "archive_line": 973,
+          "sha256": "e62db1b42c9fca33eff6a4d7cf9e344e2d5c3b5dc6360f6ab4c62abfaa4f1c28"
+        },
+        {
+          "heading": "Indexed graph control, deposit revisions and closing capital (local 0.29.8)",
+          "source_line": 1082,
+          "archive_line": 1006,
+          "sha256": "81a4ebdfa1fe0e2f8348702df0911fc5d45a42ef1d0fd21ecdae58ba464812fc"
+        },
+        {
+          "heading": "Corporate exercise publication (local 0.29.9)",
+          "source_line": 1128,
+          "archive_line": 1052,
+          "sha256": "d42c6b8f6761c8c1b9856900b72ce14e25c0995f6addf28a3282b7e134a3103b"
+        },
+        {
+          "heading": "Commercial source, credit and coefficients (local 0.29.10)",
+          "source_line": 1149,
+          "archive_line": 1073,
+          "sha256": "48953d1b392a7870ae68d6338ed480ddaacfce47ce4284b3b995399bf71096aa"
+        },
+        {
+          "heading": "Separate nonintegral fee ownership (local0.29.16)",
+          "source_line": 1195,
+          "archive_line": 1119,
+          "sha256": "6e1cd8cd01acd17907491952afe050509bcbc69ee9008e3591c2237f96b82dc9"
+        },
+        {
+          "heading": "Native loan and separate fee journal (local0.29.17)",
+          "source_line": 1213,
+          "archive_line": 1137,
+          "sha256": "71655ca196ece417333b1063a969500c95bb7a9feab2006621cbe197afcfc69c"
+        }
+      ],
+      "sha256": "ded94296fbc9a2a3825825c29a3a370ea16a0e64317b93a23b78332eb5befa90"
+    }
+  ]
+}
