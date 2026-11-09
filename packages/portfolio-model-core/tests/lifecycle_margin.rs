@@ -58,6 +58,7 @@ fn run_with(v: &Value, s: &[Sensitivity]) -> Result<acquisition::AcquisitionJour
     let hedges = vec![ResolvedHedge {
         lot_id: "swap-lot".into(),
         ordinal: DAY,
+        tail_end_ordinal: i32::MAX,
         clean_value: -4.,
         due_cash: 0.,
         pricing_source: Revision {

@@ -128,6 +128,10 @@ pub struct MonthlyReport {
     pub closing_usable_cash: f64,
     pub closing_facility_drawn: f64,
     pub interest_expense: f64,
+    #[serde(skip_serializing_if = "zero")]
+    pub derivative_income: f64,
+    #[serde(skip_serializing_if = "zero")]
+    pub derivative_mark_pnl: f64,
     pub fees: f64,
     pub realized: f64,
     pub margin_posted: f64,
@@ -137,6 +141,9 @@ pub struct MonthlyReport {
     pub closing_security_quantity: f64,
 }
 
+fn zero(x: &f64) -> bool {
+    *x == 0.
+}
 fn refuse(code: &'static str, detail: impl Into<String>) -> Refusal {
     Refusal::new(code, detail)
 }
@@ -320,6 +327,8 @@ pub fn monthly(
             closing_usable_cash: usable,
             closing_facility_drawn: drawn,
             interest_expense: 0.,
+            derivative_income: 0.,
+            derivative_mark_pnl: 0.,
             fees: 0.,
             realized: 0.,
             margin_posted: 0.,
@@ -334,6 +343,8 @@ pub fn monthly(
                     Kind::Cash if l.debit > 0. => r.cash_in += l.debit,
                     Kind::Cash => r.cash_out -= l.debit,
                     Kind::InterestExpense => r.interest_expense += l.debit,
+                    Kind::DerivativeIncome => r.derivative_income -= l.debit,
+                    Kind::DerivativeMark => r.derivative_mark_pnl -= l.debit,
                     Kind::FeeExpense => r.fees += l.debit,
                     Kind::RealizedGainLoss => r.realized -= l.debit,
                     Kind::PostedVm | Kind::PostedIm if l.debit > 0. => r.margin_posted += l.debit,

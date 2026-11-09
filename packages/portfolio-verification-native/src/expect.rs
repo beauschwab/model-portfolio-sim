@@ -259,6 +259,31 @@ pub struct Execution {
     pub business_plan: Option<PlanIn>,
     #[serde(default)]
     pub dynamic_margin: Vec<DynamicIn>,
+    #[serde(default)]
+    pub derivative_updates: Vec<UpdateIn>,
+    #[serde(default)]
+    pub variation_margin_reviews: Vec<VmReviewIn>,
+    #[serde(default)]
+    pub facility_interest: Vec<InterestIn>,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateIn {
+    pub lot_id: String,
+    pub ordinal: i64,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct VmReviewIn {
+    pub agreement_id: String,
+    pub ordinal: i64,
+    pub terms: VmTerms,
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct InterestIn {
+    pub facility_id: String,
+    pub annual_rate: f64,
+    pub day_count: String,
+    pub payment_ordinals: Vec<i64>,
+    pub review: Value,
 }
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct WindowIn {
@@ -297,6 +322,7 @@ pub struct PlanIn {
 pub struct Valuation {
     pub clean_value: f64,
     pub due_cash: f64,
+    pub tail_end_ordinal: i64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -372,7 +398,17 @@ pub struct Expected {
     pub open_claims: bool,
 }
 
-const GL: [(&str, &str); 17] = [
+const GL: [(&str, &str); 21] = [
+    ("derivative_mark", "pnl:lifecycle_derivative_mark"),
+    ("derivative_income", "pnl:lifecycle_derivative_income"),
+    (
+        "funding_interest_receivable",
+        "lifecycle_funding_interest_receivable",
+    ),
+    (
+        "funding_interest_payable",
+        "lifecycle_funding_interest_payable",
+    ),
     ("cash", "cash"),
     ("asset_principal", "asset_principal"),
     ("book_adjustment", "book_adjustment"),
@@ -406,6 +442,11 @@ fn instrument(name: &str, id: &str) -> String {
 }
 
 enum Body<'a> {
+    Update(&'a UpdateIn, Valuation),
+    VmReview(&'a VmReviewIn, &'a Agreement),
+    VmRebalance(&'a VmReviewIn, &'a Agreement),
+    InterestAccrue(&'a InterestIn),
+    InterestPay(&'a InterestIn),
     Advance(&'a Advance),
     Draw(&'a FacilityMove),
     FacilityRepay(&'a FacilityMove),
@@ -774,6 +815,30 @@ pub fn replay(
         .ok_or("unknown plan account")?;
     let asof = plan.as_of_ordinal;
     let end = acq.horizon_end_ordinal;
+    if end
+        .checked_sub(asof)
+        .is_none_or(|days| !(0..=366).contains(&days))
+    {
+        return Err("independent execution horizon must lie within 366 days".into());
+    }
+    let days = (end - asof) as usize;
+    let ongoing_work = acq
+        .facility_interest
+        .iter()
+        .try_fold(0usize, |work, f| {
+            work.checked_add(days)?
+                .checked_add(f.payment_ordinals.len())
+        })
+        .and_then(|work| work.checked_add(acq.derivative_updates.len()))
+        .and_then(|work| {
+            acq.variation_margin_reviews
+                .len()
+                .checked_mul(2)?
+                .checked_add(work)
+        });
+    if ongoing_work.is_none_or(|work| work > 4096) {
+        return Err("independent ongoing work exceeds the instruction bound".into());
+    }
     let lots: HashMap<&str, &Lot> = plan.lots.iter().map(|l| (l.lot_id.as_str(), l)).collect();
     let agreements: HashMap<&str, &Agreement> = plan
         .margin_agreements
@@ -805,6 +870,7 @@ pub fn replay(
         .chain(acq.repayments.iter().map(|x| x.lot_id.as_str()))
         .chain(acq.hedge_entries.iter().map(|x| x.lot_id.as_str()))
         .chain(acq.terminations.iter().map(|x| x.lot_id.as_str()))
+        .chain(acq.derivative_updates.iter().map(|x| x.lot_id.as_str()))
         .collect();
     for a in &plan.actions {
         if a.accounting_treatment == "formal"
@@ -1211,6 +1277,110 @@ pub fn replay(
             }
         }
     }
+    // Ongoing events precede existing events within the same phase, as declared by the contract.
+    let mut ongoing = Vec::new();
+    for u in &acq.derivative_updates {
+        let l = lot(&u.lot_id)?;
+        if l.kind != "derivative"
+            || u.ordinal <= asof
+            || u.ordinal <= l.acquisition_ordinal
+            || u.ordinal > end
+        {
+            return Err("independent ongoing derivative admission".into());
+        }
+        let value = *valuations
+            .get(&(u.lot_id.clone(), u.ordinal))
+            .ok_or("independent ongoing valuation missing")?;
+        push(
+            &mut ids,
+            &mut ongoing,
+            Event {
+                id: format!("derivative_update:{}:{}", u.lot_id, u.ordinal),
+                ordinal: u.ordinal,
+                phase: 7,
+                depends_on: vec![],
+                failed: false,
+                body: Body::Update(u, value),
+            },
+        )?;
+    }
+    for v in &acq.variation_margin_reviews {
+        let a = agreements
+            .get(v.agreement_id.as_str())
+            .ok_or("independent VM agreement missing")?;
+        let id = format!("vm_review:{}:{}", v.agreement_id, v.ordinal);
+        push(
+            &mut ids,
+            &mut ongoing,
+            Event {
+                id: id.clone(),
+                ordinal: v.ordinal,
+                phase: 8,
+                depends_on: vec![],
+                failed: false,
+                body: Body::VmReview(v, a),
+            },
+        )?;
+        push(
+            &mut ids,
+            &mut ongoing,
+            Event {
+                id: format!("vm_rebalance:{}:{}", v.agreement_id, v.ordinal),
+                ordinal: v.ordinal + a.settlement_lag_days,
+                phase: 8,
+                depends_on: vec![id],
+                failed: false,
+                body: Body::VmRebalance(v, a),
+            },
+        )?;
+    }
+    let mut funded = BTreeSet::new();
+    for f in &acq.facility_interest {
+        if !facilities.contains_key(f.facility_id.as_str())
+            || !funded.insert(&f.facility_id)
+            || !f.annual_rate.is_finite()
+            || f.annual_rate.abs() > 1.
+            || !matches!(f.day_count.as_str(), "act360" | "act365_fixed")
+            || ["id", "revision"]
+                .iter()
+                .any(|key| f.review[*key].as_str().is_none_or(str::is_empty))
+            || f.payment_ordinals
+                .iter()
+                .any(|day| *day <= asof || *day > end)
+        {
+            return Err("independent facility interest admission".into());
+        }
+        for ordinal in asof + 1..=end {
+            push(
+                &mut ids,
+                &mut ongoing,
+                Event {
+                    id: format!("facility_accrual:{}:{ordinal}", f.facility_id),
+                    ordinal,
+                    phase: 0,
+                    depends_on: vec![],
+                    failed: false,
+                    body: Body::InterestAccrue(f),
+                },
+            )?;
+        }
+        for &ordinal in &f.payment_ordinals {
+            push(
+                &mut ids,
+                &mut ongoing,
+                Event {
+                    id: format!("facility_interest:{}:{ordinal}", f.facility_id),
+                    ordinal,
+                    phase: 7,
+                    depends_on: vec![],
+                    failed: false,
+                    body: Body::InterestPay(f),
+                },
+            )?;
+        }
+    }
+    ongoing.append(&mut events);
+    let mut events = ongoing;
     events.sort_by_key(|e| (e.ordinal, e.phase));
     let order: HashMap<&str, usize> = events
         .iter()
@@ -1406,7 +1576,9 @@ pub fn replay(
         )
     };
     let opening_amounts = book.amounts(asof, book.cash, inventory(&owned, &pledged, &custody));
+    let mut vm_targets: HashMap<(&str, i64), (f64, f64)> = HashMap::new();
     for ordinal in asof..=end {
+        let prior_drawn = book.drawn.clone();
         // Start of day: renew or repay facility generations expiring today.
         book.pre = inventory(&owned, &pledged, &custody);
         book.phase = 0;
@@ -1444,6 +1616,129 @@ pub fn replay(
             } else {
                 let id = e.id.as_str();
                 match &e.body {
+                    Body::Update(u, value) => {
+                        if let Some(previous) = carrying.get(&u.lot_id).copied() {
+                            book.post(
+                                id,
+                                ordinal,
+                                false,
+                                &[
+                                    (
+                                        "derivative_asset",
+                                        &u.lot_id,
+                                        value.clean_value.max(0.) - previous.max(0.),
+                                    ),
+                                    (
+                                        "derivative_liability",
+                                        &u.lot_id,
+                                        value.clean_value.min(0.) - previous.min(0.),
+                                    ),
+                                    ("derivative_mark", &u.lot_id, previous - value.clean_value),
+                                    ("cash", "", value.due_cash),
+                                    ("derivative_income", &u.lot_id, -value.due_cash),
+                                ],
+                            )?;
+                            if ordinal >= value.tail_end_ordinal {
+                                carrying.remove(&u.lot_id);
+                            } else {
+                                carrying.insert(u.lot_id.clone(), value.clean_value);
+                            }
+                        }
+                    }
+                    Body::VmReview(v, a) => {
+                        let mut net = 0.;
+                        for lot in &a.lot_ids {
+                            if let Some(value) = carrying.get(lot) {
+                                if !acq
+                                    .derivative_updates
+                                    .iter()
+                                    .any(|u| &u.lot_id == lot && u.ordinal == ordinal)
+                                {
+                                    return Err(
+                                        "independent VM needs current live valuations".into()
+                                    );
+                                }
+                                net += value;
+                            }
+                        }
+                        let posted = (-net - v.terms.post_threshold).max(0.);
+                        let received = (net - v.terms.receive_threshold).max(0.);
+                        let old_posted = book.balance("posted_vm", &a.agreement_id);
+                        let old_received = -book.balance("received_vm", &a.agreement_id);
+                        vm_targets.insert(
+                            (&v.agreement_id, v.ordinal),
+                            if ((posted - received) - (old_posted - old_received)).abs()
+                                < v.terms.minimum_transfer
+                            {
+                                (old_posted, old_received)
+                            } else {
+                                (posted, received)
+                            },
+                        );
+                    }
+                    Body::VmRebalance(v, a) => {
+                        let (posted, received) = vm_targets[&(v.agreement_id.as_str(), v.ordinal)];
+                        let dp = posted - book.balance("posted_vm", &a.agreement_id);
+                        let dr = received + book.balance("received_vm", &a.agreement_id);
+                        book.fund(
+                            id,
+                            ordinal,
+                            dr - dp
+                                - if a.segregation == "segregated" {
+                                    dr
+                                } else {
+                                    0.
+                                },
+                        )?;
+                        book.raw(
+                            id,
+                            ordinal,
+                            &[
+                                ("posted_vm", &a.agreement_id, dp),
+                                ("received_vm", &a.agreement_id, -dr),
+                                ("cash", "", dr - dp),
+                            ],
+                        )?;
+                        posted_vm += dp;
+                        received_vm += dr;
+                    }
+                    Body::InterestAccrue(f) => {
+                        let denominator = if f.day_count == "act360" { 360. } else { 365. };
+                        let amount = prior_drawn.get(&f.facility_id).copied().unwrap_or(0.)
+                            * f.annual_rate
+                            / denominator;
+                        book.post(
+                            id,
+                            ordinal,
+                            false,
+                            &[
+                                ("interest", &f.facility_id, amount),
+                                (
+                                    if amount >= 0. {
+                                        "funding_interest_payable"
+                                    } else {
+                                        "funding_interest_receivable"
+                                    },
+                                    &f.facility_id,
+                                    -amount,
+                                ),
+                            ],
+                        )?;
+                    }
+                    Body::InterestPay(f) => {
+                        let r = book.balance("funding_interest_receivable", &f.facility_id);
+                        let p = book.balance("funding_interest_payable", &f.facility_id);
+                        book.post(
+                            id,
+                            ordinal,
+                            false,
+                            &[
+                                ("funding_interest_receivable", &f.facility_id, -r),
+                                ("funding_interest_payable", &f.facility_id, -p),
+                                ("cash", "", r + p),
+                            ],
+                        )?;
+                    }
                     Body::Advance(f) => book.post(
                         id,
                         e.ordinal,
@@ -1647,7 +1942,15 @@ pub fn replay(
                                     &t.lot_id,
                                     claim,
                                 ),
-                                ("interest", &t.lot_id, -due),
+                                (
+                                    if acq.derivative_updates.iter().any(|u| u.lot_id == t.lot_id) {
+                                        "derivative_income"
+                                    } else {
+                                        "interest"
+                                    },
+                                    &t.lot_id,
+                                    -due,
+                                ),
                                 ("realized", &t.lot_id, -gain),
                             ],
                         )?;
@@ -1997,11 +2300,24 @@ pub fn replay(
             .map(|(_, v)| v)
             .sum()
     };
-    let open_claims = !near(
-        stock_sum("unpaid_receivable") + stock_sum("unpaid_payable"),
-        0.,
-    ) || (carrying.is_empty()
-        && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)));
+    let open_claims = !near(stock_sum("funding_interest_receivable"), 0.)
+        || !near(stock_sum("funding_interest_payable"), 0.)
+        || !near(
+            stock_sum("unpaid_receivable") + stock_sum("unpaid_payable"),
+            0.,
+        )
+        || (carrying.is_empty()
+            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)))
+        || plan.margin_agreements.iter().any(|a| {
+            acq.derivative_updates
+                .iter()
+                .any(|u| a.lot_ids.contains(&u.lot_id))
+                && a.lot_ids.iter().all(|id| !carrying.contains_key(id))
+                && (["posted_vm", "received_vm", "posted_im"]
+                    .iter()
+                    .any(|kind| !near(book.balance(kind, &a.agreement_id), 0.))
+                    || !near(custody.get(&a.agreement_id).copied().unwrap_or(0.), 0.))
+        });
     let closing: BTreeMap<(String, String), f64> = book
         .financial
         .iter()
@@ -2086,6 +2402,7 @@ fn months(
         let (mut cash_in, mut cash_out, mut net) = (0., 0., 0.);
         let (mut interest, mut fees, mut realized, mut posted_m, mut returned) =
             (0., 0., 0., 0., 0.);
+        let (mut derivative_income, mut derivative_mark) = (0., 0.);
         for i in intents.iter().filter(|i| within(i.ordinal) && !i.memo) {
             for (g, _, d) in &i.postings {
                 match g.as_str() {
@@ -2098,6 +2415,8 @@ fn months(
                         net += d;
                     }
                     "pnl:lifecycle_interest" => interest += d,
+                    "pnl:lifecycle_derivative_income" => derivative_income -= d,
+                    "pnl:lifecycle_derivative_mark" => derivative_mark -= d,
                     "pnl:lifecycle_fees" => fees += d,
                     "pnl:lifecycle_realized" => realized -= d,
                     "derivative_posted_vm_asset" | "derivative_posted_im_asset" => {
@@ -2157,6 +2476,14 @@ fn months(
             ],
         });
         first = last + 1;
+        if let Some(month) = out.last_mut() {
+            if derivative_income != 0. {
+                month.amounts.push(("derivative_income", derivative_income));
+            }
+            if derivative_mark != 0. {
+                month.amounts.push(("derivative_mark_pnl", derivative_mark));
+            }
+        }
     }
     Ok(out)
 }

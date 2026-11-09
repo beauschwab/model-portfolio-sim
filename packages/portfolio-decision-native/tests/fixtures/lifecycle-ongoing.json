@@ -1,0 +1,806 @@
+{
+  "acquisitions": [
+    {
+      "business_plan": {
+        "mode": "schedule"
+      },
+      "derivative_updates": [
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738887
+        },
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738891
+        },
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738897
+        }
+      ],
+      "facility_draws": [
+        {
+          "amount": 100.0,
+          "facility_id": "bridge",
+          "ordinal": 738887
+        }
+      ],
+      "facility_interest": [
+        {
+          "annual_rate": 0.36,
+          "day_count": "act360",
+          "facility_id": "bridge",
+          "payment_ordinals": [
+            738891
+          ],
+          "review": {
+            "id": "rate-policy",
+            "revision": "r1"
+          }
+        }
+      ],
+      "facility_repayments": [
+        {
+          "amount": 100.0,
+          "facility_id": "bridge",
+          "ordinal": 738890
+        }
+      ],
+      "horizon_end_ordinal": 738916,
+      "initial_margin": [],
+      "repayments": [],
+      "sales": [],
+      "scenario_id": "baseline",
+      "terminations": []
+    },
+    {
+      "business_plan": {
+        "mode": "schedule"
+      },
+      "derivative_updates": [
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738887
+        },
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738891
+        },
+        {
+          "lot_id": "swap-lot",
+          "ordinal": 738897
+        }
+      ],
+      "facility_draws": [
+        {
+          "amount": 100.0,
+          "facility_id": "bridge",
+          "ordinal": 738887
+        }
+      ],
+      "facility_interest": [
+        {
+          "annual_rate": 0.36,
+          "day_count": "act360",
+          "facility_id": "bridge",
+          "payment_ordinals": [
+            738891
+          ],
+          "review": {
+            "id": "rate-policy",
+            "revision": "r1"
+          }
+        }
+      ],
+      "facility_repayments": [
+        {
+          "amount": 100.0,
+          "facility_id": "bridge",
+          "ordinal": 738890
+        }
+      ],
+      "horizon_end_ordinal": 738916,
+      "initial_margin": [],
+      "repayments": [],
+      "sales": [],
+      "scenario_id": "zero",
+      "terminations": []
+    }
+  ],
+  "dated": {
+    "dated": {
+      "accrual_plans": [
+        {
+          "event_id": "coupon",
+          "position_id": "p",
+          "run": {
+            "kind": "all"
+          },
+          "segments": [
+            {
+              "accrued_interest": 0.3,
+              "book_amortization": 0.0,
+              "end_ordinal": 738916,
+              "start_ordinal": 738886
+            }
+          ]
+        }
+      ],
+      "as_of_ordinal": 738886,
+      "owners": [
+        {
+          "account_id": "a",
+          "currency": "USD",
+          "direction": "receipt",
+          "ownership": "contractual_dated_native_state",
+          "position_id": "p",
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ],
+      "reporting_horizon_days": 30,
+      "runs": [
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "base",
+          "scenario_id": "baseline",
+          "severity": 1.0
+        },
+        {
+          "input_revision": "synthetic-1",
+          "run_id": "zero",
+          "scenario_id": "zero",
+          "severity": 1.0
+        }
+      ],
+      "schema": "dated-store-1",
+      "sources": [
+        {
+          "coverage": [
+            {
+              "position_id": "p",
+              "run": {
+                "kind": "all"
+              },
+              "status": {
+                "kind": "complete_event_set"
+              }
+            }
+          ],
+          "schedule": {
+            "as_of_ordinal": 738886,
+            "events": [
+              {
+                "accrual_period": {
+                  "end_ordinal": 738916,
+                  "start_ordinal": 738886
+                },
+                "adjustment": {
+                  "kind": "none"
+                },
+                "components": {
+                  "accrued_interest": 0.3,
+                  "book_amortization": 0.0,
+                  "cash_interest": 0.3,
+                  "fees": 0.0,
+                  "principal": 100.0
+                },
+                "currency": "USD",
+                "day_offset": 30,
+                "event_id": "coupon",
+                "measure": "contractual",
+                "payment_ordinal": 738916,
+                "position_id": "p",
+                "provenance": {
+                  "kind": "contractual",
+                  "source_id": "synthetic-fixed-loan",
+                  "source_revision": "terms-1"
+                },
+                "scenario": {
+                  "kind": "all"
+                }
+              }
+            ],
+            "horizon_days": 30,
+            "scenarios": [
+              "base",
+              "zero"
+            ],
+            "schema": "dated-cashflow-1"
+          },
+          "source_id": "source",
+          "source_revision": "r1"
+        }
+      ]
+    },
+    "monetary_unit": "currency_units",
+    "recognition_policy": {
+      "fees": "immediate_earnings",
+      "policy_id": "supplied-coupon",
+      "policy_revision": "r1",
+      "recognition_model": "supplied_calendar_segments-1"
+    },
+    "schema": "dated-ledger-1",
+    "specification": {
+      "accounts": [
+        {
+          "cash": 1000.0,
+          "cet1_floor": 0.0,
+          "currency": "USD",
+          "entity": "bank",
+          "equity": 1106.0,
+          "id": "a",
+          "leverage_floor": 0.0
+        }
+      ],
+      "horizon_days": 30,
+      "positions": [
+        {
+          "account": "a",
+          "balance": 100.0,
+          "id": "p",
+          "kind": "loan",
+          "maturity_day": 30,
+          "rate": 0.0
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "zero",
+          "rate_shift": 0.0
+        }
+      ],
+      "version": "balance-stress-2"
+    }
+  },
+  "hedge_contracts": [
+    {
+      "lot_id": "swap-lot",
+      "swap": {
+        "asof_ordinal": 738887,
+        "contract": {
+          "id": "swap-contract",
+          "revision": "r1"
+        },
+        "currency": "USD",
+        "discount_curve": {
+          "asof_ordinal": 738887,
+          "basis": "collateralized_clean",
+          "collateral_discount_policy": {
+            "id": "discount-policy",
+            "revision": "r1"
+          },
+          "currency": "USD",
+          "information_unix_seconds": 1704186000,
+          "points": [
+            {
+              "discount_factor": 1.0,
+              "ordinal": 738887
+            },
+            {
+              "discount_factor": 1.0,
+              "ordinal": 738897
+            }
+          ],
+          "source": {
+            "id": "discount",
+            "revision": "r1"
+          }
+        },
+        "fixed_periods": [
+          {
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "payment_ordinal": 738897,
+            "period_id": "f1",
+            "start_ordinal": 738887
+          }
+        ],
+        "fixed_rate": 0.05,
+        "floating_periods": [
+          {
+            "coupon": {
+              "all_in_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "calculation": "term_simple",
+              "calendar": {
+                "id": "calendar",
+                "revision": "r1"
+              },
+              "complete_calendar_mapping": true,
+              "index": {
+                "average_calendar_days": null,
+                "index_id": "term-1m",
+                "kind": "term",
+                "tenor_months": 1
+              },
+              "index_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "kind": "indexed",
+              "lookback_business_days": 0,
+              "margin": 0.0,
+              "margin_treatment": "simple",
+              "observation_shift": false,
+              "observations": [
+                {
+                  "fixing_ordinal": 738887,
+                  "interest_end_ordinal": 738897,
+                  "interest_start_ordinal": 738887,
+                  "observation_end_ordinal": 738897,
+                  "observation_start_ordinal": 738887,
+                  "rate": 0.01,
+                  "selection_cutoff_unix_seconds": 1704186000,
+                  "source": {
+                    "information_unix_seconds": 1704186000,
+                    "kind": "conditional_projection",
+                    "measure": "pricing",
+                    "model": {
+                      "id": "index-model",
+                      "revision": "r1"
+                    },
+                    "path": {
+                      "id": "index-path",
+                      "revision": "r1"
+                    }
+                  }
+                }
+              ],
+              "reset_cutoff_unix_seconds": 1704186000
+            },
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "fee": 0.0,
+            "payment_ordinal": 738897,
+            "period_id": "l1",
+            "start_ordinal": 738887
+          }
+        ],
+        "index_basis": {
+          "id": "index-basis",
+          "revision": "r1"
+        },
+        "monetary_unit": "currency_units",
+        "notional": 3600.0,
+        "payment_timing": "after_scheduled_payments",
+        "position_id": "swap",
+        "rate_path": {
+          "id": "index-path",
+          "revision": "r1"
+        },
+        "scenario_id": "baseline",
+        "side": "payer",
+        "tail_end_ordinal": 738897,
+        "valuation_cutoff_unix_seconds": 1704189600
+      }
+    },
+    {
+      "lot_id": "swap-lot",
+      "swap": {
+        "asof_ordinal": 738891,
+        "contract": {
+          "id": "swap-contract",
+          "revision": "r1"
+        },
+        "currency": "USD",
+        "discount_curve": {
+          "asof_ordinal": 738891,
+          "basis": "collateralized_clean",
+          "collateral_discount_policy": {
+            "id": "discount-policy",
+            "revision": "r1"
+          },
+          "currency": "USD",
+          "information_unix_seconds": 1704186000,
+          "points": [
+            {
+              "discount_factor": 1.0,
+              "ordinal": 738891
+            },
+            {
+              "discount_factor": 0.5,
+              "ordinal": 738897
+            }
+          ],
+          "source": {
+            "id": "discount",
+            "revision": "r1"
+          }
+        },
+        "fixed_periods": [
+          {
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "payment_ordinal": 738897,
+            "period_id": "f1",
+            "start_ordinal": 738887
+          }
+        ],
+        "fixed_rate": 0.05,
+        "floating_periods": [
+          {
+            "coupon": {
+              "all_in_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "calculation": "term_simple",
+              "calendar": {
+                "id": "calendar",
+                "revision": "r1"
+              },
+              "complete_calendar_mapping": true,
+              "index": {
+                "average_calendar_days": null,
+                "index_id": "term-1m",
+                "kind": "term",
+                "tenor_months": 1
+              },
+              "index_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "kind": "indexed",
+              "lookback_business_days": 0,
+              "margin": 0.0,
+              "margin_treatment": "simple",
+              "observation_shift": false,
+              "observations": [
+                {
+                  "fixing_ordinal": 738887,
+                  "interest_end_ordinal": 738897,
+                  "interest_start_ordinal": 738887,
+                  "observation_end_ordinal": 738897,
+                  "observation_start_ordinal": 738887,
+                  "rate": 0.01,
+                  "selection_cutoff_unix_seconds": 1704186000,
+                  "source": {
+                    "information_unix_seconds": 1704186000,
+                    "kind": "conditional_projection",
+                    "measure": "pricing",
+                    "model": {
+                      "id": "index-model",
+                      "revision": "r1"
+                    },
+                    "path": {
+                      "id": "index-path",
+                      "revision": "r1"
+                    }
+                  }
+                }
+              ],
+              "reset_cutoff_unix_seconds": 1704186000
+            },
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "fee": 0.0,
+            "payment_ordinal": 738897,
+            "period_id": "l1",
+            "start_ordinal": 738887
+          }
+        ],
+        "index_basis": {
+          "id": "index-basis",
+          "revision": "r1"
+        },
+        "monetary_unit": "currency_units",
+        "notional": 3600.0,
+        "payment_timing": "after_scheduled_payments",
+        "position_id": "swap",
+        "rate_path": {
+          "id": "index-path",
+          "revision": "r1"
+        },
+        "scenario_id": "baseline",
+        "side": "payer",
+        "tail_end_ordinal": 738897,
+        "valuation_cutoff_unix_seconds": 1704535200
+      }
+    },
+    {
+      "lot_id": "swap-lot",
+      "swap": {
+        "asof_ordinal": 738897,
+        "contract": {
+          "id": "swap-contract",
+          "revision": "r1"
+        },
+        "currency": "USD",
+        "discount_curve": {
+          "asof_ordinal": 738897,
+          "basis": "collateralized_clean",
+          "collateral_discount_policy": {
+            "id": "discount-policy",
+            "revision": "r1"
+          },
+          "currency": "USD",
+          "information_unix_seconds": 1704186000,
+          "points": [
+            {
+              "discount_factor": 1.0,
+              "ordinal": 738897
+            }
+          ],
+          "source": {
+            "id": "discount",
+            "revision": "r1"
+          }
+        },
+        "fixed_periods": [
+          {
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "payment_ordinal": 738897,
+            "period_id": "f1",
+            "start_ordinal": 738887
+          }
+        ],
+        "fixed_rate": 0.05,
+        "floating_periods": [
+          {
+            "coupon": {
+              "all_in_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "calculation": "term_simple",
+              "calendar": {
+                "id": "calendar",
+                "revision": "r1"
+              },
+              "complete_calendar_mapping": true,
+              "index": {
+                "average_calendar_days": null,
+                "index_id": "term-1m",
+                "kind": "term",
+                "tenor_months": 1
+              },
+              "index_bounds": {
+                "cap": null,
+                "floor": null
+              },
+              "kind": "indexed",
+              "lookback_business_days": 0,
+              "margin": 0.0,
+              "margin_treatment": "simple",
+              "observation_shift": false,
+              "observations": [
+                {
+                  "fixing_ordinal": 738887,
+                  "interest_end_ordinal": 738897,
+                  "interest_start_ordinal": 738887,
+                  "observation_end_ordinal": 738897,
+                  "observation_start_ordinal": 738887,
+                  "rate": 0.01,
+                  "selection_cutoff_unix_seconds": 1704186000,
+                  "source": {
+                    "information_unix_seconds": 1704186000,
+                    "kind": "conditional_projection",
+                    "measure": "pricing",
+                    "model": {
+                      "id": "index-model",
+                      "revision": "r1"
+                    },
+                    "path": {
+                      "id": "index-path",
+                      "revision": "r1"
+                    }
+                  }
+                }
+              ],
+              "reset_cutoff_unix_seconds": 1704186000
+            },
+            "day_count": "act360",
+            "end_ordinal": 738897,
+            "fee": 0.0,
+            "payment_ordinal": 738897,
+            "period_id": "l1",
+            "start_ordinal": 738887
+          }
+        ],
+        "index_basis": {
+          "id": "index-basis",
+          "revision": "r1"
+        },
+        "monetary_unit": "currency_units",
+        "notional": 3600.0,
+        "payment_timing": "after_scheduled_payments",
+        "position_id": "swap",
+        "rate_path": {
+          "id": "index-path",
+          "revision": "r1"
+        },
+        "scenario_id": "baseline",
+        "side": "payer",
+        "tail_end_ordinal": 738897,
+        "valuation_cutoff_unix_seconds": 1705053600
+      }
+    }
+  ],
+  "plan": {
+    "accounts": [
+      {
+        "account_id": "a",
+        "cash": 1000.0,
+        "equity": 1106.0
+      }
+    ],
+    "actions": [],
+    "as_of_ordinal": 738886,
+    "currency": "USD",
+    "entity": "bank",
+    "facilities": [
+      {
+        "access_policy": {
+          "id": "bridge-access",
+          "revision": "r1"
+        },
+        "commitment": 100.0,
+        "drawn": 0.0,
+        "expiry_ordinal": 738950,
+        "facility_id": "bridge",
+        "provider": "treasury-bank"
+      }
+    ],
+    "funding_allocations": [
+      {
+        "allocation_id": "repo-funds-bond",
+        "amount": 95.0,
+        "attributed_lot_id": "bond-lot",
+        "effective_start_ordinal": 738850,
+        "funding_lot_id": "repo-lot",
+        "instruction": "repay"
+      }
+    ],
+    "hedge_allocations": [
+      {
+        "allocation_id": "bond-hedge",
+        "amount": 100.0,
+        "effective_start_ordinal": 738800,
+        "exposure_lot_id": "bond-lot",
+        "hedge_lot_id": "swap-lot",
+        "review": {
+          "id": "hedge-review",
+          "revision": "r1"
+        },
+        "risk_basis": "interest_rate",
+        "unwind_treatment": "terminate"
+      }
+    ],
+    "lots": [
+      {
+        "account_id": "a",
+        "accounting_category": "available_for_sale",
+        "acquisition_ordinal": 738800,
+        "kind": "security",
+        "lot_id": "bond-lot",
+        "original_cost": 100.0,
+        "original_effective_yield": 0.05,
+        "original_oas": 0.0012,
+        "position_id": "bond",
+        "quantity": 100.0,
+        "source_id": "bond-source"
+      },
+      {
+        "account_id": "a",
+        "accounting_category": "funding_liability",
+        "acquisition_ordinal": 738850,
+        "kind": "funding",
+        "lot_id": "repo-lot",
+        "original_cost": 95.0,
+        "original_effective_yield": 0.04,
+        "original_oas": 0.0,
+        "position_id": "repo",
+        "quantity": 95.0,
+        "source_id": "repo-source"
+      },
+      {
+        "account_id": "a",
+        "accounting_category": "derivative",
+        "acquisition_ordinal": 738800,
+        "kind": "derivative",
+        "lot_id": "swap-lot",
+        "original_cost": -4.0,
+        "original_effective_yield": 0.0,
+        "original_oas": 0.0,
+        "position_id": "swap",
+        "quantity": 100.0,
+        "source_id": "swap-source"
+      },
+      {
+        "account_id": "a",
+        "accounting_category": "derivative",
+        "acquisition_ordinal": 738887,
+        "kind": "derivative",
+        "lot_id": "offset-lot",
+        "original_cost": 0.0,
+        "original_effective_yield": 0.0,
+        "original_oas": 0.0,
+        "position_id": "swap-offset",
+        "quantity": 100.0,
+        "source_id": "swap-source"
+      }
+    ],
+    "margin_agreements": [
+      {
+        "agreement_id": "swap-csa",
+        "calendar": {
+          "id": "usd-calendar",
+          "revision": "r1"
+        },
+        "counterparty": "dealer",
+        "initial_margin": "supplied_requirements",
+        "legal_review": {
+          "id": "csa-review",
+          "revision": "r1"
+        },
+        "lot_ids": [
+          "swap-lot",
+          "offset-lot"
+        ],
+        "opening_collateral": {
+          "posted_im": 3.0,
+          "posted_vm": 2.0,
+          "received_im_custody": 0.0,
+          "received_vm": 0.0
+        },
+        "segregation": "segregated",
+        "settlement_lag_days": 1,
+        "vm_at_termination": "return_separately"
+      }
+    ],
+    "model_version": "liquidity-lifecycle-1",
+    "monetary_unit": "currency_units",
+    "pledges": [
+      {
+        "agreement_id": "repo-lot",
+        "eligibility": {
+          "id": "repo-eligibility",
+          "revision": "r1"
+        },
+        "haircut": 0.05,
+        "holder": "repo-dealer",
+        "lot_id": "bond-lot",
+        "pledge_id": "bond-to-repo",
+        "quantity": 100.0
+      }
+    ],
+    "saved_book_revision": {
+      "id": "saved-book",
+      "revision": "r3"
+    },
+    "schema": "liquidity-lifecycle-1",
+    "settlement_policy": {
+      "id": "settlement-phases",
+      "revision": "r1"
+    },
+    "sources": [
+      {
+        "measure": "physical",
+        "revision": "r1",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "source_id": "bond-source"
+      },
+      {
+        "measure": "physical",
+        "revision": "r1",
+        "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "source_id": "repo-source"
+      },
+      {
+        "measure": "physical",
+        "revision": "r1",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "source_id": "swap-source"
+      }
+    ],
+    "workspace_revision": {
+      "id": "workspace",
+      "revision": "r7"
+    }
+  },
+  "schema": "liquidity-lifecycle-1"
+}

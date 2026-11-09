@@ -87,6 +87,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y cmake libclang-dev
       # The real native producer, built with Cargo only.
       - run: cargo build --release --locked --manifest-path packages/portfolio-decision-native/Cargo.toml --bin portfolio-model-ledger
+      - run: cargo test --release --locked --manifest-path packages/portfolio-decision-native/Cargo.toml --test lifecycle_ongoing
       - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --test live
         env:
           WORKBENCH_TEST_LEDGER_EXE: ${{ github.workspace }}/packages/portfolio-decision-native/target/release/portfolio-model-ledger
