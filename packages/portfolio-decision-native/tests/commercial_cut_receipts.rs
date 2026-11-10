@@ -30,7 +30,35 @@ fn genuine_selected_transfer_reaches_complete_census_but_never_sim_authority() {
     let meta = census(raw());
     println!("CUT_ADMISSION_CENSUS={meta}");
     assert_eq!(meta["initial_source_work_upper"], 26_801_980);
-    assert_eq!(meta["final_joined_work_upper"], 65_036_571);
+    // Platform libm changes the final decimal digits in encoded preparations.
+    // All structural reserves remain identical; only observed receipt lengths
+    // and their exact repeated scan charges differ. Keep both frozen counts.
+    let (completed_bytes, revised_bytes) = if cfg!(all(
+        target_os = "linux",
+        target_env = "gnu",
+        target_arch = "x86_64"
+    )) {
+        (585_839u64, 1_126_328u64)
+    } else {
+        (585_851u64, 1_126_344u64)
+    };
+    assert_eq!(meta["completed_receipt_bytes"], completed_bytes);
+    assert_eq!(meta["revised_receipt_bytes"], revised_bytes);
+    let receipt_bytes = completed_bytes + revised_bytes;
+    assert_eq!(
+        meta["work_components"]["preparation_receipt_scans"],
+        2 * receipt_bytes
+    );
+    assert_eq!(
+        meta["revised_preparation_work_upper"],
+        26_801_980 + 2 * completed_bytes
+    );
+    // Each receipt byte is scanned twice while preparing and six times in
+    // final-result handling; the remaining raw/structural work is fixed.
+    assert_eq!(
+        meta["final_joined_work_upper"],
+        65_036_571 - 8 * (585_851 + 1_126_344) + 8 * receipt_bytes
+    );
     let w = &meta["cut_ledger_census"];
     assert_eq!(w["work_upper"], 11_343_032);
     assert_eq!(w["retained_bytes_upper"], 2_876_652);
@@ -68,8 +96,6 @@ fn genuine_selected_transfer_reaches_complete_census_but_never_sim_authority() {
         "initial_source_work_upper",
         "source_owner_retained_bytes_upper",
         "cut_ledger_census",
-        "completed_receipt_bytes",
-        "revised_receipt_bytes",
     ] {
         assert_eq!(meta[key], historical[key]);
     }
