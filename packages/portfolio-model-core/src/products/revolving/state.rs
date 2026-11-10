@@ -204,7 +204,7 @@ fn totals(lots: &[Lot]) -> ([f64; 3], [f64; 3], [f64; 3]) {
 }
 
 pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
-    simulate_inner(r, None)
+    simulate_with_check(r, None, &mut || Ok(()))
 }
 
 /// Additive analytical owner for explicitly selected zero-rights closure.
@@ -213,10 +213,16 @@ pub fn simulate_with_zero_balance_closure(
     r: &CardRequest,
     closure_ordinal: i32,
 ) -> Result<CardResult, String> {
-    simulate_inner(r, Some(closure_ordinal))
+    simulate_with_check(r, Some(closure_ordinal), &mut || Ok(()))
 }
 
-fn simulate_inner(r: &CardRequest, closure: Option<i32>) -> Result<CardResult, String> {
+/// The selected closure and ordinary paths share the same controlled owner.
+pub fn simulate_with_check(
+    r: &CardRequest,
+    closure: Option<i32>,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<CardResult, String> {
+    check()?;
     validate(r)?;
     let end = horizon(r.as_of_ordinal, r.horizon_days)?;
     if closure.is_some_and(|day| day < r.as_of_ordinal || day > end) {
@@ -262,6 +268,7 @@ fn simulate_inner(r: &CardRequest, closure: Option<i32>) -> Result<CardResult, S
     let mut statements = Vec::new();
     let mut default = None;
     for day in r.as_of_ordinal..=end {
+        check()?;
         // Prior day's interest is accrued before today's transactions; same-day actions retain input order.
         if day > r.as_of_ordinal
             && !matches!(
@@ -595,6 +602,7 @@ fn simulate_inner(r: &CardRequest, closure: Option<i32>) -> Result<CardResult, S
         return Err("card principal conservation failed".into());
     }
     cashflows.sort_by_key(|c| c.ordinal);
+    check()?;
     Ok(CardResult {
         schema: SCHEMA.into(),
         identity: r.identity.clone(),

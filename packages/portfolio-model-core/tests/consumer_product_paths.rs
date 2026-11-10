@@ -149,6 +149,54 @@ fn three_products_fit_project_states_and_keep_one_monetary_owner() {
 }
 
 #[test]
+fn shared_state_and_daily_owners_stop_inside_execution() {
+    for product in [Product::Auto, Product::Personal, Product::CreditCard] {
+        let source = request(product);
+        let output = evaluate(&source).unwrap();
+        let mut calls = 0;
+        let mut stop = || {
+            calls += 1;
+            if calls == 3 {
+                Err("original parent control".into())
+            } else {
+                Ok(())
+            }
+        };
+        let error = portfolio_model_core::credit_path::evaluate_with_check(
+            &output.credit_states.projected_path_source,
+            &mut stop,
+        )
+        .unwrap_err();
+        assert_eq!(error, "original parent control");
+        assert_eq!(calls, 3);
+
+        let mut calls = 0;
+        let mut stop = || {
+            calls += 1;
+            if calls == 3 {
+                Err("daily owner cancellation".into())
+            } else {
+                Ok(())
+            }
+        };
+        let error = match &output.products[0] {
+            ProductResult::Installment {
+                compiled_source, ..
+            } => loan::project_with_check(compiled_source, &mut stop).unwrap_err(),
+            ProductResult::Card {
+                compiled_source,
+                closure_ordinal,
+                ..
+            } => {
+                card::simulate_with_check(compiled_source, *closure_ordinal, &mut stop).unwrap_err()
+            }
+        };
+        assert_eq!(error, "daily owner cancellation");
+        assert_eq!(calls, 3);
+    }
+}
+
+#[test]
 fn fitted_card_exit_requires_zero_rights_and_closes_the_line() {
     let mut r = request(Product::CreditCard);
     for row in &mut r.fit.records {

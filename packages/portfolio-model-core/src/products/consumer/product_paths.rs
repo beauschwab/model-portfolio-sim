@@ -382,7 +382,7 @@ pub fn evaluate_checked(
                 }
                 compiled.steps.sort_by_key(|s| s.ordinal);
                 check()?;
-                let result = loan::project(&compiled)?;
+                let result = loan::project_with_check(&compiled, &mut check)?;
                 check()?;
                 products.push(ProductResult::Installment {
                     path_id: id.into(),
@@ -419,10 +419,7 @@ pub fn evaluate_checked(
                 }
                 compiled.steps.sort_by_key(|s| s.ordinal); // Stable for existing equal-day transactions.
                 check()?;
-                let result = match closure {
-                    Some(day) => card::simulate_with_zero_balance_closure(&compiled, day)?,
-                    None => card::simulate(&compiled)?,
-                };
+                let result = card::simulate_with_check(&compiled, closure, &mut check)?;
                 check()?;
                 products.push(ProductResult::Card {
                     path_id: id.into(),

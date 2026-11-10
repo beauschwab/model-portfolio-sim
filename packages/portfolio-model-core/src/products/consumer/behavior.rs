@@ -595,10 +595,10 @@ pub fn fit_checked(
     check()?;
     let fitted = match &prepared.fit_request {
         FitTemplate::Exact { request } => Fitted::Exact {
-            result: Box::new(covariate::fit(request)?),
+            result: Box::new(covariate::fit_with_check(request, &mut check)?),
         },
         FitTemplate::Snapshot { request } => Fitted::Snapshot {
-            result: Box::new(snapshot::fit(request)?),
+            result: Box::new(snapshot::fit_with_check(request, &mut check)?),
         },
     };
     check()?;
@@ -752,8 +752,8 @@ impl ResultData {
             previous = interval.end;
         }
         let hazards = match &self.fitted {
-            Fitted::Exact { result } => {
-                covariate::project(&covariate::CovariateProjectionRequest {
+            Fitted::Exact { result } => covariate::project_with_check(
+                &covariate::CovariateProjectionRequest {
                     schema: covariate::SCHEMA.into(),
                     measure: CreditMeasure::Physical,
                     model: result.model.clone(),
@@ -766,12 +766,13 @@ impl ResultData {
                     end_time: previous,
                     timeout_ms: r.timeout_ms,
                     intervals: r.intervals.clone(),
-                })?
-                .intervals
-                .into_iter()
-                .map(|i| i.hazards_per_year)
-                .collect::<Vec<_>>()
-            }
+                },
+                &mut check,
+            )?
+            .intervals
+            .into_iter()
+            .map(|i| i.hazards_per_year)
+            .collect::<Vec<_>>(),
             Fitted::Snapshot { result } => r
                 .intervals
                 .iter()
@@ -792,7 +793,7 @@ impl ResultData {
             interval.hazards_per_year = hazard;
         }
         check()?;
-        let paths = crate::credit_path::evaluate(&projected)?;
+        let paths = crate::credit_path::evaluate_with_check(&projected, &mut check)?;
         check()?;
         let result = ProjectionResult {
             product: spec.product,

@@ -77,8 +77,9 @@ RSS guarantee. Full raw contracts, states, compiled sources and outputs are kept
 
 Strict original-byte decoding and the original entry deadline cover the native
 protocol. Cancellation and scalar deadlines continue through fitting, path
-generation, product execution and serialization. Bounded product calls are
-checked before and after; the process transport separately supplies a watchdog.
+generation, product execution and serialization. The caller's original control
+is checked inside likelihood, shared path and daily product loops, as well as
+before and after each stage; the transport separately supplies a watchdog.
 
 Hand cases exercise all three products through panel fit, state projection and
 daily product cashflows, including full default recovery tails and unchanged

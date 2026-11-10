@@ -116,8 +116,9 @@ simultaneous admission or an aggregate RSS cap.
 
 The original native entry deadline covers strict duplicate-key decoding and final
 serialization. Mapping/projection checkpoints retain caller cancellation and the
-original scalar budget; bounded estimator/path calls are checked before and
-after. The process transport additionally has a watchdog. These are separate
+original scalar budget inside exact/panel likelihood evaluations, hazard
+projection and shared path/event/recovery loops, as well as before and after
+each stage. The process transport additionally has a watchdog. These are separate
 controls; a cooperative callback does not interrupt a blocked external process.
 
 ## Evidence and remaining adoption

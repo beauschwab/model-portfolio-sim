@@ -168,6 +168,57 @@ fn snapshots_use_endpoint_likelihood_in_all_products() {
         assert_eq!(fitted.holdout.intervals, 1);
     }
 }
+
+#[test]
+fn enclosing_control_reaches_both_likelihood_loops_without_changing_results() {
+    for request in [exact(Product::Auto), snapshot(Product::Auto)] {
+        let mut preparation_checks = 0;
+        let prepared = prepare_checked(&request, &mut || {
+            preparation_checks += 1;
+            Ok(())
+        })
+        .unwrap();
+        let mut likelihood_checks = 0;
+        let mut count = || {
+            likelihood_checks += 1;
+            Ok(())
+        };
+        match &prepared.fit_request {
+            FitTemplate::Exact { request } => {
+                let controlled = c::fit_with_check(request, &mut count).unwrap();
+                assert_eq!(
+                    serde_json::to_value(controlled).unwrap(),
+                    serde_json::to_value(c::fit(request).unwrap()).unwrap()
+                );
+            }
+            FitTemplate::Snapshot { request } => {
+                let controlled = s::fit_with_check(request, &mut count).unwrap();
+                assert_eq!(
+                    serde_json::to_value(controlled).unwrap(),
+                    serde_json::to_value(s::fit(request).unwrap()).unwrap()
+                );
+            }
+        }
+        assert!(likelihood_checks > 20);
+        // This checkpoint is beyond all raw consumer preparation and inside
+        // likelihood work. Bracketing the call alone cannot reach it.
+        let stop = preparation_checks + 2 + likelihood_checks / 2;
+        for reason in ["parent cancellation", "original coordinator deadline"] {
+            let mut checks = 0;
+            let error = fit_checked(&request, &mut || {
+                checks += 1;
+                if checks == stop {
+                    Err(reason.into())
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap_err();
+            assert_eq!(error, reason);
+            assert_eq!(checks, stop);
+        }
+    }
+}
 #[test]
 fn holdout_values_and_events_do_not_fit_exact_coefficients() {
     let r = exact(Product::Auto);
