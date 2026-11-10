@@ -1458,11 +1458,11 @@ pub fn respond(input: &[u8]) -> (Vec<u8>, bool) {
 }
 pub fn respond_started(input: &[u8], started: std::time::Instant) -> (Vec<u8>, bool) {
     if let Some(selected) =
-        crate::products::commercial::stochastic_boundary::selected(input, started, || {
+        crate::products::commercial::stochastic_boundary::selected(input, started, |output_limit| {
             let result = std::panic::catch_unwind(|| execute(input))
                 .unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
             let mut output =
-                crate::products::commercial::stochastic_boundary::Output::for_input(input)?;
+                crate::products::commercial::stochastic_boundary::Output::new(output_limit);
             serde_json::to_writer(&mut output, &Response::Success { ok: true, result })
                 .map_err(|e| e.to_string())?;
             portfolio_compute_control::checkpoint()?;

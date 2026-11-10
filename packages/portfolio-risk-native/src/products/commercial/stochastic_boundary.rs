@@ -70,7 +70,7 @@ impl<'de> Deserialize<'de> for Probe {
 pub(crate) fn selected(
     input: &[u8],
     started: Instant,
-    run: impl FnOnce() -> Result<Vec<u8>, String>,
+    run: impl FnOnce(usize) -> Result<Vec<u8>, String>,
 ) -> Option<Result<Vec<u8>, String>> {
     if input.len() > crate::transport::protocol::MAX_INPUT {
         return None;
@@ -115,7 +115,11 @@ pub(crate) fn selected(
                 checkpoint,
             )?;
             checkpoint()?;
-            let result = run()?;
+            let result = run(if probe.consumer_macro_products {
+                96 << 20
+            } else {
+                32 << 20
+            })?;
             checkpoint()?;
             Ok(result)
         })
@@ -124,17 +128,9 @@ pub(crate) fn selected(
 
 pub(crate) struct Output(pub Vec<u8>, usize);
 impl Output {
-    pub(crate) fn for_input(input: &[u8]) -> Result<Self, String> {
-        // Called only after selected() has rejected duplicate keys under the original control.
-        let probe: Probe = serde_json::from_slice(input).map_err(|e| e.to_string())?;
-        Ok(Self(
-            Vec::new(),
-            if probe.consumer_macro_products {
-                96 << 20
-            } else {
-                32 << 20
-            },
-        ))
+    pub(crate) fn new(selected_limit: usize) -> Self {
+        // Reuse the original selected probe; no second raw-source traversal.
+        Self(Vec::new(), selected_limit)
     }
 }
 impl Write for Output {
@@ -166,7 +162,7 @@ mod tests {
     #[test]
     fn original_selected_duplicate_cannot_hide_under_legacy_schema() {
         let raw=br#"{"schema":"commercial-generated-exercise-1","schema":"kpi-1","execution_timeout_ms":30000}"#;
-        assert!(selected(raw, Instant::now(), || panic!(
+        assert!(selected(raw, Instant::now(), |_| panic!(
             "duplicate reached financial model"
         ))
         .unwrap()
@@ -178,7 +174,7 @@ mod tests {
         let raw = br#"{"schema":"commercial-generated-exercise-1","execution_timeout_ms":1}"#;
         let past = Instant::now() - std::time::Duration::from_millis(5);
         assert!(
-            selected(raw, past, || panic!("expired entry reached model"))
+            selected(raw, past, |_| panic!("expired entry reached model"))
                 .unwrap()
                 .unwrap_err()
                 .contains("DEADLINE")
@@ -189,5 +185,24 @@ mod tests {
             out.write_all(b"never").map_err(|e| e.to_string())
         })
         .is_err());
+    }
+    #[test]
+    fn original_probe_selects_only_the_explicit_new_output_limit() {
+        for (schema, expected) in [
+            ("commercial-generated-exercise-1", 32 << 20),
+            ("consumer-macro-scenarios-1", 32 << 20),
+            ("consumer-macro-products-1", 96 << 20),
+        ] {
+            let raw = format!("{{\"schema\":\"{schema}\",\"execution_timeout_ms\":30000}}");
+            selected(raw.as_bytes(), Instant::now(), |limit| {
+                assert_eq!(limit, expected);
+                Ok(Vec::new())
+            })
+            .unwrap()
+            .unwrap();
+        }
+        let mut out = Output::new(1);
+        assert!(out.write_all(&vec![0; 4098]).is_err());
+        assert!(out.0.is_empty());
     }
 }
