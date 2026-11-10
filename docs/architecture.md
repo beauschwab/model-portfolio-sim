@@ -77,6 +77,11 @@ same durable library transaction and recovery path as legacy prepared libraries.
 Its synchronous evaluator consumes native coefficients without repricing. See
 [product analysis and dated adoption](models/product-analysis-workbench.md).
 
+Joint market/credit publication uses the independent
+[raw covariance and draw verifier](models/joint-market-credit.md#independent-market-source-verification)
+before hazard replay and again after persisted-table reread. A producer's coherent
+market tape or covariance diagnostics do not establish raw-source identity.
+
 Product batches use borrowed contiguous buffers over C ABI 10 or bounded tagged
 JSON requests with opaque graph/session handles. Standalone lifecycle, strategy,
 balance and workflow executables also accept bounded protocols. Large workflows

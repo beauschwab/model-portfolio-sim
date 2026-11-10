@@ -1,5 +1,20 @@
 # Product model enhancement implementation and evidence
 
+## Current accepted integration and shared-source follow-through
+
+PR #123 merged at `21ef0a755955a999f1c723eebd301a8d8e76c72a` with full local
+validation and all required hosted scopes. The November 8 pending-matrix wording
+below describes its historical checkpoint; see the PR and November 9 review for
+the accepted results. This integration does not close the broader issue gates.
+
+The subsequent shared market/credit publication repair independently verifies
+the raw covariance and caller-owned draws before hazard replay and persisted
+publication. The old verifier accepted a coherent result generated from twice
+the requested covariance. Seventy-three focused controls now cover source substitution,
+seeded/supplied draws, covariance ranks, truncation, zero variance, cancellation
+and durable refusal. Full regression and integration of this repair remain pending.
+See [the source contract](joint-market-credit.md#independent-market-source-verification).
+
 ## Ordinary fee cuts and verified continuation (2026-11-08)
 
 The ordinary fixed route now retains all 18 loan/fee proofs, acquired costs,

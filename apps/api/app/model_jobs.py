@@ -229,7 +229,7 @@ def verify_source(request,result,check=lambda:False):
     if request['schema']=='joint-state-1':
         return _verify_joint_state(request['request'], result)
     if request['schema']=='joint-market-credit-1':
-        return _verify_joint_market_credit(request['request'], result)
+        return _verify_joint_market_credit(request['request'], result, check=check)
     if request['schema']=='market-driver-calibration-1':
         return _verify_market_driver_calibration(request['request'], result)
     if request['schema']=='market-quote-bootstrap-1':
@@ -288,16 +288,17 @@ def _verify_joint_state(raw, result):
                 common_random_numbers_id=raw['identity']['common_random_numbers_id'])
 
 
-def _verify_joint_market_credit(raw, result):
+def _verify_joint_market_credit(raw, result, check=lambda: False):
     """Replay market-linked hazards and competing exits independently.
 
-    The market covariance implementation is verified by the native/reference
-    model-market suites. This publication oracle independently consumes the
-    persisted market tape, recomputes hazard elasticities and replays every
-    path event before publication.
+    Reconstruct the tape from the raw covariance and CRN before recomputing
+    hazard elasticities and every path event. Producer diagnostics alone cannot
+    establish the market source that supplied those hazards.
     """
     import datetime
     import math
+    from portfolio_risk.analytics.joint_market_tape_reference import verify
+    source_receipt = verify(raw['market'], result.get('market', {}), check)
     if (result.get('schema') != 'joint-market-credit-1'
             or result.get('model_version') != 'joint-market-credit-1'
             or result.get('identity') != raw['identity']
@@ -352,6 +353,7 @@ def _verify_joint_market_credit(raw, result):
     annual_samples = []
     terminal = [0.0] * (paths * drivers)
     for path_index in range(paths):
+        if check(): raise InterruptedError('joint market-credit verification cancelled')
         for step, dt in enumerate(source_market['durations_years']):
             offset = (path_index * steps + step) * drivers
             annual = [float(increments[offset + j]) / math.sqrt(float(dt)) for j in range(drivers)]
@@ -378,7 +380,9 @@ def _verify_joint_market_credit(raw, result):
     eigenvalues = diagnostics.get('correlation_eigenvalues_descending', [])
     if len(eigenvalues) != drivers or any(not math.isfinite(float(value)) or float(value) < -1e-10 for value in eigenvalues):
         raise ValueError('joint market-credit covariance eigenvalue diagnostics are invalid')
-    close(sum(float(value) for value in eigenvalues), float(drivers), 'correlation_eigenvalue_trace')
+    close(sum(float(value) for value in eigenvalues),
+          float(sum(source_market['annual_covariance'][j * drivers + j] > 0 for j in range(drivers))),
+          'correlation_eigenvalue_trace')
     retained = diagnostics.get('retained_annual_covariance', [])
     if len(retained) != drivers * drivers or any(not math.isfinite(float(value)) for value in retained):
         raise ValueError('joint market-credit retained covariance diagnostics are invalid')
@@ -387,6 +391,7 @@ def _verify_joint_market_credit(raw, result):
             raise ValueError(f'joint market-credit diagnostic {key} is invalid')
 
     for path_index, (position, output) in enumerate(zip(positions, result['paths'])):
+        if check(): raise InterruptedError('joint market-credit verification cancelled')
         if output.get('position_id') != position['position_id'] or output.get('path_key') != position['path_key']:
             raise ValueError('joint market-credit path identity mismatch')
         if len(output.get('events', [])) != steps:
@@ -394,6 +399,7 @@ def _verify_joint_market_credit(raw, result):
         balance = float(position['principal'])
         totals = [0.0, 0.0, 0.0, 0.0, 0.0]; discounted = 0.0
         for step, (period, event) in enumerate(zip(periods, output['events'])):
+            if check(): raise InterruptedError('joint market-credit verification cancelled')
             check_dt = years(period['start_ordinal'], period['end_ordinal'], raw['day_count'])
             dt = float(source_market['durations_years'][step])
             close(dt, check_dt, f'duration[{step}]')
@@ -425,8 +431,9 @@ def _verify_joint_market_credit(raw, result):
         for key, expected in zip(('total_behavioral_exit', 'total_credit_default', 'total_prepayment', 'total_recovery_cash', 'total_economic_loss'), totals):
             close(output[key], expected, key)
         close(output['discounted_live_balance'], discounted, 'discounted_live_balance')
+    if check(): raise InterruptedError('joint market-credit verification cancelled')
     return dict(verified=True, market_tape_replayed=True, hazard_elasticities_recomputed=True,
-                competing_paths_recomputed=paths, adoption_eligible=False)
+                competing_paths_recomputed=paths, adoption_eligible=False, **source_receipt)
 
 
 def _verify_market_driver_calibration(raw, result):
