@@ -13,8 +13,10 @@ shorten the independently verified daily horizon.
 Targeted validation passes 84 ledger tests, 63 independent replay/transport checks,
 15 fee-verifier tests after the horizon correction and ten worker tests against
 rebuilt release artifacts. Full regression on this final source remains pending;
-the earlier chain-only matrix does not cover this extension. See
-[the ordinary fee contract and evidence](commercial-fixed-fee-cut.md).
+the earlier chain-only matrix does not cover this extension. Fresh release and
+full-matrix results are tracked in [PR #123](https://github.com/beauschwab/model-portfolio-sim/pull/123)
+and the [cross-platform validation review](../reviews/2026-11-09-commercial-fee-cut-validation.md).
+See [the ordinary fee contract and evidence](commercial-fixed-fee-cut.md).
 
 Generated, exercise, transferred and original-physical acquisition owners retain
 separate admission requirements. Broader saved/cohort/strategy/accounting/FTP,
