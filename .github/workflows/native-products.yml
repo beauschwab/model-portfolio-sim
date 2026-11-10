@@ -9,11 +9,13 @@ permissions:
 jobs:
   parity:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
       NUMBA_NUM_THREADS: '4'
+      PORTFOLIO_COUNTED_WORK_RECEIPT: ${{ runner.temp }}/commercial-counted-source-ledgers.jsonl
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
