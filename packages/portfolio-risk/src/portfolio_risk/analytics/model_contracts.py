@@ -7,6 +7,18 @@ There is no selectable Python financial implementation or fallback here.
 from ..core.quant_native import term_call
 
 
+def analyze_consumer_macro(request: dict, **execution_options) -> dict:
+    """Transport supplied Physical paths and chronological macro diagnostics."""
+    from ..core.model_native import run
+    return run("consumer-macro-scenarios-1", request, **execution_options)[0]
+
+
+def project_consumer_macro_products(request: dict, **execution_options) -> dict:
+    """Transport bounded daily macro replay; no Pricing or income adoption."""
+    from ..core.model_native import run
+    return run("consumer-macro-products-1", request, **execution_options)[0]
+
+
 def fit_consumer_behaviour(request: dict, **execution_options) -> dict:
     """Transport explicit product panels to standalone native analysis; no adoption."""
     from ..core.model_native import run

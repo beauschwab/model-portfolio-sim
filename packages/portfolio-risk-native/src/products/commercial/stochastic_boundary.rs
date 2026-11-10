@@ -13,6 +13,8 @@ struct Probe {
     lifetime_loss: bool,
     consumer_behavior: bool,
     consumer_products: bool,
+    consumer_macro: bool,
+    consumer_macro_products: bool,
     timeout: Option<u64>,
 }
 impl<'de> Deserialize<'de> for Probe {
@@ -28,6 +30,12 @@ impl<'de> Deserialize<'de> for Probe {
                 while let Some(key) = map.next_key::<String>()? {
                     let value = map.next_value::<Box<RawValue>>()?;
                     if key == "schema" {
+                        out.consumer_macro |= serde_json::from_str::<String>(value.get())
+                            .is_ok_and(|v| v == portfolio_model_core::consumer_macro::SCHEMA);
+                        out.consumer_macro_products |= serde_json::from_str::<String>(value.get())
+                            .is_ok_and(|v| {
+                                v == portfolio_model_core::consumer_macro_products::SCHEMA
+                            });
                         out.consumer_products |= serde_json::from_str::<String>(value.get())
                             .is_ok_and(|v| {
                                 v == portfolio_model_core::consumer_product_paths::SCHEMA
@@ -71,6 +79,8 @@ pub(crate) fn selected(
     if !(probe.selected
         || probe.lifetime_loss
         || probe.consumer_behavior
+        || probe.consumer_macro
+        || probe.consumer_macro_products
         || probe.consumer_products
         || probe.graph && probe.timeout.is_some())
     {
@@ -87,7 +97,11 @@ pub(crate) fn selected(
         scope(Some(control), || {
             strict_json::parse_checked(
                 input,
-                (if probe.consumer_products {
+                (if probe.consumer_macro_products {
+                    8 << 20
+                } else if probe.consumer_macro {
+                    4 << 20
+                } else if probe.consumer_products {
                     1 << 20
                 } else if probe.consumer_behavior {
                     8 << 20
@@ -108,7 +122,21 @@ pub(crate) fn selected(
     })())
 }
 
-pub(crate) struct Output(pub Vec<u8>);
+pub(crate) struct Output(pub Vec<u8>, usize);
+impl Output {
+    pub(crate) fn for_input(input: &[u8]) -> Result<Self, String> {
+        // Called only after selected() has rejected duplicate keys under the original control.
+        let probe: Probe = serde_json::from_slice(input).map_err(|e| e.to_string())?;
+        Ok(Self(
+            Vec::new(),
+            if probe.consumer_macro_products {
+                96 << 20
+            } else {
+                32 << 20
+            },
+        ))
+    }
+}
 impl Write for Output {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         checkpoint().map_err(std::io::Error::other)?;
@@ -116,9 +144,13 @@ impl Write for Output {
             .0
             .len()
             .checked_add(bytes.len())
-            .is_none_or(|n| n > (32 << 20) + 4096)
+            .is_none_or(|n| n > self.1 + 4096)
         {
-            return Err(std::io::Error::other("generated response exceeds32MiB"));
+            return Err(std::io::Error::other(if self.1 == 32 << 20 {
+                "generated response exceeds32MiB"
+            } else {
+                "consumer macro product response exceeds96MiB"
+            }));
         }
         self.0.extend_from_slice(bytes);
         Ok(bytes.len())
@@ -153,7 +185,7 @@ mod tests {
         );
         let parent = Control::from_started(1, past).unwrap();
         assert!(scope(Some(parent), || {
-            let mut out = Output(vec![]);
+            let mut out = Output(vec![], 32 << 20);
             out.write_all(b"never").map_err(|e| e.to_string())
         })
         .is_err());

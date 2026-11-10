@@ -1,8 +1,10 @@
 # Supplied consumer macro scenarios and daily replay
 
-These Rust core components implement the supplied-conditional-path alternative
-in #92. They are not yet standalone native protocol or ModelLab entrypoints.
-They do not complete #92's joined NII/EVE/loss acceptance gate.
+These Rust components implement the supplied-conditional-path alternative in
+#92. The standalone native protocol accepts both schemas through transport-only
+`analyze_consumer_macro` and `project_consumer_macro_products` entrypoints. They
+are not ModelLab publication routes and do not complete the joined NII/EVE/loss
+acceptance gate.
 
 `consumer-macro-scenarios-1` accepts Physical history, declared sources and four
 supplied scenarios: baseline, parallel +200bp, parallel -200bp and severely
@@ -67,8 +69,13 @@ three products under all four scenarios; zero macro coefficients preserve the
 complete existing financial result exactly. A fitted nonzero macro coefficient
 changes daily default timing while the fitted model and raw draws remain equal.
 
-Remaining #92 work includes a controlled public native entrypoint, independent
-raw-source verification and a joined analysis with separately supplied Pricing
+The protocol requires an original execution deadline, rejects duplicate keys
+before calculation, and retains the caller control through final serialization.
+The daily response has an explicit 96 MiB bound; historical controlled schemas
+retain their 32 MiB bound. The Python process adapter preserves raw input hashes,
+executable identity checks and watchdog cancellation without financial callbacks.
+
+Remaining #92 work includes independent raw-source verification and a joined analysis with separately supplied Pricing
 parents and retained original OAS, plus frozen-EIR income accounting. Gross
 contract interest is not NII. Physical conditional forecasts must never drive
 OAS or EVE. Saved books, durable publication, capital/FTP, deployment and observed

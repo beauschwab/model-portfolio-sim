@@ -13,8 +13,9 @@ uses zero-monetary CTMC states and one Rust installment/card cashflow owner, wit
 explicit daily clock reduction and exact-zero card closure.
 The core [consumer macro replay](models/consumer-macro-scenarios.md) binds supplied
 Physical scenarios to those daily owners, with training-only innovation moments,
-original draws and aggregate admission. Public transport and joined Pricing/EIR
-income integration remain pending under #92.
+original draws and aggregate admission. Its controlled native process transport
+performs no Python finance. Independent publication and joined Pricing/EIR income
+integration remain pending under #92.
 
 ```mermaid
 flowchart LR

@@ -610,3 +610,23 @@ fn same_macro_tape_replays_auto_personal_card_through_their_daily_owners() {
         }
     }
 }
+
+#[test]
+fn documented_macro_examples_replay_without_transport_or_financial_fallback() {
+    let r: Request = serde_json::from_str(include_str!(
+        "../../../examples/models/consumer-macro-scenarios-1.json"
+    ))
+    .unwrap();
+    assert_eq!(run(&r).diagnostics.training.row_ids.len(), 4);
+    let r: portfolio_model_core::consumer_macro_products::Request = serde_json::from_str(
+        include_str!("../../../examples/models/consumer-macro-products-1.json"),
+    )
+    .unwrap();
+    assert_eq!(
+        portfolio_model_core::consumer_macro_products::evaluate(&r, &mut || Ok(()))
+            .unwrap()
+            .cases
+            .len(),
+        4
+    );
+}

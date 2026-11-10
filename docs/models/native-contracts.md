@@ -533,4 +533,4 @@ is optional because no OCI arises. The same `interim_report` selection applies;
 unpaid rights, supplied capital/positions/curves and hedge accounts refuse. See
 [the derivative treasury feed](derivative-accounting.md#closing-capital-feed-derivative-treasury-1).
 
-Core-only consumer macro schemas are documented in [conditional consumer scenarios](consumer-macro-scenarios.md). They have no standalone native protocol operation or publication permission; #92 remains open.
+The additive `consumer-macro-scenarios-1` (`analyze_consumer_macro`) and `consumer-macro-products-1` (`project_consumer_macro_products`) standalone schemas are documented in [conditional consumer scenarios](consumer-macro-scenarios.md). They retain original execution controls and explicit byte bounds, with no publication permission. Joined Pricing and EIR income acceptance remains open under #92.
