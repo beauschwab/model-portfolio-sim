@@ -41,8 +41,14 @@ def binary_identity():
 
 def run(schema,request,*,threads=1,expected_binary=None,cancelled=None,timeout=1800.):
     """Transport one admitted analysis; native code owns all financial calculations."""
+    started=time.monotonic()
     if type(threads) is not int or not 1<=threads<=256:raise ValueError('invalid model thread count')
     if not math.isfinite(timeout) or not .001<=timeout<=1800.:raise ValueError('invalid model deadline')
+    deadline=started+timeout
+    def check():
+        if cancelled and cancelled():raise InterruptedError('model analysis cancelled or worker lease lost')
+        if time.monotonic()>=deadline:raise TimeoutError('model analysis deadline exceeded')
+    check()
     envelope=dict(schema=schema,threads=threads,request=request)
     controlled=schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','lifetime-credit-loss-1','consumer-macro-scenarios-1','consumer-macro-products-1','consumer-behaviour-spec-1','consumer-behaviour-product-paths-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'} or is_generated_oas_calibration(schema,request)
     if controlled:envelope['execution_timeout_ms']=max(1,int(timeout*1000))
@@ -50,17 +56,15 @@ def run(schema,request,*,threads=1,expected_binary=None,cancelled=None,timeout=1
     input_limit=1024*1024 if schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','consumer-behaviour-product-paths-1'} else 2*1024*1024 if schema in {'lifetime-credit-loss-1','nonintegral-fee-accounting-1'} else 4*1024*1024 if schema=='consumer-macro-scenarios-1' else 8*1024*1024 if schema in {'consumer-behaviour-spec-1','consumer-macro-products-1'} else MAX_INPUT
     output_limit=96*1024*1024+4096 if schema=='consumer-macro-products-1' else 32*1024*1024 if controlled else MAX_OUTPUT
     if len(data)>input_limit:raise ValueError('model request exceeds bounded native input')
+    check()
     identity=binary_identity()
     if expected_binary is not None and identity!=expected_binary:
         raise RuntimeError('MODEL_VERSION_CHANGED: model executable differs from queued identity')
-    deadline=time.monotonic()+timeout
-    def check():
-        if cancelled and cancelled():raise InterruptedError('model analysis cancelled or worker lease lost')
-        if time.monotonic()>=deadline:raise TimeoutError('model analysis deadline exceeded')
     check()
     with scratch_directory(prefix='portfolio-model-') as scratch:
         folder=Path(scratch);input_path=folder/'input.json';output_path=folder/'output.json';error_path=folder/'error.txt'
         input_path.write_bytes(data)
+        check()
         with input_path.open('rb') as stdin,output_path.open('w+b') as stdout,error_path.open('w+b') as stderr:
             child=subprocess.Popen([str(binary_path())],stdin=stdin,stdout=stdout,stderr=stderr)
             try:
@@ -86,4 +90,5 @@ def run(schema,request,*,threads=1,expected_binary=None,cancelled=None,timeout=1
     if controlled:
         public=dict(schema=schema,threads=threads,request=request)
         execution.update(input_sha256=hashlib.sha256(json.dumps(public,allow_nan=False,separators=(',',':')).encode()).hexdigest(),executed_input_sha256=hashlib.sha256(data).hexdigest(),native_timeout_ms=envelope['execution_timeout_ms'])
+    check()
     return response['result'],execution

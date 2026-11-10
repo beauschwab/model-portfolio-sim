@@ -74,6 +74,9 @@ before calculation, and retains the caller control through final serialization.
 The daily response has an explicit 96 MiB bound; historical controlled schemas
 retain their 32 MiB bound. The Python process adapter preserves raw input hashes,
 executable identity checks and watchdog cancellation without financial callbacks.
+The process deadline starts at entry and includes JSON preparation, executable
+hashing, input-file writing and final canonical evidence hashing; each boundary
+is checked before process creation or returning a result.
 
 Remaining #92 work includes independent raw-source verification and a joined analysis with separately supplied Pricing
 parents and retained original OAS, plus frozen-EIR income accounting. Gross
