@@ -1829,8 +1829,12 @@ The current additive contracts include [consumer installment lending](consumer-i
 [revolving cards](consumer-card.md), [indexed/optional corporate and CD contracts](term-enhancements.md),
 [joint daily credit state](credit-state.md) and [daily credit replay](credit-replay.md).
 The proposed [consumer behaviour states, covariates and driver specification](consumer-behaviour-drivers.md)
-(#91–#95) fixes the product mappings those estimators need; it is a specification,
-not an installed contract. The companion
+(#91–#94) fixes the product mappings those estimators need; these remain specifications.
+The additive [#95 lifetime-loss report and independent challenger](lifetime-loss-sensitivity.md)
+provide bounded complete-path sensitivity, completed-outcome hooks and same-panel
+synthetic diagnostics. Supplied macro paths, coefficients, LGD/CCF/recovery policies
+and broader product adoption remain separate. Passing synthetic validation does
+not close observed accuracy or reviewed-policy gates. The companion
 [deposit behaviour specification](deposit-behaviour-drivers.md) (#102–#106) and
 [commercial and CRE credit specification](commercial-credit-drivers.md) (#107–#111)
 are proposals of the same standing. Every external source cited across the

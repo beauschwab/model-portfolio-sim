@@ -148,3 +148,7 @@ beside the research above: [FRED API](https://fred.stlouisfed.org/docs/api/fred/
 - The regulatory items dated 2025–2026 (Basel III re-proposal, SR 26-2, eSLR
   final rule, OCC advisory series) change faster than this list; check the
   issuing agency before quoting a paragraph in a validation pack.
+
+### Lifetime-loss challenger methods
+
+The [lifetime-loss analytical contract](lifetime-loss-sensitivity.md) uses independent product-limit competing-risk and training-only censoring diagnostics. Method references: [Aalen and Johansen (1978)](https://www.jstor.org/stable/4615704), [reverse Kaplan–Meier event/censor tie conventions](https://scikit-survival.readthedocs.io/en/v0.22.0/api/generated/sksurv.nonparametric.kaplan_meier_estimator.html), and [Brier score under administrative censoring](https://www.jmlr.org/papers/volume24/19-1030/19-1030.pdf). These references do not validate synthetic data or authorize model adoption.
