@@ -2,7 +2,55 @@ use portfolio_model_core::card_credit_accounting_v2 as v2;
 use serde_json::{json, Value};
 
 fn cases() -> Value {
-    serde_json::from_str(include_str!("fixtures/card_credit_v2_proof.json")).unwrap()
+    let original = include_str!("fixtures/card_credit_v2_proof.json");
+    let cases = serde_json::from_str(original).unwrap();
+    #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+    {
+        use sha2::{Digest, Sha256};
+        // Frozen independent Python replay on GNU/Linux. The original Windows
+        // proof and exact comparison are unchanged; platform libm results differ.
+        let patch: Value =
+            serde_json::from_str(include_str!("fixtures/card_credit_v2_linux_gnu_patch.json"))
+                .unwrap();
+        assert_eq!(
+            format!("{:x}", Sha256::digest(original.as_bytes())),
+            patch["provenance"]["original_fixture_sha256"]
+                .as_str()
+                .unwrap()
+        );
+        let mut cases: Value = cases;
+        let mut seen = std::collections::HashSet::new();
+        for change in patch["changes"].as_array().unwrap() {
+            let path = change["path"].as_str().unwrap();
+            assert!(path.starts_with("/cases/") && path.contains("/expected/"));
+            assert!(seen.insert(path), "duplicate platform proof leaf {path}");
+            let value = cases.pointer_mut(path).unwrap();
+            assert_eq!(*value, change["original"], "platform proof anchor {path}");
+            assert!(value.is_number() && change["expected"].is_number());
+            *value = change["expected"].clone();
+        }
+        cases
+    }
+    #[cfg(not(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")))]
+    cases
+}
+
+fn assert_exact(actual: &Value, expected: &Value, path: &str) {
+    match (actual, expected) {
+        (Value::Object(a), Value::Object(b)) => {
+            assert!(a.keys().eq(b.keys()), "proof keys {path}");
+            for (key, value) in a {
+                assert_exact(value, &b[key], &format!("{path}/{key}"));
+            }
+        }
+        (Value::Array(a), Value::Array(b)) => {
+            assert_eq!(a.len(), b.len(), "proof length {path}");
+            for (i, (left, right)) in a.iter().zip(b).enumerate() {
+                assert_exact(left, right, &format!("{path}/{i}"));
+            }
+        }
+        _ => assert_eq!(actual, expected, "exact proof leaf {path}"),
+    }
 }
 fn raw(i: usize) -> v2::Request {
     serde_json::from_value(cases()["cases"][i]["raw"].clone()).unwrap()
@@ -28,11 +76,7 @@ fn check_case(i: usize) {
     let expanded = json!({"economic":out.economic,"trace":trace,"daily":daily,
         "events":out.events,"shared_intents":out.shared_intents,"income_steps":out.income_steps,
         "reporting":out.reporting,"closing":out.closing,"complete":out.complete});
-    assert_eq!(
-        expanded, c["expected"],
-        "{}: full compact-expanded proof mismatch",
-        c["name"]
-    );
+    assert_exact(&expanded, &c["expected"], c["name"].as_str().unwrap());
     assert!(serde_json::to_vec(&out).unwrap().len() <= out.reserved_bytes);
     assert!(out.retained_capacity_charge <= out.reserved_bytes);
     assert!(!out.mixed_ledger_adoption && !out.accounting_standard_approval);

@@ -28,6 +28,20 @@ def expand(result):
     )
 
 
+def differences(original, current, path=""):
+    if isinstance(original, dict):
+        assert original.keys() == current.keys(), path
+        for key in original:
+            yield from differences(original[key], current[key], path + "/" + key.replace("~", "~0").replace("/", "~1"))
+    elif isinstance(original, list):
+        assert len(original) == len(current), path
+        for i, (left, right) in enumerate(zip(original, current)):
+            yield from differences(left, right, path + "/" + str(i))
+    elif original != current:
+        assert type(original) is float and type(current) is float, path
+        yield dict(path=path, original=original, expected=current)
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     path = root / "packages/portfolio-model-core/tests/fixtures/card_credit_v2_proof.json"
@@ -53,6 +67,9 @@ def main():
     out = Path(sys.argv[1])
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, separators=(",", ":")) + "\n", encoding="utf8")
+    changes = list(differences(original["cases"], result["cases"], "/cases"))
+    patch = dict(provenance=result["platform_provenance"], changes=changes)
+    out.with_name("platform-patch.json").write_text(json.dumps(patch, separators=(",", ":")) + "\n", encoding="utf8")
     print("Independent platform proof", hashlib.sha256(out.read_bytes()).hexdigest())
 
 
