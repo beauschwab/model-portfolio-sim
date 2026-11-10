@@ -111,7 +111,8 @@ def verify_source(request,result,check=lambda:False):
     if is_commercial_cohort(request['schema'],request['request']):
         from portfolio_risk.analytics.commercial_cohort_reference import verify
         return verify(request['request'],result,check)
-    check()
+    if check():
+        raise InterruptedError('model source verification cancelled')
     if request['schema']=='commercial-cut-mixed-journal-1':
         from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
         return verify(request['request'],result,check)
@@ -231,7 +232,7 @@ def verify_source(request,result,check=lambda:False):
     if request['schema']=='joint-market-credit-1':
         return _verify_joint_market_credit(request['request'], result, check=check)
     if request['schema']=='market-driver-calibration-1':
-        return _verify_market_driver_calibration(request['request'], result)
+        return _verify_market_driver_calibration(request['request'], result, check=check)
     if request['schema']=='market-quote-bootstrap-1':
         return _verify_market_quote_bootstrap(request['request'], result, check=check)
     if request['schema']=='observed-deposit-calibration-1':
@@ -436,9 +437,18 @@ def _verify_joint_market_credit(raw, result, check=lambda: False):
                 competing_paths_recomputed=paths, adoption_eligible=False, **source_receipt)
 
 
-def _verify_market_driver_calibration(raw, result):
+def _verify_market_driver_calibration(raw, result, check=lambda: False):
     """Independently replay training moments and chronological diagnostics."""
     import math
+    def guard():
+        if check():
+            raise InterruptedError('market-driver calibration verification cancelled')
+    def checked(rows):
+        for index, row in enumerate(rows):
+            if index % 1024 == 0:
+                guard()
+            yield row
+    guard()
     if (result.get('schema') != 'market-driver-calibration-1'
             or result.get('source_status') != 'observed_rows_training_moments_chronological_holdout'):
         raise ValueError('market-driver calibration schema mismatch')
@@ -452,13 +462,13 @@ def _verify_market_driver_calibration(raw, result):
     if n < 30 or held < 10 or any(dates[i] >= dates[i + 1] for i in range(len(dates) - 1)):
         raise ValueError('market-driver chronological split is invalid')
     train, hold = values[:n], values[n:]
-    mean = [sum(row[j] for row in train) / n for j in range(4)]
-    cov = [[sum((row[j] - mean[j]) * (row[k] - mean[k]) for row in train) / (n - 1)
+    mean = [sum(row[j] for row in checked(train)) / n for j in range(4)]
+    cov = [[sum((row[j] - mean[j]) * (row[k] - mean[k]) for row in checked(train)) / (n - 1)
             for k in range(4)] for j in range(4)]
-    bias = [sum(row[j] for row in hold) / held - mean[j] for j in range(4)]
-    rmse = [math.sqrt(sum((row[j] - mean[j]) ** 2 for row in hold) / held) for j in range(4)]
+    bias = [sum(row[j] for row in checked(hold)) / held - mean[j] for j in range(4)]
+    rmse = [math.sqrt(sum((row[j] - mean[j]) ** 2 for row in checked(hold)) / held) for j in range(4)]
     outside = [sum(abs(row[j] - mean[j]) / math.sqrt(max(cov[j][j], 1e-16)) > 3.
-                   for row in hold) / held for j in range(4)]
+                   for row in checked(hold)) / held for j in range(4)]
     diag = result.get('diagnostics', {})
     if diag.get('training_rows') != n or diag.get('holdout_rows') != held:
         raise ValueError('market-driver calibration split counts differ from source')
@@ -473,11 +483,13 @@ def _verify_market_driver_calibration(raw, result):
         raise ValueError('market-driver uncertainty metadata differs from source')
     standard_error = []
     for j in range(4):
-        gamma0 = sum((row[j] - mean[j]) ** 2 for row in train) / n
+        guard()
+        gamma0 = sum((row[j] - mean[j]) ** 2 for row in checked(train)) / n
         long_run = gamma0
         for distance in range(1, lag + 1):
+            guard()
             gamma = sum((left[j] - mean[j]) * (right[j] - mean[j])
-                        for left, right in zip(train[distance:], train[:n - distance])) / n
+                        for left, right in checked(zip(train[distance:], train[:n - distance]))) / n
             long_run += 2.0 * (lag + 1 - distance) / (lag + 1) * gamma
         if not math.isfinite(long_run) or long_run < -1e-12 * max(gamma0, 1.0):
             raise ValueError('market-driver HAC variance is invalid')
@@ -493,15 +505,15 @@ def _verify_market_driver_calibration(raw, result):
         close(uncertainty['mean_standard_error'][j], standard_error[j], f'mean_standard_error[{j}]')
         for k in range(4):
             close(diag['covariance'][j][k], cov[j][k], f'covariance[{j},{k}]')
-    selected = diag.get('selected', [])
-    if (not isinstance(selected, list) or len(selected) > 8
-            or any(type(i) is not int or i < 0 or i >= n for i in selected)):
-        raise ValueError('market-driver selected scenarios are invalid')
+    from portfolio_risk.analytics.market_selection_reference import verify as verify_selection
+    verify_selection(raw, diag, mean, cov, check)
+    selected = diag['selected']
     if result.get('adoption_eligible') is not False:
         raise ValueError('market-driver calibration cannot be adoption eligible')
+    guard()
     return dict(verified=True, training_moments_recomputed=True,
                 chronological_holdout_recomputed=True, selected_count=len(selected),
-                adoption_eligible=False)
+                training_selection_recomputed=True, adoption_eligible=False)
 
 
 def _verify_market_quote_bootstrap(raw, result, check=lambda: False):

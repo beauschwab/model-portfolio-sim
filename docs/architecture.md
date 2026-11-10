@@ -81,6 +81,9 @@ Joint market/credit publication uses the independent
 [raw covariance and draw verifier](models/joint-market-credit.md#independent-market-source-verification)
 before hazard replay and again after persisted-table reread. A producer's coherent
 market tape or covariance diagnostics do not establish raw-source identity.
+Market-driver calibration additionally uses independent direct-SVD stress-row
+[selection verification](models/market-driver-calibration.md), with training-only
+moments and the original cancellation budget through persisted publication.
 
 Product batches use borrowed contiguous buffers over C ABI 10 or bounded tagged
 JSON requests with opaque graph/session handles. Standalone lifecycle, strategy,

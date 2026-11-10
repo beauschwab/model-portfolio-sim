@@ -92,6 +92,8 @@ Joint market/credit analyses verify the original covariance and supplied/seeded
 draws before hazard replay and again after persisted-table reread. A source
 mismatch fails publication even when the returned tape and events agree.
 See `docs/models/joint-market-credit.md` for spectral-certificate boundaries.
+Market-driver calibration receipts require independently verified training-row
+selection, count, domains and ranking; see `docs/models/market-driver-calibration.md`.
 
 Forecast preview/run retains snapshot/source/date/unit/interpolation identity,
 coverage/warnings and relative alignment. Targets use decimal rates and HPI

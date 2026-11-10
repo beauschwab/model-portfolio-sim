@@ -15,6 +15,13 @@ seeded/supplied draws, covariance ranks, truncation, zero variance, cancellation
 and durable refusal. Full regression and integration of this repair remain pending.
 See [the source contract](joint-market-credit.md#independent-market-source-verification).
 
+Market-driver calibration publication additionally verifies requested stress-row
+count, unique training indices, source domains and independent Mahalanobis
+ranking. The previous oracle accepted an empty selection for a two-row request.
+Moment/HAC/selection replay now retains the original cancellation checks. See
+[the calibration contract](market-driver-calibration.md); combined regression
+and integration of this follow-through remain pending.
+
 ## Ordinary fee cuts and verified continuation (2026-11-08)
 
 The ordinary fixed route now retains all 18 loan/fee proofs, acquired costs,
