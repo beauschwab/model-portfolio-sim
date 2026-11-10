@@ -11,7 +11,7 @@ from pathlib import Path
 import platform
 import sys
 
-from portfolio_risk.analytics import consumer_mixed_reference, product_event_reference
+from portfolio_risk.analytics import consumer_mixed_reference, product_event_reference, product_strategy_reference
 from generate_card2_platform_proof import differences
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +30,22 @@ def inputs(name):
             row.update(lcr_headroom=None, nsfr_headroom=None, lcr_status="unconfigured", nsfr_status="unconfigured")
     raw = json.loads((ROOT / f"examples/models/{source}.json").read_text())
     prepared = deepcopy(baseline["ok"]["preparation"]["performing_preparation"]["native_preparation"])
+    # The mixed oracle independently checks preparation, but retains its nested
+    # receipts. Reconstruct their income too, instead of copying Windows libm
+    # results into a Linux expected output.
+    preparation = prepared["preparation"]
+    product_raw = preparation["raw_source"]
+    product_strategy_reference.verify_preparation(product_raw, preparation)
+    budget = product_strategy_reference._Budget(lambda: False)
+    for unit, receipt in zip(product_raw["units"], preparation["units"], strict=True):
+        for income in receipt["income"]:
+            native, states = product_strategy_reference._income(
+                unit, income["native_income"]["complete_source_projection"],
+                unit["purchase_graph"]["kind"], product_raw["reporting_ordinals"], budget,
+            )
+            income["native_income"] = native
+            income["opening_states"] = states
+    product_strategy_reference.verify_preparation(product_raw, preparation)
     expected = {"ok": oracle.reconstruct(raw, prepared)}
     oracle.verify(raw, expected["ok"])
     return path, baseline, expected
