@@ -55,7 +55,10 @@ def test_actual_full_native_source_census_refuses_and_independent_scan_formula_a
     phases=verify_census(actual_refusal,admitted=False)
     assert actual_refusal['initial_source_work_upper']==26_801_980
     assert actual_refusal['output_inventory']['schema']=='commercial-cut-output-inventory-2'
-    assert actual_refusal['final_joined_work_upper']==65_036_571
+    # Native floating-point text can differ across platforms. Charge every
+    # emitted receipt byte exactly, while pinning all structural work separately.
+    receipt_scans=2*(actual_refusal['completed_receipt_bytes']+actual_refusal['revised_receipt_bytes'])
+    assert actual_refusal['final_joined_work_upper']==61_612_181+receipt_scans
     assert max(phases.values())==132_084_182
     assert actual_refusal['output_inventory']['stream_batch_retained_bytes_upper']==20_392_098
     assert actual_refusal['cut_ledger_census']['work_upper']==11_343_032

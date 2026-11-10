@@ -39,7 +39,9 @@ def forbid_native_finance(monkeypatch):
 def test_full_original_request_all_sources_and_rows_pass_independent_replay(full_witness):
     root = Path(__file__).resolve().parents[3]
     source = root / 'examples/models/commercial-cut-mixed-journal-1.json'
-    assert hashlib.sha256(source.read_bytes()).hexdigest() == '0280c5084e5cd52267d2c0f5fb07cbeed10f22a02e00243267997008991c38ce'
+    # Pin the unchanged Git fixture independently of checkout LF/CRLF policy.
+    source_bytes = source.read_bytes().replace(b'\r\n', b'\n')
+    assert hashlib.sha256(source_bytes).hexdigest() == '378f8c095fb9c0251b10bac92c8761aba59618439f25db159e8886e88c019fdb'
     raw = full_witness['raw_request']
     assert len(raw['completed_candidate']['commercial']['units']) == 1
     assert len(raw['revised_candidate']['commercial']['units']) == 2
