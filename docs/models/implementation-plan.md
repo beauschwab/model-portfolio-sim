@@ -1,5 +1,17 @@
 # Product model enhancement implementation and evidence
 
+## Consumer panel specification component
+
+The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit
+policies and available borrower/macro observations into the existing exact or
+interval-censored native fitters. It projects fitted Physical hazards into shared
+credit paths without changing supplied cash laws or random streams. Component
+fixtures include all three products, hand two-group rates and a synthetic monthly
+panel with holdout isolation. See [the component contract](consumer-behaviour-spec.md).
+Matching installed/public-route checks and full regression remain pending. Daily
+installment/card action ownership, independent publication and broader #91 adoption
+are still required; this component does not close #91 or tracker #25.
+
 ## Current accepted integration and shared-source follow-through
 
 PR #123 merged at `21ef0a755955a999f1c723eebd301a8d8e76c72a` with full local

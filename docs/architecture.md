@@ -5,6 +5,10 @@ a dedicated worker, native financial runtimes, and durable storage. The current
 production policy is [rust-production-contract.md](rust-production-contract.md).
 Python financial implementations are independent reference oracles for tests.
 
+The standalone [consumer panel specification](models/consumer-behaviour-spec.md)
+maps product observations and fits/projects hazards in Rust. Its Python entrypoint
+is process transport only; it adds no durable publication or saved-book adoption.
+
 ```mermaid
 flowchart LR
     Agent[MCP client] --> MCP[Stdio HTTP adapter]
