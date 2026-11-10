@@ -27,6 +27,8 @@ def example(name):
 def test_macro_native_covariance_and_chronological_holdout_are_independent():
     request = example('consumer-macro-scenarios-1')
     result = analyze_consumer_macro(request)
+    from portfolio_risk.analytics.consumer_macro_reference import verify
+    assert verify(request, result)['verified']
     train = result['diagnostics']['training']
     assert train['mean_annualized_standardized_innovation'] == [0., 0.]
     for row, expected in zip(train['sample_annual_covariance'], [[4/3, 8/3], [8/3, 16/3]]):

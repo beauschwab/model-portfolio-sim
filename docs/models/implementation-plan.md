@@ -7,8 +7,10 @@ add explicit conditional Physical paths, training-only covariance diagnostics,
 source/draw binding and bounded replay through all three daily consumer owners.
 See [the contract and remaining scope](consumer-macro-scenarios.md). These core
 components include controlled standalone native transport but do not close #92:
-independent verification and joined frozen-OAS Pricing/frozen-EIR income acceptance
-remain outstanding.
+independent fitted-hazard/daily-source verification and joined frozen-OAS
+Pricing/frozen-EIR income acceptance remain outstanding. A separate independent
+macro-source/innovation verifier binds typed binary64 source and training identities,
+reconstructs chronological moments and rejects corrupted diagnostic/permission data.
 Component fixtures are synthetic; full combined regression is required before
 integration. #93/#94 and the broader #15/#25 adoption gates remain open.
 
@@ -852,7 +854,7 @@ interior Bellman checkpoints and every original issue adoption/empirical/scale
 gate remain required. This component remains uninstalled; no issue is complete.
 
 The separate copied `cd-exercise-generation-stage` supplies a reusable native
-curve-fitted Hull–White pricing tree and composes it with unchanged native CD
+curve-fitted Hullâ€“White pricing tree and composes it with unchanged native CD
 contractual cash and Bellman exercise owners. Exact permitted call dates, signed
 accrued rights and fixed original OAS remain retained. Fresh final evidence binds
 170 source/dependency files, nine native tests, strict all-target checks and 27
@@ -1856,14 +1858,14 @@ The current additive contracts include [consumer installment lending](consumer-i
 [revolving cards](consumer-card.md), [indexed/optional corporate and CD contracts](term-enhancements.md),
 [joint daily credit state](credit-state.md) and [daily credit replay](credit-replay.md).
 The proposed [consumer behaviour states, covariates and driver specification](consumer-behaviour-drivers.md)
-(#91–#94) fixes the product mappings those estimators need; these remain specifications.
+(#91â€“#94) fixes the product mappings those estimators need; these remain specifications.
 The additive [#95 lifetime-loss report and independent challenger](lifetime-loss-sensitivity.md)
 provide bounded complete-path sensitivity, completed-outcome hooks and same-panel
 synthetic diagnostics. Supplied macro paths, coefficients, LGD/CCF/recovery policies
 and broader product adoption remain separate. Passing synthetic validation does
 not close observed accuracy or reviewed-policy gates. The companion
-[deposit behaviour specification](deposit-behaviour-drivers.md) (#102–#106) and
-[commercial and CRE credit specification](commercial-credit-drivers.md) (#107–#111)
+[deposit behaviour specification](deposit-behaviour-drivers.md) (#102â€“#106) and
+[commercial and CRE credit specification](commercial-credit-drivers.md) (#107â€“#111)
 are proposals of the same standing. Every external source cited across the
 model documentation is indexed in [references.md](references.md).
 `analytics.credit_ledger.run_credit_ledger` gates publication with an independent SciPy
@@ -1971,7 +1973,7 @@ options, CSA/MPOR/closeout accounting, collateral and rollover contracts, aged
 unit coefficients, native strategy ownership, treasury bridges, source binding,
 Parquet replay and publication-failure cleanup. Saved hedge/netting adoption,
 joint credit/market generation, jurisdiction-specific regulatory policy and
-complete mixed-book capital/FTP acceptance remain open under issues #20–#24.
+complete mixed-book capital/FTP acceptance remain open under issues #20â€“#24.
 
 The new `joint-state-1` shared-model contract now composes supplied market
 discount factors with competing behavioral-exit, credit-default and prepayment
@@ -1980,7 +1982,7 @@ contiguity, identity, domains and bounded work; `evaluate_joint_state` remains
 transport-only. Native dispatch and core tests cover exact competing-hazard
 probabilities, default recovery/loss separation, identity preservation and
 failure cases. This closes a reusable foundation gap, but it does not close
-issue #10–#25: observed calibration, joint scenario generation, saved-book and
+issue #10â€“#25: observed calibration, joint scenario generation, saved-book and
 cohort adoption, daily journal/FTP integration, and the complete mixed-book
 scale gate remain required.
 

@@ -1,12 +1,12 @@
 //! Explicit Physical conditional consumer macro paths and chronological innovation moments.
 //! Supplied rate scenarios are retained; no LMM, Pricing conversion or stress response is inferred.
 use super::behavior;
+use super::macro_identity;
 use crate::credit::CreditMeasure;
 use crate::credit_accounting::Identity;
 use crate::credit_covariate::{DriverInterval, DriverKind, FeatureRole};
 use crate::observation::{DataKind, ObservationTime};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
 pub const SCHEMA: &str = "consumer-macro-scenarios-1";
@@ -161,6 +161,7 @@ pub struct Diagnostics {
 #[derive(Debug, Clone, Serialize)]
 pub struct ResultData {
     pub schema: &'static str,
+    pub identity_policy: &'static str,
     pub source_sha256: String,
     pub training_identity_sha256: String,
     pub raw_source: Request,
@@ -498,28 +499,23 @@ pub fn evaluate(
         .iter()
         .filter(|row| training_ids.contains(&row.row_id))
         .collect();
-    let training_identity_sha256 = format!(
-        "{:x}",
-        Sha256::digest(
-            serde_json::to_vec(&(
-                SCHEMA,
-                &r.drivers,
-                &r.policy,
-                &r.history.source,
-                &r.history.training_split,
-                r.history.training_end,
-                r.history.data_kind,
-                training_rows,
-            ))
-            .map_err(|e| e.to_string())?
-        )
-    );
+    let training_identity_sha256 = macro_identity::digest(
+        &(
+            SCHEMA,
+            &r.drivers,
+            &r.policy,
+            &r.history.source,
+            &r.history.training_split,
+            r.history.training_end,
+            r.history.data_kind,
+            training_rows,
+        ),
+        check,
+    )?;
     let out = ResultData {
         schema: SCHEMA,
-        source_sha256: format!(
-            "{:x}",
-            Sha256::digest(serde_json::to_vec(r).map_err(|e| e.to_string())?)
-        ),
+        identity_policy: macro_identity::POLICY,
+        source_sha256: macro_identity::digest(r, check)?,
         training_identity_sha256,
         raw_source: r.clone(),
         diagnostics: Diagnostics {
@@ -557,10 +553,8 @@ impl ResultData {
         check()?;
         let r = &self.raw_source;
         crate::strict_json::serialized_size(template, 4 << 20)?;
-        if format!(
-            "{:x}",
-            Sha256::digest(serde_json::to_vec(r).map_err(|e| e.to_string())?)
-        ) != self.source_sha256
+        if self.identity_policy != macro_identity::POLICY
+            || macro_identity::digest(r, check)? != self.source_sha256
         {
             return Err("consumer macro retained raw source changed".into());
         }
