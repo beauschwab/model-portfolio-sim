@@ -83,3 +83,31 @@ def test_large_opposite_covariance_terms_retain_the_independent_small_residual()
     old=deepcopy(case['result']);old['diagnostics']=case['old_diagnostics']
     with pytest.raises(ArithmeticError,match='independent innovation moment'):
         reference.verify(case['request'],old)
+
+
+def unicode_source():
+    raw=deepcopy(CASES[0]['request'])
+    for i in range(14):
+        driver=deepcopy(raw['drivers'][1])
+        driver.update(driver_id=f'regional-{i}',region_id=f'R{i}')
+        raw['drivers'].append(driver)
+    for scenario in raw['scenarios']:
+        for path in scenario['paths']:
+            for row in path['values']:row.extend([10.]*14)
+    count=3000;start=raw['as_of']['ordinal']-count
+    time=lambda day:dict(ordinal=day,seconds_of_day=0)
+    for driver in raw['drivers']:driver['scaling_training_end']=time(start)
+    raw['history']['training_end']=time(start+count//2)
+    raw['history']['observations']=[dict(row_id='\u754c'*80+str(i),
+        start=time(start+i),end=time(start+i+1),start_values=[5.]+[10.]*15,
+        end_values=[5.]+[10.]*15,published_at=[time(start+i+1)]*16) for i in range(count)]
+    return raw
+
+
+def test_raw_byte_bound_counts_utf8_source_not_optional_ascii_escaping():
+    raw=unicode_source()
+    assert len(json.dumps(raw,ensure_ascii=False,separators=(',',':')).encode())<4*1024*1024
+    assert len(json.dumps(raw,ensure_ascii=True,separators=(',',':')).encode())>4*1024*1024
+    _,diagnostics,_=reference.expected(raw)
+    assert len(diagnostics['training']['row_ids'])==1500
+    assert diagnostics['training']['sample_annual_covariance']==[[0.]*16 for _ in range(16)]

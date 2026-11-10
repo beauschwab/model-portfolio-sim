@@ -66,6 +66,12 @@ caps raw input at 4 MiB, 16 drivers, 4,096 history rows, 16 paths, 64 projection
 intervals and four scenarios. These are work/serialization bounds, not an RSS or
 production scale guarantee. Failure returns no partial result.
 
+These two new macro routes count UTF-8 source bytes in both the process adapter
+and independent verifier. Optional ASCII escaping does not consume the raw-source
+budget. Historical routes retain their transport encoding; the public canonical
+evidence hash keeps its existing encoding, and the executed-input hash binds the
+actual UTF-8 bytes delivered to the native process.
+
 ## Evidence and remaining scope
 
 The unreleased macro contract uses the explicit result `identity_policy`

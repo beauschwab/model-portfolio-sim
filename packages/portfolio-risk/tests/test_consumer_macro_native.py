@@ -77,3 +77,10 @@ def test_macro_native_covariance_preserves_small_signed_residuals():
     case=json.loads((Path(__file__).parent/'fixtures/consumer-macro-cancellation.json').read_bytes())
     result=analyze_consumer_macro(case['request'])
     assert verify(case['request'],result)['verified']
+
+
+def test_macro_native_and_reference_share_utf8_source_byte_admission():
+    from portfolio_risk.analytics.consumer_macro_reference import verify
+    from test_consumer_macro_reference import unicode_source
+    request=unicode_source()
+    assert verify(request,analyze_consumer_macro(request))['verified']

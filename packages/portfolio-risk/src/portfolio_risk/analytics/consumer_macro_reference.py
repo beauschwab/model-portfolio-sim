@@ -74,7 +74,7 @@ def digest(value, check=lambda:False):
 def normalise(raw):
     # Typed JSON input permits integer spelling of declared f64 fields, not of
     # ordinal/path/seed identities. Preserve every original binary64 sign bit.
-    require(len(json.dumps(raw,allow_nan=False,separators=(',',':')).encode())<=4*1024*1024,'raw input byte bound')
+    require(len(json.dumps(raw,ensure_ascii=False,allow_nan=False,separators=(',',':')).encode())<=4*1024*1024,'raw input byte bound')
     r=deepcopy(raw)
     keys(r,'schema measure as_of common_random_numbers credit_draw_stream policy drivers history interval_ends scenarios')
     require(r['schema']==SCHEMA and r['measure']=='physical','selected Physical schema')
