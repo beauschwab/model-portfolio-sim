@@ -35,4 +35,27 @@ requires all refused cases to remain refused, applies the existing independent
 verification gate against the original proof, and emits full proof plus sparse
 numeric differences. Windows reconstruction is exactly equal to all original
 cases. These are synthetic implementation checks, not observed model accuracy.
+The expanded run also found two historical mixed-journal frozen outputs with
+the same platform dependency. Run 42777848624 independently reconstructed both
+mixed results, including their nested original-EIR income receipts. Exactly 140
+numeric leaves change in each result, and applying the reference patch matches
+each complete native Linux output exactly. The patch SHA256 is
+`dc5eedd3c775426820d92104c30f679106d697bf957471b31d24ce5a25416827`.
+Original fixture digests are bound after canonicalizing Git CRLF/LF endings;
+numeric values are never normalized. The existing card1 reference has 1,168
+separate reference-versus-native rounding differences: these are frozen,
+explicitly checked to be identical on both platforms, and excluded from the
+platform patch. Any platform change in such a field rejects. Windows independent
+reconstruction produces no patch for either mixed fixture.
+
+CI regenerates both reference proofs and checks their numeric changes against
+the checked-in Linux expectations before running the Rust tests. The Rust tests
+also bind every original leaf and compare the complete final output exactly.
+
+The cut-admission fixture contains 28 fewer serialized receipt bytes on Linux
+(585,839 completed and 1,126,328 revised). Its exact work expectation now charges
+the actual receipt bytes at the unchanged two preparation and six final scans
+per byte. Structural work, retained-byte reserves, and the pre-publication
+refusal remain unchanged. This does not authorize the remaining cut adoption.
+
 Full final-source native execution remains pending until both hosted jobs pass.

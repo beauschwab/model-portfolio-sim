@@ -68,6 +68,11 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, separators=(",", ":")) + "\n", encoding="utf8")
     changes = list(differences(original["cases"], result["cases"], "/cases"))
+    if sys.platform == "win32":
+        assert not changes, "independent Windows proof changed the frozen expectations"
+    elif sys.platform == "linux" and platform.machine() == "x86_64" and platform.libc_ver()[0] == "glibc":
+        frozen = json.loads((path.parent / "card_credit_v2_linux_gnu_patch.json").read_text())
+        assert changes == frozen["changes"], "independent Linux proof differs from the checked-in exact expectations"
     patch = dict(provenance=result["platform_provenance"], changes=changes)
     out.with_name("platform-patch.json").write_text(json.dumps(patch, separators=(",", ":")) + "\n", encoding="utf8")
     print("Independent platform proof", hashlib.sha256(out.read_bytes()).hexdigest())

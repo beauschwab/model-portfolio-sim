@@ -72,6 +72,13 @@ def main():
             frozen_exclusions_sha256=hashlib.sha256(exclusions_path.read_bytes()).hexdigest(),
             frozen_reference_rounding_exclusions=len(excluded), changes=changes,
         )
+    if sys.platform == "win32":
+        assert all(not case["changes"] for case in result["cases"].values()), "independent Windows proof changed the frozen expectations"
+    elif sys.platform == "linux" and platform.machine() == "x86_64" and platform.libc_ver()[0] == "glibc":
+        frozen = json.loads((FIXTURES / "mixed_linux_gnu_patch.json").read_text())
+        for name, case in result["cases"].items():
+            for key in ("changes", "original_fixture_lf_sha256", "frozen_reference_rounding_exclusions"):
+                assert case[key] == frozen["cases"][name][key], f"independent Linux {name} proof changed {key}"
     out = Path(sys.argv[1])
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result,separators=(",", ":")) + "\n", encoding="utf8")
