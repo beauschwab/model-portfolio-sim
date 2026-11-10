@@ -24,10 +24,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.93.1
         with:
           components: rustfmt, clippy
+      - name: Independent platform proof
+        run: uv run --project packages/portfolio-risk --extra dev python scripts/generate_card2_platform_proof.py artifacts/card2-platform/proof.json
       - run: uv run --no-project --with libclang --with cmake python scripts/check_native_components.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: native-components-${{ matrix.os }}
-          path: artifacts/native-components
+          path: |
+            artifacts/native-components
+            artifacts/card2-platform
           if-no-files-found: error
