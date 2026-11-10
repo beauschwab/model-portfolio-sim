@@ -41,16 +41,17 @@ def main():
     result = dict(platform=platform.platform(), python=sys.version, native_callback=False, cases={})
     for name in ("consumer", "card1"):
         path, baseline, expected = inputs(name)
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        # Git checkout line endings are not part of the numeric fixture proof.
+        digest = hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
         if name == "card1":
-            assert digest == exclusions["original_fixture_sha256"]
+            assert digest == exclusions["original_fixture_lf_sha256"]
         diffs = list(differences(baseline, expected))
         excluded = {d["path"]: d for d in exclusions["differences"]} if name == "card1" else {}
         actual_exclusions = {d["path"]: d for d in diffs if d["path"] in excluded}
         assert actual_exclusions == excluded, "platform changed a frozen reference-rounding difference"
         changes = [d for d in diffs if d["path"] not in excluded]
         result["cases"][name] = dict(
-            original_fixture_sha256=digest,
+            original_fixture_lf_sha256=digest,
             independent_reference=("consumer_mixed_reference" if name == "consumer" else "product_event_reference") + ".reconstruct",
             frozen_exclusions_sha256=hashlib.sha256(exclusions_path.read_bytes()).hexdigest(),
             frozen_reference_rounding_exclusions=len(excluded), changes=changes,
