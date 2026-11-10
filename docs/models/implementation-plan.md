@@ -508,6 +508,13 @@ and the 60,000-position joint acceptance. Local validation does not deploy or re
 | Margin transfers never counted twice as trading loss | derivative accounting intents; mixed shared-journal replay; hedge lane reuses the same owner once; closing capital from the verified shared journal | interim capital and FTP feed |
 | Dated settlements/exposure/margin to daily replay and treasury | saved derivative graph with paired curve risk per trade, netting set and relationship ([saved-derivative-risk.md](saved-derivative-risk.md), #90); opt-in receive/pay-fixed swap strategy units, off balance sheet in the solver ([swap-strategy-units.md](swap-strategy-units.md)); mixed daily replay (`saved-derivative-mixed-1`); formal hedge journals in the same shared daily Sim (`saved-hedge-mixed-1`); closing capital from either verified shared journal through `/treasury/bridges`; formal hedge accounting lane; `hedge-treasury-1` closing capital from the hedge journal; `derivative-treasury-1` closing/report-date capital from the standalone derivative journal with no hedge accounting | interim capital/FTP (#24); 60,000-position journal tier measured and verified, combined graph/credit/solver scale in #51 |
 
+The liquidity lifecycle's explicit ongoing economic lane now prepares native held-swap
+marks/coupons, lagged current-population VM and daily facility-interest accrual/payment.
+Its independent Rust replay, durable service, allocation baseline and monthly display are
+documented in [the lifecycle contract](liquidity-lifecycle-contract.md#ongoing-derivative-and-facility-cashflows-20--51).
+This is local economic-lifecycle follow-through under #20/#51; it does not close formal
+hedge-accounting adoption, provider IM, empirical or complete mixed-book scale gates.
+
 ## Separate fee owner (local0.29.16; supported component validated)
 
 The additive native supplied-history fee contract separates earning, cash,

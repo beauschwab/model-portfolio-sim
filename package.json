@@ -21,7 +21,7 @@
     "test:native-service": "cargo fmt --manifest-path apps/api-rust/Cargo.toml -- --check && cargo clippy --locked --manifest-path apps/api-rust/Cargo.toml --all-targets --features s3,fault-injection -- -D warnings && cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features fault-injection",
     "test:engine": "cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q",
     "test:api": "cd apps/api && uv run --extra dev python -m pytest tests/ -q",
-    "check:architecture": "python scripts/check_architecture.py && python -m unittest discover -s scripts/tests -v && python scripts/generate_native_contracts.py --check && uv run --project apps/api python scripts/generate_http_contracts.py --check && uv run --project apps/api python scripts/generate_mcp_contracts.py --check"
+    "check:architecture": "python scripts/check_agent_contract.py && python scripts/check_architecture.py && python -m unittest discover -s scripts/tests -v && python scripts/generate_native_contracts.py --check && uv run --project apps/api python scripts/generate_http_contracts.py --check && uv run --project apps/api python scripts/generate_mcp_contracts.py --check"
   },
   "devDependencies": {
     "turbo": "^2.0.6"

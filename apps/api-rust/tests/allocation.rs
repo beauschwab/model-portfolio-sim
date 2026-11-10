@@ -15,6 +15,62 @@ fn raw() -> Value {
         {"package_id": "b", "group": "h", "review": {}, "request": request("b", 1)},
     ]})
 }
+
+#[test]
+fn ongoing_economics_are_retained_in_hold_and_deduplicated_in_merge() {
+    use workbench_native::{
+        allocation::{compose_request, PackageDoc},
+        compose::Binding,
+    };
+    let book: Value = serde_json::from_str(include_str!("fixtures/lifecycle-book.json")).unwrap();
+    let mut plan: Value =
+        serde_json::from_str(include_str!("fixtures/lifecycle-plan.json")).unwrap();
+    let updates = json!([{"lot_id":"swap-lot","ordinal":738897}]);
+    plan["instructions"]["derivative_updates"] = updates.clone();
+    let binding = Binding {
+        workspace: "w",
+        revision: 1,
+        book_name: "book",
+        book_sha256: "ab",
+    };
+    let package = PackageDoc {
+        name: "p".into(),
+        group: "g".into(),
+        plan: plan.clone(),
+        sha256: "cd".into(),
+    };
+    let raw: Value =
+        serde_json::from_slice(&compose_request(&book, &binding, &[package], json!({})).unwrap())
+            .unwrap();
+    assert_eq!(
+        raw["base"]["acquisitions"][0]["derivative_updates"],
+        updates
+    );
+    let mut a = request("a", 1);
+    let mut b = request("b", 1);
+    a["acquisitions"][0]["derivative_updates"] = updates.clone();
+    b["acquisitions"][0]["derivative_updates"] = updates.clone();
+    assert_eq!(
+        merge(&request("base", 0), &[&a, &b]).unwrap()["acquisitions"][0]["derivative_updates"],
+        updates
+    );
+    let other = PackageDoc {
+        name: "q".into(),
+        group: "h".into(),
+        plan: serde_json::from_str(include_str!("fixtures/lifecycle-plan.json")).unwrap(),
+        sha256: "ef".into(),
+    };
+    let first = PackageDoc {
+        name: "p".into(),
+        group: "g".into(),
+        plan,
+        sha256: "cd".into(),
+    };
+    assert!(compose_request(&book, &binding, &[first, other], json!({}))
+        .unwrap_err()
+        .detail
+        .contains("share the same"));
+}
 fn receipt(selected: Value, combined: Value) -> Value {
     json!({"schema": "liquidity-allocation-1", "exact_replay_passed": true, "selected": selected, "combined_request": combined,
     "objective": "worst_case_external_nii", "minimum_usable_cash": 0.0, "scenarios": ["s"],

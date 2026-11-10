@@ -27,6 +27,7 @@ test-mcp:           ## Protocol, permissions and bounded transport
 	cd apps/api && uv run --extra dev --with-editable ../mcp python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py -q
 
 check-architecture: ## static boundaries and reproducible HTTP/native contracts
+	python scripts/check_agent_contract.py
 	python scripts/check_architecture.py
 	python -m unittest discover -s scripts/tests -v
 	python scripts/generate_native_contracts.py --check

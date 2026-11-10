@@ -1889,37 +1889,6 @@ admission coverage. Partial source, lifetime or component proofs cannot enable t
 new raw route. Complete joint pre-Sim admission, raw-derived independent verification,
 persisted publication fences and every original issue15/25 gate remain required.
 
-## Bounded commercial cut publication and fee continuation (0.29.20)
-
-The ordinary fixed `commercial-cut-mixed-journal-1` route now publishes complete
-independently replayed cuts. Its sequential native preparation retains all
-original/current Physical/Pricing/bump owners, gross rights, zero-allocation
-evidence and complete contractual/recovery tails. The original no-fee example
-retains 27 source proofs; the ordinary fee example retains 18 complete loan/fee
-proofs, including service rights and acquired cost. Original OAS/EIR and financial
-tolerances remain unchanged. Joined admission stays at 32 million work/128 MiB;
-the sequential component stays at 8 million work/32 MiB. These are bounded work
-and requested allocation allowances, not aggregate process RSS limits.
-
-The explicit `/models/cut-mixed-journals` endpoint selects the completed raw
-candidate from a published source and independently verifies up to eight bounded
-predecessors. Same/later cuts must precede the verified complete tail. Daily replay
-continues between sparse path reporting dates after day 30. Gross fee ownership
-uses version 3 predecessor evidence; ordinary no-fee versions 1 and 2 remain
-readable. Source/object, current deadline, executable, lease/attempt and final SQL
-checks remain publication requirements. A producer flag alone grants no authority.
-
-Generated, exercise, transferred and original-physical acquisition selections
-retain separate admission requirements. Historical encoded diagnostic receipts
-remain diagnostic. Wider saved/cohort/strategy/accounting/FTP adoption, complete
-60,000-position mixed acceptance, observed histories and reviewed policies remain
-required by issues #15/#25. Synthetic examples do not establish empirical accuracy
-or policy approval. Use matching rebuilt native artifacts, restart deployed
-API/workers and explicitly rebuild saved libraries/sessions before new execution;
-local validation does not imply deployment.
-
-See `docs/models/commercial-fixed-fee-cut.md`,
-`docs/models/commercial-cut-prior-opening.md` and the current implementation plan
-at the repository root for supported inputs and validation evidence. This section
-supersedes earlier fixed-cut refusal descriptions without removing their retained
-failed evidence or the separate advanced-owner acceptance requirements.
+For current ordinary fixed/fee cut publication, source-bound predecessor rules
+and unchanged admission limits, read `docs/models/commercial-fixed-fee-cut.md`
+and `docs/models/commercial-cut-prior-opening.md` at the repository root.

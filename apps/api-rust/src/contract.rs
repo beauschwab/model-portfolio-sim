@@ -184,6 +184,7 @@ pub fn schemas() -> Value {
             "month": s, "first_ordinal": i, "last_ordinal": i, "events": i, "failed_events": i, "blocked_events": i,
             "policy_decisions": i, "opening_cash": n, "cash_in": n, "cash_out": n, "net_cash": n, "closing_cash": n,
             "minimum_usable_cash": n, "closing_usable_cash": n, "closing_facility_drawn": n, "interest_expense": n,
+            "derivative_income": n, "derivative_mark_pnl": n,
             "fees": n, "realized": n, "margin_posted": n, "margin_returned": n, "closing_posted_margin": n,
             "closing_pledged_quantity": n, "closing_security_quantity": n})),
         "Composition": obj(&["request", "request_sha256", "bytes", "revision"], json!({

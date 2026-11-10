@@ -11,6 +11,7 @@
 //! intents or values.
 use super::admission::Admitted;
 use super::journal::{Closing, Intent, Inventory, Kind, Line};
+use super::ongoing::{DerivativeUpdate, FacilityInterest, VariationMarginReview};
 use super::policy::{
     self, generation_instrument, BusinessPlan, MonthlyReport, PlanMode, PolicyDecision, Renewal,
     Window,
@@ -243,6 +244,12 @@ pub struct AcquisitionRequest {
     /// Stage I: research-method IM recomputations on the live portfolio of an agreement.
     #[serde(default)]
     pub dynamic_margin: Vec<DynamicMargin>,
+    #[serde(default)]
+    pub derivative_updates: Vec<DerivativeUpdate>,
+    #[serde(default)]
+    pub variation_margin_reviews: Vec<VariationMarginReview>,
+    #[serde(default)]
+    pub facility_interest: Vec<FacilityInterest>,
 }
 
 /// One IM recomputation date of a research-sensitivity agreement.
@@ -282,6 +289,7 @@ pub struct MarginCall {
 pub struct ResolvedHedge {
     pub lot_id: String,
     pub ordinal: i32,
+    pub tail_end_ordinal: i32,
     pub clean_value: f64,
     pub due_cash: f64,
     pub pricing_source: Revision,
@@ -854,6 +862,11 @@ impl Book {
 }
 
 enum Body<'a> {
+    DerivativeUpdate(&'a DerivativeUpdate, &'a PositionLot, &'a ResolvedHedge),
+    VmReview(&'a VariationMarginReview, &'a MarginAgreement),
+    VmRebalance(&'a VariationMarginReview, &'a MarginAgreement),
+    InterestAccrue(&'a FacilityInterest),
+    InterestPay(&'a FacilityInterest),
     Advance(&'a FinancingAdvance, &'a PositionLot),
     Purchase(&'a SecurityPurchase, &'a PositionLot, f64, f64),
     Sale(&'a SecuritySale, &'a PositionLot, f64, f64),
@@ -947,7 +960,10 @@ pub fn replay_with_margin(
         .ok_or_else(|| mapping(format!("unknown account `{account_id}`")))?;
     let asof = r.as_of_ordinal;
     let end = acq.horizon_end_ordinal;
-    if end < asof || end - asof > MAX_EXECUTION_DAYS {
+    if end
+        .checked_sub(asof)
+        .is_none_or(|days| !(0..=MAX_EXECUTION_DAYS).contains(&days))
+    {
         return Err(Refusal::new(
             BOUND_EXCEEDED,
             "execution horizon must lie within 366 days of the as-of date",
@@ -961,7 +977,21 @@ pub fn replay_with_margin(
         + acq.terminations.len()
         + acq.facility_draws.len()
         + acq.facility_repayments.len()
-        + acq.initial_margin.len();
+        + acq.initial_margin.len()
+        + acq.dynamic_margin.len();
+    let ongoing_work = acq.derivative_updates.len()
+        + acq.variation_margin_reviews.len() * 2
+        + acq
+            .facility_interest
+            .iter()
+            .map(|f| (end - asof) as usize + f.payment_ordinals.len())
+            .sum::<usize>();
+    if count + ongoing_work > MAX_INSTRUCTIONS {
+        return Err(Refusal::new(
+            BOUND_EXCEEDED,
+            "ongoing cashflow work exceeds the instruction bound",
+        ));
+    }
     if count > MAX_INSTRUCTIONS {
         return Err(Refusal::new(
             BOUND_EXCEEDED,
@@ -1023,6 +1053,7 @@ pub fn replay_with_margin(
         .chain(acq.repayments.iter().map(|f| f.lot_id.as_str()))
         .chain(acq.hedge_entries.iter().map(|h| h.lot_id.as_str()))
         .chain(acq.terminations.iter().map(|t| t.lot_id.as_str()))
+        .chain(acq.derivative_updates.iter().map(|t| t.lot_id.as_str()))
         .collect();
     for a in &r.actions {
         if a.accounting_treatment == AccountingTreatment::Formal
@@ -1072,6 +1103,156 @@ pub fn replay_with_margin(
 
     let mut events: Vec<Event> = Vec::new();
     let mut ids: HashSet<String> = HashSet::new();
+
+    for u in &acq.derivative_updates {
+        within(u.ordinal, "derivative update")?;
+        let l = lot(&u.lot_id, "derivative update")?;
+        if l.kind != LotKind::Derivative || u.ordinal <= l.acquisition_ordinal {
+            return Err(unsupported("ongoing updates need a held derivative and cannot duplicate entry or termination cash".into()));
+        }
+        let v = resolved
+            .get(&(u.lot_id.as_str(), u.ordinal))
+            .ok_or_else(|| mapping("ongoing derivative update requires native valuation".into()))?;
+        money(v.clean_value, "ongoing derivative value")?;
+        money(v.due_cash, "ongoing derivative cash")?;
+        push(
+            &mut ids,
+            &mut events,
+            event(
+                format!("derivative_update:{}:{}", u.lot_id, u.ordinal),
+                u.ordinal,
+                PHASE_FACILITY_REPAY,
+                vec![],
+                InstructionState::Pending,
+                Body::DerivativeUpdate(u, l, v),
+            ),
+        )?;
+    }
+    for v in &acq.variation_margin_reviews {
+        within(v.ordinal, "VM review")?;
+        let a = agreement(&v.agreement_id, "VM review")?;
+        for x in [
+            v.terms.receive_threshold,
+            v.terms.post_threshold,
+            v.terms.minimum_transfer,
+        ] {
+            if money(x, "VM terms")? < 0. {
+                return Err(unsupported("VM terms must be nonnegative".into()));
+            }
+        }
+        let settlement = v
+            .ordinal
+            .checked_add(a.settlement_lag_days as i32)
+            .ok_or_else(|| unsupported("VM settlement date overflow".into()))?;
+        within(settlement, "VM settlement")?;
+        for t in acq
+            .terminations
+            .iter()
+            .filter(|t| t.agreement_id == v.agreement_id)
+        {
+            let return_end = t
+                .settlement_ordinal
+                .checked_add(
+                    if a.vm_at_termination == VmAtTermination::ReturnSeparately {
+                        a.settlement_lag_days as i32
+                    } else {
+                        0
+                    },
+                )
+                .ok_or_else(|| unsupported("termination collateral date overflow".into()))?;
+            if t.effective_ordinal <= settlement && return_end >= v.ordinal {
+                return Err(unsupported(
+                    "overlapping pending VM review and termination collateral settlement".into(),
+                ));
+            }
+        }
+        if acq.variation_margin_reviews.iter().any(|other| {
+            other.agreement_id == v.agreement_id
+                && other.ordinal > v.ordinal
+                && other.ordinal <= settlement
+        }) || acq.terminations.iter().any(|t| {
+            t.agreement_id == v.agreement_id
+                && t.effective_ordinal > v.ordinal
+                && t.effective_ordinal <= settlement
+        }) || acq.hedge_entries.iter().any(|h| {
+            h.agreement_id == v.agreement_id
+                && h.entry_ordinal <= settlement
+                && h.entry_ordinal
+                    .checked_add(a.settlement_lag_days as i32)
+                    .is_none_or(|entry_settlement| entry_settlement >= v.ordinal)
+        }) {
+            return Err(unsupported("overlapping pending VM reviews or population changes require a separate settlement window".into()));
+        }
+        let id = format!("vm_review:{}:{}", v.agreement_id, v.ordinal);
+        push(
+            &mut ids,
+            &mut events,
+            event(
+                id.clone(),
+                v.ordinal,
+                PHASE_VM,
+                vec![],
+                InstructionState::Pending,
+                Body::VmReview(v, a),
+            ),
+        )?;
+        push(
+            &mut ids,
+            &mut events,
+            event(
+                format!("vm_rebalance:{}:{}", v.agreement_id, v.ordinal),
+                settlement,
+                PHASE_VM,
+                vec![id],
+                InstructionState::Pending,
+                Body::VmRebalance(v, a),
+            ),
+        )?;
+    }
+    let mut interest_facilities = HashSet::new();
+    for f in &acq.facility_interest {
+        if !facilities.contains_key(f.facility_id.as_str())
+            || !interest_facilities.insert(&f.facility_id)
+            || !f.annual_rate.is_finite()
+            || f.annual_rate.abs() > 1.
+            || f.review.id.is_empty()
+            || f.review.revision.is_empty()
+        {
+            return Err(unsupported(
+                "facility interest needs a unique known facility, reviewed finite rate in [-1,1]"
+                    .into(),
+            ));
+        }
+        for ordinal in asof + 1..=end {
+            push(
+                &mut ids,
+                &mut events,
+                event(
+                    format!("facility_accrual:{}:{ordinal}", f.facility_id),
+                    ordinal,
+                    0,
+                    vec![],
+                    InstructionState::Pending,
+                    Body::InterestAccrue(f),
+                ),
+            )?;
+        }
+        for ordinal in &f.payment_ordinals {
+            within(*ordinal, "facility interest payment")?;
+            push(
+                &mut ids,
+                &mut events,
+                event(
+                    format!("facility_interest:{}:{ordinal}", f.facility_id),
+                    *ordinal,
+                    PHASE_FACILITY_REPAY,
+                    vec![],
+                    InstructionState::Pending,
+                    Body::InterestPay(f),
+                ),
+            )?;
+        }
+    }
 
     for p in &acq.purchases {
         let l = lot(&p.lot_id, "purchase")?;
@@ -1949,7 +2130,13 @@ pub fn replay_with_margin(
     );
     let mut cursor = 0;
     let mut sequence = 0u32;
+    let mut vm_targets: HashMap<(&str, i32), (f64, f64)> = HashMap::new();
     for ordinal in asof..=end {
+        let prior_drawn: HashMap<String, f64> = book
+            .facilities
+            .iter()
+            .map(|f| (f.id.clone(), f.drawn))
+            .collect();
         // Start of day: facility generations that expire today are renewed when a declared
         // renewal window and the generation bound permit, or their balance is repaid.
         book.pre = book.inventory_now();
@@ -2012,6 +2199,144 @@ pub fn replay_with_margin(
             } else {
                 let (phase, id) = (e.phase, e.id.as_str());
                 match &e.body {
+                    Body::DerivativeUpdate(u, l, value) => {
+                        if let Some(previous) = derivative_carrying.get(l.lot_id.as_str()).copied()
+                        {
+                            book.post(
+                                id,
+                                ordinal,
+                                phase,
+                                sequence,
+                                vec![
+                                    (
+                                        Kind::DerivativeAsset,
+                                        &l.lot_id,
+                                        value.clean_value.max(0.) - previous.max(0.),
+                                    ),
+                                    (
+                                        Kind::DerivativeLiability,
+                                        &l.lot_id,
+                                        value.clean_value.min(0.) - previous.min(0.),
+                                    ),
+                                    (
+                                        Kind::DerivativeMark,
+                                        &l.lot_id,
+                                        previous - value.clean_value,
+                                    ),
+                                    (Kind::Cash, "", value.due_cash),
+                                    (Kind::DerivativeIncome, &l.lot_id, -value.due_cash),
+                                ],
+                            )?;
+                            if ordinal >= value.tail_end_ordinal {
+                                derivative_carrying.remove(u.lot_id.as_str());
+                            } else {
+                                derivative_carrying.insert(&u.lot_id, value.clean_value);
+                            }
+                        }
+                    }
+                    Body::VmReview(v, a) => {
+                        let mut value = 0.;
+                        for lot in &a.lot_ids {
+                            if let Some(carry) = derivative_carrying.get(lot.as_str()) {
+                                if !acq
+                                    .derivative_updates
+                                    .iter()
+                                    .any(|u| &u.lot_id == lot && u.ordinal == ordinal)
+                                {
+                                    return Err(Refusal::new(
+                                        MARGIN_REFRESH_REQUIRED,
+                                        "VM requires a current native value for every live lot",
+                                    ));
+                                }
+                                value += carry;
+                            }
+                        }
+                        let posted = (-value - v.terms.post_threshold).max(0.);
+                        let received = (value - v.terms.receive_threshold).max(0.);
+                        let old_posted = book.balance(Kind::PostedVm, &a.agreement_id);
+                        let old_received = -book.balance(Kind::ReceivedVm, &a.agreement_id);
+                        let target = if ((posted - received) - (old_posted - old_received)).abs()
+                            < v.terms.minimum_transfer
+                        {
+                            (old_posted, old_received)
+                        } else {
+                            (posted, received)
+                        };
+                        vm_targets.insert((&v.agreement_id, v.ordinal), target);
+                    }
+                    Body::VmRebalance(v, a) => {
+                        let (posted, received) = vm_targets[&(v.agreement_id.as_str(), v.ordinal)];
+                        let dp = posted - book.balance(Kind::PostedVm, &a.agreement_id);
+                        let dr = received + book.balance(Kind::ReceivedVm, &a.agreement_id);
+                        if a.segregation == Segregation::Segregated {
+                            book.restricted += dr;
+                        }
+                        book.fund(
+                            id,
+                            ordinal,
+                            phase,
+                            sequence,
+                            dr - dp
+                                - if a.segregation == Segregation::Segregated {
+                                    dr
+                                } else {
+                                    0.
+                                },
+                        )?;
+                        book.apply(
+                            id,
+                            ordinal,
+                            phase,
+                            sequence,
+                            vec![
+                                (Kind::PostedVm, &a.agreement_id, dp),
+                                (Kind::ReceivedVm, &a.agreement_id, -dr),
+                                (Kind::Cash, "", dr - dp),
+                            ],
+                        )?;
+                        posted_vm += dp;
+                        received_vm += dr;
+                    }
+                    Body::InterestAccrue(f) => {
+                        let amount = money(
+                            prior_drawn[&f.facility_id] * f.annual_rate / f.day_count.denominator(),
+                            "facility daily interest",
+                        )?;
+                        book.post(
+                            id,
+                            ordinal,
+                            phase,
+                            sequence,
+                            vec![
+                                (Kind::InterestExpense, &f.facility_id, amount),
+                                (
+                                    if amount >= 0. {
+                                        Kind::FundingInterestPayable
+                                    } else {
+                                        Kind::FundingInterestReceivable
+                                    },
+                                    &f.facility_id,
+                                    -amount,
+                                ),
+                            ],
+                        )?;
+                    }
+                    Body::InterestPay(f) => {
+                        let receivable =
+                            book.balance(Kind::FundingInterestReceivable, &f.facility_id);
+                        let payable = book.balance(Kind::FundingInterestPayable, &f.facility_id);
+                        book.post(
+                            id,
+                            ordinal,
+                            phase,
+                            sequence,
+                            vec![
+                                (Kind::FundingInterestReceivable, &f.facility_id, -receivable),
+                                (Kind::FundingInterestPayable, &f.facility_id, -payable),
+                                (Kind::Cash, "", receivable + payable),
+                            ],
+                        )?;
+                    }
                     Body::Advance(f, l) => {
                         book.post(
                             id,
@@ -2239,7 +2564,15 @@ pub fn replay_with_margin(
                                     &l.lot_id,
                                     claim,
                                 ),
-                                (Kind::InterestExpense, &l.lot_id, -due),
+                                (
+                                    if acq.derivative_updates.iter().any(|u| u.lot_id == l.lot_id) {
+                                        Kind::DerivativeIncome
+                                    } else {
+                                        Kind::InterestExpense
+                                    },
+                                    &l.lot_id,
+                                    -due,
+                                ),
                                 (Kind::RealizedGainLoss, &l.lot_id, -realized),
                             ],
                         )?;
@@ -2579,11 +2912,30 @@ pub fn replay_with_margin(
         && near(stock(Kind::PostedIm), posted_im)
         && near(custody(Kind::CustodyAsset), received_im)
         && near(-custody(Kind::CustodyObligation), received_im);
-    let open_claims = !near(
-        stock(Kind::UnpaidReceivable) + stock(Kind::UnpaidPayable),
-        0.,
-    ) || (derivative_carrying.is_empty()
-        && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)));
+    let open_claims = !near(stock(Kind::FundingInterestReceivable), 0.)
+        || !near(stock(Kind::FundingInterestPayable), 0.)
+        || !near(
+            stock(Kind::UnpaidReceivable) + stock(Kind::UnpaidPayable),
+            0.,
+        )
+        || (derivative_carrying.is_empty()
+            && (!near(posted_vm + received_vm, 0.) || !near(posted_im + received_im, 0.)))
+        || r.margin_agreements.iter().any(|a| {
+            acq.derivative_updates
+                .iter()
+                .any(|u| a.lot_ids.contains(&u.lot_id))
+                && a.lot_ids
+                    .iter()
+                    .all(|id| !derivative_carrying.contains_key(id.as_str()))
+                && [
+                    Kind::PostedVm,
+                    Kind::ReceivedVm,
+                    Kind::PostedIm,
+                    Kind::CustodyAsset,
+                ]
+                .iter()
+                .any(|kind| !near(book.balance(*kind, &a.agreement_id), 0.))
+        });
     // Stage G: renewals are replacement-debt facts for the ASC 815 owner; monthly reports are
     // derived from the dated intents and steps and must reconcile to them exactly.
     facts.append(&mut book.replacements);

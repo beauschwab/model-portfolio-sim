@@ -1,9 +1,9 @@
 name: Architecture and interface contracts
 on:
   push:
-    paths: ['apps/**', 'packages/**', 'scripts/**', 'docs/contracts/**', 'Makefile', 'package.json', '.github/workflows/architecture.yml']
+    paths: ['AGENTS.md', 'docs/changelog/**', 'docs/reviews/issue-67-agent-contract.md', 'apps/**', 'packages/**', 'scripts/**', 'docs/contracts/**', 'Makefile', 'package.json', '.github/workflows/architecture.yml']
   pull_request:
-    paths: ['apps/**', 'packages/**', 'scripts/**', 'docs/contracts/**', 'Makefile', 'package.json', '.github/workflows/architecture.yml']
+    paths: ['AGENTS.md', 'docs/changelog/**', 'docs/reviews/issue-67-agent-contract.md', 'apps/**', 'packages/**', 'scripts/**', 'docs/contracts/**', 'Makefile', 'package.json', '.github/workflows/architecture.yml']
 permissions:
   contents: read
 jobs:
@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python scripts/check_agent_contract.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -20,8 +21,5 @@ jobs:
           python-version: '3.12'
       - run: bun install --frozen-lockfile
       - run: uv sync --project apps/api --extra dev --locked
-      - run: uv run --project apps/api python scripts/check_architecture.py
-      - run: uv run --project apps/api python -m unittest discover -s scripts/tests -v
-      - run: uv run --project apps/api python scripts/generate_native_contracts.py --check
-      - run: uv run --project apps/api python scripts/generate_http_contracts.py --check
+      - run: make check-architecture
       - run: bun run --cwd apps/web build

@@ -52,7 +52,7 @@ const PLAN_FIELDS: [&str; 6] = [
     "business_plan",
 ];
 const PLAN_MODES: [&str; 3] = ["runoff", "schedule", "policy"];
-pub const INSTRUCTION_KINDS: [&str; 10] = [
+pub const INSTRUCTION_KINDS: [&str; 13] = [
     "purchases",
     "financings",
     "facility_draws",
@@ -63,6 +63,9 @@ pub const INSTRUCTION_KINDS: [&str; 10] = [
     "facility_repayments",
     "initial_margin",
     "dynamic_margin",
+    "derivative_updates",
+    "variation_margin_reviews",
+    "facility_interest",
 ];
 const HEDGE_TREATMENTS: [&str; 4] = ["terminate", "retain", "offset", "rebalance"];
 const FUNDING_INSTRUCTIONS: [&str; 3] = ["repay", "retain", "replace"];
@@ -241,7 +244,16 @@ pub fn requirements(book: &Value, plan: &Value) -> Vec<Requirement> {
         .and_then(Value::as_str)
         .unwrap_or("schedule");
     if mode == "runoff" {
-        let scheduled: usize = INSTRUCTION_KINDS.iter().map(|k| array(ins, k).len()).sum();
+        let scheduled: usize = INSTRUCTION_KINDS
+            .iter()
+            .filter(|k| {
+                !matches!(
+                    **k,
+                    "derivative_updates" | "variation_margin_reviews" | "facility_interest"
+                )
+            })
+            .map(|k| array(ins, k).len())
+            .sum();
         if scheduled > 0 || !actions.is_empty() {
             need(
                 "business plan".into(),

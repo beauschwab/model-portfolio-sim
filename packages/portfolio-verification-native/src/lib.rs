@@ -8,6 +8,7 @@
 //! stocks and the producer's receipt. Hashes establish identity, not economic correctness; raw
 //! byte identity and typed normalization are checked separately from monetary tolerances.
 pub mod expect;
+mod ongoing;
 pub mod raw;
 pub mod stream;
 pub mod swap;
