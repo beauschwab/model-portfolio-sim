@@ -52,7 +52,7 @@ def main():
             manifest = str(ROOT / "packages" / crate / "Cargo.toml")
             gates = (
                 ("format", ["cargo", "fmt", "--manifest-path", manifest, "--", "--check"]),
-                ("tests", ["cargo", "test", "--locked", "--all-targets", "--manifest-path", manifest,
+                ("tests", ["cargo", "test", "--locked", "--no-fail-fast", "--all-targets", "--manifest-path", manifest,
                            "--", "--test-threads=2"]),
                 ("strict", ["cargo", "clippy", "--locked", "--all-targets", "--all-features",
                             "--manifest-path", manifest, "--", "-D", "warnings"]),
@@ -70,11 +70,9 @@ def main():
                     "log_sha256": hashlib.sha256(log.read_bytes()).hexdigest(),
                 })
                 print(log.read_text(encoding="utf8", errors="replace"), flush=True)
-                if result.returncode:
-                    raise RuntimeError(f"native gate failed: {crate} {name}")
                 if source_hashes() != before:
                     raise RuntimeError("native component source changed during validation")
-        receipt["all_passed"] = True
+        receipt["all_passed"] = all(gate["exit_code"] == 0 for gate in receipt["gates"])
     finally:
         receipt["source_unchanged"] = source_hashes() == before
         if not receipt["source_unchanged"]:
