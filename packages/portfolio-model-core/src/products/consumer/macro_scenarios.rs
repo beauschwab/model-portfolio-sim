@@ -191,6 +191,54 @@ fn row(values: &[f64], drivers: &[Driver]) -> Result<(), String> {
     }
     Ok(())
 }
+// Keep the declared observation order while retaining small signed residuals.
+// This is local to the unreleased macro diagnostics, not a monetary reduction.
+#[derive(Clone, Copy, Default)]
+struct MomentSum {
+    sum: f64,
+    residual: f64,
+}
+
+#[cfg(test)]
+mod moment_tests {
+    #[test]
+    fn opposite_large_cross_products_retain_small_exact_covariance() {
+        let small = 2_f64.powi(-16);
+        let rows = [
+            [1e6, 1e6],
+            [small, small],
+            [-1e6, 1e6],
+            [-1e6, -1e6],
+            [-small, -small],
+            [1e6, -1e6],
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, v)| (format!("row-{i}"), v.to_vec()))
+        .collect::<Vec<_>>();
+        let result = super::moments(&rows, 2, &mut || Ok(())).unwrap();
+        assert_eq!(result.mean_annualized_standardized_innovation, [0., 0.]);
+        // Both means are zero. Four signed 1e12 products cancel, leaving
+        // exactly two 2^-32 products divided by the sample denominator five.
+        assert_eq!(result.sample_annual_covariance[0][1], 2_f64.powi(-31) / 5.);
+        assert_eq!(result.sample_annual_covariance[1][0], 2_f64.powi(-31) / 5.);
+    }
+}
+impl MomentSum {
+    fn add(&mut self, value: f64) {
+        let next = self.sum + value;
+        self.residual += if self.sum.abs() >= value.abs() {
+            (self.sum - next) + value
+        } else {
+            (value - next) + self.sum
+        };
+        self.sum = next;
+    }
+    fn value(self) -> f64 {
+        self.sum + self.residual
+    }
+}
+
 fn moments(
     rows: &[(String, Vec<f64>)],
     n: usize,
@@ -202,29 +250,30 @@ fn moments(
                 .into(),
         );
     }
-    let mut mean = vec![0.; n];
+    let mut sums = vec![MomentSum::default(); n];
     for (_, r) in rows {
         check()?;
-        for (m, v) in mean.iter_mut().zip(r) {
-            *m += v;
+        for (sum, v) in sums.iter_mut().zip(r) {
+            sum.add(*v);
         }
     }
-    for m in &mut mean {
-        *m /= rows.len() as f64;
-    }
-    let mut cov = vec![vec![0.; n]; n];
+    let mean: Vec<_> = sums
+        .into_iter()
+        .map(|s| s.value() / rows.len() as f64)
+        .collect();
+    let mut cov = vec![vec![MomentSum::default(); n]; n];
     for (_, r) in rows {
         check()?;
         for i in 0..n {
             for j in 0..=i {
-                cov[i][j] += (r[i] - mean[i]) * (r[j] - mean[j]);
+                cov[i][j].add((r[i] - mean[i]) * (r[j] - mean[j]));
             }
         }
     }
     let cov: Vec<Vec<f64>> = (0..n)
         .map(|i| {
             (0..n)
-                .map(|j| cov[i.max(j)][i.min(j)] / (rows.len() - 1) as f64)
+                .map(|j| cov[i.max(j)][i.min(j)].value() / (rows.len() - 1) as f64)
                 .collect()
         })
         .collect();

@@ -75,3 +75,11 @@ def test_verification_cancels_inside_source_walk_without_native_callbacks(monkey
         return calls[0]>=50
     with pytest.raises(InterruptedError):reference.verify(case['request'],case['result'],cancel)
     assert calls[0]==50
+
+
+def test_large_opposite_covariance_terms_retain_the_independent_small_residual():
+    case=json.loads((Path(__file__).parent/'fixtures/consumer-macro-cancellation.json').read_bytes())
+    assert reference.verify(case['request'],case['result'])['verified']
+    old=deepcopy(case['result']);old['diagnostics']=case['old_diagnostics']
+    with pytest.raises(ArithmeticError,match='independent innovation moment'):
+        reference.verify(case['request'],old)

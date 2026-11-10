@@ -34,6 +34,12 @@ errors are separate. The training identity includes only available training rows
 frozen definitions and training policy; changing holdout observations changes the
 raw-source hash but not fitted training moments or identity.
 
+The unreleased macro moment reducer keeps observation order and uses compensated
+summation for means and signed covariance products. Large opposing products must
+retain small residual covariance; the independent `math.fsum` comparison bound
+is unchanged. Existing monetary reducers and released product calculations are
+unaffected.
+
 ## Projection and daily ownership
 
 Mapping to `consumer-behaviour-spec-1` requires exact coverage of selected macro
