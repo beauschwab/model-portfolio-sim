@@ -35,7 +35,7 @@ flowchart LR
 | `app/operations.py` | Allowlisted application composition, preserving existing queued operation names. |
 | `app/*_jobs.py` | Domain engine adapters. The caller supplies the state owner; no duplicated state dictionaries. |
 | `app/telemetry.py`, `app/job_queue.py`, `app/result_transport.py` | Progress/workload metadata, queue orchestration and ARW1 transport. |
-| `app/persistence.py`, `app/repository.py`, `app/artifacts.py` | Durable revisions/jobs, portable transactional SQL and immutable checksummed objects. Storage does not import feature handlers. |
+| `app/persistence.py`, `app/repository.py`, `app/artifacts.py`, `app/local_files.py` | Durable revisions/jobs, portable transactional SQL, immutable checksummed objects and shared platform filesystem paths. Storage does not import feature handlers. |
 | `app/worker.py` | Lease ownership, one heavy job at a time, recovery, native invocation and publication fencing. |
 | `portfolio-risk` Python package | Public input/output adapters, explicit test reference calculations and independent verification. |
 | `portfolio-risk-native` | Built-in pricing, calibration, shared draws, dependency graph, risk/income/forecast controllers and treasury. |
