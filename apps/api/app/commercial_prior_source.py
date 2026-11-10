@@ -27,16 +27,17 @@ def _row(row):
     return value
 
 
-def _queued(reader,binding):
+def _queued(reader,binding,schema=SCHEMA,*,allow_prior=False):
     queued=reader.select(reader.manifest(binding['request']),{'operation','args','identity'})
     if queued.get('operation')!='store.run_model_analysis'or type(queued.get('args'))not in(list,tuple)or len(queued['args'])!=1 or type(queued.get('identity'))is not dict:
         raise ValueError('completed holding source operation differs')
     q=queued['args'][0]
     required={'schema','request','timeout','threads','binary_sha256','source_sha256','publication_deadline_unix'}
-    if type(q)is not dict or set(q)!=required or q['schema']!=SCHEMA:
+    if allow_prior and type(q)is dict and 'prior_publication'in q:required.add('prior_publication')
+    if type(q)is not dict or set(q)!=required or q['schema']!=schema:
         raise ValueError('ordinary holding source required; recursive prior-publication chains unsupported')
     raw=q['request']
-    if type(raw)is not dict or raw.get('schema')!=SCHEMA or len(encoded(raw))>MAX_RAW:
+    if type(raw)is not dict or raw.get('schema')!=schema or len(encoded(raw))>MAX_RAW:
         raise ValueError('bounded compatible holding raw source required')
     if type(q['threads'])is not int or not 1<=q['threads']<=256 or type(q['timeout'])not in(int,float)or not math.isfinite(q['timeout'])or not .001<=q['timeout']<=1800.:
         raise ValueError('holding source thread/timeout domain')
@@ -50,15 +51,16 @@ def _queued(reader,binding):
     return queued,q,raw
 
 
-def capture(repo,codec,source_job,cut_ordinal,check):
+def capture(repo,codec,source_job,cut_ordinal,check,*,schema=SCHEMA,_allow_prior=False,_allow_later=False):
     """Metadata-only server capture; source finance is replayed by the worker."""
     probe(check);binding=_row(repo.job(source_job));reader=Reader(codec,check)
-    queued,q,raw=_queued(reader,binding)
-    if type(cut_ordinal)is not int or cut_ordinal!=raw['cut_ordinal']:
+    queued,q,raw=_queued(reader,binding,schema,allow_prior=_allow_prior)
+    valid_cut=type(cut_ordinal)is int and (raw['cut_ordinal']<=cut_ordinal<=3652059 if _allow_later else cut_ordinal==raw['cut_ordinal'])
+    if not valid_cut:
         raise ValueError('exact published holding cut required')
     meta=reader.select(reader.manifest(binding['result']),{'execution','revision'})
     exact(meta.get('revision'),binding['revision'],'prior result revision differs')
-    if meta.get('execution',{}).get('schema')!=SCHEMA or meta['execution'].get('backend')!='rust':
+    if meta.get('execution',{}).get('schema')!=schema or meta['execution'].get('backend')!='rust':
         raise ValueError('native modeled prior holding source required')
     exact(_row(repo.job(source_job)),binding,'prior source changed during admission');probe(check)
     return dict(binding=binding,raw=deepcopy(raw),queued_identity=deepcopy(queued['identity']))
@@ -85,6 +87,7 @@ class VerifiedPrior:
     _prefix_bytes:bytes
     _recheck:object
     _seal:object
+    _adapter:object=None
 
     def recheck(self,check=None,connection=None):
         if self._seal is not _SEAL:raise ValueError('private verified prior source required')
@@ -92,19 +95,23 @@ class VerifiedPrior:
 
     def match(self,native,check):
         self.recheck(check)
-        exact(_prefix(native),json.loads(self._prefix_bytes),'published prior opening or completed postings differ')
+        if self._adapter is not None and hasattr(self._adapter,'_match'):
+            self._adapter._match(native,json.loads(self._prefix_bytes),check)
+        else:exact((_prefix if self._adapter is None else self._adapter._prefix)(native),json.loads(self._prefix_bytes),'published prior opening or completed postings differ')
         self.recheck(check)
 
     def receipt(self):
+        if self._adapter is not None:return self._adapter._receipt(self.provenance)
         return dict(schema='commercial-prior-opening-verification-1',modeled_prior_publication_verified=True,
             source_raw_and_journal_recomputed=True,exact_published_cut=True,completed_postings_and_opening_matched=True,
             observed_bank_reconciliation=False,cut_started_mixed_sim_adoption=False,empirical_validation=False,
             provenance=deepcopy(self.provenance))
 
 
-def reopen(repo,codec,captured,check):
+def reopen(repo,codec,captured,check,*,schema=SCHEMA,_adapter=None,_chain=None):
     """Historical deadline is provenance; replay runs under the NEW job check."""
     binding=deepcopy(captured['binding']);storage=codec.objects;last=[-math.inf]
+    if _chain is not None:_chain.enter(binding['id'])
     def current(force=False,callback=check,connection=None):
         probe(callback)
         if force or time.monotonic()-last[0]>=.1:
@@ -116,9 +123,12 @@ def reopen(repo,codec,captured,check):
             exact(_row(row),binding,'prior source SQL authority changed');last[0]=time.monotonic()
         probe(callback);return False
     def forced():return current(True)
-    current(True);reader=Reader(codec,forced);queued,q,raw=_queued(reader,binding)
+    current(True);reader=Reader(codec,forced,meter=_chain);queued,q,raw=_queued(reader,binding,schema,allow_prior=_chain is not None)
     exact(raw,captured['raw'],'captured prior raw source changed')
     exact(queued['identity'],captured['queued_identity'],'captured prior identity changed')
+    parent=None
+    if _chain is not None and 'prior_publication'in q:
+        parent=_adapter._parent(repo,codec,q,current,_chain)
     saved=reader.select(reader.manifest(binding['result']),{'execution','revision','model_result'})
     exact(saved.get('revision'),binding['revision'],'prior result revision changed')
     e=saved['execution'];exact(e.get('request_manifest'),binding['request'],'prior request manifest changed')
@@ -130,8 +140,8 @@ def reopen(repo,codec,captured,check):
     if type(ms)is not int or not 1<=ms<=int(q['timeout']*1000):raise ValueError('prior native budget provenance differs')
     from .commercial_execution_envelope import retained_command
     digest=lambda x:hashlib.sha256(json.dumps(x,allow_nan=False,separators=(',',':')).encode()).hexdigest()
-    exact(e.get('input_sha256'),digest(dict(schema=SCHEMA,threads=q['threads'],request=raw)),'prior raw envelope identity differs')
-    executed=retained_command(SCHEMA,raw,q['timeout'],ms)
+    exact(e.get('input_sha256'),digest(dict(schema=schema,threads=q['threads'],request=raw)),'prior raw envelope identity differs')
+    executed=retained_command(schema,raw,q['timeout'],ms)
     exact(e.get('executed_input_sha256'),digest(executed),'prior executed envelope identity differs')
     # The decoder reads each bounded table through the shared reader. Source
     # finance is independently recomputed, never accepted from a stored flag.
@@ -140,25 +150,35 @@ def reopen(repo,codec,captured,check):
     from .model_tables import format_sources
     _,layouts=format_sources(native)
     exact(layouts,e['table_layouts'],'prior source table layouts differ')
-    from portfolio_risk.analytics.commercial_holding_reference import verify
+    if schema==SCHEMA:
+        from portfolio_risk.analytics.commercial_holding_reference import verify
+    else:verify=_adapter._verify
     from .model_report_metadata import source_summary
     verification=verify(raw,native,current)
     exact(verification,e.get('source_verification'),'prior independent source receipt differs')
     exact(source_summary(native),e.get('summary'),'prior source summary differs')
-    prefix_bytes=encoded(_prefix(native))
+    if parent is not None:
+        parent.match(native,current)
+        exact(parent.receipt(),e.get('prior_opening_verification'),'ancestor publication evidence differs')
+    elif _chain is not None and 'prior_opening_verification'in e:
+        raise ValueError('unbound source cannot claim prior publication authority')
+    prefix_bytes=encoded((_prefix if _adapter is None else _adapter._prefix)(native))
     if len(prefix_bytes)>32*1024*1024:raise ValueError('prior prefix admission exceeded')
+    if _chain is not None:_chain.retain(len(prefix_bytes))
     refs=list({encoded(ref):ref for ref in reader.refs}.values())
     if len(refs)>MAX_OBJECTS or sum(r['bytes']for r in refs)>64*1024*1024:
         raise ValueError('prior retained object admission exceeded')
     provenance=dict(binding=binding,queued_identity=queued['identity'],source_deadline_unix=q['publication_deadline_unix'],
         cut_ordinal=raw['cut_ordinal'],objects=refs)
+    if _chain is not None:_adapter._provenance(provenance,captured,parent)
     stamp=encoded(provenance)
     def recheck(callback=None,connection=None):
         callback=check if callback is None else callback
         current(True,callback,connection)
         if codec.objects is not storage:raise ValueError('prior source storage owner rebased')
         exact(verified.provenance,json.loads(stamp),'private prior evidence changed')
+        if parent is not None:parent.recheck(callback,connection)
         for ref in refs:probe(callback);storage.get_bounded(ref,32*1024*1024);probe(callback)
         current(True,callback,connection)
-    verified=VerifiedPrior(provenance,prefix_bytes,recheck,_SEAL)
+    verified=VerifiedPrior(provenance,prefix_bytes,recheck,_SEAL,_adapter)
     verified.recheck();return verified

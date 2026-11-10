@@ -19,7 +19,7 @@ pub struct Request {
     pub capital: Option<Capital>,
     pub ftp: Option<Ftp>,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Capital {
     pub treasury: treasury::Request,
@@ -28,7 +28,7 @@ pub struct Capital {
     pub review: funding::Identity,
     pub exposure_policy: treasury_bridge::ExposurePolicy,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Ftp {
     pub as_of: String,
@@ -36,7 +36,7 @@ pub struct Ftp {
     pub curves: Vec<treasury::Curve>,
     pub reviews: Vec<Review>,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Review {
     pub scenario: String,
@@ -255,7 +255,7 @@ fn ledger(stream: &[u8]) -> Result<Ledger, String> {
     Ok(out)
 }
 
-fn state(snapshot: &Value, day: i32, undrawn: f64) -> Result<funding::State, String> {
+pub(super) fn state(snapshot: &Value, day: i32, undrawn: f64) -> Result<funding::State, String> {
     let default = snapshot["in_default"]
         .as_bool()
         .ok_or("commercial default flag")?;

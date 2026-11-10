@@ -1,12 +1,31 @@
 # Rates Workbench
 
-Commercial fee follow-through (0.29.18): explicitly reviewed earned-and-collected
-fee refunds now retain separate gross refund history and reverse fee cash/income
-through the standalone owner and native loan/fee daily journal. Loan cost/EIR is
-unchanged. See [fee ownership](docs/models/nonintegral-fees.md) and the
-[remaining commercial acceptance work](docs/models/commercial-completion-plan.md).
-Matching native artifacts and explicit saved-library/session rebuilding are
-required; full issue #15 acceptance and observed/policy validation remain open.
+Commercial follow-through (local 0.29.20): complete-origin secondary purchases
+retain separate principal, coupon entitlement, signed fee rights and buyer cost.
+Reviewed candidate journals feed closing capital and fee FTP. Generated loan/fee
+exercise and compact protocol 7 journals retain complete cash/recovery tails with
+independent persisted replay. See [the current work breakdown](docs/models/commercial-completion-plan.md),
+[generated fee scope](docs/models/commercial-generated-fee-adoption.md) and
+[numerical controls](docs/models/commercial-credit-convergence.md).
+The last sealed installed checkpoint is 0.29.19; combined 0.29.20 release validation
+is pending. Matching native artifacts and explicit saved-library/session rebuilding
+are required. Ordinary fixed and fee cuts now publish with independently verified
+predecessors and complete tails; broader issue #15/#25 adoption, observed/policy
+validation and combined scale acceptance remain open.
+
+Finite commercial proofs now share typed native owners instead of retaining a
+second projection JSON tree. Complete result values and admission limits remain
+unchanged; see [proof ownership](docs/models/commercial-source-proof-capture.md).
+Commercial daily scheduling also uses immutable event indices and borrowed
+loan/fee merges. [Ordinary fee cuts](docs/models/commercial-fixed-fee-cut.md) retain
+18 complete source proofs under unchanged admission limits;
+[predecessor continuation](docs/models/commercial-cut-prior-opening.md) verifies
+up to eight prior publications. Encoded diagnostic receipts remain separate.
+Cut-prefix byte comparisons now retain only the smaller complete encoding and
+stream the other against it, with bounded cancellation probes. All historical
+comparison charges, capacity limits and publication gates remain unchanged.
+The typed census also covers reviewed credit claims, policies and legal waivers;
+complete private-owner and publication proofs remain required.
 
 Engine 0.28.0 provides a Rust-owned built-in calculation runtime: raw calibration,
 shared seeded paths, product pricing, dependency graph and edits, accounting/KPIs,
@@ -17,7 +36,9 @@ adapter, independent verifier and reference implementation. As of 0.29.4,
 Python calculation is deprecated; historical Python configurations require an
 explicit switch and library/session rebuild. See [the execution contract](docs/rust-production-contract.md).
 Build the product, decision/workflow and ledger binaries and restart workers.
-Product ABI 8 and ledger protocol 2 are unchanged.
+Numeric product ABI 10 is current. Historical ledger protocols remain readable;
+the explicit commercial loan/fee journal selects protocol 7. Additive schemas and
+named capabilities require matching rebuilt artifacts.
 See the [migration and optimization report](docs/reviews/2026-10-01-native-owned-workflow.md)
 for the complete execution boundary, 60,000-instrument measurements, validation
 evidence and inherited model limitations. The

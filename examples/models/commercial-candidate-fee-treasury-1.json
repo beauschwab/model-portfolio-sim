@@ -1,0 +1,4515 @@
+{
+  "schema": "commercial-candidate-fee-treasury-1",
+  "raw_candidate": {
+    "schema": "commercial-candidate-journal-1",
+    "commercial": {
+      "schema": "commercial-units-1",
+      "identity": {
+        "model_revision": "commercial-units-1",
+        "grid_revision": "actual-1",
+        "crn_id": "shared-crn",
+        "input_revision": "synthetic-1"
+      },
+      "currency": "USD",
+      "reporting_ordinals": [
+        738886,
+        738901
+      ],
+      "base_scenario_id": "baseline",
+      "units": [
+        {
+          "unit_id": "commercial",
+          "template_id": "commercial",
+          "unit_face": 100.0,
+          "accounting_category": "AC",
+          "capital_policy_revision": "explicit-zero",
+          "weights": {
+            "hqla_l2a": 0.0,
+            "outflow30": 0.0,
+            "asf": 0.0,
+            "rsf": 0.0,
+            "rwa": 0.0
+          },
+          "graph": {
+            "schema": "commercial-product-graph-1",
+            "identity": {
+              "model_revision": "commercial-credit-1",
+              "input_revision": "synthetic-1",
+              "paired_history_source": "synthetic-hand",
+              "paired_history_revision": "1",
+              "randomness_domain": "shared-crn"
+            },
+            "as_of_ordinal": 738886,
+            "currency": "USD",
+            "reporting_ordinals": [
+              738886,
+              738901
+            ],
+            "base_scenario_id": "baseline",
+            "bump_bp": 1.0,
+            "original_scenario": {
+              "scenario_id": "original",
+              "run_id": "original-run",
+              "severity": 0.0,
+              "collateral_curve": {
+                "curve_id": "discount",
+                "source_id": "synthetic-hand",
+                "source_revision": "1",
+                "currency": "USD",
+                "role": {
+                  "kind": "collateral",
+                  "collateral_index": "SOFR"
+                },
+                "times_years": [
+                  0.0,
+                  1.0
+                ],
+                "discount_factors": [
+                  1.0,
+                  1.0
+                ],
+                "right_tail": "reject"
+              }
+            },
+            "scenarios": [
+              {
+                "scenario_id": "baseline",
+                "run_id": "baseline-run",
+                "severity": 0.0,
+                "collateral_curve": {
+                  "curve_id": "discount",
+                  "source_id": "synthetic-hand",
+                  "source_revision": "1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0.0,
+                    1.0
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    1.0
+                  ],
+                  "right_tail": "reject"
+                }
+              },
+              {
+                "scenario_id": "stress",
+                "run_id": "stress-run",
+                "severity": 0.0,
+                "collateral_curve": {
+                  "curve_id": "discount",
+                  "source_id": "synthetic-hand",
+                  "source_revision": "1",
+                  "currency": "USD",
+                  "role": {
+                    "kind": "collateral",
+                    "collateral_index": "SOFR"
+                  },
+                  "times_years": [
+                    0.0,
+                    1.0
+                  ],
+                  "discount_factors": [
+                    1.0,
+                    1.0
+                  ],
+                  "right_tail": "reject"
+                }
+              }
+            ],
+            "positions": [
+              {
+                "position_id": "commercial",
+                "credit_identity": "commercial_lending",
+                "oas_target": {
+                  "kind": "locked",
+                  "base_oas": 0.0,
+                  "source_id": "reviewed-quote",
+                  "source_revision": "1"
+                },
+                "original_signed_cash_quote": 100.82191780821918,
+                "original_pricing": [
+                  {
+                    "path_id": "borrower",
+                    "weight": 1.0,
+                    "source": {
+                      "schema": "commercial-source-credit-accounting-proof-1",
+                      "source": {
+                        "schema": "commercial-source-income-proof-1",
+                        "original": {
+                          "schema": "term-enhancements-1",
+                          "model_version": "term-contracts-1",
+                          "contract": {
+                            "id": "commercial",
+                            "revision": "1"
+                          },
+                          "assumption": {
+                            "id": "research",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          },
+                          "position_id": "commercial",
+                          "scenario_id": "base",
+                          "currency": "USD",
+                          "monetary_unit": "currency_units",
+                          "direction": "receipt",
+                          "measure": "pricing",
+                          "asof_ordinal": 738886,
+                          "reporting_end_ordinal": 738901,
+                          "tail_end_ordinal": 738921,
+                          "observed_publication_cutoff_unix_seconds": 1704067200,
+                          "opening_principal": 100.0,
+                          "principal_plan": {
+                            "kind": "supplied",
+                            "principal_payments": [
+                              100.0
+                            ]
+                          },
+                          "periods": [
+                            {
+                              "period_id": "coupon",
+                              "start_ordinal": 738886,
+                              "end_ordinal": 738916,
+                              "payment_ordinal": 738921,
+                              "day_count": "act365_fixed",
+                              "fee": 0.0,
+                              "coupon": {
+                                "kind": "fixed",
+                                "annual_rate": 0.1
+                              }
+                            }
+                          ]
+                        },
+                        "current": {
+                          "schema": "term-enhancements-1",
+                          "model_version": "term-contracts-1",
+                          "contract": {
+                            "id": "commercial",
+                            "revision": "1"
+                          },
+                          "assumption": {
+                            "id": "research",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          },
+                          "position_id": "commercial",
+                          "scenario_id": "base",
+                          "currency": "USD",
+                          "monetary_unit": "currency_units",
+                          "direction": "receipt",
+                          "measure": "pricing",
+                          "asof_ordinal": 738886,
+                          "reporting_end_ordinal": 738901,
+                          "tail_end_ordinal": 738921,
+                          "observed_publication_cutoff_unix_seconds": 1704067200,
+                          "opening_principal": 100.0,
+                          "principal_plan": {
+                            "kind": "supplied",
+                            "principal_payments": [
+                              100.0
+                            ]
+                          },
+                          "periods": [
+                            {
+                              "period_id": "coupon",
+                              "start_ordinal": 738886,
+                              "end_ordinal": 738916,
+                              "payment_ordinal": 738921,
+                              "day_count": "act365_fixed",
+                              "fee": 0.0,
+                              "coupon": {
+                                "kind": "fixed",
+                                "annual_rate": 0.1
+                              }
+                            }
+                          ]
+                        },
+                        "acquisition": {
+                          "identity": {
+                            "id": "purchase",
+                            "revision": "1"
+                          },
+                          "original_yield_anchor": {
+                            "id": "original-only",
+                            "revision": "1"
+                          },
+                          "income_review": {
+                            "id": "income-review",
+                            "revision": "1"
+                          },
+                          "cost": 100.82191780821918,
+                          "original_annual_effective_rate": 0.0
+                        },
+                        "policy": {
+                          "identity": {
+                            "id": "contract-review",
+                            "revision": "1"
+                          },
+                          "recognition": "native_factor_checkpoint_rights-1",
+                          "reset_income": "reviewed_frozen_original_reference-1",
+                          "fees": "integral_cash-1"
+                        }
+                      },
+                      "factor_policy": {
+                        "review": {
+                          "id": "partial-clock",
+                          "revision": "1"
+                        },
+                        "clock": "credit_act365_elapsed_from_source_asof-1",
+                        "partial_calendar_day": "simple_partial_native_daycount-1",
+                        "overnight": "pre_observation_accumulator_partial_weight-1",
+                        "observation_mapping": "explicit_equal_calendar_span-1",
+                        "full_checkpoints": "retain_actual_native_endpoints-1"
+                      },
+                      "credit": {
+                        "identity": {
+                          "id": "physical-review",
+                          "revision": "1"
+                        },
+                        "max_jumps_per_path": 4,
+                        "intervals": [
+                          {
+                            "end_year": 0.0958904109589041,
+                            "hazards_per_year": [
+                              [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                              ],
+                              [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                              ],
+                              [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            ],
+                            "loss_given_default": [
+                              0.0,
+                              0.0,
+                              0.0
+                            ],
+                            "credit_conversion_factor": [
+                              0.0,
+                              0.0,
+                              0.0
+                            ],
+                            "interest_recovery_fraction": [
+                              0.5,
+                              0.5,
+                              0.5
+                            ],
+                            "complete_recovery_tails": [
+                              [
+                                {
+                                  "lag_years": 0.0,
+                                  "weight": 1.0
+                                }
+                              ],
+                              [
+                                {
+                                  "lag_years": 0.0,
+                                  "weight": 1.0
+                                }
+                              ],
+                              [
+                                {
+                                  "lag_years": 0.0,
+                                  "weight": 1.0
+                                }
+                              ]
+                            ]
+                          }
+                        ],
+                        "paths": [
+                          {
+                            "path_id": "borrower",
+                            "path_key": 17,
+                            "initial_live_state": "performing"
+                          }
+                        ],
+                        "draw_stream": {
+                          "kind": "counter_splitmix64_v1",
+                          "stream_id": "stable-crn",
+                          "stream_revision": "1",
+                          "seed": 7
+                        }
+                      },
+                      "accounting": {
+                        "identity": {
+                          "id": "explicit-accounting",
+                          "revision": "1"
+                        },
+                        "recognition": [
+                          {
+                            "interval_index": 0,
+                            "review": {
+                              "id": "full-accrual",
+                              "revision": "1"
+                            },
+                            "by_origin": [
+                              "full_accrual",
+                              "full_accrual",
+                              "full_accrual"
+                            ]
+                          }
+                        ],
+                        "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                        "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                        "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                        "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                      },
+                      "accounting_rates": [
+                        {
+                          "interval_index": 0,
+                          "review": "original-yield",
+                          "annual_effective_rates": [
+                            0.0,
+                            0.0,
+                            0.0
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "histories": [
+                  {
+                    "scenario_id": "baseline",
+                    "physical": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "physical",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "baseline",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "physical",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "baseline",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing_down": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "baseline",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing_up": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "baseline",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "scenario_id": "stress",
+                    "physical": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "physical",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "stress",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "physical",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "stress",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing_down": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "stress",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pricing_up": [
+                      {
+                        "path_id": "borrower",
+                        "weight": 1.0,
+                        "source": {
+                          "schema": "commercial-source-credit-accounting-proof-1",
+                          "source": {
+                            "schema": "commercial-source-income-proof-1",
+                            "original": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "base",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "current": {
+                              "schema": "term-enhancements-1",
+                              "model_version": "term-contracts-1",
+                              "contract": {
+                                "id": "commercial",
+                                "revision": "1"
+                              },
+                              "assumption": {
+                                "id": "research",
+                                "revision": "1"
+                              },
+                              "path": {
+                                "id": "base",
+                                "revision": "1"
+                              },
+                              "position_id": "commercial",
+                              "scenario_id": "stress",
+                              "currency": "USD",
+                              "monetary_unit": "currency_units",
+                              "direction": "receipt",
+                              "measure": "pricing",
+                              "asof_ordinal": 738886,
+                              "reporting_end_ordinal": 738901,
+                              "tail_end_ordinal": 738921,
+                              "observed_publication_cutoff_unix_seconds": 1704067200,
+                              "opening_principal": 100.0,
+                              "principal_plan": {
+                                "kind": "supplied",
+                                "principal_payments": [
+                                  100.0
+                                ]
+                              },
+                              "periods": [
+                                {
+                                  "period_id": "coupon",
+                                  "start_ordinal": 738886,
+                                  "end_ordinal": 738916,
+                                  "payment_ordinal": 738921,
+                                  "day_count": "act365_fixed",
+                                  "fee": 0.0,
+                                  "coupon": {
+                                    "kind": "fixed",
+                                    "annual_rate": 0.1
+                                  }
+                                }
+                              ]
+                            },
+                            "acquisition": {
+                              "identity": {
+                                "id": "purchase",
+                                "revision": "1"
+                              },
+                              "original_yield_anchor": {
+                                "id": "original-only",
+                                "revision": "1"
+                              },
+                              "income_review": {
+                                "id": "income-review",
+                                "revision": "1"
+                              },
+                              "cost": 100.82191780821918,
+                              "original_annual_effective_rate": 0.0
+                            },
+                            "policy": {
+                              "identity": {
+                                "id": "contract-review",
+                                "revision": "1"
+                              },
+                              "recognition": "native_factor_checkpoint_rights-1",
+                              "reset_income": "reviewed_frozen_original_reference-1",
+                              "fees": "integral_cash-1"
+                            }
+                          },
+                          "factor_policy": {
+                            "review": {
+                              "id": "partial-clock",
+                              "revision": "1"
+                            },
+                            "clock": "credit_act365_elapsed_from_source_asof-1",
+                            "partial_calendar_day": "simple_partial_native_daycount-1",
+                            "overnight": "pre_observation_accumulator_partial_weight-1",
+                            "observation_mapping": "explicit_equal_calendar_span-1",
+                            "full_checkpoints": "retain_actual_native_endpoints-1"
+                          },
+                          "credit": {
+                            "identity": {
+                              "id": "physical-review",
+                              "revision": "1"
+                            },
+                            "max_jumps_per_path": 4,
+                            "intervals": [
+                              {
+                                "end_year": 0.0958904109589041,
+                                "hazards_per_year": [
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ],
+                                  [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                  ]
+                                ],
+                                "loss_given_default": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "credit_conversion_factor": [
+                                  0.0,
+                                  0.0,
+                                  0.0
+                                ],
+                                "interest_recovery_fraction": [
+                                  0.5,
+                                  0.5,
+                                  0.5
+                                ],
+                                "complete_recovery_tails": [
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ],
+                                  [
+                                    {
+                                      "lag_years": 0.0,
+                                      "weight": 1.0
+                                    }
+                                  ]
+                                ]
+                              }
+                            ],
+                            "paths": [
+                              {
+                                "path_id": "borrower",
+                                "path_key": 17,
+                                "initial_live_state": "performing"
+                              }
+                            ],
+                            "draw_stream": {
+                              "kind": "counter_splitmix64_v1",
+                              "stream_id": "stable-crn",
+                              "stream_revision": "1",
+                              "seed": 7
+                            }
+                          },
+                          "accounting": {
+                            "identity": {
+                              "id": "explicit-accounting",
+                              "revision": "1"
+                            },
+                            "recognition": [
+                              {
+                                "interval_index": 0,
+                                "review": {
+                                  "id": "full-accrual",
+                                  "revision": "1"
+                                },
+                                "by_origin": [
+                                  "full_accrual",
+                                  "full_accrual",
+                                  "full_accrual"
+                                ]
+                              }
+                            ],
+                            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+                            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1",
+                            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+                            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1"
+                          },
+                          "accounting_rates": [
+                            {
+                              "interval_index": 0,
+                              "review": "original-yield",
+                              "annual_effective_rates": [
+                                0.0,
+                                0.0,
+                                0.0
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "fees": {
+                  "schema": "commercial-fee-adoption-1",
+                  "identity": {
+                    "id": "explicit-fee-acquisition-policy",
+                    "revision": "1"
+                  },
+                  "discount_spread": 0.0,
+                  "original_signed_fee_quote": 5.0,
+                  "total_purchase_cost": 105.82191780821918,
+                  "allocations": [
+                    {
+                      "fee_id": "service-fee",
+                      "allocated_cost": 5.0,
+                      "review": {
+                        "id": "explicit-fee-acquisition-policy",
+                        "revision": "1"
+                      }
+                    }
+                  ],
+                  "original_pricing": [
+                    {
+                      "path_id": "borrower",
+                      "policy": {
+                        "schema": "commercial-native-fees-1",
+                        "policy": {
+                          "id": "reviewed-fee",
+                          "revision": "1"
+                        },
+                        "complete_end_ordinal": 738931,
+                        "coincident_order": "native_exit_before_coincident_service_cash-1",
+                        "fees": [
+                          {
+                            "fee_id": "service-fee",
+                            "source": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "classification_review": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "service": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "position_id": "commercial",
+                            "tranche_id": "original",
+                            "entitlement": 5.0,
+                            "prepaid_refunds_allowed": true
+                          }
+                        ],
+                        "events": [
+                          {
+                            "event_id": "service-earning",
+                            "fee_id": "service-fee",
+                            "source": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "review": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "ordinal": 738896,
+                            "sequence": 0,
+                            "action": "earn",
+                            "reason": "service",
+                            "amount": 5.0
+                          },
+                          {
+                            "event_id": "service-cash",
+                            "fee_id": "service-fee",
+                            "source": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "review": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "ordinal": 738926,
+                            "sequence": 1,
+                            "action": "cash",
+                            "reason": "settlement",
+                            "amount": 5.0
+                          }
+                        ],
+                        "default": {
+                          "review": {
+                            "id": "reviewed-fee",
+                            "revision": "1"
+                          },
+                          "cancel_future_service": true,
+                          "cancel_future_cash": true,
+                          "cancel_unearned_entitlement": true,
+                          "waive_unpaid_earned_fraction": 1.0,
+                          "refund_prepaid_fraction": 0.0,
+                          "recoveries": [
+                            {
+                              "lag_days": 5,
+                              "fraction": 0.5
+                            }
+                          ]
+                        },
+                        "prepayment": {
+                          "review": {
+                            "id": "reviewed-fee",
+                            "revision": "1"
+                          },
+                          "cancel_future_service": false,
+                          "cancel_future_cash": false,
+                          "cancel_unearned_entitlement": false,
+                          "waive_unpaid_earned_fraction": 0.0,
+                          "refund_prepaid_fraction": 0.0,
+                          "recoveries": []
+                        },
+                        "exercise": {
+                          "review": {
+                            "id": "reviewed-fee",
+                            "revision": "1"
+                          },
+                          "cancel_future_service": false,
+                          "cancel_future_cash": false,
+                          "cancel_unearned_entitlement": false,
+                          "waive_unpaid_earned_fraction": 0.0,
+                          "refund_prepaid_fraction": 0.0,
+                          "recoveries": []
+                        },
+                        "maturity": {
+                          "review": {
+                            "id": "reviewed-fee",
+                            "revision": "1"
+                          },
+                          "cancel_future_service": false,
+                          "cancel_future_cash": false,
+                          "cancel_unearned_entitlement": false,
+                          "waive_unpaid_earned_fraction": 0.0,
+                          "refund_prepaid_fraction": 0.0,
+                          "recoveries": []
+                        }
+                      }
+                    }
+                  ],
+                  "histories": [
+                    {
+                      "scenario_id": "baseline",
+                      "physical": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          },
+                          "acquisition_releases": [
+                            {
+                              "fee_id": "service-fee",
+                              "ordinal": 738896,
+                              "sequence": 0,
+                              "amount": 2.0,
+                              "review": {
+                                "id": "explicit-fee-acquisition-policy",
+                                "revision": "1"
+                              }
+                            },
+                            {
+                              "fee_id": "service-fee",
+                              "ordinal": 738926,
+                              "sequence": 1,
+                              "amount": 3.0,
+                              "review": {
+                                "id": "explicit-fee-acquisition-policy",
+                                "revision": "1"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "pricing": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ],
+                      "pricing_down": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ],
+                      "pricing_up": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "scenario_id": "stress",
+                      "physical": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          },
+                          "acquisition_releases": [
+                            {
+                              "fee_id": "service-fee",
+                              "ordinal": 738896,
+                              "sequence": 0,
+                              "amount": 2.0,
+                              "review": {
+                                "id": "explicit-fee-acquisition-policy",
+                                "revision": "1"
+                              }
+                            },
+                            {
+                              "fee_id": "service-fee",
+                              "ordinal": 738926,
+                              "sequence": 1,
+                              "amount": 3.0,
+                              "review": {
+                                "id": "explicit-fee-acquisition-policy",
+                                "revision": "1"
+                              }
+                            }
+                          ]
+                        }
+                      ],
+                      "pricing": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ],
+                      "pricing_down": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ],
+                      "pricing_up": [
+                        {
+                          "path_id": "borrower",
+                          "policy": {
+                            "schema": "commercial-native-fees-1",
+                            "policy": {
+                              "id": "reviewed-fee",
+                              "revision": "1"
+                            },
+                            "complete_end_ordinal": 738931,
+                            "coincident_order": "native_exit_before_coincident_service_cash-1",
+                            "fees": [
+                              {
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "classification_review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "service": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "position_id": "commercial",
+                                "tranche_id": "original",
+                                "entitlement": 5.0,
+                                "prepaid_refunds_allowed": true
+                              }
+                            ],
+                            "events": [
+                              {
+                                "event_id": "service-earning",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738896,
+                                "sequence": 0,
+                                "action": "earn",
+                                "reason": "service",
+                                "amount": 5.0
+                              },
+                              {
+                                "event_id": "service-cash",
+                                "fee_id": "service-fee",
+                                "source": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "review": {
+                                  "id": "reviewed-fee",
+                                  "revision": "1"
+                                },
+                                "ordinal": 738926,
+                                "sequence": 1,
+                                "action": "cash",
+                                "reason": "settlement",
+                                "amount": 5.0
+                              }
+                            ],
+                            "default": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": true,
+                              "cancel_future_cash": true,
+                              "cancel_unearned_entitlement": true,
+                              "waive_unpaid_earned_fraction": 1.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": [
+                                {
+                                  "lag_days": 5,
+                                  "fraction": 0.5
+                                }
+                              ]
+                            },
+                            "prepayment": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "exercise": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            },
+                            "maturity": {
+                              "review": {
+                                "id": "reviewed-fee",
+                                "revision": "1"
+                              },
+                              "cancel_future_service": false,
+                              "cancel_future_cash": false,
+                              "cancel_unearned_entitlement": false,
+                              "waive_unpaid_earned_fraction": 0.0,
+                              "refund_prepaid_fraction": 0.0,
+                              "recoveries": []
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "allocation": [
+      {
+        "unit_id": "commercial",
+        "face": 50.0
+      }
+    ],
+    "as_of_ordinal": 738886,
+    "reporting_end_ordinal": 738901,
+    "owners": [
+      {
+        "unit_id": "commercial",
+        "position_id": "commercial",
+        "account_id": "bank",
+        "source": {
+          "id": "explicit-commercial-unit",
+          "revision": "1"
+        },
+        "ownership": "exclusive_native_commercial_graph-1",
+        "accounting_category": "AC",
+        "ledger_classification": "ac",
+        "pre_purchase_principal": 0.0,
+        "pre_purchase_accrued": 0.0,
+        "pre_purchase_basis": 0.0
+      }
+    ],
+    "run_mapping": [
+      {
+        "source_scenario_id": "baseline",
+        "ledger_scenario_id": "baseline",
+        "severity": 0.0
+      },
+      {
+        "source_scenario_id": "stress",
+        "ledger_scenario_id": "stress",
+        "severity": 0.0
+      }
+    ],
+    "specification": {
+      "version": "balance-stress-2",
+      "ruleset": "research-weights-v2",
+      "horizon_days": 30,
+      "accounts": [
+        {
+          "id": "bank",
+          "entity": "bank",
+          "currency": "USD",
+          "cash": 1000.0,
+          "equity": 1000.0,
+          "cet1_floor": 0.0,
+          "leverage_floor": 0.0,
+          "lcr_floor": 0.0,
+          "nsfr_floor": 0.0
+        }
+      ],
+      "positions": [
+        {
+          "id": "commercial",
+          "account": "bank",
+          "kind": "loan",
+          "balance": 0.0,
+          "rate": 0.0,
+          "risk_weight": 0.0,
+          "rsf_weight": 0.0,
+          "classification": "ac"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "stress",
+          "start_day": 1
+        }
+      ],
+      "reverse_severities": [],
+      "policies": []
+    },
+    "verified_opening_identity": {
+      "id": "supplied-cash-opening",
+      "revision": "1"
+    }
+  },
+  "capital": {
+    "treasury": {
+      "as_of": "2024-02-15",
+      "policy_id": "synthetic-example-not-regulatory-advice-v1",
+      "capital": [],
+      "curves": [],
+      "positions": [],
+      "capital_deltas": [],
+      "strategy_units": []
+    },
+    "policies": [
+      {
+        "account": "bank",
+        "scenario": "baseline",
+        "capital": {
+          "entity": "bank",
+          "currency": "USD",
+          "scenario": "baseline",
+          "period": "2024-02-15",
+          "common_equity": 100000000.0,
+          "retained_earnings": 10000000.0,
+          "eligible_aoci": -2000000.0,
+          "cet1_deductions": 8000000.0,
+          "additional_tier1": 20000000.0,
+          "tier2": 15000000.0,
+          "eligible_tlac": 220000000.0,
+          "eligible_ltd": 80000000.0,
+          "credit_rwa": 750000000.0,
+          "market_rwa": 50000000.0,
+          "operational_rwa": 100000000.0,
+          "advanced_rwa": 950000000.0,
+          "average_assets": 1000.0,
+          "total_leverage_exposure": 2000000000.0,
+          "tangible_common_equity": 100000000.0,
+          "tangible_assets": 1480000000.0,
+          "requirements": {
+            "cet1": {
+              "minimum": 0.045,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "tier1": {
+              "minimum": 0.06,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "advanced_cet1": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_tier1": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tier1_leverage": {
+              "minimum": 0.04,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "slr": {
+              "minimum": 0.03,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_rwa": {
+              "minimum": 0.18,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_leverage": {
+              "minimum": 0.075,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_rwa": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_leverage": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tce_ta": {
+              "minimum": 0.05,
+              "buffer": 0.0,
+              "management": 0.005
+            }
+          }
+        },
+        "include_aoci": true,
+        "equity_exclusions": 0.0,
+        "intangible_assets": 0.0,
+        "leverage_addon": 0.0,
+        "leverage_deductions": 0.0,
+        "gl_risk_weights": {
+          "cash": 0.0,
+          "commercial_fee_receivable": 1.0,
+          "commercial_prepaid_fee_expense": 0.5,
+          "commercial_acquired_fee_asset": 0.75
+        },
+        "instrument_risk_weights": {
+          "commercial": 0.5
+        }
+      },
+      {
+        "account": "bank",
+        "scenario": "stress",
+        "capital": {
+          "entity": "bank",
+          "currency": "USD",
+          "scenario": "stress",
+          "period": "2024-02-15",
+          "common_equity": 100000000.0,
+          "retained_earnings": 10000000.0,
+          "eligible_aoci": -2000000.0,
+          "cet1_deductions": 8000000.0,
+          "additional_tier1": 20000000.0,
+          "tier2": 15000000.0,
+          "eligible_tlac": 220000000.0,
+          "eligible_ltd": 80000000.0,
+          "credit_rwa": 750000000.0,
+          "market_rwa": 50000000.0,
+          "operational_rwa": 100000000.0,
+          "advanced_rwa": 950000000.0,
+          "average_assets": 1000.0,
+          "total_leverage_exposure": 2000000000.0,
+          "tangible_common_equity": 100000000.0,
+          "tangible_assets": 1480000000.0,
+          "requirements": {
+            "cet1": {
+              "minimum": 0.045,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "tier1": {
+              "minimum": 0.06,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.025,
+              "management": 0.005
+            },
+            "advanced_cet1": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_tier1": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "advanced_total_capital": {
+              "minimum": 0.08,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tier1_leverage": {
+              "minimum": 0.04,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "slr": {
+              "minimum": 0.03,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_rwa": {
+              "minimum": 0.18,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tlac_leverage": {
+              "minimum": 0.075,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_rwa": {
+              "minimum": 0.06,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "ltd_leverage": {
+              "minimum": 0.045,
+              "buffer": 0.0,
+              "management": 0.005
+            },
+            "tce_ta": {
+              "minimum": 0.05,
+              "buffer": 0.0,
+              "management": 0.005
+            }
+          }
+        },
+        "include_aoci": true,
+        "equity_exclusions": 0.0,
+        "intangible_assets": 0.0,
+        "leverage_addon": 0.0,
+        "leverage_deductions": 0.0,
+        "gl_risk_weights": {
+          "cash": 0.0,
+          "commercial_fee_receivable": 1.0,
+          "commercial_prepaid_fee_expense": 0.5,
+          "commercial_acquired_fee_asset": 0.75
+        },
+        "instrument_risk_weights": {
+          "commercial": 0.5
+        }
+      }
+    ],
+    "amount_multiplier": 1.0,
+    "review": {
+      "id": "explicit-controls",
+      "revision": "1"
+    },
+    "exposure_policy": {
+      "identity": {
+        "id": "explicit-controls",
+        "revision": "1"
+      },
+      "negative_net_carrying": "reviewed_nonnegative_group_exposure"
+    }
+  },
+  "ftp": {
+    "as_of": "2024-01-01",
+    "policy_review": {
+      "id": "explicit-controls",
+      "revision": "1"
+    },
+    "curves": [
+      {
+        "id": "demo-usd-20261001",
+        "entity": "bank",
+        "currency": "USD",
+        "as_of": "2024-01-01",
+        "tenors": [
+          0.0,
+          1.0,
+          5.0,
+          10.0
+        ],
+        "reference_rates": [
+          0.04,
+          0.039,
+          0.037,
+          0.038
+        ],
+        "liquidity_spreads": [
+          0.001,
+          0.002,
+          0.005,
+          0.007
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "scenario": "baseline",
+        "position_id": "commercial",
+        "path_key": 17,
+        "entity": "bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "explicit-controls",
+            "revision": "1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "opening_daily",
+          "negative_funding": "reject_negative",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "fee_receivable",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "fee_payable",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "deferred_fee_income",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "prepaid_fee_expense",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "acquired_fee_asset",
+              "coefficient": 1,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "acquired_fee_liability",
+              "coefficient": -1,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            }
+          ]
+        },
+        "cash_exclusion_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "channel_change_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "income_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "resets": [
+          {
+            "ordinal": 738886,
+            "reference_years": 0.1,
+            "liquidity_years": 0.1,
+            "review": {
+              "id": "explicit-controls",
+              "revision": "1"
+            }
+          }
+        ],
+        "curve_id": "demo-usd-20261001",
+        "option_spread": 0.0,
+        "contingent_annual_rate": 0.0,
+        "daily_operating_cost": 0.0,
+        "allocated_capital": 10.0,
+        "annual_cost_of_capital": 0.1
+      },
+      {
+        "scenario": "stress",
+        "position_id": "commercial",
+        "path_key": 17,
+        "entity": "bank",
+        "currency": "USD",
+        "policy": {
+          "review": {
+            "id": "explicit-controls",
+            "revision": "1"
+          },
+          "accrual_basis": "ACT/365F",
+          "averaging": "opening_daily",
+          "negative_funding": "reject_negative",
+          "principal_zero_rights": "explicit_reviewed_all_channels",
+          "termination": "complete_gross_rights_and_commitment",
+          "tail": "no_synthetic_cash_or_tail",
+          "channels": [
+            {
+              "channel": "active_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_default_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "pending_prepay_principal",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_claim_principal",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_receivable",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_payable",
+              "coefficient": -1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "live_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_principal_basis",
+              "coefficient": 1,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "default_interest_basis",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "borrower_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_principal_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "economic_interest_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "undrawn_memo",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "allowance",
+              "coefficient": 0,
+              "review": {
+                "id": "explicit-controls",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "fee_receivable",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "fee_payable",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "deferred_fee_income",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "prepaid_fee_expense",
+              "coefficient": 0,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "acquired_fee_asset",
+              "coefficient": 1,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            },
+            {
+              "channel": "acquired_fee_liability",
+              "coefficient": -1,
+              "review": {
+                "id": "separate-fee-funding",
+                "revision": "1"
+              }
+            }
+          ]
+        },
+        "cash_exclusion_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "channel_change_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "income_review": {
+          "id": "explicit-controls",
+          "revision": "1"
+        },
+        "resets": [
+          {
+            "ordinal": 738886,
+            "reference_years": 0.1,
+            "liquidity_years": 0.1,
+            "review": {
+              "id": "explicit-controls",
+              "revision": "1"
+            }
+          }
+        ],
+        "curve_id": "demo-usd-20261001",
+        "option_spread": 0.0,
+        "contingent_annual_rate": 0.0,
+        "daily_operating_cost": 0.0,
+        "allocated_capital": 10.0,
+        "annual_cost_of_capital": 0.1
+      }
+    ]
+  }
+}

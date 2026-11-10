@@ -27,8 +27,11 @@ export default function StreamedBalanceStress() {
   const [depositContinuationText,setDepositContinuationText]=useState('');
   const [depositPortfolioText,setDepositPortfolioText]=useState('');
   const [mortgageMixedText,setMortgageMixedText]=useState('');
-  const [timing, setTiming] = useState<'monthly' | 'dated' | 'credit' | 'credit_path' | 'graph' | 'driven' | 'deposit_graph' | 'deposit_income' | 'deposit_revised' | 'deposit_continuation' | 'deposit_portfolio' | 'mortgage_mixed'>('monthly');
-  const draft = timing === 'dated' ? datedText : timing === 'credit' ? creditText : timing === 'credit_path' ? creditPathText : timing === 'graph' ? graphText : timing === 'driven' ? drivenText : timing === 'deposit_graph' ? depositGraphText : timing === 'deposit_income' ? depositIncomeText : timing === 'deposit_revised' ? depositRevisedText : timing === 'deposit_continuation' ? depositContinuationText : timing === 'deposit_portfolio' ? depositPortfolioText : timing === 'mortgage_mixed' ? mortgageMixedText : text;
+  const [commercialDrafts,setCommercialDrafts]=useState({commercial:'',commercial_generated:'',commercial_generated_fees:''});
+  const [timing, setTiming] = useState<'monthly' | 'dated' | 'credit' | 'credit_path' | 'graph' | 'driven' | 'deposit_graph' | 'deposit_income' | 'deposit_revised' | 'deposit_continuation' | 'deposit_portfolio' | 'mortgage_mixed' | 'commercial' | 'commercial_generated' | 'commercial_generated_fees'>('monthly');
+  const commercialSelected=timing==='commercial'||timing==='commercial_generated'||timing==='commercial_generated_fees';
+  const generatedCommercial=timing==='commercial_generated'||timing==='commercial_generated_fees';
+  const draft = commercialSelected ? commercialDrafts[timing] : timing === 'dated' ? datedText : timing === 'credit' ? creditText : timing === 'credit_path' ? creditPathText : timing === 'graph' ? graphText : timing === 'driven' ? drivenText : timing === 'deposit_graph' ? depositGraphText : timing === 'deposit_income' ? depositIncomeText : timing === 'deposit_revised' ? depositRevisedText : timing === 'deposit_continuation' ? depositContinuationText : timing === 'deposit_portfolio' ? depositPortfolioText : timing === 'mortgage_mixed' ? mortgageMixedText : text;
   const backend = 'rust' as const;
   const [large, setLarge] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
@@ -50,7 +53,7 @@ export default function StreamedBalanceStress() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.stressCapabilities(), api.balanceStressExample(), api.datedStressExample(), api.creditStressExample(),api.creditPathStressExample(),api.modeledStressExample('graph-dated-ledger-1'),api.modeledStressExample('driven-credit-ledger-1'),api.modeledStressExample('deposit-graph-dated-ledger-1'),api.modeledStressExample('deposit-graph-income-ledger-1'),api.modeledStressExample('mortgage-mixed-accounting-1'),api.modeledStressExample('deposit-revised-income-ledger-1'),api.modeledStressExample('deposit-performing-income-ledger-1'),api.modeledStressExample('deposit-performing-portfolio-ledger-2')]).then(([caps, example, dated, credit,creditPath,graph,driven,depositGraph,depositIncome,mortgageMixed,depositRevised,depositContinuation,depositPortfolio]) => {
+    Promise.all([api.stressCapabilities(), api.balanceStressExample(), api.datedStressExample(), api.creditStressExample(),api.creditPathStressExample(),api.modeledStressExample('graph-dated-ledger-1'),api.modeledStressExample('driven-credit-ledger-1'),api.modeledStressExample('deposit-graph-dated-ledger-1'),api.modeledStressExample('deposit-graph-income-ledger-1'),api.modeledStressExample('mortgage-mixed-accounting-1'),api.modeledStressExample('deposit-revised-income-ledger-1'),api.modeledStressExample('deposit-performing-income-ledger-1'),api.modeledStressExample('deposit-performing-portfolio-ledger-2'),api.modeledStressExample('commercial-credit-ledger-1'),api.modeledStressExample('commercial-generated-candidate-journal-1'),api.modeledStressExample('commercial-generated-candidate-fee-journal-1')]).then(([caps, example, dated, credit,creditPath,graph,driven,depositGraph,depositIncome,mortgageMixed,depositRevised,depositContinuation,depositPortfolio,commercial,commercialGenerated,commercialGeneratedFees]) => {
       if (!active) return;
       setCapabilities(caps); setText(JSON.stringify(example.specification, null, 2));
       setDatedText(JSON.stringify(dated.specification, null, 2));
@@ -64,6 +67,7 @@ export default function StreamedBalanceStress() {
       setDepositRevisedText(JSON.stringify(depositRevised.specification,null,2));
       setDepositContinuationText(JSON.stringify(depositContinuation.specification,null,2));
       setDepositPortfolioText(JSON.stringify(depositPortfolio.specification,null,2));
+      setCommercialDrafts({commercial:JSON.stringify(commercial.specification,null,2),commercial_generated:JSON.stringify(commercialGenerated.specification,null,2),commercial_generated_fees:JSON.stringify(commercialGeneratedFees.specification,null,2)});
       try {
         const saved = caps.scope_id && sessionStorage.getItem(storageKey(caps.scope_id));
         if (saved) { setId(saved); setOpenId(saved); }
@@ -126,7 +130,7 @@ export default function StreamedBalanceStress() {
         ? await api.runDatedStress(specification, revision, large)
         : timing === 'credit' ? await api.runCreditStress(specification, revision, large)
         : timing === 'credit_path' ? await api.runCreditPathStress(specification,revision,large)
-        : timing === 'graph' || timing === 'driven' || timing === 'deposit_graph' || timing === 'deposit_income' || timing === 'deposit_revised' || timing === 'deposit_continuation' || timing === 'deposit_portfolio' || timing === 'mortgage_mixed' ? await api.runModeledStress(specification,revision,large)
+        : commercialSelected || timing === 'graph' || timing === 'driven' || timing === 'deposit_graph' || timing === 'deposit_income' || timing === 'deposit_revised' || timing === 'deposit_continuation' || timing === 'deposit_portfolio' || timing === 'mortgage_mixed' ? await api.runModeledStress(specification,revision,generatedCommercial?false:large)
         : await api.runStreamedStress(specification, revision, backend, large);
       remember(capabilities?.scope_id ?? null, submitted.id);
       if (token === generation.current) { setId(submitted.id); setOpenId(submitted.id); setJob(submitted); }
@@ -181,9 +185,9 @@ export default function StreamedBalanceStress() {
           <label className="text-sm">Engine <select aria-label="Partitioned engine" className={field} value={backend} disabled>
             <option value="rust">Rust{capabilities && !capabilities.rust ? ' — unavailable' : ''}</option>
           </select></label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={large} disabled={busy || !capabilities?.large_book} onChange={e => setLarge(e.target.checked)} />Large book (up to 60,000 instruments)</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={large&&!generatedCommercial} disabled={busy || !capabilities?.large_book || generatedCommercial} onChange={e => setLarge(e.target.checked)} />Large book (up to 60,000 instruments)</label>
         </div>
-        <p className="text-xs text-paper-faint">{capabilities?.large_book ? 'Large-book capacity is enabled for this workspace.' : 'Standard capacity: up to 2,000 instruments. Large-book admission is disabled on this deployment.'}</p>
+        <p className="text-xs text-paper-faint">{generatedCommercial ? 'Generated commercial runs use separate path and journal limits. Large-book mode does not increase these limits.' : capabilities?.large_book ? 'Large-book capacity is enabled for this workspace.' : 'Standard capacity: up to 2,000 instruments. Large-book admission is disabled on this deployment.'}</p>
         <label className="flex items-center gap-2 text-xs">Cashflow timing
           <select aria-label="Cashflow timing" className={field} disabled={busy} value={timing} onChange={e => setTiming(e.target.value as typeof timing)}>
             <option value="monthly">Monthly approximation</option>
@@ -198,9 +202,15 @@ export default function StreamedBalanceStress() {
             <option value="deposit_portfolio">Multiple performing deposits and explicit named paths</option>
             <option value="deposit_continuation">Deposit observed prefix and later revision</option>
             <option value="mortgage_mixed">Mortgage research expected accounting</option>
+            <option value="commercial">Commercial loan cashflows and reviewed accounting</option>
+            <option value="commercial_generated">Generated commercial purchases and journal</option>
+            <option value="commercial_generated_fees">Commercial purchases with service fees</option>
           </select>
         </label>
         {timing === 'dated' && <p className="text-xs text-paper-faint">Use complete source schedules and explicit recognition policies. The example is synthetic contractual cashflow; credit and behavioral changes must be supplied by their source model.</p>}
+        {commercialSelected && <p className="text-xs text-paper-faint">Retain original loan cost and yield, supplied credit policies and complete coupon and recovery rights. Sources and saved postings are independently checked before publication. The examples use synthetic assumptions.</p>}
+        {generatedCommercial && <p className="text-xs text-paper-faint">Generate separate pricing and borrower paths, then post actual purchases in one journal. Results are saved in parts for browsing and download. Model calibration, reviewed opening evidence and full mixed-book acceptance remain separate.</p>}
+        {timing === 'commercial_generated_fees' && <p className="text-xs text-paper-faint">Service fees have separate quotes, earnings, costs and gross rights. Reviewed releases do not change the original loan yield. This example uses synthetic assumptions; transfers and fees on later advances need their own reviewed sources.</p>}
         {timing === 'credit' && <p className="text-xs text-paper-faint">Use explicit physical credit transitions, loan boundaries and reviewed accounting policies. The synthetic example demonstrates expected daily state transitions and recovery claims. Combined mixed-book execution and empirical calibration remain separate acceptance gates.</p>}
         {timing === 'credit_path' && <p className="text-xs text-paper-faint">Simulate physical borrower paths with explicit draws, repayments, default and complete recovery tails. Reviewed accounting policies determine recognition. Every saved path and posting is independently recomputed before publication; the example uses synthetic assumptions.</p>}
         {timing === 'graph' && <p className="text-xs text-paper-faint">Generate physical auto/personal cashflows from explicit histories and reviewed par-note recognition. Raw source economics and saved postings are verified. Default, delinquency, nonaccrual and fees require their own accounting route and are rejected here.</p>}
@@ -213,7 +223,7 @@ export default function StreamedBalanceStress() {
         {timing === 'deposit_revised' && <p className="text-xs text-paper-faint">Purchase-asof physical deposit histories retain the original quote, cost and effective yield. An explicit review identifies the separate asof basis revision; actual earned interest and cash origins share one journal. Complete original/revised tails are required. Limits: 64 days, 10,000 per monetary component, 8 million work units and 32 MiB. No migration, inflows, fees, seasoned ownership, negative coupon/yield, accounting approval, saved-book adoption, capital or FTP eligibility.</p>}
         <details><summary className="cursor-pointer text-xs">Edit partitioned specification (JSON)</summary>
           <label htmlFor="partitioned-specification" className="mt-2 block text-xs">Explicit balance-sheet specification</label>
-          <textarea id="partitioned-specification" className="mt-1 h-80 w-full rounded border border-line bg-surface-2 p-2 font-mono text-xs" disabled={busy} value={draft} onChange={e => timing === 'dated' ? setDatedText(e.target.value) : timing === 'credit' ? setCreditText(e.target.value) : timing === 'credit_path' ? setCreditPathText(e.target.value) : timing === 'graph' ? setGraphText(e.target.value) : timing === 'driven' ? setDrivenText(e.target.value) : timing === 'deposit_graph' ? setDepositGraphText(e.target.value) : timing === 'deposit_income' ? setDepositIncomeText(e.target.value) : timing === 'deposit_revised' ? setDepositRevisedText(e.target.value) : timing === 'deposit_continuation' ? setDepositContinuationText(e.target.value) : timing === 'deposit_portfolio' ? setDepositPortfolioText(e.target.value) : timing === 'mortgage_mixed' ? setMortgageMixedText(e.target.value) : setText(e.target.value)} spellCheck={false} />
+          <textarea id="partitioned-specification" className="mt-1 h-80 w-full rounded border border-line bg-surface-2 p-2 font-mono text-xs" disabled={busy} value={draft} onChange={e => commercialSelected ? setCommercialDrafts({...commercialDrafts,[timing]:e.target.value}) : timing === 'dated' ? setDatedText(e.target.value) : timing === 'credit' ? setCreditText(e.target.value) : timing === 'credit_path' ? setCreditPathText(e.target.value) : timing === 'graph' ? setGraphText(e.target.value) : timing === 'driven' ? setDrivenText(e.target.value) : timing === 'deposit_graph' ? setDepositGraphText(e.target.value) : timing === 'deposit_income' ? setDepositIncomeText(e.target.value) : timing === 'deposit_revised' ? setDepositRevisedText(e.target.value) : timing === 'deposit_continuation' ? setDepositContinuationText(e.target.value) : timing === 'deposit_portfolio' ? setDepositPortfolioText(e.target.value) : timing === 'mortgage_mixed' ? setMortgageMixedText(e.target.value) : setText(e.target.value)} spellCheck={false} />
         </details>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={busy || downloading || !capabilities?.durable || !capabilities?.rust || !draft.trim()} onClick={run}>Run partitioned simulation</Button>
@@ -252,6 +262,8 @@ export default function StreamedBalanceStress() {
           {manifest.execution?.validation.physical_deposit_source_recomputed && <Badge tone="up">Deposit source economics verified</Badge>}
           {manifest.execution?.validation.original_deposit_income_recomputed && <Badge tone="up">Original deposit yield and basis verified</Badge>}
           {manifest.execution?.validation.driven_credit_source_recomputed && <Badge tone="up">Credit model and drivers verified</Badge>}
+          {manifest.execution?.validation.commercial_source_recomputed && <Badge tone="up">Commercial source and credit rights verified</Badge>}
+          {manifest.execution?.validation.raw_graph_units_recomputed && <Badge tone="up">Generated purchase sources and allocations verified</Badge>}
           <Badge tone={manifest.execution?.validation.dynamic_validated ? 'up' : 'warning'}>{manifest.execution?.validation.dynamic_validated === undefined ? 'Daily regulatory limits not evaluated' : manifest.execution.validation.dynamic_validated ? 'Daily research limits passed' : 'Review daily limit breaches'}</Badge>
         </div>
         <label className="flex flex-wrap items-center gap-2 text-sm">Result table

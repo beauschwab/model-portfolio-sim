@@ -1,5 +1,230 @@
 # Remaining commercial acceptance work
 
+## Ordinary fee cuts and verified continuation (2026-11-08)
+
+The ordinary fixed route now retains all 18 loan/fee proofs, acquired costs,
+gross fee rights and complete tails under the unchanged 32-million-work /128-MiB
+joined and 8-million-work /32-MiB component limits. Seven native cut dates pass,
+including dates after repayment and fee settlement. Version 3 predecessor evidence
+records independently matched gross fee owners while retaining bounded ancestor,
+source, restart and final SQL checks. Sparse path reporting after day 30 does not
+shorten the independently verified daily horizon.
+
+Targeted validation passes 84 ledger tests, 63 independent replay/transport checks,
+15 fee-verifier tests after the horizon correction and ten worker tests against
+rebuilt release artifacts. Full regression on this final source remains pending;
+the earlier chain-only matrix does not cover this extension. See
+[the ordinary fee contract and evidence](commercial-fixed-fee-cut.md).
+
+Generated, exercise, transferred and original-physical acquisition owners retain
+separate admission requirements. Broader saved/cohort/strategy/accounting/FTP,
+complete mixed-book scale, observed histories and reviewed policy gates remain.
+This is a local implementation checkpoint, with no deployment or worker restart.
+
+## Fixed cut predecessor chains and advancing dates (2026-11-08)
+
+The explicit `/models/cut-mixed-journals` route server-selects the completed raw
+candidate from a fixed cut publication and independently replays every predecessor.
+It supports the published cut or a later cut within the complete published tail,
+including zero allocation and dates after repayment. Up to eight predecessors use
+one cumulative object/decode/prefix budget and the current job's original deadline.
+The final SQL guard rechecks every ancestor's objects and authority. Version 2
+execution receipts distinguish a rolled-forward journal from an exact prior cut;
+ordinary same-cut version 1 receipts remain compatible. See
+[the contract and limits](commercial-cut-prior-opening.md).
+
+Advanced/fee owners, broader saved/cohort/strategy/accounting/FTP adoption,
+observed/reviewed evidence and complete mixed scale acceptance remain open.
+Native producer verification flags stay false; separate execution evidence records
+verified modeled predecessors. Synthetic histories do not establish observed accuracy.
+
+
+## Fixed commercial cut publication (2026-11-05)
+
+The ordinary supplied-fixed CLI now uses sequential complete-source preparation
+with prospective typed-input, source, graph, unit, candidate, Sim and codec heap
+allowances. It retains all 27 original/current Physical/Pricing/bump source proofs,
+complete cash/credit/rights/recovery tails and zero-allocation owners. It keeps the
+existing 32 million work and 128 MiB requested-heap limits. These are not process
+RSS limits. Advanced owner selections retain their historical admission routes.
+
+The unchanged positive API worker fixture now passes independent raw-source and
+persisted journal replay, table paging and restart. The original source reservation
+is 120,159,804 bytes; the measured counted execution is 31,007,891 work units. A
+separate request with larger complete credit-path jump bounds retains negative
+admission coverage. Targeted validation passes 8 native route checks and 36 engine/
+worker checks, including forged resource receipts, exact persisted input/table
+identity, zero allocation, cancellation, deadlines and final source/executable
+fences. Full release/matrix results are recorded separately; these focused results
+do not replace the requested full-suite validation.
+
+`commercial_fixed_capacity_reference` independently reconstructs the allowance
+from original raw dimensions and then replays every financial source and journal.
+The native complete allocation inventory must fit that allowance before graph
+construction. The packet's native admission flag grants no publication authority;
+the worker still verifies the persisted partitions and original execution fences.
+Historical diagnostic packets retain their false admission/publication flags.
+
+At this November 5 checkpoint predecessor binding was still open; the November 8
+stage above adds bounded fixed-cut binding. Broader saved-book/cohort/strategy/
+accounting/FTP adoption and complete mixed-book scale acceptance remain separate gates.
+Synthetic fixtures establish implementation/parity, not observed predictive
+accuracy or reviewed policy approval. No deployment or worker restart is implied.
+
+
+## Historical installed reconciliation (2026-10-16)
+
+The November 5 fixed-cut full-suite checkpoint supersedes the failure status
+below. This retained history documents earlier evidence, not a current release
+blocker. See [the passing checkpoint](../reviews/2026-11-05-commercial-fixed-cut-publication.md).
+
+The complete installed 0.29.20 attempt passes **1,464 native tests** (834 fresh
+pricing/decision and 630 explicitly retained unchanged-foundation tests), **3,643
+full engine tests** with two intentional reference skips, the web build and 26
+browser journeys, 40 MCP checks, two real MCP/API/worker publication journeys,
+compatibility/operator checks and applicable native/build/contract gates.
+
+The full API run finishes with **1,386 passes, one failure, one skip and one
+warning**. Its only failure is the positive commercial cut-date worker example:
+the omitted native route refuses **36,844,632 work / 223,261,940 bytes** before
+dual graph generation. Successful publication remains required; no case is
+reclassified to an expected refusal and no limit is widened. Therefore the last
+accepted installed checkpoint remains **0.29.19**. Complete source/eight-artifact
+archives and final fences are retained in the
+[installed attempt review](../reviews/2026-10-16-checked-numerical-integration.md).
+
+The cut source/private-memory/Sim/codec proof and positive independently verified
+persisted publication are the immediate release blocker. Separate isolated
+capacity-context and streaming-counter components are groundwork, not accepted
+cut execution. Every original broader adoption, observed-history/reviewed-policy
+and complete 60,000-position joint acceptance gate remains. No deployment or
+worker restart is claimed.
+
+## Retained development reconciliation before complete attempt 6
+
+The following records earlier contained and failed stages. Current installed
+results above supersede its pending-test status without removing any requirement.
+
+This section supersedes the older implementation exclusions below without
+removing their wider acceptance requirements. The last accepted installed stage
+is 0.29.19: 1,299 native tests, 2,998 engine tests (two skips), 1,311 API tests
+(one skip), 24 browser journeys, strict native checks and contract checks passed.
+Its source and eight installed artifacts are sealed separately in
+[the acceptance review](../reviews/2026-10-16-commercial-source-adoption.md).
+Skips, deployment, empirical evidence and complete joint-scale acceptance are not
+covered by those results.
+
+Subsequent committed components below have contained native and independent
+checks. They have not yet passed a combined installed release regression. Work
+still being implemented is identified explicitly.
+
+**Retained pre-change release blocker:** the expanded 48-cell stochastic-coupon, credit and
+call/put family retains 36 passes and 12 independent native/reference failures.
+Some failures change exercise decisions and path cash; the largest observed path
+difference is about 0.544876 per face100. Three declared failures reproduce on
+the optimized development lifecycle binary. Exact native matrix/target capture
+and independent reconstruction identify an invalid SVD, including a deterministic
+16-by-3 collinear control. Explicit iteration settings do not correct it. A
+bounded native correction with decomposition and solve checks, followed by the
+unchanged benchmark families and combined installed regression, is required.
+The initial combined acceptance attempt is retained and invalidated; full engine
+and API acceptance has not been claimed. See
+[the numerical family](commercial-credit-gaussian-exercise.md). This is distinct
+from the earlier exact-constant metadata correction, whose paired financial
+outputs remain identical.
+
+A separate 28-case current-coupon-shaped history family confirms four incorrect
+fits returned by the actual native calibration routine, with fitted-coupon error
+up to about 13.4 basis points and some adjustment speeds changing from one to
+0.02. Two additional cases fail reconstruction checks while fitted-output errors
+remain small. The earlier 29 representative caller controls still pass their
+declared cases. A shared checked numerical module must preserve the historical
+caller's epsilon, floating cutoff and accepted tall/wide shapes; a correction
+limited to commercial continuation does not clear this additional release gate.
+See [the caller audit](../reviews/2026-10-16-native-svd-secondary-audit.md).
+
+The bounded checked native solver is now integrated as development code. Its
+matching isolated replay passes all 48 unchanged cases, plus the earlier 60- and
+24-case families. The first unchanged 107-case replay exposed four new work
+refusals in addition to its original expected refusal. The integrated raw-law
+column/scan census restores all four: subsequent unchanged replay has 106 passes
+and only the original declared refusal. Every feature and source evaluation
+remains. The combined fee graph's original 4,472,547,840-work refusal is retained;
+the integrated fixed-fee observation proof restores that exact raw graph at
+3,261,133,520 work with independent source replay. All limits remain unchanged.
+Two cubic cases have tiny coefficient/spectrum changes from repair of a separately
+confirmed invalid legacy decomposition; their decisions, cash and valuation fields
+are identical. The actual-matrix audit retains all eight two-date matrices.
+
+The shared tall/wide history correction is also integrated as development code.
+It passes all 28 actual-public-fit/NumPy comparisons, 82 public calibration
+controls, 16 focused native controls and strict risk checks in its matching
+isolated build. The four original incorrect financial fits are repaired. Both
+generated-product work refusals in the initial broader native run are restored by
+the integrated census. The combined native run passes 197 tests; four focused
+fee-proof controls and 25 independent reserve controls also pass. These contained
+results do not establish combined installed acceptance; see
+[the history contract](native-history-least-squares.md).
+
+The next fresh all-target run passed core, pricing and ledger native/strict gates,
+then exposed five existing protocol6 generated-candidate work refusals in strategy
+tests. Those complete logs and the 783-input source freeze remain retained.
+The repair separates unexecuted Physical checked-fit work from its unchanged
+source/basis/scan/workspace allowances and proves deterministic coupon coordinates
+from the literal raw law. Actual matrices and full financial cases remain.
+The first repair restored six cases but retained a 4,003,255,730-work default
+refusal. Actual-call counters then confirmed that generated Pricing does not
+execute standalone's extra training-source replay. Applying its existing
+catalog/fee pass inventory to omitted templates restores all seven cases.
+The combined library passes 209 tests, both all-target/all-feature strict checks
+pass and 28 independent reserve controls pass. Seven complete archived/current
+comparisons differ only at eight identified admission scalar locations; all
+other typed fields/f64 bits match. Fresh installed acceptance remains required;
+no financial expectation, cap, actual source pass or tolerance changes.
+
+The new independent compact-cut inventory is a refusal-only analysis foundation.
+Its initial 25 controls and provisional census are retained. A subsequent review
+identified caller-list, prior-proof lifetime and complete sort/key/hash costs.
+Their corrected before-growth allocation, explicit drops and deterministic
+ordering pass all 30 controls at 31,242,892 application work and 41,595,632 peak
+component bytes. That partial census does not establish native admission or codec
+viability. Complete native source/layout, original Pricing proof capture, Sim,
+output, independent persisted verification and publication fences remain required.
+
+| Work | Implemented bounded scope | Remaining acceptance or engineering |
+|---|---|---|
+| Separate fees | Explicit loan/fee graph valuation, acquired cost allocation, joint finite exercise, retained unit fee income, finite same-journal candidate purchases, fee-specific closing capital and daily FTP; later conveyed fee capital/FTP, signed prepaid refund acquisitions and generated fee stopping/journals | Combined installed acceptance; draw-tranche/generated secondary fees, wider mixed/saved/cohort adoption and reviewed policies remain |
+| Candidate holdings | Complete-origin finite loan/fee replay, identical completed raw/monetary prefixes, prospective gross rights/basis and future postings; exact-cut ordinary modeled predecessor binding; later complete-origin secondary acquisition and coupon entitlement100/live principal80 | Seasoned graph/cohort/strategy coefficients, broader acquired/default/draw rights and observed bank reconciliation |
+| Native cut replay | The native component moves the actual Sim through a positive cut into a distinct resumed Sim on the original calendar; component controls cover future acquisitions, gross signed fees, cancellation and historical parity. Complete finite source-tail census and explicit diagnostic receipt lifetimes are integrated | The omitted public raw specimen still refuses at 36,844,632 work /223,261,940 bytes before generation; the short omitted specimen refuses at 35,324,604 /147,721,280. The selected complete receipt/output census refuses before Sim at 65,033,611 work /150,532,884 bytes. Selected publication explicitly rejects until independent raw-derived admission exists. Compact transport, positive raw/persisted publication, predecessor binding and complete union-tail adoption remain open |
+| Observable indexed earning | Published-fixing prefixes, separate signed loan/coupon owners, actual settlement rights and reviewed late default/waiver/recovery claims; later separate dated principal and retained coupon nominal | Alternative legal true-up policies and delayed-publication generated loadings |
+| Generated paths | Explicit complete Physical path catalogs, canonical source dimensions and paired original anchors; compact candidate journals, positive reviewed actions, counted actual draw-source construction and generated loan/fee streams | Final combined regression is pending; generated draw fees, secondary generated rights and wider joint/mixed scale remain |
+| Source capacity | Explicit finite transfer authority counts the true origin and both actual buyer builds, canonical scans and source operations. Complete carry/claim/recovery/body census and before-growth guards now retain separate economic/book roles; selected prepaid exercise and no-option dual holdings have positive independent/persisted component controls | With the new complete-tail census, joint exercise plus dual holding still refuses at 49,586,912 work /54,466,096 bytes. Caps, samples, all actual source passes and complete tails remain unchanged |
+| Numerical evidence | Training-only linear/quadratic/cubic bases, exact normal/one-date controls, two-date independent learned-policy integration; 24-cell credit-loss/34-control and 60-cell credit/exercise/73-control benchmarks pass. The checked correction passes all 48 formerly failing-family cases and all 28 actual history comparisons. The unchanged 107 cases again have 106 passes and the original declared refusal; both generated-product native fixtures are restored | Complete matching combined installed acceptance. Broader contract/driver/seed/step/basis convergence and observed validation remain |
+| Application | Durable generated stream, fee treasury/holding routes, source/persisted/final SQL fencing, retained fee coefficient evaluation and workbench reopening passed the accepted 0.29.19 checkpoint | Matching release/full regression and browser acceptance for the subsequent combined changes; deployment/restarts and explicit saved-library/session rebuilds |
+
+See [fee adoption](commercial-fee-adoption.md),
+[fee funding](commercial-fee-funding.md), [candidate holdings](commercial-fee-holding.md),
+[candidate prior openings](commercial-candidate-prior-opening.md),
+[observable coupons](commercial-observable-coupons.md),
+[generated Physical sources](commercial-generated-physical-sources.md),
+[generated candidates](commercial-generated-candidates.md),
+[publication](commercial-generated-publication.md) and
+[policy refinement](commercial-policy-refinement.md),
+[conveyed fee treasury](../reviews/2026-10-16-commercial-conveyed-fee-treasury.md),
+[signed acquired prepaid rights](commercial-secondary-prepaid.md),
+[principal and coupon entitlement](commercial-principal-entitlement.md),
+[finite source work](commercial-finite-source-work.md),
+[complete-tail census](commercial-finite-tail-work.md),
+[native cut coordinator](commercial-cut-mixed.md) and
+[selected cut admission](commercial-cut-receipt-admission.md) and
+[credit sampling diagnostics](commercial-credit-convergence.md).
+
+Original OAS/EIR, separate Physical/Pricing ownership, shared random streams,
+final-output tolerances and historical omitted paths remain required. Component
+and phase admission bounds are not a process RSS cap. Observed histories and
+reviewed accounting/regulatory policies have not been supplied; synthetic controls
+cannot complete those evidence gates. Issues 15 and 25 remain open.
+
 This plan preserves the original scope of issues 15 and 25. It describes work
 that remains **not implemented or accepted** after the bounded local stages. The 0.29.11 supported
 stage and its validation are recorded in

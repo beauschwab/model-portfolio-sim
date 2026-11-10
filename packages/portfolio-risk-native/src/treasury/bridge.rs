@@ -14,6 +14,20 @@ pub const MORTGAGE_PENDING_ASSET_GLS: &[&str] = &[
     "mortgage_pending_prepay_interest_receivable",
     "mortgage_pending_prepay_basis",
 ];
+const COMMERCIAL_FEE_ASSETS: &[&str] = &[
+    "commercial_fee_receivable",
+    "commercial_prepaid_fee_expense",
+    "commercial_acquired_fee_asset",
+];
+const COMMERCIAL_FEE_LIABILITIES: &[&str] = &[
+    "commercial_fee_payable",
+    "commercial_deferred_fee_income",
+    "commercial_acquired_fee_liability",
+];
+
+const SECONDARY_FEE_ASSET_ADJUSTMENT: &str = "commercial_acquired_fee_asset_valuation_adjustment";
+const SECONDARY_FEE_LIABILITY_ADJUSTMENT: &str =
+    "commercial_acquired_fee_liability_valuation_adjustment";
 
 fn default_credit_protocol() -> u8 {
     4
@@ -70,7 +84,7 @@ impl ExposurePolicy {
         Ok(())
     }
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Trial {
     pub scenario: String,
@@ -109,7 +123,7 @@ impl AociEligibility {
         Ok(())
     }
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LedgerPolicy {
     pub account: String,
@@ -254,7 +268,7 @@ impl Request {
                 policies,
                 amount_multiplier,
             } => {
-                if [6, 7].contains(&credit_protocol) {
+                if [6, 7, 8, 9].contains(&credit_protocol) {
                     return Err(
                         "mortgage closing protocol cannot be selected on credit ledger".into(),
                     );
@@ -300,12 +314,25 @@ pub(crate) fn ledger_with_exposure(
     credit_protocol: u8,
     exposure_policy: Option<&ExposurePolicy>,
 ) -> Result<Value, String> {
-    if ![0, 4, 5, 6, 7].contains(&credit_protocol) {
+    if ![0, 4, 5, 6, 7, 8, 9].contains(&credit_protocol) {
         return Err("unsupported credit ledger protocol".into());
+    }
+    if credit_protocol != 9
+        && rows.iter().any(|r| {
+            matches!(
+                r.gl_account.as_str(),
+                "commercial_acquired_fee_asset_valuation_adjustment"
+                    | "commercial_acquired_fee_liability_valuation_adjustment"
+            )
+        })
+    {
+        return Err("secondary fee valuation adjustments require explicit reviewed gross-side capital channels".into());
     }
     let credit_source = [4, 5].contains(&credit_protocol);
     let mortgage_closing = credit_protocol == 6;
-    let commercial_closing = credit_protocol == 7;
+    let commercial_closing = [7, 8, 9].contains(&credit_protocol);
+    let commercial_fees = [8, 9].contains(&credit_protocol);
+    let secondary_fees = credit_protocol == 9;
     if let Some(p) = exposure_policy {
         p.validate()?;
         if !mortgage_closing && !commercial_closing {
@@ -351,6 +378,8 @@ pub(crate) fn ledger_with_exposure(
         }
         if p.gl_risk_weights.keys().any(|k| {
             !(ASSET_GLS.contains(&k.as_str())
+                || commercial_fees && COMMERCIAL_FEE_ASSETS.contains(&k.as_str())
+                || secondary_fees && k == SECONDARY_FEE_ASSET_ADJUSTMENT
                 || mortgage_closing && MORTGAGE_PENDING_ASSET_GLS.contains(&k.as_str())
                 || credit_source && CREDIT_ASSET_GLS.contains(&k.as_str()))
         }) {
@@ -384,12 +413,18 @@ pub(crate) fn ledger_with_exposure(
     // P&L (including tax/provision); distributions reduce common equity once.
     let mut sums: BTreeMap<(&str, &str), [f64; 8]> = BTreeMap::new();
     let mut contributions = Vec::new();
-    let mut groups: BTreeMap<(&str, &str, &str), (f64, f64)> = BTreeMap::new();
+    let mut groups: BTreeMap<(&str, &str, String), (f64, f64)> = BTreeMap::new();
     for r in &rows {
         let p = rules[&(r.scenario.as_str(), r.account.as_str())];
         let s = sums.entry((&r.scenario, &r.account)).or_default();
         let gl = r.gl_account.as_str();
         let v = r.balance;
+        if secondary_fees
+            && (gl == SECONDARY_FEE_ASSET_ADJUSTMENT && v > 0.
+                || gl == SECONDARY_FEE_LIABILITY_ADJUSTMENT && v < 0.)
+        {
+            return Err("conveyed fee adjustment has incompatible gross normal balance".into());
+        }
         if credit_source
             && !(CREDIT_ASSET_GLS.contains(&gl)
                 || CREDIT_PNL_GLS.contains(&gl)
@@ -417,6 +452,8 @@ pub(crate) fn ledger_with_exposure(
             s[4] -= v;
             s[7] -= v;
         } else if LIAB_GLS.contains(&gl)
+            || commercial_fees && COMMERCIAL_FEE_LIABILITIES.contains(&gl)
+            || secondary_fees && gl == SECONDARY_FEE_LIABILITY_ADJUSTMENT
             || (["book_adjustment", "accrued_interest"].contains(&gl)
                 && funding.contains(&(&r.scenario, &r.account, &r.instrument_id)))
             || gl == "derivative_value" && v < 0.
@@ -426,13 +463,20 @@ pub(crate) fn ledger_with_exposure(
         {
             s[1] -= v;
         } else if ASSET_GLS.contains(&gl)
+            || commercial_fees && COMMERCIAL_FEE_ASSETS.contains(&gl)
+            || secondary_fees && gl == SECONDARY_FEE_ASSET_ADJUSTMENT
             || credit_source && CREDIT_ASSET_GLS.contains(&gl)
             || mortgage_closing && MORTGAGE_PENDING_ASSET_GLS.contains(&gl)
         {
-            let weight = p
-                .instrument_risk_weights
-                .get(&r.instrument_id)
-                .or_else(|| p.gl_risk_weights.get(gl));
+            let fee_asset = commercial_fees && COMMERCIAL_FEE_ASSETS.contains(&gl)
+                || secondary_fees && gl == SECONDARY_FEE_ASSET_ADJUSTMENT;
+            let weight = if fee_asset {
+                p.gl_risk_weights.get(gl)
+            } else {
+                p.instrument_risk_weights
+                    .get(&r.instrument_id)
+                    .or_else(|| p.gl_risk_weights.get(gl))
+            };
             let weight = if v == 0. {
                 weight.copied().unwrap_or(0.)
             } else {
@@ -442,7 +486,17 @@ pub(crate) fn ledger_with_exposure(
             s[5] += v * weight;
             if exposure_policy.is_some() {
                 let group = groups
-                    .entry((&r.scenario, &r.account, &r.instrument_id))
+                    .entry((
+                        &r.scenario,
+                        &r.account,
+                        if fee_asset && secondary_fees {
+                            format!("{}:commercial_conveyed_fee_assets", r.instrument_id)
+                        } else if fee_asset {
+                            format!("{}:{gl}", r.instrument_id)
+                        } else {
+                            r.instrument_id.clone()
+                        },
+                    ))
                     .or_insert((0., weight));
                 if group.1 != weight {
                     return Err("one reviewed risk weight required per exposure group".into());
@@ -767,6 +821,31 @@ pub fn validate_reviewed_mortgage_inputs(
     amount_multiplier: f64,
     exposure_policy: &ExposurePolicy,
 ) -> Result<(), String> {
+    validate_reviewed_closing_inputs(
+        treasury,
+        policies,
+        amount_multiplier,
+        exposure_policy,
+        ClosingAssets::Mortgage,
+    )
+}
+enum ClosingAssets {
+    Mortgage,
+    CommercialFees,
+    ConveyedFees,
+}
+fn validate_reviewed_closing_inputs(
+    treasury: &Treasury,
+    policies: &[LedgerPolicy],
+    amount_multiplier: f64,
+    exposure_policy: &ExposurePolicy,
+    assets: ClosingAssets,
+) -> Result<(), String> {
+    let (fees, secondary_fees) = match assets {
+        ClosingAssets::Mortgage => (false, false),
+        ClosingAssets::CommercialFees => (true, false),
+        ClosingAssets::ConveyedFees => (true, true),
+    };
     exposure_policy.validate()?;
     check(amount_multiplier, true)?;
     if amount_multiplier == 0.
@@ -807,12 +886,101 @@ pub fn validate_reviewed_mortgage_inputs(
         }
         if p.gl_risk_weights.keys().any(|key| {
             !(ASSET_GLS.contains(&key.as_str())
-                || MORTGAGE_PENDING_ASSET_GLS.contains(&key.as_str()))
+                || !fees && MORTGAGE_PENDING_ASSET_GLS.contains(&key.as_str())
+                || fees && COMMERCIAL_FEE_ASSETS.contains(&key.as_str())
+                || secondary_fees && key == SECONDARY_FEE_ASSET_ADJUSTMENT)
         }) {
             return Err("unknown asset GL risk mapping".into());
         }
     }
     Ok(())
+}
+
+/// Additive fee closing capability. Every separate gross fee asset needs its
+/// own reviewed GL weight; a loan instrument override never assigns that weight.
+pub fn validate_reviewed_commercial_fee_inputs(
+    treasury: &Treasury,
+    policies: &[LedgerPolicy],
+    multiplier: f64,
+    exposure: &ExposurePolicy,
+) -> Result<(), String> {
+    validate_reviewed_closing_inputs(
+        treasury,
+        policies,
+        multiplier,
+        exposure,
+        ClosingAssets::CommercialFees,
+    )?;
+    if policies.iter().any(|p| {
+        COMMERCIAL_FEE_ASSETS
+            .iter()
+            .any(|gl| !p.gl_risk_weights.contains_key(*gl))
+    }) {
+        return Err(
+            "explicit risk weight required for each separate commercial fee asset GL".into(),
+        );
+    }
+    Ok(())
+}
+pub fn prepare_reviewed_commercial_fee_exposure(
+    treasury: Treasury,
+    trial: Vec<Trial>,
+    policies: Vec<LedgerPolicy>,
+    multiplier: f64,
+    exposure: &ExposurePolicy,
+) -> Result<Value, String> {
+    validate_reviewed_commercial_fee_inputs(&treasury, &policies, multiplier, exposure)?;
+    let mut result =
+        ledger_with_exposure(treasury, trial, policies, multiplier, 8, Some(exposure))?;
+    result["separate_fee_exposure_groups"] = json!(true);
+    Ok(result)
+}
+
+/// Purchased rights and their contra asset are one reviewed exposure group.
+/// Loan weights cannot flow into fees; unlike-sign fee obligations stay gross.
+pub fn validate_reviewed_commercial_secondary_fee_inputs(
+    treasury: &Treasury,
+    policies: &[LedgerPolicy],
+    multiplier: f64,
+    exposure: &ExposurePolicy,
+) -> Result<(), String> {
+    validate_reviewed_closing_inputs(
+        treasury,
+        policies,
+        multiplier,
+        exposure,
+        ClosingAssets::ConveyedFees,
+    )?;
+    for p in policies {
+        let weight = p
+            .gl_risk_weights
+            .get(SECONDARY_FEE_ASSET_ADJUSTMENT)
+            .ok_or("explicit conveyed fee contra asset risk weight required")?;
+        if COMMERCIAL_FEE_ASSETS
+            .iter()
+            .any(|gl| p.gl_risk_weights.get(*gl) != Some(weight))
+        {
+            return Err(
+                "one explicit reviewed weight required for conveyed fee asset and adjustment group"
+                    .into(),
+            );
+        }
+    }
+    Ok(())
+}
+pub fn prepare_reviewed_commercial_secondary_fee_exposure(
+    treasury: Treasury,
+    trial: Vec<Trial>,
+    policies: Vec<LedgerPolicy>,
+    multiplier: f64,
+    exposure: &ExposurePolicy,
+) -> Result<Value, String> {
+    validate_reviewed_commercial_secondary_fee_inputs(&treasury, &policies, multiplier, exposure)?;
+    let mut result =
+        ledger_with_exposure(treasury, trial, policies, multiplier, 9, Some(exposure))?;
+    result["separate_fee_exposure_groups"] = json!(true);
+    result["conveyed_fee_asset_adjustment_grouped"] = json!(true);
+    Ok(result)
 }
 
 /// Checked mathematical helper. Source closure remains the coordinator's job.
@@ -869,4 +1037,158 @@ pub fn prepare_reviewed_commercial_exposure(
         7,
         Some(exposure_policy),
     )
+}
+
+#[cfg(test)]
+mod fee_closing_tests {
+    use super::*;
+    #[test]
+    fn fee_gross_gls_require_own_weights_and_never_inherit_loan_group_weight() {
+        let raw: Value = serde_json::from_str(include_str!(
+            "../../../../examples/models/commercial-candidate-fee-treasury-1.json"
+        ))
+        .unwrap();
+        let c = &raw["capital"];
+        let t: Treasury = serde_json::from_value(c["treasury"].clone()).unwrap();
+        let mut p: LedgerPolicy = serde_json::from_value(c["policies"][0].clone()).unwrap();
+        p.instrument_risk_weights.insert("commercial".into(), 9.);
+        let exposure: ExposurePolicy =
+            serde_json::from_value(c["exposure_policy"].clone()).unwrap();
+        let rows = [
+            ("cash", "", 1000.),
+            ("asset_principal", "commercial", 100.),
+            ("commercial_acquired_fee_asset", "commercial", 5.),
+            ("commercial_fee_receivable", "commercial", 4.),
+            ("commercial_prepaid_fee_expense", "commercial", 2.),
+            ("commercial_fee_payable", "commercial", -3.),
+            ("commercial_deferred_fee_income", "commercial", -2.),
+            ("commercial_acquired_fee_liability", "commercial", -1.),
+            ("opening_equity", "", -1105.),
+        ]
+        .into_iter()
+        .map(|(gl, id, balance)| Trial {
+            scenario: "baseline".into(),
+            account: "bank".into(),
+            gl_account: gl.into(),
+            instrument_id: id.into(),
+            balance,
+        })
+        .collect();
+        let out =
+            prepare_reviewed_commercial_fee_exposure(t, rows, vec![p], 1., &exposure).unwrap();
+        assert_eq!(out["capital_bridge"][0]["assets"], 1111.);
+        assert_eq!(out["capital_bridge"][0]["liabilities"], 6.);
+        assert_eq!(out["capital_bridge"][0]["credit_rwa"], 908.75);
+        assert_eq!(
+            out["exposure_groups"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|g| g["instrument_id"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("commercial:commercial_"))
+                .count(),
+            3
+        );
+    }
+
+    fn secondary_fixture() -> (Treasury, Vec<Trial>, Vec<LedgerPolicy>, ExposurePolicy) {
+        let raw: Value = serde_json::from_str(include_str!(
+            "../../../../examples/models/commercial-candidate-fee-treasury-1.json"
+        ))
+        .unwrap();
+        let c = &raw["capital"];
+        let t = serde_json::from_value(c["treasury"].clone()).unwrap();
+        let mut p: LedgerPolicy = serde_json::from_value(c["policies"][0].clone()).unwrap();
+        p.instrument_risk_weights.insert("commercial".into(), 1.);
+        for gl in COMMERCIAL_FEE_ASSETS
+            .iter()
+            .copied()
+            .chain([SECONDARY_FEE_ASSET_ADJUSTMENT])
+        {
+            p.gl_risk_weights.insert(gl.into(), 0.75);
+        }
+        let exposure = serde_json::from_value(c["exposure_policy"].clone()).unwrap();
+        let rows = [
+            ("cash", "", 1000.),
+            ("asset_principal", "commercial", 100.),
+            ("commercial_fee_receivable", "commercial", 6.),
+            (SECONDARY_FEE_ASSET_ADJUSTMENT, "commercial", -1.),
+            ("commercial_fee_payable", "commercial", -6.),
+            (SECONDARY_FEE_LIABILITY_ADJUSTMENT, "commercial", 1.),
+            ("opening_equity", "", -1100.),
+        ]
+        .into_iter()
+        .map(|(gl, id, balance)| Trial {
+            scenario: "baseline".into(),
+            account: "bank".into(),
+            gl_account: gl.into(),
+            instrument_id: id.into(),
+            balance,
+        })
+        .collect();
+        (t, rows, vec![p], exposure)
+    }
+
+    #[test]
+    fn conveyed_fee_asset_contra_nets_in_its_reviewed_group_and_liability_contra_stays_liability() {
+        let (t, rows, p, exposure) = secondary_fixture();
+        let out =
+            prepare_reviewed_commercial_secondary_fee_exposure(t, rows, p, 1., &exposure).unwrap();
+        assert_eq!(out["capital_bridge"][0]["assets"], 1105.);
+        assert_eq!(out["capital_bridge"][0]["liabilities"], 5.);
+        assert_eq!(out["capital_bridge"][0]["credit_rwa"], 103.75);
+        let groups = out["exposure_groups"].as_array().unwrap();
+        let fee = groups
+            .iter()
+            .find(|g| g["instrument_id"] == "commercial:commercial_conveyed_fee_assets")
+            .unwrap();
+        assert_eq!(fee["accounting_net_carrying"], 5.);
+        assert_eq!(fee["policy_rwa_contribution"], 3.75);
+        assert_eq!(out["conveyed_fee_asset_adjustment_grouped"], true);
+    }
+
+    #[test]
+    fn conveyed_fee_adjustment_normal_balances_cannot_be_reclassified_by_sign() {
+        for gl in [
+            SECONDARY_FEE_ASSET_ADJUSTMENT,
+            SECONDARY_FEE_LIABILITY_ADJUSTMENT,
+        ] {
+            let (t, mut rows, p, exposure) = secondary_fixture();
+            rows.iter_mut()
+                .find(|r| r.gl_account == gl)
+                .unwrap()
+                .balance *= -1.;
+            let error =
+                prepare_reviewed_commercial_secondary_fee_exposure(t, rows, p, 1., &exposure)
+                    .unwrap_err();
+            assert_eq!(
+                error,
+                "conveyed fee adjustment has incompatible gross normal balance"
+            );
+        }
+    }
+
+    #[test]
+    fn conveyed_fee_capital_requires_explicit_equal_asset_weights_and_private_capability() {
+        let (t, rows, p, exposure) = secondary_fixture();
+        assert!(prepare_reviewed_commercial_fee_exposure(t, rows, p, 1., &exposure).is_err());
+        let (t, _, mut p, exposure) = secondary_fixture();
+        p[0].gl_risk_weights.remove(SECONDARY_FEE_ASSET_ADJUSTMENT);
+        assert!(validate_reviewed_commercial_secondary_fee_inputs(&t, &p, 1., &exposure).is_err());
+        p[0].gl_risk_weights
+            .insert(SECONDARY_FEE_ASSET_ADJUSTMENT.into(), 0.5);
+        assert!(validate_reviewed_commercial_secondary_fee_inputs(&t, &p, 1., &exposure).is_err());
+        let (t, rows, p, _) = secondary_fixture();
+        assert!(Request::CreditLedger {
+            credit_protocol: 9,
+            treasury: Box::new(t),
+            trial_balance: rows,
+            policies: p,
+            amount_multiplier: 1.
+        }
+        .run()
+        .is_err());
+    }
 }

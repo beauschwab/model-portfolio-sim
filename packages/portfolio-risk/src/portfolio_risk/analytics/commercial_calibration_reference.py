@@ -59,6 +59,9 @@ def verify(law, policy, target, receipt, check=lambda: False):
         r = deepcopy(raw);r['fixed_base_oas'] = oas
         evaluated = reference.evaluate(r,check,_retained_samples=retained)
         value = evaluated['evaluation_value']
+        if raw.get('nonintegral_fees') is not None:
+            from .commercial_generated_fee_reference import loan_component
+            value = loan_component(r,evaluated,retained,check)
         compare(float(value),trial['evaluation_value'],check=check)
         if index==0:
             low_value=value
@@ -85,7 +88,11 @@ def verify(law, policy, target, receipt, check=lambda: False):
     if selected is None or not _bits(selected,receipt['selected_base_oas']):
         raise ArithmeticError('generated original quote residual unresolved')
     r=deepcopy(raw);r['fixed_base_oas']=selected
-    actual=reference.evaluate(r,check,_retained_samples=retained)['evaluation_value']
+    evaluated=reference.evaluate(r,check,_retained_samples=retained)
+    actual=evaluated['evaluation_value']
+    if raw.get('nonintegral_fees') is not None:
+        from .commercial_generated_fee_reference import loan_component
+        actual=loan_component(r,evaluated,retained,check)
     if not _close(actual,target):raise ArithmeticError('independent stopped cash quote residual unresolved')
     compare(float(actual),receipt['stopped_native_cash_value'],check=check)
     compare(float(actual-target),receipt['quote_residual'],check=check)

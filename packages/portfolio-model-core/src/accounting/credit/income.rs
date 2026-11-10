@@ -7,6 +7,11 @@ use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 
+pub(crate) mod fixed_capacity;
+pub mod tail_bounds;
+mod terminal;
+pub use terminal::{NativeTerminalCouponStep, NativeTerminalQuery};
+
 pub const SCHEMA: &str = "credit-path-income-proof-1";
 pub const MAX_RAW_BYTES: usize = 1 << 20;
 pub const MAX_RETAINED_BYTES: usize = 32 << 20;
@@ -17,6 +22,7 @@ pub struct NativeFactorBound {
     pub maximum_atoms_per_query: usize,
     pub retained_source_bytes: usize,
     pub source_work: usize,
+    pub maximum_terminal_steps_per_path: usize,
 }
 pub struct NativeFactorQuery {
     pub path_key: u64,
@@ -142,7 +148,43 @@ pub(crate) struct NativeRecoveryQuery {
     pub fallback: f64,
     pub horizon: f64,
 }
+/// Acquired source factors, not caller-supplied monetary opening state.
+pub struct NativeOpeningCoupon {
+    pub coupon_id: String,
+    pub source_id: String,
+    pub source_revision: String,
+    pub captured_segment_index: usize,
+    pub factor: f64,
+    pub entitlement: NativeCouponEntitlement,
+}
 pub trait NativeEarnedFactors {
+    /// Sealed compiler-selected shape; historical native sources omit it.
+    fn selected_tail_shape(&self) -> Option<tail_bounds::SourceShape> {
+        None
+    }
+
+    fn acquired_opening_coupons(&self, _path_key: u64) -> Result<Vec<NativeOpeningCoupon>, String> {
+        Ok(Vec::new())
+    }
+    /// A source may retain unquantified legal service until its fixing arrives.
+    /// Legacy sources have no such clock; observable sources must preserve or
+    /// explicitly refuse terminal transfer, never silently erase that right.
+    fn validate_terminal(&self, _path_key: u64, _year: f64) -> Result<(), String> {
+        Ok(())
+    }
+    fn pending_coupon_indices(
+        &self,
+        _query: &NativeTerminalQuery,
+        _information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        Ok(Vec::new())
+    }
+    fn terminal_coupon_steps(
+        &self,
+        _query: &NativeTerminalQuery,
+    ) -> Result<Vec<NativeTerminalCouponStep>, String> {
+        Ok(Vec::new())
+    }
     fn begin_path(&mut self, _path_key: u64) -> Result<(), String> {
         Ok(())
     }
@@ -278,6 +320,8 @@ pub struct CarryPoint {
     pub draw_tranches: Vec<DrawTrancheCarry>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub undrawn_commitment: Option<f64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pending_coupon_obligation_indices: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -311,6 +355,8 @@ pub struct ResultData {
     corporate_source_binding: bool,
     mixed_ledger_adoption: bool,
     accounting_approval: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tail_census: Option<tail_bounds::Receipt>,
 }
 
 impl ResultData {
@@ -396,6 +442,26 @@ fn admit(
     pricing_economics: bool,
     check: &mut dyn FnMut() -> Result<(), String>,
 ) -> Result<Admission, String> {
+    admit_selected(
+        r,
+        source,
+        source_cash_per_path,
+        coupon_claims_per_path,
+        pricing_economics,
+        None,
+        check,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn admit_selected(
+    r: &Request,
+    source: Option<&NativeFactorBound>,
+    source_cash_per_path: usize,
+    coupon_claims_per_path: usize,
+    pricing_economics: bool,
+    census: Option<&tail_bounds::NativeTailCensus>,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<Admission, String> {
     check()?;
     if r.schema != SCHEMA
         || r.partial_payment_policy != "cash_reduces_gross_no_proportional_basis_disposal-1"
@@ -443,6 +509,16 @@ fn admit(
             return Err("native gross coupon claims require a bounded 0..4096 source upper".into());
         }
         rows = add(rows, mul(mul(p.paths.len(), coupon_claims_per_path)?, 33)?)?;
+        if source.maximum_terminal_steps_per_path > 4096 {
+            return Err("contingent source step bound exceeded".into());
+        }
+        rows = add(
+            rows,
+            mul(
+                mul(p.paths.len(), source.maximum_terminal_steps_per_path)?,
+                66,
+            )?,
+        )?;
         if source.maximum_atoms_per_query == 0 || source.maximum_atoms_per_query > 4096 {
             return Err("native factor atom bound must be 1..4096 per query".into());
         }
@@ -454,21 +530,34 @@ fn admit(
             )?,
         )?;
     }
+    if let Some(census) = census {
+        let source = source.ok_or("selected tail census requires native source")?;
+        census.verify(r, source, source_cash_per_path, coupon_claims_per_path)?;
+        rows = census.receipt().row_upper;
+    }
     let mut counter = Counter { bytes: 0, check };
     serde_json::to_writer(&mut counter, r).map_err(|e| e.to_string())?;
     counter.flush().map_err(|e| e.to_string())?;
     let raw_bytes = counter.bytes;
-    let work = add(
+    let mut work = add(
         add(mul(raw_bytes, 4)?, mul(rows, 128)?)?,
         source.map_or(0, |s| s.source_work),
     )?;
-    let bytes = add(
+    let mut bytes = add(
         add(mul(raw_bytes, 20)?, mul(rows, 8192)?)?,
         source.map_or(0, |s| s.retained_source_bytes),
     )?;
+    if let Some(census) = census {
+        work = add(work, census.receipt().additional_work_upper)?;
+        bytes = add(bytes, census.receipt().additional_body_bytes_upper)?;
+    }
     if rows > credit_path::MAX_EVENTS || work > credit_path::MAX_WORK || bytes > MAX_RETAINED_BYTES
     {
-        return Err("carry aggregate preflight exceeded before native path generation".into());
+        return Err(if census.is_some() {
+            format!("selected finite carry aggregate preflight exceeded before native path generation: rows={rows},work={work},bytes={bytes},source_work={}", source.map_or(0, |s| s.source_work))
+        } else {
+            "carry aggregate preflight exceeded before native path generation".into()
+        });
     }
     for (anchor, path) in r.original_anchors.iter().zip(&p.paths) {
         check()?;
@@ -522,9 +611,56 @@ pub(crate) struct Owner<'a> {
     coupon_recoveries: Vec<NativeCouponRecovery>,
     canonical_legal_coupons: Vec<CanonicalCouponLegalBalance>,
     draw_tranches: Vec<DrawTrancheCarry>,
+    maximum_terminal_steps: usize,
+    contingent_service_cut: Option<f64>,
+    tail_meter: Option<tail_bounds::Meter>,
 }
 
 impl Owner<'_> {
+    fn retain(&mut self, kind: tail_bounds::Kind) -> Result<(), String> {
+        if let Some(meter) = &mut self.tail_meter {
+            meter.bump(kind)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn pending_indices(
+        &mut self,
+        path_key: u64,
+        served_year: f64,
+        information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        self.check()?;
+        let values = self
+            .factor_source
+            .as_deref()
+            .map_or(Ok(Vec::new()), |source| {
+                source.pending_coupon_indices(
+                    &NativeTerminalQuery {
+                        path_key,
+                        year: served_year,
+                    },
+                    information_year,
+                )
+            })?;
+        if self
+            .tail_meter
+            .as_ref()
+            .is_some_and(|m| values.len() > m.shape().pending_indices)
+        {
+            return Err("pending inventory exceeds selected source shape".into());
+        }
+        if values.len() > self.maximum_atoms_per_query
+            || values.iter().any(|i| *i >= self.maximum_atoms_per_query)
+            || values.windows(2).any(|p| p[0] >= p[1])
+        {
+            return Err(
+                "pending coupon memo indices exceed native source catalog authority".into(),
+            );
+        }
+        Ok(values)
+    }
+
     pub(crate) fn native_draw(
         &mut self,
         p: &CreditPathResult,
@@ -564,6 +700,13 @@ impl Owner<'_> {
             {
                 return Err("native performing draw exceeds undrawn commitment or repeats tranche ownership".into());
             }
+            if self
+                .tail_meter
+                .as_ref()
+                .is_some_and(|m| self.draw_tranches.len() >= m.shape().draw_tranches)
+            {
+                return Err("draw inventory exceeds selected source shape before growth".into());
+            }
             self.draw_tranches.push(DrawTrancheCarry {
                 tranche_id: tranche_id.clone(),
                 original_annual_effective_rate: *original_annual_effective_rate,
@@ -582,6 +725,13 @@ impl Owner<'_> {
         let Some(factors) = source.cumulative_coupon_factors(year)? else {
             return Ok(());
         };
+        if self
+            .tail_meter
+            .as_ref()
+            .is_some_and(|m| factors.len() > m.shape().canonical_coupons)
+        {
+            return Err("canonical inventory exceeds selected source shape before clone".into());
+        }
         if factors.len() > self.coupon_claims_per_path {
             return Err("canonical coupon factors exceed admitted gross claims".into());
         }
@@ -771,6 +921,9 @@ impl Owner<'_> {
             bounded(amount)?;
             earned += amount;
             bounded(earned)?;
+            if let Some(meter) = &mut self.tail_meter {
+                meter.bump(tail_bounds::Kind::Contribution)?;
+            }
             self.contributions.push(EarnedOriginContribution {
                 path_key: query.path_key,
                 interval_index: interval,
@@ -830,6 +983,9 @@ impl Owner<'_> {
             return Err("native source cash exceeds reserved source bound".into());
         }
         let amounts = (cash.principal, cash.interest, cash.fee);
+        if let Some(meter) = &mut self.tail_meter {
+            meter.bump(tail_bounds::Kind::ScheduledCash)?;
+        }
         self.source_cash.push(SourceCashReceipt {
             path_key: self.request.original_anchors[self.path_index - 1].path_key,
             year,
@@ -838,17 +994,31 @@ impl Owner<'_> {
         self.path_cash_count += 1;
         Ok(Some(amounts))
     }
-    pub(crate) fn default_begin(&mut self, p: &CreditPathResult) -> Result<(), String> {
+    pub(crate) fn default_begin(&mut self, p: &CreditPathResult, year: f64) -> Result<(), String> {
         self.check()?;
+        self.contingent_service_cut = Some(year);
+        if let Some(source) = self.factor_source.as_deref() {
+            source.validate_terminal(p.path_key, year)?;
+        }
         if self.coupon_claims_per_path == 0 {
             return Ok(());
         }
-        self.default_lots = crate::products::commercial::coupon_accounting::native_default_lots(
-            p,
-            &self.contributions,
-            &self.source_cash,
-            self.check,
-        )?;
+        self.default_lots = if self.tail_meter.is_some() {
+            crate::products::commercial::coupon_accounting::native_default_lots_bounded(
+                p,
+                &self.contributions,
+                &self.source_cash,
+                Some(self.coupon_claims_per_path),
+                self.check,
+            )?
+        } else {
+            crate::products::commercial::coupon_accounting::native_default_lots(
+                p,
+                &self.contributions,
+                &self.source_cash,
+                self.check,
+            )?
+        };
         self.canonical_legal_coupons.clear();
         self.draw_tranches.clear();
         if self.default_lots.len() > self.coupon_claims_per_path {
@@ -886,6 +1056,9 @@ impl Owner<'_> {
             let interest = lot.legal_remaining * fraction * weight;
             bounded(interest)?;
             cash += interest;
+            if let Some(meter) = &mut self.tail_meter {
+                meter.bump(tail_bounds::Kind::CouponRecovery)?;
+            }
             self.coupon_recoveries.push(NativeCouponRecovery {
                 path_key,
                 default_year,
@@ -921,6 +1094,14 @@ impl Owner<'_> {
         {
             return Err("observed carry rows exceeded admitted upper".into());
         }
+        let pending_indices = self.pending_indices(
+            p.path_key,
+            self.contingent_service_cut.unwrap_or(year),
+            year,
+        )?;
+        if let Some(meter) = &mut self.tail_meter {
+            meter.bump(tail_bounds::Kind::Point)?;
+        }
         self.points.push(CarryPoint {
             path_key: p.path_key,
             year,
@@ -936,6 +1117,7 @@ impl Owner<'_> {
             basis_realization: changes[2],
             canonical_legal_coupons: self.canonical_legal_coupons.clone(),
             draw_tranches: self.draw_tranches.clone(),
+            pending_coupon_obligation_indices: pending_indices,
             undrawn_commitment: self
                 .factor_source
                 .as_ref()
@@ -946,12 +1128,89 @@ impl Owner<'_> {
     pub(crate) fn begin(&mut self, opening: &PathOpening) -> Result<(), String> {
         self.check()?;
         self.path_cash_count = 0;
+        if let Some(meter) = &mut self.tail_meter {
+            meter.begin_path();
+        }
         self.default_lots.clear();
+        self.contingent_service_cut = None;
         self.canonical_legal_coupons.clear();
         self.draw_tranches.clear();
         if let Some(source) = self.factor_source.as_deref_mut() {
             source.begin_path(opening.path_key)?;
         }
+        let acquired = self
+            .factor_source
+            .as_deref()
+            .map_or(Ok(Vec::new()), |source| {
+                source.acquired_opening_coupons(opening.path_key)
+            })?;
+        if self
+            .tail_meter
+            .as_ref()
+            .is_some_and(|m| acquired.len() > m.shape().canonical_coupons)
+        {
+            return Err("acquired inventory exceeds selected source shape before clone".into());
+        }
+        if acquired.len() > self.coupon_claims_per_path {
+            return Err("native acquired coupon opening exceeds admitted lots".into());
+        }
+        let mut acquired_total = 0.;
+        let mut opening_canonical = Vec::new();
+        let mut ids = std::collections::BTreeSet::new();
+        for coupon in acquired {
+            label(&coupon.coupon_id)?;
+            label(&coupon.source_id)?;
+            label(&coupon.source_revision)?;
+            if !ids.insert(coupon.coupon_id.clone())
+                || !coupon.factor.is_finite()
+                || coupon.entitlement.opening_entitlement_principal < 0.
+                || coupon.captured_segment_index >= self.maximum_atoms_per_query
+            {
+                return Err("invalid native acquired coupon source authority".into());
+            }
+            let legal = coupon.entitlement.opening_entitlement_principal * coupon.factor;
+            bounded(legal)?;
+            acquired_total += legal;
+            bounded(acquired_total)?;
+            opening_canonical.push(CanonicalCouponLegalBalance {
+                coupon_id: coupon.coupon_id.clone(),
+                native_audit_index: coupon.entitlement.native_audit_index,
+                native_cash_index: coupon.entitlement.native_cash_index,
+                opening_entitlement_principal: coupon.entitlement.opening_entitlement_principal,
+                cumulative_factor: coupon.factor,
+                contractual_earned: legal,
+                actual_interest_collected: 0.,
+                legal_remaining: legal,
+            });
+            if let Some(meter) = &mut self.tail_meter {
+                meter.bump(tail_bounds::Kind::Contribution)?;
+            }
+            self.contributions.push(EarnedOriginContribution {
+                path_key: opening.path_key,
+                interval_index: 0,
+                origin_index: 3,
+                start_year: 0.,
+                end_year: 0.,
+                coupon_id: coupon.coupon_id.clone(),
+                source_event_id: coupon.coupon_id,
+                source_id: coupon.source_id,
+                source_revision: coupon.source_revision,
+                captured_segment_index: coupon.captured_segment_index,
+                delta_factor: coupon.factor,
+                actual_principal: coupon.entitlement.opening_entitlement_principal,
+                contractual_earned: legal,
+                native_entitlement: Some(coupon.entitlement),
+            });
+        }
+        if self.factor_source.is_some()
+            && (acquired_total - opening.accrued_interest).abs()
+                > 1e-9 + 1e-12 * opening.accrued_interest.abs()
+        {
+            return Err(
+                "opening accrued rights require exact native transferred coupon inventory".into(),
+            );
+        }
+        self.canonical_legal_coupons = opening_canonical.clone();
         self.gross = self.request.original_anchors[self.path_index].acquisition_cost;
         self.path_index += 1;
         if opening.path_key != self.request.original_anchors[self.path_index - 1].path_key {
@@ -966,6 +1225,9 @@ impl Owner<'_> {
         {
             return Err("observed opening rows exceeded admitted upper".into());
         }
+        if let Some(meter) = &mut self.tail_meter {
+            meter.bump(tail_bounds::Kind::Point)?;
+        }
         self.points.push(CarryPoint {
             path_key: opening.path_key,
             year: 0.0,
@@ -979,8 +1241,9 @@ impl Owner<'_> {
             effective_interest: 0.0,
             cash: 0.0,
             basis_realization: 0.0,
-            canonical_legal_coupons: Vec::new(),
+            canonical_legal_coupons: opening_canonical,
             draw_tranches: Vec::new(),
+            pending_coupon_obligation_indices: Vec::new(),
             undrawn_commitment: self
                 .factor_source
                 .as_ref()
@@ -1077,6 +1340,7 @@ impl Owner<'_> {
         cash: f64,
         basis: f64,
     ) -> Result<(), String> {
+        self.contingent_service_cut = Some(year);
         // Cash and basis realization are distinct. No invented cash pays B.
         self.gross = 0.0;
         self.canonical_legal_coupons.clear();
@@ -1112,6 +1376,9 @@ impl Owner<'_> {
                 return Err("observed recovery rows exceeded admitted upper".into());
             }
             let applied = recovery.year <= horizon;
+            if let Some(meter) = &mut self.tail_meter {
+                meter.bump(tail_bounds::Kind::Recovery)?;
+            }
             self.recoveries.push(RecoveryReceipt {
                 path_key: p.path_key,
                 default_year: claim.year,
@@ -1146,7 +1413,8 @@ impl Owner<'_> {
         bounded(old_formula_a)?;
         Ok(())
     }
-    pub(crate) fn finish(&mut self, p: &CreditPathResult, horizon: f64) -> Result<(), String> {
+    pub(crate) fn finish(&mut self, p: &mut CreditPathResult, horizon: f64) -> Result<(), String> {
+        terminal::continue_obligations(self, p, horizon)?;
         self.point(p, horizon, "closing_claims_retained", None, [0.0, 0.0, 0.0])
     }
 }
@@ -1171,6 +1439,26 @@ pub fn admit_with_native_bound(
         source_cash_per_path,
         coupon_claims_per_path,
         false,
+        check,
+    )
+}
+
+/// Explicit finite owner capability; no caller allowance is accepted.
+pub fn admit_economic_with_tail_census(
+    request: &Request,
+    bound: &NativeFactorBound,
+    source_cash_per_path: usize,
+    coupon_claims_per_path: usize,
+    census: &tail_bounds::NativeTailCensus,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<Admission, String> {
+    admit_selected(
+        request,
+        Some(bound),
+        source_cash_per_path,
+        coupon_claims_per_path,
+        true,
+        Some(census),
         check,
     )
 }
@@ -1231,23 +1519,43 @@ fn evaluate_owned<'a>(
     let coupon_claims_per_path = source
         .as_deref()
         .map_or(0, |s| s.maximum_gross_coupon_claims_per_path());
-    let admission = admit(
+    let census = source
+        .as_deref()
+        .and_then(|s| s.selected_tail_shape())
+        .map(|shape| {
+            tail_bounds::NativeTailCensus::derive(
+                request,
+                bound.as_ref().ok_or("selected source bound missing")?,
+                source_cash_per_path,
+                coupon_claims_per_path,
+                shape,
+                check,
+            )
+        })
+        .transpose()?;
+    let admission = admit_selected(
         request,
         bound.as_ref(),
         source_cash_per_path,
         coupon_claims_per_path,
         pricing_economics,
+        census.as_ref(),
         check,
     )?;
     let mut owner = Owner {
         request,
         check,
+        tail_meter: census.map(|c| c.into_meter()).transpose()?,
         gross: 0.0,
         path_index: 0,
         points: Vec::new(),
         recoveries: Vec::new(),
         row_upper: admission.row_upper,
         factor_source: source,
+        contingent_service_cut: None,
+        maximum_terminal_steps: bound
+            .as_ref()
+            .map_or(0, |b| b.maximum_terminal_steps_per_path),
         maximum_atoms_per_query: bound.as_ref().map_or(0, |b| b.maximum_atoms_per_query),
         contributions: Vec::new(),
         source_cash: Vec::new(),
@@ -1283,5 +1591,6 @@ fn evaluate_owned<'a>(
         corporate_source_binding: false,
         mixed_ledger_adoption: false,
         accounting_approval: false,
+        tail_census: owner.tail_meter.map(|meter| meter.finish()),
     })
 }

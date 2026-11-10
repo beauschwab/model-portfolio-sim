@@ -174,6 +174,7 @@ fn index_metadata(
             for o in observations {
                 money(o.rate)?;
                 match &o.source {
+                    RateSource::ConditionalPublishedProjection { .. } => return Err("delayed modeled publication requires an observable commercial source owner".into()),
                     RateSource::Observed {
                         fixing,
                         publication_unix_seconds,

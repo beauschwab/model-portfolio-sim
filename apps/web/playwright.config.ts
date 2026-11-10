@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { cohortBrowserSpecs, durableBrowserSpecs, nativeBrowserSpecs } from './playwright.suites';
 
 // Keep browser tests off the user's running workbench and mutable input state.
 const apiPort = Number(process.env.WORKBENCH_TEST_API_PORT ?? 8001);
@@ -6,7 +7,10 @@ const webPort = Number(process.env.WORKBENCH_TEST_WEB_PORT ?? 5174);
 const reuse = process.env.WORKBENCH_REUSE_TEST_SERVERS === '1';
 
 export default defineConfig({
-  testDir: "./tests", testIgnore: ['cohorts.spec.ts', 'liquidity-lifecycle.spec.ts'], workers: 1, timeout: 60_000,
+  // Backend settings persistence is exercised in both memory and durable modes.
+  testDir: "./tests", testIgnore: [...durableBrowserSpecs,
+    ...cohortBrowserSpecs.filter(name => name !== 'native-settings.spec.ts'), ...nativeBrowserSpecs],
+  workers: 1, timeout: 60_000,
   use: {
     baseURL: `http://127.0.0.1:${webPort}`, viewport: { width: 1680, height: 1100 },
     channel: process.platform === "win32" ? "msedge" : undefined,

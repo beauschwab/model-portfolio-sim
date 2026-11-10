@@ -132,6 +132,17 @@ Read `docs/models/native-contracts.md` for explicit analysis/ledger protocols an
 Use the root contract's product-specific links before changing dated recognition,
 consumer/card/mortgage credit, indexed/floating sources, deposit revisions,
 commercial exercise/OAS/holding/fees, or formal hedge accounting.
+Ordinary fixed and fee `commercial-cut-mixed-journal-1` publications retain
+complete original/current source proofs, gross rights and tails under unchanged
+joined/component bounds. The source-bound `/models/cut-mixed-journals` route
+independently verifies up to eight predecessors and permits later cuts before the
+complete daily tail, including between sparse path reports. Fee predecessors use
+version 3 evidence; no-fee versions 1 and 2 remain readable. Original OAS/EIR,
+zero-allocation evidence and final object/executable/deadline/SQL checks remain.
+Read `docs/models/commercial-fixed-fee-cut.md` and
+`docs/models/commercial-cut-prior-opening.md` for supported inventory and limits;
+advanced owners and broader adoption/empirical/scale gates remain separate.
+
 Read `docs/capital-and-ftp.md` for supplied eligibility/RWA/requirements, exact
 verified closing dates, expected-flow FTP and independent capital dependencies.
 Economic loss is not an implicit allowance or a second capital deduction;

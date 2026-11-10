@@ -1,5 +1,16 @@
 # Native model contract entrypoints
 
+Local 0.29.19 development adds explicit commercial fee graph/unit acquisition,
+joint finite exercise, candidate holding and fee-aware treasury sources, observable
+indexed earning and reviewed late rights, selected generated path draw/review
+catalogs, and bounded generated candidate streaming. These changes require matching
+native artifacts. They are not accepted release evidence until the combined
+installed regression and publication gates pass. See the
+[completion ledger](commercial-completion-plan.md) for retained issue gates.
+The API source-ID [candidate prior-opening route](commercial-candidate-prior-opening.md)
+verifies one ordinary modeled predecessor at its exact published cut without
+changing native financial schemas or claiming observed opening evidence.
+
 Local0.29.15 adds [verified modeled prior openings](commercial-prior-opening.md) through a source-ID durable API route, with unchanged native financial schemas and final SQL/source/object fences. Cut-started mixed and observed bank adoption remain separate.
 
 Local0.29.14 adds explicit [complete-origin commercial holding journals](commercial-holding-journal.md), retaining full native daily replay and independent prospective window verification. Verified prior opening and cut-started mixed adoption remain separate.
@@ -41,9 +52,12 @@ native artifacts fail; there is no Python calculation fallback.
 | `commercial-holding-continuation-1` | `continue_commercial_holding(request)` | [Complete-origin holdings](commercial-continuation.md) | Sealed original acquisition replay, unchanged completed prefixes, retained credit clocks/yields and prospective group indices; verified prior-publication and mixed/secondary adoption remain separate |
 | `commercial-holding-journal-1` | `journal_commercial_holding(request)` | [Holding journals](commercial-holding-journal.md) | One existing complete-origin native daily Sim, derived balanced cut opening, prior P&L rolled into equity and ordered prospective postings; independent full/persisted replay; cut-started mixed/seasoned/secondary and prior-publication adoption remain separate |
 | `commercial-credit-ledger-1` | `analytics.model_ledger.run_model_ledger` | [Commercial ledger](commercial-credit-ledger.md) | Explicit commercial owners and cash accounts share one daily Sim; protocol 6, complete recovery clock and independently replayed durable publication gates |
-| `commercial-generated-exercise-1` | `core.model_native.run(schema, request)` | [Generated commercial exercise](commercial-generated-exercise.md) | Supplied joint Gaussian/credit laws, training-only quadratic continuation, fresh evaluation, exact native stopped cash replay and antithetic cluster diagnostics; no empirical or general convergence claim |
-| `commercial-generated-policy-1` | Explicit `generated_policy` within commercial graph | [Generated graph](commercial-graph-strategy.md#generated-policy-graphs) | Separately supplied Pricing/Physical laws, paired streams, locked original OAS and compact original acquisition/accounting recipes; generated candidate streaming rejects |
+| `commercial-generated-exercise-1` | `core.model_native.run(schema, request)` | [Generated commercial exercise](commercial-generated-exercise.md) | Supplied joint Gaussian/credit laws, training-only continuation with explicitly selected linear/quadratic/cubic bases, fresh evaluation, native stopped cash replay and antithetic cluster diagnostics; no empirical or general convergence claim |
+| `commercial-generated-policy-1` | Explicit `generated_policy` within commercial graph | [Generated graph](commercial-graph-strategy.md#generated-policy-graphs) | Separately supplied Pricing/Physical laws, paired streams, locked original OAS and selected path-specific draw/review catalogs; explicit generated candidate streaming has a separate bounded route |
 | `commercial-candidate-journal-1` | `core.commercial_candidate_native.run` | [Purchased journals](commercial-treasury-candidate.md) | Standalone finite native source acquisition in one daily Sim; commercial loans or AC issuer securities, complete tails; supplied opening provenance is not verified evidence |
+| `commercial-generated-candidate-journal-1` | `analytics.commercial_generated_ledger.run_generated_candidate_ledger` | [Generated candidate streaming](commercial-generated-candidates.md) | One live expanded Physical source, sealed compact accounting endpoints, ordered shared daily replay and bounded partitioned durable publication; generated fees and broader mixed acceptance remain separate |
+| `commercial-candidate-holding-journal-1` | `journal_commercial_candidate_holding(request)` | [Fee candidate holdings](commercial-fee-holding.md) | Complete-origin finite candidate loan/fee replay with identical completed prefixes and prospective gross openings; verified prior publication and cut-started mixed adoption remain separate |
+| `commercial-candidate-fee-treasury-1` | `analyze_commercial_candidate_fee_treasury(request)` | [Fee funding and treasury](commercial-fee-funding.md) | Reviewed finite candidate shared journal, separate fee GL capital weights and source-channels-3 daily FTP; eligibility and regulatory policies remain supplied |
 | `commercial-treasury-1` | `core.commercial_treasury_native.run` | [Commercial treasury](commercial-treasury-candidate.md) | Exact complete-tail closing capital and bounded daily FTP from independently replayed reviewed journals; regulatory policies remain supplied |
 | `product-candidate-journal-1` | `analyze_product_candidates(request)` | [Candidate acquisition](product-candidate-journal.md) | Standalone performing candidate acquisition, original-EIR recognition, ordered physical journals and complete tails; independently checked durable analysis, mixed backbook adoption remains open |
 | `product-mixed-dated-1` | `analyze_product_mixed_dated(request)` | [Performing mixed replay](product-mixed-dated.md) | Supplied dated backbook and performing candidate acquisition in one chronological expected journal; independent raw/persisted replay and explicit full-tail closing capital, broader credit/joint/saved-book adoption remains open |
@@ -375,6 +389,100 @@ generated streaming/convergence, full saved/cohort/mixed adoption and observed/
 reviewed/full60000 acceptance remain open under15/25. Rebuild compatible product,
 ledger and decision/workflow artifacts and explicitly rebuild saved sessions/
 libraries before new execution; local validation does not deploy or close15.
+
+## Commercial transferred rights and generated fees (local 0.29.20)
+
+Finite secondary acquisition replays the complete contractual origin and retains
+buyer original OAS/EIR, separate clean/dirty cost and gross conveyed fee stocks.
+Explicit dated principal can leave coupon entitlement of 100 with live principal of 80;
+the buyer does not recognize the seller's prior income. Reviewed signed prepaid
+refund acquisitions and acquired fee valuation offsets retain their own owners.
+Closing capital and source-channels-4 FTP replay that same candidate journal;
+regulatory eligibility and reviewed capital/FTP policies remain supplied inputs.
+
+The explicit finite transfer source-work selection counts the actual origin and
+both actual buyer builds, canonical scans and all stopped/proof owners. Historical
+omission retains its original work floors and receipts. Admission does not prune
+paths or complete recovery tails, infer monetary checkpoints, enlarge budgets or
+provide an aggregate RSS guarantee. Broader joint exercise/holding and cut-route
+admission remain separate engineering and evidence gates.
+
+The selected complete-tail census keeps contractual cash rows separate from
+coupon-claim lots and uses every supplied recovery policy across prepared
+intervals. Before-growth guards cover all retained categories, nested bodies and
+terminal traces. Explicit economic-only owners omit only the accounting book
+they never compile; reviewed Physical owners retain that book. Original/buyer
+source passes, signed rights and complete tails remain charged. Historical
+omission is unchanged. See docs/models/commercial-finite-tail-work.md.
+
+`commercial-generated-candidate-fee-journal-1` retains joint loan/fee exercise,
+separate fee spread/quote/acquired cost, full signed fee cash and recovery tails,
+and bounded compact native owners in protocol 7. Loan OAS/EIR/NII are separate;
+Physical outcomes never fit Pricing continuation. Raw-source, ordered journal,
+persisted partitions and final SQL/source/executable/deadline ownership checks
+gate publication. Historical fee omission and generated protocol 6 remain readable.
+Generated draw/review fee catalogs and generated secondary transfers reject.
+
+The native protocol 8 cut component moves the actual reconciled Sim into a distinct
+resumed Sim on its original calendar. It retains prior P&L in its original GL,
+gross rights, cash, basis, source cursors and policy counters. Component controls
+do not establish positive raw coordinator publication: the omitted raw specimen
+still refuses joined admission before generation. Verified predecessor binding,
+complete union tails and wider mixed adoption remain required.
+
+Exactly constant exercise features are centered from their retained observation,
+preventing roundoff from creating false varying regressors after defaults reduce
+the training sample. Varying-column reductions and all tolerances are unchanged.
+The unchanged 60-cell credit/call/put family now passes independent replay; paired
+financial values, decisions, standard errors and admissions are identical before
+and after the correction. This corrects regression metadata. The 24-cell credit
+and 107-cell general benchmark retain their separate finite-family scope.
+See docs/models/commercial-credit-exercise-convergence.md for the retained failed
+predecessor, corrected evidence and analytical limitations.
+
+Numerical evidence separates source replay, continuation approximation, sampling
+error and observed accuracy. Finite supplied-law default-loss controls do not
+prove empirical calibration. All original issue #15/#25 criteria remain required,
+including saved/cohort/strategy/product-accounting adoption, reviewed policies,
+observed holdouts and complete 60,000-position graph/credit/solver/journal acceptance.
+The last sealed installed checkpoint is 0.29.19; matching combined 0.29.20 release
+builds and full regression acceptance are pending. Local source/tests do not
+deploy services. Rebuild matching product/ledger/decision/workflow artifacts,
+restart deployed workers and explicitly rebuild selected saved libraries/sessions
+before additive execution. Numeric product ABI 10 and historical protocols remain.
+
+See docs/models/commercial-completion-plan.md, commercial-secondary-prepaid.md,
+commercial-principal-entitlement.md, commercial-finite-source-work.md,
+commercial-generated-fee-adoption.md, commercial-cut-mixed.md and
+commercial-credit-convergence.md for exact supported policies and remaining gates.
+
+## Checked numerical fitting and cut diagnostics (local 0.29.20 development)
+
+Rust continuation and coupon/spread-history fitting share bounded checked native
+least squares. Preserve each caller's original matrix shape, decomposition
+epsilon and computed singular cutoff. Valid checked legacy candidates retain
+their original coefficients; invalid decompositions require direct native repair
+or explicit failure. Tall continuation and wide history admission remain separate.
+No normal-equation replacement, feature deletion, tolerance relaxation or Python
+financial fallback is allowed. History work/bytes are checked before design and
+target allocation; continuation reserves each actual fit before generation.
+
+Structural numerical-column bounds use the exact raw role and paid complete
+hazard/covariance/header census. Every feature, path, normalization/basis pass,
+source owner and stopped fee payoff remains. The separate fixed-fee observation
+proof requires zero declared hazards, Supplied principal and no draws, reviews
+or transfers. No sampled equality grants admission. See docs/models/commercial-checked-least-squares.md and
+native-history-least-squares.md for limits and evidence.
+
+The selected encoded cut-receipt route is diagnostic only: its complete source,
+live output batch/flush and final-result census still refuses the genuine short
+case. Publication explicitly rejects until independent raw-derived admission is
+implemented. See docs/models/commercial-cut-receipt-admission.md. Protocol8
+omission, all prior refusals and original issue15/25 gates remain unchanged.
+The last fully accepted installed checkpoint remains0.29.19 until matching
+combined artifacts, complete regressions and publication checks pass. Rebuild
+matching native artifacts, restart deployed workers and explicitly rebuild saved
+libraries/sessions before executing changed economics; no deployment is implied.
 
 
 ## Formal interest-rate hedge relationships (local 0.29.19)

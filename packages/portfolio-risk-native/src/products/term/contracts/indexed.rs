@@ -1,4 +1,6 @@
 //! Complete supplied conditional-index paths; no front-quarter proxy.
+pub mod principal;
+pub(crate) mod work;
 use super::*;
 use crate::products::commercial::factor_source::segments::{FactorSegment, SegmentSink};
 use portfolio_model_core::cashflow::*;
@@ -8,6 +10,8 @@ use portfolio_model_core::floating_rate::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+pub(crate) const PATH_DISCLOSURE: &str = "Explicit supplied conditional index path, not calibrated projection. Calendar identities/lookbacks and interval coverage retained; business-day calendar mapping is supplied and not independently verified. No default, prepayment, option exercise, OAS solve or book amortization. Complete maturity tail retained beyond report horizon.";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EarnedFactorPoint {
@@ -32,6 +36,15 @@ pub enum RateSource {
         model: Identity,
         path: Identity,
         information_unix_seconds: i64,
+        measure: CashflowMeasure,
+    },
+    /// A supplied modeled overnight rate with distinct conditioning and
+    /// publication clocks. This is never an observed future fixing.
+    ConditionalPublishedProjection {
+        model: Identity,
+        path: Identity,
+        state_information_unix_seconds: i64,
+        publication_unix_seconds: i64,
         measure: CashflowMeasure,
     },
 }
@@ -85,6 +98,13 @@ pub struct ContractPeriod {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PrincipalPlan {
+    /// Explicit policy: principal cash is dated independently, coupon nominal
+    /// freezes after all principal cash at the coupon start date. Same-day
+    /// coupon cash precedes principal cash; service follows those settlements.
+    #[serde(rename = "dated_supplied_period_opening_nominal-1")]
+    DatedSuppliedPeriodOpening {
+        principal_events: Vec<principal::PrincipalCash>,
+    },
     Supplied {
         principal_payments: Vec<f64>,
     },
@@ -174,16 +194,33 @@ fn utc_day(t: i64) -> i32 {
     719_163 + (t / 86_400) as i32
 }
 
+fn counted_year_fraction(
+    start: i32,
+    end: i32,
+    basis: portfolio_model_core::cashflow::ActualDayCount,
+    meter: Option<&work::WorkMeter>,
+) -> Result<f64, String> {
+    work::calendar(meter, start, end, basis)?;
+    actual_year_fraction(start, end, basis)
+}
+struct CaptureMode<'a> {
+    daily_fragments: bool,
+    meter: Option<&'a work::WorkMeter>,
+}
 fn coupon_factor(
     request: &ContractPathRequest,
     p: &ContractPeriod,
     bytes: &mut usize,
     work: &mut usize,
     capture: &mut Option<&mut EarnedFactorSink<'_>>,
-    daily_fragments: bool,
     segments: &mut Option<&mut SegmentSink<'_>>,
+    mode: CaptureMode<'_>,
 ) -> Result<(f64, Vec<RateSource>, bool), String> {
-    let tau = actual_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count)?;
+    let CaptureMode {
+        daily_fragments,
+        meter,
+    } = mode;
+    let tau = counted_year_fraction(p.start_ordinal, p.end_ordinal, p.day_count, meter)?;
     match &p.coupon {
         Coupon::Fixed { annual_rate } => {
             if !annual_rate.is_finite() || annual_rate * tau <= -1. {
@@ -215,7 +252,7 @@ fn coupon_factor(
                     } else {
                         CouponFactorState::fixed_factor(
                             *annual_rate,
-                            actual_year_fraction(p.start_ordinal, day, p.day_count)?,
+                            counted_year_fraction(p.start_ordinal, day, p.day_count, meter)?,
                         )
                     };
                     sink(EarnedFactorPoint {
@@ -292,6 +329,7 @@ fn coupon_factor(
             let mut factor_state = CouponFactorState::new();
             let mut sources = Vec::with_capacity(observations.len());
             for o in observations {
+                work::bump(meter, work::Op::Observation, 1)?;
                 domain(o.interest_start_ordinal, o.interest_end_ordinal)?;
                 domain(o.observation_start_ordinal, o.observation_end_ordinal)?;
                 validate_ordinal(o.fixing_ordinal)?;
@@ -326,6 +364,32 @@ fn coupon_factor(
                         }
                         if utc_day(*publication_unix_seconds) < o.fixing_ordinal {
                             return Err("fixing publication precedes value date".into());
+                        }
+                        *publication_unix_seconds
+                    }
+                    RateSource::ConditionalPublishedProjection {
+                        model,
+                        path,
+                        state_information_unix_seconds,
+                        publication_unix_seconds,
+                        measure,
+                    } => {
+                        identity(model, bytes)?;
+                        identity(path, bytes)?;
+                        timestamp(*state_information_unix_seconds)?;
+                        timestamp(*publication_unix_seconds)?;
+                        let midnight = |day: i32| (i64::from(day) - 719163) * 86400;
+                        if term
+                            || index.kind != IndexKind::Overnight
+                            || path != &request.path
+                            || *measure != request.measure
+                            || request.measure == CashflowMeasure::Contractual
+                            || *state_information_unix_seconds
+                                > midnight(o.observation_start_ordinal)
+                            || *publication_unix_seconds < midnight(o.observation_end_ordinal)
+                            || *state_information_unix_seconds > *publication_unix_seconds
+                        {
+                            return Err("published projection requires overnight native observation prefix, matching model/path/measure and separate subsequent publication clock".into());
                         }
                         *publication_unix_seconds
                     }
@@ -373,16 +437,18 @@ fn coupon_factor(
                 if !all_in.is_finite() {
                     return Err("index plus margin overflow".into());
                 }
-                let interest_tau = actual_year_fraction(
+                let interest_tau = counted_year_fraction(
                     o.interest_start_ordinal,
                     o.interest_end_ordinal,
                     p.day_count,
+                    meter,
                 )?;
                 let weight = if *observation_shift {
-                    actual_year_fraction(
+                    counted_year_fraction(
                         o.observation_start_ordinal,
                         o.observation_end_ordinal,
                         p.day_count,
+                        meter,
                     )?
                 } else {
                     interest_tau
@@ -458,13 +524,18 @@ fn coupon_factor(
                         let cumulative_factor = if day == o.interest_end_ordinal {
                             full_factor
                         } else {
-                            let partial_tau =
-                                actual_year_fraction(o.interest_start_ordinal, day, p.day_count)?;
+                            let partial_tau = counted_year_fraction(
+                                o.interest_start_ordinal,
+                                day,
+                                p.day_count,
+                                meter,
+                            )?;
                             let partial_weight = if *observation_shift {
-                                actual_year_fraction(
+                                counted_year_fraction(
                                     o.observation_start_ordinal,
                                     o.observation_start_ordinal + (day - o.interest_start_ordinal),
                                     p.day_count,
+                                    meter,
                                 )?
                             } else {
                                 partial_tau
@@ -527,7 +598,7 @@ fn coupon_factor(
 }
 
 pub fn build_path(request: &ContractPathRequest) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, None)
+    build_path_owned(request, None, false, None, BuildContext::default())
 }
 
 /// Opt-in factor-only actual-loop descriptors, provisional until complete Ok.
@@ -536,7 +607,7 @@ pub(crate) fn build_path_with_segments(
     request: &ContractPathRequest,
     sink: &mut SegmentSink<'_>,
 ) -> Result<ContractPathResult, String> {
-    build_path_owned(request, None, false, Some(sink))
+    build_path_owned(request, None, false, Some(sink), BuildContext::default())
 }
 
 /// Observation-boundary receipts; no interpolation, fixing substitution or cash generation.
@@ -622,7 +693,8 @@ fn build_path_capture_owned(
                     }
                     match &o.source {
                         RateSource::Observed { fixing, .. } => identity(fixing, &mut metadata)?,
-                        RateSource::ConditionalProjection { model, path, .. } => {
+                        RateSource::ConditionalProjection { model, path, .. }
+                        | RateSource::ConditionalPublishedProjection { model, path, .. } => {
                             identity(model, &mut metadata)?;
                             identity(path, &mut metadata)?;
                         }
@@ -662,15 +734,133 @@ fn build_path_capture_owned(
             );
         }
     }
-    build_path_owned(request, Some(sink), daily_fragments, None)
+    build_path_owned(
+        request,
+        Some(sink),
+        daily_fragments,
+        None,
+        BuildContext::default(),
+    )
 }
 
+/// Independent information clock and metering selection for the shared builder.
+/// The contractual asof/cash chronology always remains on the raw request.
+#[derive(Default)]
+pub(crate) struct BuildContext<'a> {
+    information_asof: Option<i32>,
+    meter: Option<&'a work::WorkMeter>,
+    acquired_basis: Option<&'a principal::AcquiredBasis>,
+}
+
+/// Full contractual history replay selected by the sealed acquisition compiler.
+/// Information cutoff is the buyer date; cash chronology remains contract origin.
+pub(crate) fn build_transfer_path(
+    request: &ContractPathRequest,
+    information_asof: i32,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        None,
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: None,
+            acquired_basis: None,
+        },
+    )
+}
+
+/// Buyer factor descriptors retain the transfer information clock explicitly.
+/// This tier has no generated-catalog authority or counted admission selection.
+pub(crate) fn build_transfer_path_with_segments(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    information_asof: i32,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: None,
+            acquired_basis: None,
+        },
+    )
+}
+
+pub(crate) fn build_transfer_path_with_basis(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    basis: &principal::AcquiredBasis,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: Some(request.asof_ordinal),
+            meter: None,
+            acquired_basis: Some(basis),
+        },
+    )
+}
+
+/// Selected finite source owner combines its independent information clock,
+/// acquired coupon nominal and operation ledger in the actual shared builder.
+pub(crate) fn build_transfer_path_counted(
+    request: &ContractPathRequest,
+    information_asof: i32,
+    meter: &work::WorkMeter,
+    sink: Option<&mut SegmentSink<'_>>,
+    acquired_basis: Option<&principal::AcquiredBasis>,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        sink,
+        BuildContext {
+            information_asof: Some(information_asof),
+            meter: Some(meter),
+            acquired_basis,
+        },
+    )
+}
+
+pub(crate) fn build_path_with_counted_segments(
+    request: &ContractPathRequest,
+    sink: &mut SegmentSink<'_>,
+    meter: &work::WorkMeter,
+) -> Result<ContractPathResult, String> {
+    build_path_owned(
+        request,
+        None,
+        false,
+        Some(sink),
+        BuildContext {
+            information_asof: None,
+            meter: Some(meter),
+            acquired_basis: None,
+        },
+    )
+}
 fn build_path_owned(
     request: &ContractPathRequest,
     mut capture: Option<&mut EarnedFactorSink<'_>>,
     daily_fragments: bool,
     mut segments: Option<&mut SegmentSink<'_>>,
+    context: BuildContext<'_>,
 ) -> Result<ContractPathResult, String> {
+    let BuildContext {
+        information_asof,
+        meter,
+        acquired_basis,
+    } = context;
+    work::builder_start(meter, request)?;
     header(
         &request.schema,
         &request.model_version,
@@ -680,7 +870,9 @@ fn build_path_owned(
     domain(request.asof_ordinal, request.tail_end_ordinal)?;
     domain(request.asof_ordinal, request.reporting_end_ordinal)?;
     timestamp(request.observed_publication_cutoff_unix_seconds)?;
-    if utc_day(request.observed_publication_cutoff_unix_seconds) > request.asof_ordinal {
+    if utc_day(request.observed_publication_cutoff_unix_seconds)
+        > information_asof.unwrap_or(request.asof_ordinal)
+    {
         return Err("observed snapshot cutoff follows contractual valuation date".into());
     }
     if request.reporting_end_ordinal > request.tail_end_ordinal
@@ -697,6 +889,7 @@ fn build_path_owned(
     text(&request.scenario_id, &mut bytes)?;
     nonnegative(request.opening_principal)?;
     match &request.principal_plan {
+        PrincipalPlan::DatedSuppliedPeriodOpening { .. } => principal::validate(request)?,
         PrincipalPlan::Supplied { principal_payments } => {
             if principal_payments.len() != request.periods.len() {
                 return Err("supplied principal must match all periods".into());
@@ -732,6 +925,7 @@ fn build_path_owned(
     let mut work = 0;
     let mut after_report = request.opening_principal;
     for (i, p) in request.periods.iter().enumerate() {
+        work::bump(meter, work::Op::Period, 1)?;
         text(&p.period_id, &mut bytes)?;
         domain(p.start_ordinal, p.end_ordinal)?;
         domain(request.asof_ordinal, p.payment_ordinal)?;
@@ -754,13 +948,29 @@ fn build_path_owned(
             &mut bytes,
             &mut work,
             &mut capture,
-            daily_fragments,
             &mut segments,
+            CaptureMode {
+                daily_fragments,
+                meter,
+            },
         )?;
-        let interest = amount(balance * factor)?;
+        let dated = principal::selected(&request.principal_plan);
+        let entitlement = if dated {
+            if p.start_ordinal < request.asof_ordinal {
+                acquired_basis
+                    .ok_or("seasoned dated coupon requires native complete-origin basis")?
+                    .entitlement(request, i)?
+            } else {
+                principal::at(request, p.start_ordinal)?
+            }
+        } else {
+            balance
+        };
+        let interest = amount(entitlement * factor)?;
         let last = i + 1 == request.periods.len();
         let mut balloon = 0.;
         let principal = match &request.principal_plan {
+            PrincipalPlan::DatedSuppliedPeriodOpening { .. } => 0.,
             PrincipalPlan::Supplied { principal_payments } => principal_payments[i],
             PrincipalPlan::RetainedPayment {
                 original_payment,
@@ -789,7 +999,11 @@ fn build_path_owned(
             return Err("principal payment exceeds remaining contractual balance".into());
         }
         let principal = principal.min(balance);
-        let closing = balance - principal;
+        let closing = if dated {
+            principal::at(request, p.end_ordinal)?
+        } else {
+            balance - principal
+        };
         if p.payment_ordinal <= request.reporting_end_ordinal {
             after_report -= principal;
         }
@@ -823,7 +1037,7 @@ fn build_path_owned(
         });
         audit.push(PeriodAudit {
             period_id: p.period_id.clone(),
-            opening_principal: balance,
+            opening_principal: entitlement,
             interest,
             principal_paid: principal,
             closing_principal: closing,
@@ -833,10 +1047,24 @@ fn build_path_owned(
         });
         balance = closing;
     }
+    if principal::selected(&request.principal_plan) {
+        balance = principal::at(request, request.tail_end_ordinal)?;
+        after_report = principal::at(request, request.reporting_end_ordinal)?;
+        principal::append_cash(request, &mut events, sign)?;
+    }
     if !near(balance, 0.) {
         return Err("complete contractual tail leaves unpaid principal".into());
     }
-    events.sort_by_key(|e| e.payment_ordinal);
+    if let Some(meter) = meter {
+        events.sort_by(|a, b| {
+            meter.tick(work::Op::Ordering, 1);
+            a.payment_ordinal.cmp(&b.payment_ordinal)
+        });
+        meter.check()?;
+    } else {
+        events.sort_by_key(|e| e.payment_ordinal);
+    }
+
     let schedule = DatedSchedule {
         schema: DATED_CASHFLOW_SCHEMA.into(),
         as_of_ordinal: request.asof_ordinal,
@@ -845,5 +1073,20 @@ fn build_path_owned(
         events,
     };
     schedule.validate()?;
-    Ok(ContractPathResult{schema:SCHEMA.into(),model_version:MODEL_VERSION.into(),contract:request.contract.clone(),assumption:request.assumption.clone(),path:request.path.clone(),schedule,audit,principal_after_reporting:after_report.max(0.),disclosure:"Explicit supplied conditional index path, not calibrated projection. Calendar identities/lookbacks and interval coverage retained; business-day calendar mapping is supplied and not independently verified. No default, prepayment, option exercise, OAS solve or book amortization. Complete maturity tail retained beyond report horizon.".into()})
+    work::bump(
+        meter,
+        work::Op::OutputBytes,
+        portfolio_model_core::strict_json::serialized_size(&schedule, 32 << 20)?,
+    )?;
+    Ok(ContractPathResult {
+        schema: SCHEMA.into(),
+        model_version: MODEL_VERSION.into(),
+        contract: request.contract.clone(),
+        assumption: request.assumption.clone(),
+        path: request.path.clone(),
+        schedule,
+        audit,
+        principal_after_reporting: after_report.max(0.),
+        disclosure: PATH_DISCLOSURE.into(),
+    })
 }

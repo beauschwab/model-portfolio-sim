@@ -10,6 +10,15 @@ use portfolio_model_core::{
 };
 use serde::{Deserialize, Serialize};
 
+#[path = "credit_raw_capacity.rs"]
+mod raw_capacity;
+pub use raw_capacity::{
+    finite_fee_allocations_raw_layout, finite_fee_history_raw_layout, finite_graph_raw_layout,
+    finite_raw_layout, finite_units_raw_layout, fixed_construction_capacity,
+    fixed_preparation_capacity, FixedConstructionCapacity, FixedPreparationCapacity, RawLayout,
+};
+pub(crate) use raw_capacity::{fixed_contract_heap, fixed_policy_heap};
+
 use crate::products::commercial::factor_source::draws::{
     draw_event_id, project_draws, project_draws_for_acquisition, source_end_year, validate_draws,
 };
@@ -17,6 +26,10 @@ pub use crate::products::commercial::factor_source::draws::{
     NativeDrawSource, PerformingDrawTranche,
 };
 
+#[cfg(test)]
+thread_local! {pub(crate) static COUNTED_OWNER_WORK: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; pub(crate) static OWNER_EVALUATIONS: std::cell::Cell<usize> = const {std::cell::Cell::new(0)}; }
+#[cfg(test)]
+thread_local! {static BOOK_EVALUATIONS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)};}
 pub const SCHEMA: &str = "commercial-source-credit-accounting-proof-1";
 const MAX_WORK: usize = 8_000_000;
 const MAX_BYTES: usize = 128 << 20;
@@ -76,6 +89,9 @@ pub struct Request {
     pub performing_draw_tranches: Vec<PerformingDrawTranche>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reviewed_credit_actions: Option<book::reviews::ReviewedActions>,
+    #[serde(skip)]
+    pub(crate) counted_work:
+        Option<Box<crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -195,6 +211,9 @@ impl NativeStop {
     pub fn action(&self) -> NativeStopAction {
         self.action
     }
+    pub fn timing(&self) -> NativeStopTiming {
+        self.timing
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -219,11 +238,15 @@ pub struct ResultData {
     schema: &'static str,
     raw_request: Request,
     admission: Admission,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_accounting_owner: Option<&'static str>,
     #[serde(serialize_with = "serialize_factors")]
     original_source: NativeFactors,
     #[serde(serialize_with = "serialize_factors")]
     current_source: NativeFactors,
     original_cash_quote: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    secondary_acquisition: Option<super::acquisition::NativeTransfer>,
     prepared_credit_request: carry::Request,
     carry: carry::ResultData,
     accounting: book::ResultData,
@@ -241,20 +264,31 @@ pub(crate) fn serialize_factors<S: serde::Serializer>(
     source: &NativeFactors,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    struct Segments<'a>(&'a [super::factor_source::segments::FactorSegment]);
+    impl Serialize for Segments<'_> {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            use serde::ser::SerializeSeq;
+            let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+            for segment in self.0 {
+                sequence.serialize_element(&segment.evidence())?;
+            }
+            sequence.end()
+        }
+    }
     #[derive(Serialize)]
     struct Receipt<'a> {
         raw: &'a crate::products::term::contracts::indexed::ContractPathRequest,
         source: &'a crate::products::term::contracts::indexed::ContractPathResult,
         policy: &'a FactorPolicy,
         admission: &'a crate::products::commercial::factor_source::owner::Admission,
-        segments: Vec<crate::products::commercial::factor_source::segments::SegmentEvidence<'a>>,
+        segments: Segments<'a>,
     }
     Receipt {
         raw: source.raw(),
         source: source.source(),
         policy: source.policy(),
         admission: source.admission(),
-        segments: source.segments().iter().map(|s| s.evidence()).collect(),
+        segments: Segments(source.segments()),
     }
     .serialize(serializer)
 }
@@ -422,6 +456,46 @@ fn prepared(
             cuts.push(f64::from(review.reset_ordinal - source.asof_ordinal) / 365.);
         }
     }
+    if r.factor_policy.observable() {
+        for owner in
+            std::iter::once(&r.source).chain(r.performing_draw_tranches.iter().map(|d| &d.source))
+        {
+            for period in &owner.current.periods {
+                if let term::indexed::Coupon::Indexed {
+                    observations,
+                    reset_cutoff_unix_seconds,
+                    ..
+                } = &period.coupon
+                {
+                    for observation in observations {
+                        let availability = match observation.source {
+                            term::indexed::RateSource::Observed {
+                                publication_unix_seconds,
+                                ..
+                            } => publication_unix_seconds,
+                            term::indexed::RateSource::ConditionalProjection {
+                                information_unix_seconds,
+                                ..
+                            } => information_unix_seconds,
+                            term::indexed::RateSource::ConditionalPublishedProjection {
+                                publication_unix_seconds,
+                                ..
+                            } => publication_unix_seconds,
+                        };
+                        let information = availability
+                            .max(observation.selection_cutoff_unix_seconds)
+                            .max((i64::from(observation.fixing_ordinal) - 719163) * 86400)
+                            .max(reset_cutoff_unix_seconds.unwrap_or(0));
+                        let elapsed =
+                            information - (i64::from(source.asof_ordinal) - 719163) * 86400;
+                        if elapsed > 0 {
+                            cuts.push(elapsed as f64 / 31_536_000.);
+                        }
+                    }
+                }
+            }
+        }
+    }
     let full = full_credit_end_year(r)?;
     if (full * 365.).ceil() > 4096. {
         return Err(
@@ -487,6 +561,18 @@ fn prepared(
             },
         })
         .collect();
+    for event in term::indexed::principal::events(&source.principal_plan) {
+        boundaries.push(path::PathBoundary {
+            event_id: event.event_id.clone(),
+            policy_id: r.accounting.identity.id.clone(),
+            year: f64::from(event.payment_ordinal - source.asof_ordinal) / 365.,
+            action: path::BoundaryAction::Repayment {
+                principal_fraction: [0.; 3],
+                interest_fraction: [0.; 3],
+                cancel_undrawn_fraction: [0.; 3],
+            },
+        });
+    }
     let mut seen = std::collections::BTreeSet::new();
     for draw in &r.performing_draw_tranches {
         boundaries.push(path::PathBoundary {
@@ -516,6 +602,9 @@ fn prepared(
             || stop.ordinal > source.tail_end_ordinal
             || !r.credit.paths.iter().any(|p| p.path_key == stop.path_key)
             || source.periods.iter().any(|p| p.period_id == stop.event_id)
+            || term::indexed::principal::events(&source.principal_plan)
+                .iter()
+                .any(|e| e.event_id == stop.event_id)
             || !seen.insert(stop.path_key)
         {
             return Err("native stop must bind one in-tail decision per actual path and distinct source event identity".into());
@@ -697,6 +786,7 @@ fn rates(r: &Request, p: &carry::Request) -> Result<(), String> {
 }
 
 struct SourceAdapter<'a> {
+    selected_finite_tail: bool,
     source: &'a NativeFactors,
     path_keys: Vec<u64>,
     stops: &'a [NativeStop],
@@ -707,6 +797,7 @@ struct SourceAdapter<'a> {
     accounting: Option<&'a book::Policy>,
     complete_end_year: f64,
     interval_starts: Vec<f64>,
+    transfer: Option<&'a super::acquisition::NativeTransfer>,
 }
 struct SourceView<'a> {
     source: &'a NativeFactors,
@@ -730,6 +821,17 @@ fn relative_source_year(base_asof: i32, source_asof: i32, global: f64) -> Result
     }
 }
 impl<'a> SourceAdapter<'a> {
+    fn with_tail_census(mut self, selected: bool) -> Self {
+        self.selected_finite_tail = selected;
+        self
+    }
+    fn selected_width(&self, len: usize, upper: usize) -> Result<(), String> {
+        if self.selected_finite_tail && len > upper {
+            return Err("selected native inventory exceeded before allocation".into());
+        }
+        Ok(())
+    }
+
     fn with_draws(
         mut self,
         sources: &'a [NativeDrawSource],
@@ -749,32 +851,40 @@ impl<'a> SourceAdapter<'a> {
         }
         self
     }
-    fn views(&self) -> Vec<SourceView<'_>> {
-        let mut views = vec![SourceView {
+    fn views(&self) -> impl Iterator<Item = SourceView<'_>> + '_ {
+        let base = SourceView {
             source: self.source,
             audit_offset: 0,
             cash_offset: 0,
             segment_offset: 0,
             tranche_id: None,
-        }];
+        };
         let mut audit = self.source.source().audit.len();
         let mut cash = self.source.source().schedule.events.len();
         let mut segment = self.source.segments().len();
-        for (i, d) in self.draw_sources.iter().enumerate() {
-            if self.active_draws.contains(&i) {
-                views.push(SourceView {
-                    source: &d.current,
-                    audit_offset: audit,
-                    cash_offset: cash,
-                    segment_offset: segment,
-                    tranche_id: Some(&d.terms.review.id),
-                });
-            }
-            audit += d.current.source().audit.len();
-            cash += d.current.source().schedule.events.len();
-            segment += d.current.segments().len();
-        }
-        views
+        let draws = self
+            .draw_sources
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, d)| {
+                let view = if self.active_draws.contains(&i) {
+                    Some(SourceView {
+                        source: &d.current,
+                        audit_offset: audit,
+                        cash_offset: cash,
+                        segment_offset: segment,
+                        tranche_id: Some(&d.terms.review.id),
+                    })
+                } else {
+                    None
+                };
+                // Inactive tranches still own their positions in every index space.
+                audit += d.current.source().audit.len();
+                cash += d.current.source().schedule.events.len();
+                segment += d.current.segments().len();
+                view
+            });
+        std::iter::once(base).chain(draws)
     }
     fn new(
         source: &'a NativeFactors,
@@ -782,8 +892,10 @@ impl<'a> SourceAdapter<'a> {
         stops: &'a [NativeStop],
         prepayment_terms: Option<&'a PrepaymentTerms>,
         maturity_basis_policy: Option<&'a MaturityBasisPolicy>,
+        transfer: Option<&'a super::acquisition::NativeTransfer>,
     ) -> Result<Self, String> {
         Ok(Self {
+            selected_finite_tail: false,
             source,
             path_keys,
             stops,
@@ -794,10 +906,178 @@ impl<'a> SourceAdapter<'a> {
             accounting: None,
             complete_end_year: contract_end_year(source.raw())?,
             interval_starts: Vec::new(),
+            transfer,
         })
     }
 }
 impl carry::NativeEarnedFactors for SourceAdapter<'_> {
+    fn selected_tail_shape(&self) -> Option<carry::tail_bounds::SourceShape> {
+        self.selected_finite_tail
+            .then_some(carry::tail_bounds::SourceShape {
+                canonical_coupons: self.source.source().audit.len(),
+                pending_indices: self.source.admission().segment_bound,
+                draw_tranches: 0,
+            })
+    }
+
+    fn acquired_opening_coupons(
+        &self,
+        path_key: u64,
+    ) -> Result<Vec<carry::NativeOpeningCoupon>, String> {
+        if !self.path_keys.contains(&path_key) {
+            return Err("unbound acquired coupon path".into());
+        }
+        let Some(t) = self.transfer else {
+            return Ok(Vec::new());
+        };
+        self.selected_width(t.coupons().len(), self.source.source().audit.len())?;
+        t.coupons()
+            .iter()
+            .map(|c| {
+                let segment = self
+                    .source
+                    .segments()
+                    .iter()
+                    .position(|s| s.audit_index() == c.native_audit_index)
+                    .ok_or("acquired coupon captured segment missing")?;
+                Ok(carry::NativeOpeningCoupon {
+                    coupon_id: c.period_id.clone(),
+                    source_id: self.source.raw().contract.id.clone(),
+                    source_revision: self.source.raw().contract.revision.clone(),
+                    captured_segment_index: segment,
+                    factor: c.purchased_factor,
+                    entitlement: carry::NativeCouponEntitlement {
+                        native_audit_index: c.native_audit_index,
+                        native_cash_index: c.native_cash_index,
+                        opening_entitlement_principal: c.opening_entitlement_principal,
+                    },
+                })
+            })
+            .collect()
+    }
+
+    fn pending_coupon_indices(
+        &self,
+        query: &carry::NativeTerminalQuery,
+        information_year: f64,
+    ) -> Result<Vec<usize>, String> {
+        let mut result = Vec::new();
+        for view in self.views() {
+            let served = relative_source_year(
+                self.source.raw().asof_ordinal,
+                view.source.raw().asof_ordinal,
+                query.year,
+            )?;
+            if served < 0. {
+                continue;
+            }
+            let information = relative_source_year(
+                self.source.raw().asof_ordinal,
+                view.source.raw().asof_ordinal,
+                information_year,
+            )?;
+            for index in view.source.pending_indices(served, information)? {
+                self.selected_width(result.len() + 1, self.source.admission().segment_bound)?;
+                result.push(index + view.segment_offset);
+            }
+        }
+        Ok(result)
+    }
+    fn terminal_coupon_steps(
+        &self,
+        query: &carry::NativeTerminalQuery,
+    ) -> Result<Vec<carry::NativeTerminalCouponStep>, String> {
+        if !self.path_keys.contains(&query.path_key) {
+            return Err("unbound contingent coupon path".into());
+        }
+        let Some(policy) = &self.source.policy().terminal_obligations else {
+            return Ok(Vec::new());
+        };
+        let mut result = Vec::new();
+        let origin = (i64::from(self.source.raw().asof_ordinal) - 719163) * 86400;
+        for view in self.views() {
+            let cut = relative_source_year(
+                self.source.raw().asof_ordinal,
+                view.source.raw().asof_ordinal,
+                query.year,
+            )?;
+            if cut <= 0. {
+                continue;
+            }
+            view.source.count_terminal_scan()?;
+            let mut clocks: Vec<_> = view
+                .source
+                .segments()
+                .iter()
+                .filter_map(|s| s.information_unix_seconds())
+                .collect();
+            clocks.sort_unstable();
+            clocks.dedup();
+            let mut before = view.source.observable_frozen_coupon_factors(cut, cut)?;
+            for clock in clocks {
+                check()?;
+                let year = (clock - origin) as f64 / 31_536_000.;
+                if year <= query.year {
+                    continue;
+                }
+                let local = (clock - (i64::from(view.source.raw().asof_ordinal) - 719163) * 86400)
+                    as f64
+                    / 31_536_000.;
+                let after = view.source.observable_frozen_coupon_factors(cut, local)?;
+                for ((audit, cash, old), (_, _, new)) in before.iter().zip(&after) {
+                    let delta = new - old;
+                    if delta == 0. {
+                        continue;
+                    }
+                    let source = &view.source.source().audit[*audit];
+                    let segment = view
+                        .source
+                        .segments()
+                        .iter()
+                        .position(|s| s.audit_index() == *audit)
+                        .ok_or("pending coupon segment origin missing")?;
+                    let settlement = f64::from(
+                        view.source.source().schedule.events[*cash].payment_ordinal
+                            - self.source.raw().asof_ordinal,
+                    ) / 365.;
+                    self.selected_width(result.len() + 1, self.source.admission().segment_bound)?;
+                    result.push(carry::NativeTerminalCouponStep {
+                        year,
+                        original_settlement_year: settlement,
+                        coupon_id: format!("pending-coupon:{}:{clock}", *audit + view.audit_offset),
+                        source_event_id: source.period_id.clone(),
+                        source_id: view.source.raw().contract.id.clone(),
+                        source_revision: view.source.raw().contract.revision.clone(),
+                        policy_id: policy.review.id.clone(),
+                        captured_segment_index: segment + view.segment_offset,
+                        delta_factor: delta,
+                        entitlement: carry::NativeCouponEntitlement {
+                            native_audit_index: *audit + view.audit_offset,
+                            native_cash_index: *cash + view.cash_offset,
+                            opening_entitlement_principal: source.opening_principal,
+                        },
+                        tranche_id: view.tranche_id.map(str::to_owned),
+                    });
+                }
+                before = after;
+            }
+        }
+        result.sort_by(|a, b| a.year.total_cmp(&b.year));
+        Ok(result)
+    }
+    fn validate_terminal(&self, _path_key: u64, year: f64) -> Result<(), String> {
+        for view in self.views() {
+            let local = relative_source_year(
+                self.source.raw().asof_ordinal,
+                view.source.raw().asof_ordinal,
+                year,
+            )?;
+            if local >= 0. {
+                view.source.validate_terminal(local)?;
+            }
+        }
+        Ok(())
+    }
     fn begin_path(&mut self, _path_key: u64) -> Result<(), String> {
         self.active_draws.clear();
         Ok(())
@@ -884,6 +1164,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
                 .max(0.),
             )? {
                 let a = &v.source.source().audit[audit];
+                self.selected_width(result.len() + 1, self.source.source().audit.len())?;
                 result.push(carry::NativeCumulativeCouponFactor {
                     coupon_id: a.period_id.clone(),
                     native_audit_index: audit + v.audit_offset,
@@ -916,6 +1197,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
         q: &carry::NativeExitQuery<'_>,
     ) -> Result<Option<carry::NativeExitCash>, String> {
         check()?;
+        self.validate_terminal(q.path_key, q.year)?;
         if let Some(policy) = self.maturity_basis_policy {
             if q.event_id == maturity_event_id(policy) {
                 if q.is_prepayment
@@ -973,6 +1255,17 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
     }
     fn bound(&self) -> carry::NativeFactorBound {
         carry::NativeFactorBound {
+            maximum_terminal_steps_per_path: if self.source.policy().terminal_obligations.is_some()
+            {
+                self.source.segments().len()
+                    + self
+                        .draw_sources
+                        .iter()
+                        .map(|d| d.current.segments().len())
+                        .sum::<usize>()
+            } else {
+                0
+            },
             maximum_atoms_per_query: self.source.admission().segment_bound
                 + self
                     .draw_sources
@@ -1005,13 +1298,23 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
                 .sum::<usize>()
     }
     fn maximum_gross_coupon_claims_per_path(&self) -> usize {
-        (self.source.source().audit.len()
+        let periods = self.source.source().audit.len()
             + self
                 .draw_sources
                 .iter()
                 .map(|d| d.current.source().audit.len())
-                .sum::<usize>())
-            * 3
+                .sum::<usize>();
+        let fragments = if self.source.policy().terminal_obligations.is_some() {
+            self.source.segments().len()
+                + self
+                    .draw_sources
+                    .iter()
+                    .map(|d| d.current.segments().len())
+                    .sum::<usize>()
+        } else {
+            0
+        };
+        periods * if self.transfer.is_some() { 4 } else { 3 } + fragments
     }
     fn earned(
         &mut self,
@@ -1059,7 +1362,6 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
     ) -> Result<Option<carry::NativeCouponEntitlement>, String> {
         let v = self
             .views()
-            .into_iter()
             .find(|v| {
                 atom.captured_segment_index >= v.segment_offset
                     && atom.captured_segment_index < v.segment_offset + v.source.segments().len()
@@ -1078,12 +1380,7 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
             .ok_or("unbound native entitlement audit")?;
         let cash_index = v
             .source
-            .source()
-            .schedule
-            .events
-            .iter()
-            .position(|c| c.event_id == segment.period_id())
-            .ok_or("unbound indexed native cash origin")?;
+            .cash_index_for_segment(atom.captured_segment_index - v.segment_offset)?;
         let cash = &v.source.source().schedule.events[cash_index];
         if audit.period_id != atom.coupon_id
             || cash.event_id != atom.source_event_id
@@ -1105,7 +1402,6 @@ impl carry::NativeEarnedFactors for SourceAdapter<'_> {
     ) -> Result<Option<carry::NativeContractualCash>, String> {
         let (v, index) = self
             .views()
-            .into_iter()
             .find_map(|v| {
                 v.source
                     .source()
@@ -1140,12 +1436,16 @@ struct Prepared {
 }
 #[derive(Debug, Serialize)]
 pub struct EconomicResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secondary_acquisition: Option<super::acquisition::NativeTransfer>,
     #[serde(serialize_with = "serialize_factors")]
     pub original_source: NativeFactors,
     #[serde(serialize_with = "serialize_factors")]
     pub current_source: NativeFactors,
     pub carry: carry::ResultData,
     pub admission: Admission,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_accounting_owner: Option<&'static str>,
     pub physical_journal_eligible: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub native_stops: Vec<NativeStop>,
@@ -1180,9 +1480,17 @@ pub(crate) struct NativeOriginalAcquisitionProof {
     #[serde(skip)]
     original_bindings: Vec<(u64, Vec<u8>)>,
     #[serde(skip)]
-    draw_bindings: Vec<Vec<u8>>,
+    draw_bindings: Vec<(u64, Vec<u8>)>,
 }
-fn original_draw_bindings(raw: &Request) -> Result<Vec<u8>, String> {
+fn original_loan_binding(raw: &Request) -> Result<Vec<u8>, String> {
+    // Historical absent-transfer proof identity remains byte-for-byte unchanged.
+    if let Some(transfer) = &raw.source.transfer {
+        portfolio_model_core::strict_json::encode(&(&raw.source.original, transfer), MAX_BYTES)
+    } else {
+        portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)
+    }
+}
+pub(crate) fn original_draw_bindings(raw: &Request) -> Result<Vec<u8>, String> {
     #[derive(Serialize)]
     struct DrawAnchor<'a> {
         review: &'a term::Identity,
@@ -1300,7 +1608,16 @@ impl NativeOriginalAcquisitionProof {
                             portfolio_model_core::strict_json::serialized_size(raw, 1 << 20)?,
                             20,
                         )?,
-                        mul(raw.source.current.periods.len() + 36, 4096)?,
+                        mul(
+                            raw.source.current.periods.len()
+                                + 36
+                                + raw
+                                    .performing_draw_tranches
+                                    .iter()
+                                    .map(|d| d.source.current.periods.len() + 1)
+                                    .sum::<usize>(),
+                            4096,
+                        )?,
                     )?,
                 )?;
             }
@@ -1366,11 +1683,8 @@ impl NativeOriginalAcquisitionProof {
             acquired_cash_partitions.push(partition);
             term::amount(cash_quote)?;
             quote += weight * cash_quote;
-            original_bindings.push((
-                raw.credit.paths[0].path_key,
-                portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)?,
-            ));
-            draw_bindings.push(original_draw_bindings(raw)?);
+            original_bindings.push((raw.credit.paths[0].path_key, original_loan_binding(raw)?));
+            draw_bindings.push((raw.credit.paths[0].path_key, original_draw_bindings(raw)?));
             if generated {
                 generated_original_physical.push(GeneratedOriginalPhysical {
                     raw_request: (*raw).clone(),
@@ -1427,12 +1741,14 @@ impl NativeOriginalAcquisitionProof {
     }
     fn quote_for(&self, raw: &Request) -> Result<f64, String> {
         check()?;
-        let original = portfolio_model_core::strict_json::encode(&raw.source.original, MAX_BYTES)?;
+        let original = original_loan_binding(raw)?;
         if raw.credit.paths.len() != 1
             || !self
                 .original_bindings
                 .contains(&(raw.credit.paths[0].path_key, original))
-            || !self.draw_bindings.contains(&original_draw_bindings(raw)?)
+            || !self
+                .draw_bindings
+                .contains(&(raw.credit.paths[0].path_key, original_draw_bindings(raw)?))
             || portfolio_model_core::strict_json::encode(&self.acquisition, MAX_BYTES)?
                 != portfolio_model_core::strict_json::encode(&raw.source.acquisition, MAX_BYTES)?
         {
@@ -1477,19 +1793,36 @@ fn evaluate_economic_internal(
         return Err("reviewed credit book actions require Physical accounting adoption; Pricing policy is separately configured".into());
     }
     let Prepared {
-        credit, admission, ..
-    } = prepare(r, 0, 0, measure, stops)?;
-    let original_source = NativeFactors::compile_for_measure(
+        mut credit,
+        admission,
+        ..
+    } = prepare(r, 0, 0, measure, stops, AccountingOwner::EconomicCarry)?;
+    let origin = if r.source.transfer.is_some() {
+        Some(super::acquisition::prepare_origin(&r.source)?)
+    } else {
+        None
+    };
+    let original_source = compile_selected_source(
+        r,
         r.source.original.clone(),
         r.factor_policy.clone(),
         0,
         source_measure(measure),
+        super::acquisition::counted::Role::Original,
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
-    let current_source = NativeFactors::compile_for_measure(
+    let current_source = compile_selected_source(
+        r,
         r.source.current.clone(),
         r.factor_policy.clone(),
         admission.maximum_queries,
         source_measure(measure),
+        super::acquisition::counted::Role::Current,
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
     )?;
     let draw_sources = if check_original_quote {
         project_draws(r, measure, admission.maximum_queries)?
@@ -1499,6 +1832,18 @@ fn evaluate_economic_internal(
     if measure == CreditMeasure::Physical && check_original_quote {
         source_income::original_cash_quote(&r.source, original_source.source())?;
     }
+    let transfer = if let Some(origin) = origin {
+        Some(super::acquisition::compile(
+            &r.source,
+            &current_source,
+            origin,
+        )?)
+    } else {
+        None
+    };
+    if let Some(t) = &transfer {
+        t.apply(&mut credit)?;
+    }
     let policy = prepared_accounting(r, &credit)?;
     let mut adapter = SourceAdapter::new(
         &current_source,
@@ -1506,8 +1851,10 @@ fn evaluate_economic_internal(
         stops,
         r.prepayment_terms.as_ref(),
         r.maturity_basis_policy.as_ref(),
+        transfer.as_ref(),
     )?
-    .with_draws(&draw_sources, &policy, &credit);
+    .with_draws(&draw_sources, &policy, &credit)
+    .with_tail_census(selected_tail(r));
     let carry = carry::evaluate_economic_with_native_factors(&credit, &mut adapter, &mut check)?;
     if carry.carry_points().len() > admission.carry_points_upper
         || carry.admission().work_upper > admission.carry.work_upper
@@ -1515,8 +1862,22 @@ fn evaluate_economic_internal(
     {
         return Err("observed economic credit/source output exceeds native admission".into());
     }
+    #[cfg(test)]
+    {
+        OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+        if r.counted_work.is_some()
+            || r.source
+                .transfer
+                .as_ref()
+                .is_some_and(|t| t.source_work_policy.is_some())
+        {
+            COUNTED_OWNER_WORK
+                .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
+        }
+    }
     check()?;
     let result = EconomicResult {
+        selected_accounting_owner: selected_tail(r).then_some("economic_carry_only-1"),
         original_source,
         current_source,
         carry,
@@ -1524,6 +1885,7 @@ fn evaluate_economic_internal(
         // This economic helper never compiles the reviewed accounting book.
         // Even a Physical prefix is not a prepared journal owner.
         physical_journal_eligible: false,
+        secondary_acquisition: transfer,
         native_stops: stops.to_vec(),
         draw_sources,
     };
@@ -1535,7 +1897,15 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
     admit_with_stops(r, &[])
 }
 pub fn admit_with_stops(r: &Request, stops: &[NativeStop]) -> Result<Admission, String> {
-    Ok(prepare(r, 0, 0, CreditMeasure::Physical, stops)?.admission)
+    Ok(prepare(
+        r,
+        0,
+        0,
+        CreditMeasure::Physical,
+        stops,
+        AccountingOwner::ReviewedBook,
+    )?
+    .admission)
 }
 pub fn admit_economic_with_measure(
     r: &Request,
@@ -1548,7 +1918,7 @@ pub fn admit_economic_with_stops(
     measure: CreditMeasure,
     stops: &[NativeStop],
 ) -> Result<Admission, String> {
-    Ok(prepare(r, 0, 0, measure, stops)?.admission)
+    Ok(prepare(r, 0, 0, measure, stops, AccountingOwner::EconomicCarry)?.admission)
 }
 fn source_measure(measure: CreditMeasure) -> portfolio_model_core::cashflow::CashflowMeasure {
     match measure {
@@ -1556,14 +1926,33 @@ fn source_measure(measure: CreditMeasure) -> portfolio_model_core::cashflow::Cas
         CreditMeasure::Pricing => portfolio_model_core::cashflow::CashflowMeasure::Pricing,
     }
 }
+fn selected_tail(r: &Request) -> bool {
+    r.source
+        .transfer
+        .as_ref()
+        .is_some_and(|t| t.source_work_policy.is_some())
+}
+#[derive(Clone, Copy)]
+enum AccountingOwner {
+    EconomicCarry,
+    ReviewedBook,
+}
+#[allow(clippy::too_many_arguments)]
 fn prepare(
     r: &Request,
     reserved_work: usize,
     reserved_bytes: usize,
     measure: CreditMeasure,
     stops: &[NativeStop],
+    accounting_owner: AccountingOwner,
 ) -> Result<Prepared, String> {
     check()?;
+    if r.source.transfer.is_some() && r.counted_work.is_some() {
+        return Err("generated counted secondary transfer sources are not adopted".into());
+    }
+    if let Some(authority) = &r.counted_work {
+        authority.verify(r)?;
+    }
     if r.schema != SCHEMA {
         return Err("unsupported commercial native compiler schema".into());
     }
@@ -1571,6 +1960,31 @@ fn prepare(
     let native_stop_bytes = portfolio_model_core::strict_json::serialized_size(&stops, 1 << 20)?;
     let retained_raw_bytes = add(raw_bytes, native_stop_bytes)?;
     source_income::admit_for_measure(&r.source, source_measure(measure))?;
+    if term::indexed::principal::selected(&r.source.current.principal_plan)
+        && r.source.transfer.is_none()
+    {
+        return Err(
+            "dated principal commercial ownership requires explicit complete-origin transfer"
+                .into(),
+        );
+    }
+    if r.performing_draw_tranches
+        .iter()
+        .any(|d| term::indexed::principal::selected(&d.source.current.principal_plan))
+    {
+        return Err("dated drawn principal requires separate native acquisition ownership".into());
+    }
+
+    if r.source.transfer.is_some()
+        && (!r.performing_draw_tranches.is_empty()
+            || r.credit.opening_undrawn_commitment != 0.
+            || r.credit
+                .paths
+                .iter()
+                .any(|p| p.initial_live_state != CreditState::Performing))
+    {
+        return Err("secondary acquisition requires performing whole rights without draws or existing default claims".into());
+    }
     let mut meta = 0;
     term::identity(&r.credit.identity, &mut meta)?;
     let p = prepared(r, measure, stops)?;
@@ -1588,37 +2002,48 @@ fn prepare(
         add(r.credit.max_jumps_per_path, 1)?,
     )?;
     let queries = mul(r.credit.paths.len(), mul(sojourns, 2)?)?;
-    let original_admission = NativeFactors::admit_for_measure(
+    let original_admission = admit_selected_source(
+        r,
         &r.source.original,
         &r.factor_policy,
         0,
         source_measure(measure),
+        super::acquisition::counted::Role::Original,
     )?;
-    let current_admission = NativeFactors::admit_for_measure(
+    let current_admission = admit_selected_source(
+        r,
         &r.source.current,
         &r.factor_policy,
         queries,
         source_measure(measure),
+        super::acquisition::counted::Role::Current,
     )?;
     let mut source_work = add(original_admission.work_upper, current_admission.work_upper)?;
     let mut source_bytes = add(
         original_admission.retained_bytes_upper,
         current_admission.retained_bytes_upper,
     )?;
+    if r.source.transfer.is_some() {
+        let (work, bytes) = super::acquisition::admit(&r.source)?;
+        source_work = add(source_work, work)?;
+        source_bytes = add(source_bytes, bytes)?;
+    }
     let mut segments = current_admission.segment_bound;
     let mut periods = r.source.current.periods.len();
     for draw in &r.performing_draw_tranches {
-        let o = NativeFactors::admit_for_measure(
+        let o = NativeFactors::admit_for_measure_with_work(
             &draw.source.original,
             &r.factor_policy,
             0,
             source_measure(measure),
+            r.counted_work.as_deref(),
         )?;
-        let c = NativeFactors::admit_for_measure(
+        let c = NativeFactors::admit_for_measure_with_work(
             &draw.source.current,
             &r.factor_policy,
             queries,
             source_measure(measure),
+            r.counted_work.as_deref(),
         )?;
         source_work = add(source_work, add(o.work_upper, c.work_upper)?)?;
         source_bytes = add(
@@ -1628,24 +2053,67 @@ fn prepare(
         segments = add(segments, c.segment_bound)?;
         periods = add(periods, draw.source.current.periods.len())?;
     }
+    let terminal_steps = if r.factor_policy.terminal_obligations.is_some() {
+        segments
+    } else {
+        0
+    };
     let bound = carry::NativeFactorBound {
+        maximum_terminal_steps_per_path: terminal_steps,
         maximum_atoms_per_query: segments,
         retained_source_bytes: source_bytes,
         source_work,
     };
-    let carry_admission =
-        carry::admit_economic_with_native_bound(&p, &bound, periods, mul(periods, 3)?, &mut check)?;
-    let per_path_points = add(
-        sojourns,
-        add(
-            add(
-                p.raw_credit_path.boundaries.len(),
-                r.credit.max_jumps_per_path,
-            )?,
-            68,
-        )?,
+    let cash = add(
+        periods,
+        term::indexed::principal::events(&r.source.current.principal_plan).len(),
     )?;
-    let lots = mul(periods, 3)?;
+    let claim_lots = add(
+        mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
+        terminal_steps,
+    )?;
+    let census = if selected_tail(r) {
+        Some(carry::tail_bounds::NativeTailCensus::derive(
+            &p,
+            &bound,
+            cash,
+            claim_lots,
+            carry::tail_bounds::SourceShape {
+                canonical_coupons: periods,
+                pending_indices: segments,
+                draw_tranches: 0,
+            },
+            &mut check,
+        )?)
+    } else {
+        None
+    };
+    let carry_admission = if let Some(census) = &census {
+        carry::admit_economic_with_tail_census(&p, &bound, cash, claim_lots, census, &mut check)?
+    } else {
+        carry::admit_economic_with_native_bound(&p, &bound, cash, claim_lots, &mut check)?
+    };
+    let per_path_points = if let Some(census) = &census {
+        census.point_upper()? / r.credit.paths.len()
+    } else {
+        add(
+            mul(terminal_steps, 33)?,
+            add(
+                sojourns,
+                add(
+                    add(
+                        p.raw_credit_path.boundaries.len(),
+                        r.credit.max_jumps_per_path,
+                    )?,
+                    68,
+                )?,
+            )?,
+        )?
+    };
+    let lots = add(
+        mul(periods, if r.source.transfer.is_some() { 4 } else { 3 })?,
+        terminal_steps,
+    )?;
     let reviewed_count = if let Some(actions) = &r.reviewed_credit_actions {
         book::reviews::admit(
             actions,
@@ -1669,22 +2137,60 @@ fn prepare(
     // Each selected legal waiver remains explicit in every later snapshot.
     // Charge the full bounded reviewed-history clone before generation.
     let review_cells = mul(accounting_groups_upper, reviewed_count)?;
-    let book_work = add(book_admission.work_upper, mul(review_cells, 128)?)?;
-    let book_bytes = add(
+    let mut book_work = add(book_admission.work_upper, mul(review_cells, 128)?)?;
+    let mut book_bytes = add(
         book_admission.retained_bytes_upper,
         mul(review_cells, 1024)?,
     )?;
-    let work = add(
-        add(carry_admission.work_upper, mul(retained_raw_bytes, 8)?)?,
-        book_work,
-    )?;
-    let bytes = add(
-        add(
-            carry_admission.retained_bytes_upper,
-            mul(retained_raw_bytes, 20)?,
-        )?,
-        book_bytes,
-    )?;
+    // Selected economic carry never invokes book::compile. Keep all carry,
+    // origin/current factors and metadata alive; only the absent Book is zero.
+    if selected_tail(r) && matches!(accounting_owner, AccountingOwner::EconomicCarry) {
+        book_work = 0;
+        book_bytes = 0;
+    }
+    let (work, bytes) = if let Some(authority) = &r.counted_work {
+        let raw_upper = crate::products::term::contracts::indexed::work::request_bytes(r)?;
+        let core_upper = crate::products::term::contracts::indexed::work::core_request_bytes(&p)?;
+        if carry_admission.raw_bytes > core_upper {
+            return Err("expanded carry metadata exceeds counted raw source inventory".into());
+        }
+        let carry_work = carry_admission
+            .work_upper
+            .checked_sub(mul(carry_admission.raw_bytes, 4)?)
+            .ok_or("counted carry work differs")?;
+        let carry_bytes = carry_admission
+            .retained_bytes_upper
+            .checked_sub(mul(carry_admission.raw_bytes, 20)?)
+            .ok_or("counted carry bytes differ")?;
+        (
+            add(
+                add(carry_work, add(mul(raw_upper, 24)?, mul(core_upper, 4)?)?)?,
+                add(mul(native_stop_bytes, 8)?, book_work)?,
+            )?,
+            add(
+                add(
+                    carry_bytes,
+                    mul(add(add(raw_upper, core_upper)?, native_stop_bytes)?, 20)?,
+                )?,
+                add(authority.retained_bytes(), book_bytes)?,
+            )?,
+        )
+    } else {
+        (
+            add(
+                add(carry_admission.work_upper, mul(retained_raw_bytes, 8)?)?,
+                book_work,
+            )?,
+            add(
+                add(
+                    carry_admission.retained_bytes_upper,
+                    mul(retained_raw_bytes, 20)?,
+                )?,
+                book_bytes,
+            )?,
+        )
+    };
+
     if add(work, reserved_work)? > MAX_WORK || add(bytes, reserved_bytes)? > MAX_BYTES {
         return Err(
             "commercial joined preflight exceeds 8M/128MiB before any source generation".into(),
@@ -1751,7 +2257,7 @@ fn evaluate_accounting_internal(
     proof: Option<&NativeOriginalAcquisitionProof>,
 ) -> Result<ResultData, String> {
     let Prepared {
-        credit: p,
+        credit: mut p,
         policy: prepared_policy,
         admission,
     } = prepare(
@@ -1760,10 +2266,36 @@ fn evaluate_accounting_internal(
         reserved_bytes,
         CreditMeasure::Physical,
         stops,
+        AccountingOwner::ReviewedBook,
     )?;
     let queries = admission.maximum_queries;
-    let original = project_source(r.source.original.clone(), r.factor_policy.clone(), 0)?;
-    let current = project_source(r.source.current.clone(), r.factor_policy.clone(), queries)?;
+    let origin = if r.source.transfer.is_some() {
+        Some(super::acquisition::prepare_origin(&r.source)?)
+    } else {
+        None
+    };
+    let original = compile_selected_source(
+        r,
+        r.source.original.clone(),
+        r.factor_policy.clone(),
+        0,
+        source_measure(CreditMeasure::Physical),
+        super::acquisition::counted::Role::Original,
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
+    )?;
+    let current = compile_selected_source(
+        r,
+        r.source.current.clone(),
+        r.factor_policy.clone(),
+        queries,
+        source_measure(CreditMeasure::Physical),
+        super::acquisition::counted::Role::Current,
+        origin
+            .as_ref()
+            .and_then(super::acquisition::OriginOwner::basis),
+    )?;
     let draw_sources = if proof.is_some() {
         project_draws_for_acquisition(r, CreditMeasure::Physical, queries)?
     } else {
@@ -1774,6 +2306,14 @@ fn evaluate_accounting_internal(
     } else {
         source_income::original_cash_quote(&r.source, original.source())?
     };
+    let transfer = if let Some(origin) = origin {
+        Some(super::acquisition::compile(&r.source, &current, origin)?)
+    } else {
+        None
+    };
+    if let Some(t) = &transfer {
+        t.apply(&mut p)?;
+    }
     // Both native full sources exist once. Same Core CTMC loop owns all earning,
     // state changes, G/EIR, exact settlements and default gross recoveries.
     let mut adapter = SourceAdapter::new(
@@ -1782,8 +2322,10 @@ fn evaluate_accounting_internal(
         stops,
         r.prepayment_terms.as_ref(),
         r.maturity_basis_policy.as_ref(),
+        transfer.as_ref(),
     )?
-    .with_draws(&draw_sources, &prepared_policy, &p);
+    .with_draws(&draw_sources, &prepared_policy, &p)
+    .with_tail_census(selected_tail(r));
     let carry = carry::evaluate_with_native_factors(&p, &mut adapter, &mut check)?;
     if carry.carry_points().len() > admission.carry_points_upper
         || carry.admission().work_upper > admission.carry.work_upper
@@ -1791,6 +2333,8 @@ fn evaluate_accounting_internal(
     {
         return Err("observed native carry exceeds admitted complete source upper".into());
     }
+    #[cfg(test)]
+    BOOK_EVALUATIONS.with(|n| n.set(n.get() + 1));
     let mut accounting = book::compile(&carry, &prepared_policy, &mut check)?;
     if let Some(actions) = &r.reviewed_credit_actions {
         let end = r
@@ -1808,14 +2352,29 @@ fn evaluate_accounting_internal(
             &r.source.current.currency,
         )?;
     }
+    #[cfg(test)]
+    {
+        OWNER_EVALUATIONS.with(|n| n.set(n.get() + 1));
+        if r.counted_work.is_some()
+            || r.source
+                .transfer
+                .as_ref()
+                .is_some_and(|t| t.source_work_policy.is_some())
+        {
+            COUNTED_OWNER_WORK
+                .with(|n| n.set(n.get().checked_add(admission.joined_work_upper).unwrap()));
+        }
+    }
     check()?;
     let result = ResultData {
+        selected_accounting_owner: selected_tail(r).then_some("reviewed_coupon_book-1"),
         schema: SCHEMA,
         raw_request: r.clone(),
         admission,
         original_source: original,
         current_source: current,
         original_cash_quote: quote,
+        secondary_acquisition: transfer,
         prepared_credit_request: p,
         carry,
         accounting,
@@ -1832,22 +2391,106 @@ fn evaluate_accounting_internal(
     Ok(result)
 }
 
+fn admit_selected_source(
+    r: &Request,
+    raw: &term::indexed::ContractPathRequest,
+    policy: &FactorPolicy,
+    queries: usize,
+    measure: portfolio_model_core::cashflow::CashflowMeasure,
+    role: super::acquisition::counted::Role,
+) -> Result<crate::products::commercial::factor_source::owner::Admission, String> {
+    let authority = r.counted_work.as_deref();
+    if r.source.transfer.is_some() {
+        if authority.is_some() {
+            return Err("generated counted secondary transfer sources are not adopted".into());
+        }
+        if let Some(finite) = super::acquisition::counted::Authority::selected(&r.source, role) {
+            NativeFactors::admit_finite_transfer(raw, policy, queries, measure, &finite, true)
+        } else {
+            NativeFactors::admit_transfer(raw, policy, queries, measure)
+        }
+    } else {
+        NativeFactors::admit_for_measure_with_work(raw, policy, queries, measure, authority)
+    }
+}
+fn compile_selected_source(
+    r: &Request,
+    raw: term::indexed::ContractPathRequest,
+    policy: FactorPolicy,
+    queries: usize,
+    measure: portfolio_model_core::cashflow::CashflowMeasure,
+    role: super::acquisition::counted::Role,
+    basis: Option<&term::indexed::principal::AcquiredBasis>,
+) -> Result<NativeFactors, String> {
+    let authority = r.counted_work.as_deref();
+    if r.source.transfer.is_some() {
+        if authority.is_some() {
+            return Err("generated counted secondary transfer sources are not adopted".into());
+        }
+        if let Some(finite) = super::acquisition::counted::Authority::selected(&r.source, role) {
+            NativeFactors::compile_finite_transfer(raw, policy, queries, measure, &finite, basis)
+        } else if let Some(basis) = basis {
+            NativeFactors::compile_transfer_with_basis(raw, policy, queries, measure, basis)
+        } else {
+            NativeFactors::compile_transfer(raw, policy, queries, measure)
+        }
+    } else if measure == portfolio_model_core::cashflow::CashflowMeasure::Physical {
+        project_source(raw, policy, queries, authority)
+    } else {
+        NativeFactors::compile_for_measure_with_work(raw, policy, queries, measure, authority)
+    }
+}
 #[cfg(test)]
 thread_local! {static SOURCE_CALLS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)};}
 fn project_source(
     raw: crate::products::term::contracts::indexed::ContractPathRequest,
     policy: FactorPolicy,
     queries: usize,
+    authority: Option<&crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority>,
 ) -> Result<NativeFactors, String> {
     #[cfg(test)]
     SOURCE_CALLS.with(|n| n.set(n.get() + 1));
-    NativeFactors::compile(raw, policy, queries)
+    NativeFactors::compile_for_measure_with_work(
+        raw,
+        policy,
+        queries,
+        portfolio_model_core::cashflow::CashflowMeasure::Physical,
+        authority,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn selected_economic_phase_never_compiles_book_but_full_owner_does() {
+        let value: serde_json::Value=serde_json::from_slice(include_bytes!("../../../../../packages/portfolio-risk/tests/fixtures/commercial-short-secondary-cut-refusal.json")).unwrap();
+        let raw: Request = serde_json::from_value(
+            value["completed_candidate"]["commercial"]["units"][0]["graph"]["positions"][0]
+                ["histories"][0]["physical"][0]["source"]
+                .clone(),
+        )
+        .unwrap();
+        BOOK_EVALUATIONS.with(|n| n.set(0));
+        OWNER_EVALUATIONS.with(|n| n.set(0));
+        let economic = evaluate_economic_with_measure(&raw, CreditMeasure::Physical).unwrap();
+        assert_eq!(
+            economic.selected_accounting_owner,
+            Some("economic_carry_only-1")
+        );
+        assert_eq!(economic.admission.book_work_upper, 0);
+        assert_eq!(economic.admission.book_bytes_upper, 0);
+        BOOK_EVALUATIONS.with(|n| assert_eq!(n.get(), 0));
+        OWNER_EVALUATIONS.with(|n| assert_eq!(n.get(), 1));
+        let full = evaluate(&raw).unwrap();
+        BOOK_EVALUATIONS.with(|n| assert_eq!(n.get(), 1));
+        assert!(full.admission.book_work_upper > 0);
+        assert_eq!(
+            serde_json::to_value(full.carry()).unwrap(),
+            serde_json::to_value(economic.carry()).unwrap()
+        );
+    }
     fn reviewed_maturity(raw: &mut Request) {
         raw.maturity_basis_policy = Some(MaturityBasisPolicy {
             review: term::Identity {
@@ -1984,6 +2627,7 @@ mod tests {
             &[],
             None,
             raw.maturity_basis_policy.as_ref(),
+            None,
         )
         .unwrap();
         let event_id = maturity_event_id(raw.maturity_basis_policy.as_ref().unwrap());
@@ -2149,6 +2793,74 @@ mod tests {
         raw.credit.opening_undrawn_commitment = 40.;
         raw.credit.intervals[0].end_year = f64::from(end_day.max(35)) / 365.;
         cost
+    }
+    #[test]
+    fn borrowed_source_views_retain_offsets_across_every_active_subset() {
+        let mut raw = request(35);
+        add_draw(&mut raw, 10, 50, 10., 0.07);
+        reviewed_maturity(&mut raw);
+        let mut result = evaluate(&raw).unwrap();
+        let mut second_raw = request(35);
+        add_draw(&mut second_raw, 12, 55, 15., 0.08);
+        let second = &mut second_raw.performing_draw_tranches[0];
+        second.review.id = "second-draw-review".into();
+        for source in [&mut second.source.original, &mut second.source.current] {
+            source.contract.id = "second-draw-contract".into();
+            source.position_id = "second-draw-contract".into();
+            source.periods[0].period_id = "second-draw-coupon".into();
+        }
+        second.source.acquisition.identity.id = "second-draw-acquisition".into();
+        second.source.acquisition.original_yield_anchor.id = "second-draw-yield".into();
+        reviewed_maturity(&mut second_raw);
+        let mut second_result = evaluate(&second_raw).unwrap();
+        // Join independently admitted source objects solely for an index test.
+        // This grants no two-tranche financial admission or source-cost waiver.
+        result.draw_sources.append(&mut second_result.draw_sources);
+        assert_eq!(result.draw_sources.len(), 2);
+        let mut adapter =
+            SourceAdapter::new(result.current_source(), vec![17], &[], None, None, None).unwrap();
+        adapter.draw_sources = &result.draw_sources;
+        for mask in 0..4 {
+            adapter.active_draws = (0..2).filter(|i| mask & (1 << i) != 0).collect();
+            // Preserve the old eager inventory as a test-only index oracle.
+            let mut expected = vec![(adapter.source as *const _, 0, 0, 0, None)];
+            let mut audit = adapter.source.source().audit.len();
+            let mut cash = adapter.source.source().schedule.events.len();
+            let mut segment = adapter.source.segments().len();
+            for (i, draw) in adapter.draw_sources.iter().enumerate() {
+                if adapter.active_draws.contains(&i) {
+                    expected.push((
+                        &draw.current as *const _,
+                        audit,
+                        cash,
+                        segment,
+                        Some(draw.terms.review.id.as_str()),
+                    ));
+                }
+                audit += draw.current.source().audit.len();
+                cash += draw.current.source().schedule.events.len();
+                segment += draw.current.segments().len();
+            }
+            let actual: Vec<_> = adapter
+                .views()
+                .map(|view| {
+                    (
+                        view.source as *const _,
+                        view.audit_offset,
+                        view.cash_offset,
+                        view.segment_offset,
+                        view.tranche_id,
+                    )
+                })
+                .collect();
+            assert_eq!(actual, expected, "active mask {mask}");
+            assert_eq!(
+                adapter.views().next().unwrap().source as *const _,
+                adapter.source as *const _
+            );
+        }
+        adapter.draw_sources = &[];
+        assert_eq!(adapter.views().count(), 1);
     }
     #[test]
     fn discretionary_draw_owns_nominal_cost_original_eir_and_complete_coupon_tail() {
@@ -2386,7 +3098,7 @@ mod tests {
         assert_eq!(result.draw_sources[0].terms.source.acquisition.cost, cost);
         assert_eq!(result.accounting().closing()[0].gross_carry, 0.);
     }
-    fn request(payment_day: i32) -> Request {
+    pub(super) fn request(payment_day: i32) -> Request {
         let source = json!({"schema":"term-enhancements-1","model_version":"term-contracts-1",
             "contract":{"id":"commercial","revision":"1"},"assumption":{"id":"research","revision":"1"},"path":{"id":"base","revision":"1"},
             "position_id":"commercial","scenario_id":"base","currency":"USD","monetary_unit":"currency_units","direction":"receipt","measure":"physical",
@@ -3185,3 +3897,7 @@ mod tests {
             .all(|p| p.cash == 0. && p.effective_interest == 0.));
     }
 }
+
+#[cfg(test)]
+#[path = "observable_coupons_tests.rs"]
+mod observable_coupons_tests;

@@ -1,5 +1,6 @@
 //! Bounded numerical algorithms without product or accounting policy.
 pub(crate) mod arrays;
+pub(crate) mod checked_least_squares;
 pub(crate) mod functions;
 pub(crate) mod least_squares;
 pub mod random;

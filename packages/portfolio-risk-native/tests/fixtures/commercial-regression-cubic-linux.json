@@ -1,0 +1,3338 @@
+{
+  "schema": "platform-f64-bits-1",
+  "target": "x86_64-unknown-linux-gnu",
+  "financial_source_commit": "bec87ffdfaba906faf52ce1651861496d9fe23e4",
+  "diagnostic_commit": "8d80991",
+  "diagnostic_run": 42527779515,
+  "original_fixture_sha256": "24aad87643104d6fa43991dd6aab42305240420d6fc6b5856fedc26be7607fa5",
+  "cases": [
+    {
+      "id": "call/brownian",
+      "raw": {
+        "admission_tier": "bounded_generated_1024_samples-1",
+        "annual_covariance": [
+          0.04
+        ],
+        "coupon_loadings": [
+          {
+            "driver_index": 0,
+            "loading": 1.0,
+            "observation_index": 0,
+            "period_id": "reset-second"
+          }
+        ],
+        "discount_curve": {
+          "currency": "USD",
+          "curve_id": "flat",
+          "discount_factors": [
+            1.0,
+            1.0
+          ],
+          "right_tail": "reject",
+          "role": {
+            "collateral_index": "cash",
+            "kind": "collateral"
+          },
+          "source_id": "synthetic",
+          "source_revision": "1",
+          "times_years": [
+            0.0,
+            1.0
+          ]
+        },
+        "drivers": [
+          {
+            "driver_id": "index-rate",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 0.0,
+            "observation_policy": "observable_date_midnight_utc-1"
+          }
+        ],
+        "evaluation": {
+          "credit_seed": 11,
+          "market_seed": [
+            11
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "evaluation",
+            "revision": "1"
+          }
+        },
+        "fixed_base_oas": 0.0,
+        "hazard_loadings": [],
+        "identity": {
+          "id": "synthetic-gaussian",
+          "revision": "learned/call/cubic/brownian/coarse/256/7/11/admit"
+        },
+        "parallel_bump": 0.0,
+        "policy": {
+          "exercise_dates": [
+            {
+              "call_clean_price_factor": 0.999,
+              "call_fee": 0.0,
+              "ordinal": 738891,
+              "put_clean_price_factor": null,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            },
+            {
+              "call_clean_price_factor": 1.0,
+              "call_fee": 0.0,
+              "ordinal": 738901,
+              "put_clean_price_factor": null,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            }
+          ],
+          "identity": {
+            "id": "exercise-review",
+            "revision": "1"
+          },
+          "information_policy": "native_observable_markov_state-1",
+          "schema": "commercial-native-exercise-1",
+          "simultaneous_priority": "issuer"
+        },
+        "regression_policy": "native_observable_cubic_svd_train_evaluate-1",
+        "schema": "commercial-generated-exercise-1",
+        "source": {
+          "accounting": {
+            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1",
+            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+            "identity": {
+              "id": "explicit-accounting",
+              "revision": "1"
+            },
+            "recognition": [
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 0,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              },
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 1,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              }
+            ],
+            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1"
+          },
+          "accounting_rates": [
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 0,
+              "review": "original-yield"
+            },
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 1,
+              "review": "original-yield"
+            }
+          ],
+          "credit": {
+            "draw_stream": {
+              "kind": "counter_splitmix64_v1",
+              "seed": 7,
+              "stream_id": "stable-crn",
+              "stream_revision": "1"
+            },
+            "identity": {
+              "id": "physical-review",
+              "revision": "1"
+            },
+            "intervals": [
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0410958904109589,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0958904109589041,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "max_jumps_per_path": 4,
+            "paths": [
+              {
+                "initial_live_state": "performing",
+                "path_id": "borrower",
+                "path_key": 17
+              }
+            ]
+          },
+          "factor_policy": {
+            "clock": "credit_act365_elapsed_from_source_asof-1",
+            "full_checkpoints": "retain_actual_native_endpoints-1",
+            "observation_mapping": "explicit_equal_calendar_span-1",
+            "overnight": "pre_observation_accumulator_partial_weight-1",
+            "partial_calendar_day": "simple_partial_native_daycount-1",
+            "review": {
+              "id": "partial-clock",
+              "revision": "1"
+            }
+          },
+          "schema": "commercial-source-credit-accounting-proof-1",
+          "source": {
+            "acquisition": {
+              "cost": 100.0,
+              "identity": {
+                "id": "purchase",
+                "revision": "1"
+              },
+              "income_review": {
+                "id": "income-review",
+                "revision": "1"
+              },
+              "original_annual_effective_rate": 0.0,
+              "original_yield_anchor": {
+                "id": "original-only",
+                "revision": "1"
+              }
+            },
+            "current": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "baseline",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "original": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "base",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "policy": {
+              "fees": "integral_cash-1",
+              "identity": {
+                "id": "contract-review",
+                "revision": "1"
+              },
+              "recognition": "native_factor_checkpoint_rights-1",
+              "reset_income": "reviewed_frozen_original_reference-1"
+            },
+            "schema": "commercial-source-income-proof-1"
+          }
+        },
+        "time_ordinals": [
+          738886,
+          738891,
+          738901,
+          738921
+        ],
+        "training": {
+          "credit_seed": 7,
+          "market_seed": [
+            7
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "training",
+            "revision": "1"
+          }
+        }
+      },
+      "corrected_regressions": [
+        {
+          "active_features": [
+            0
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636733942769520744,
+            4585563952523155675,
+            13803329437127086076,
+            4572046759397692398
+          ],
+          "means": [
+            13560479215500918784,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 4,
+          "scales": [
+            4582133296237893661,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4632532750199372421,
+            4628716547237393428,
+            4622808480374713111,
+            4620397765859055057
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            5
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636287,
+            4590536407345862405,
+            4590536407345863741,
+            0,
+            0,
+            0,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432
+          ],
+          "means": [
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 4,
+          "scales": [
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4640808218146269097,
+            4633042052195348385,
+            4625366456085621716,
+            4623888826059686389,
+            4171085891653045965,
+            3921158292937765756,
+            3677196935957883863,
+            3432667864608444174,
+            0,
+            0
+          ]
+        }
+      ],
+      "legacy_regressions": [
+        {
+          "active_features": [
+            0
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636733942769520744,
+            4585563952523155675,
+            13803329437127086076,
+            4572046759397692398
+          ],
+          "means": [
+            13560479215500918784,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 4,
+          "scales": [
+            4582133296237893661,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4632532750199372421,
+            4628716547237393428,
+            4622808480374713111,
+            4620397765859055057
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            5
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636287,
+            4590536407345862405,
+            4590536407345863741,
+            0,
+            0,
+            0,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432
+          ],
+          "means": [
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 4,
+          "scales": [
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4640808218146269097,
+            4633042052195348385,
+            4625366456085621716,
+            4623888826059686389,
+            4171085891653045965,
+            3921158292937765756,
+            3677196935957883863,
+            3432667864608444174,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "call/correlated_ou",
+      "raw": {
+        "admission_tier": "bounded_generated_1024_samples-1",
+        "annual_covariance": [
+          0.04,
+          0.009,
+          0.009,
+          0.01
+        ],
+        "coupon_loadings": [
+          {
+            "driver_index": 0,
+            "loading": 1.0,
+            "observation_index": 0,
+            "period_id": "reset-second"
+          }
+        ],
+        "discount_curve": {
+          "currency": "USD",
+          "curve_id": "flat",
+          "discount_factors": [
+            1.0,
+            1.0
+          ],
+          "right_tail": "reject",
+          "role": {
+            "collateral_index": "cash",
+            "kind": "collateral"
+          },
+          "source_id": "synthetic",
+          "source_revision": "1",
+          "times_years": [
+            0.0,
+            1.0
+          ]
+        },
+        "drivers": [
+          {
+            "driver_id": "index-rate",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 0.7,
+            "observation_policy": "observable_date_midnight_utc-1"
+          },
+          {
+            "driver_id": "correlated-observable",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 1.4,
+            "observation_policy": "observable_date_midnight_utc-1"
+          }
+        ],
+        "evaluation": {
+          "credit_seed": 11,
+          "market_seed": [
+            11
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "evaluation",
+            "revision": "1"
+          }
+        },
+        "fixed_base_oas": 0.0,
+        "hazard_loadings": [],
+        "identity": {
+          "id": "synthetic-gaussian",
+          "revision": "learned/call/cubic/correlated_ou/coarse/256/7/11/admit"
+        },
+        "parallel_bump": 0.0,
+        "policy": {
+          "exercise_dates": [
+            {
+              "call_clean_price_factor": 0.999,
+              "call_fee": 0.0,
+              "ordinal": 738891,
+              "put_clean_price_factor": null,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            },
+            {
+              "call_clean_price_factor": 1.0,
+              "call_fee": 0.0,
+              "ordinal": 738901,
+              "put_clean_price_factor": null,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            }
+          ],
+          "identity": {
+            "id": "exercise-review",
+            "revision": "1"
+          },
+          "information_policy": "native_observable_markov_state-1",
+          "schema": "commercial-native-exercise-1",
+          "simultaneous_priority": "issuer"
+        },
+        "regression_policy": "native_observable_cubic_svd_train_evaluate-1",
+        "schema": "commercial-generated-exercise-1",
+        "source": {
+          "accounting": {
+            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1",
+            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+            "identity": {
+              "id": "explicit-accounting",
+              "revision": "1"
+            },
+            "recognition": [
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 0,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              },
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 1,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              }
+            ],
+            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1"
+          },
+          "accounting_rates": [
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 0,
+              "review": "original-yield"
+            },
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 1,
+              "review": "original-yield"
+            }
+          ],
+          "credit": {
+            "draw_stream": {
+              "kind": "counter_splitmix64_v1",
+              "seed": 7,
+              "stream_id": "stable-crn",
+              "stream_revision": "1"
+            },
+            "identity": {
+              "id": "physical-review",
+              "revision": "1"
+            },
+            "intervals": [
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0410958904109589,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0958904109589041,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "max_jumps_per_path": 4,
+            "paths": [
+              {
+                "initial_live_state": "performing",
+                "path_id": "borrower",
+                "path_key": 17
+              }
+            ]
+          },
+          "factor_policy": {
+            "clock": "credit_act365_elapsed_from_source_asof-1",
+            "full_checkpoints": "retain_actual_native_endpoints-1",
+            "observation_mapping": "explicit_equal_calendar_span-1",
+            "overnight": "pre_observation_accumulator_partial_weight-1",
+            "partial_calendar_day": "simple_partial_native_daycount-1",
+            "review": {
+              "id": "partial-clock",
+              "revision": "1"
+            }
+          },
+          "schema": "commercial-source-credit-accounting-proof-1",
+          "source": {
+            "acquisition": {
+              "cost": 100.0,
+              "identity": {
+                "id": "purchase",
+                "revision": "1"
+              },
+              "income_review": {
+                "id": "income-review",
+                "revision": "1"
+              },
+              "original_annual_effective_rate": 0.0,
+              "original_yield_anchor": {
+                "id": "original-only",
+                "revision": "1"
+              }
+            },
+            "current": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "baseline",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "original": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "base",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "policy": {
+              "fees": "integral_cash-1",
+              "identity": {
+                "id": "contract-review",
+                "revision": "1"
+              },
+              "recognition": "native_factor_checkpoint_rights-1",
+              "reset_income": "reviewed_frozen_original_reference-1"
+            },
+            "schema": "commercial-source-income-proof-1"
+          }
+        },
+        "time_ordinals": [
+          738886,
+          738891,
+          738901,
+          738921
+        ],
+        "training": {
+          "credit_seed": 7,
+          "market_seed": [
+            7
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "training",
+            "revision": "1"
+          }
+        }
+      },
+      "corrected_regressions": [
+        {
+          "active_features": [
+            0,
+            1
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636733445394658795,
+            4586312068859464727,
+            13805407197138551550,
+            13800778340915007488,
+            13783707949653753856,
+            4562816586190585856,
+            4556259496659663312,
+            13794255988543399204,
+            4575299734882236784,
+            4567460951146530571
+          ],
+          "means": [
+            13546827679130451968,
+            4329225879298244608,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 10,
+          "scales": [
+            4581892934939259209,
+            4577455298936629138,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4635352434796250676,
+            4631177977476876216,
+            4630554477071276999,
+            4626314362537667653,
+            4626115673937251393,
+            4623545285413278996,
+            4621816059991126095,
+            4621074461375164016,
+            4620448780033480421,
+            4616908998537324308
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            1,
+            6
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636284,
+            4590607644800302380,
+            13617759373261537280,
+            4590607644800300942,
+            4391033905430204512,
+            13627886262401163187,
+            4386511269562879700,
+            4403106715493310828,
+            13625639733850014104,
+            4395500028099649465,
+            4395308177395023872,
+            13617565859215048704,
+            4395310376418279424,
+            13609455861448572928,
+            13611210682006503424,
+            4391625912953602048,
+            13619903970691514368,
+            13618005663866159104,
+            13611219478099525632,
+            4391627012465229824
+          ],
+          "means": [
+            13540072279689396224,
+            13560408846756741120,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13540072279689396224,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 10,
+          "scales": [
+            4585945559195940897,
+            4581497169045980288,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585945559195940897,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4638988046597319738,
+            4633457708644240653,
+            4633005391237446529,
+            4629123703574777514,
+            4627521430956797150,
+            4624695920095271171,
+            4623839168252231923,
+            4622626719867292496,
+            4621172767887426490,
+            4618021153883379077,
+            4392045575747915449,
+            4387409388685435136,
+            4153310058089392138,
+            4147925758719713705,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "legacy_regressions": [
+        {
+          "active_features": [
+            0,
+            1
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636733445394658990,
+            4586312068859465782,
+            13805407197138551710,
+            13800778340911765502,
+            13783707949617315834,
+            4562816586216570861,
+            4556259496659660976,
+            13794255988543400400,
+            4575299734882237198,
+            4567460951146529788
+          ],
+          "means": [
+            13546827679130451968,
+            4329225879298244608,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 10,
+          "scales": [
+            4581892934939259209,
+            4577455298936629138,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4635352434796250685,
+            4631177977476876219,
+            4630554477071277001,
+            4626314362537667660,
+            4626115673937251388,
+            4623545285413278990,
+            4621816059991126093,
+            4621074461375164017,
+            4620448780033480420,
+            4616908998537324307
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            1,
+            6
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636284,
+            4590607644800302380,
+            13617759373261537280,
+            4590607644800300942,
+            4391033905430204512,
+            13627886262401163187,
+            4386511269562879700,
+            4403106715493310828,
+            13625639733850014104,
+            4395500028099649465,
+            4395308177395023872,
+            13617565859215048704,
+            4395310376418279424,
+            13609455861448572928,
+            13611210682006503424,
+            4391625912953602048,
+            13619903970691514368,
+            13618005663866159104,
+            13611219478099525632,
+            4391627012465229824
+          ],
+          "means": [
+            13540072279689396224,
+            13560408846756741120,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13540072279689396224,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 10,
+          "scales": [
+            4585945559195940897,
+            4581497169045980288,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585945559195940897,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4638988046597319738,
+            4633457708644240653,
+            4633005391237446529,
+            4629123703574777514,
+            4627521430956797150,
+            4624695920095271171,
+            4623839168252231923,
+            4622626719867292496,
+            4621172767887426490,
+            4618021153883379077,
+            4392045575747915449,
+            4387409388685435136,
+            4153310058089392138,
+            4147925758719713705,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "put/brownian",
+      "raw": {
+        "admission_tier": "bounded_generated_1024_samples-1",
+        "annual_covariance": [
+          0.04
+        ],
+        "coupon_loadings": [
+          {
+            "driver_index": 0,
+            "loading": 1.0,
+            "observation_index": 0,
+            "period_id": "reset-second"
+          }
+        ],
+        "discount_curve": {
+          "currency": "USD",
+          "curve_id": "flat",
+          "discount_factors": [
+            1.0,
+            1.0
+          ],
+          "right_tail": "reject",
+          "role": {
+            "collateral_index": "cash",
+            "kind": "collateral"
+          },
+          "source_id": "synthetic",
+          "source_revision": "1",
+          "times_years": [
+            0.0,
+            1.0
+          ]
+        },
+        "drivers": [
+          {
+            "driver_id": "index-rate",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 0.0,
+            "observation_policy": "observable_date_midnight_utc-1"
+          }
+        ],
+        "evaluation": {
+          "credit_seed": 11,
+          "market_seed": [
+            11
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "evaluation",
+            "revision": "1"
+          }
+        },
+        "fixed_base_oas": 0.0,
+        "hazard_loadings": [],
+        "identity": {
+          "id": "synthetic-gaussian",
+          "revision": "learned/put/cubic/brownian/coarse/256/7/11/admit"
+        },
+        "parallel_bump": 0.0,
+        "policy": {
+          "exercise_dates": [
+            {
+              "call_clean_price_factor": null,
+              "call_fee": 0.0,
+              "ordinal": 738891,
+              "put_clean_price_factor": 1.001,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            },
+            {
+              "call_clean_price_factor": null,
+              "call_fee": 0.0,
+              "ordinal": 738901,
+              "put_clean_price_factor": 1.0,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            }
+          ],
+          "identity": {
+            "id": "exercise-review",
+            "revision": "1"
+          },
+          "information_policy": "native_observable_markov_state-1",
+          "schema": "commercial-native-exercise-1",
+          "simultaneous_priority": "issuer"
+        },
+        "regression_policy": "native_observable_cubic_svd_train_evaluate-1",
+        "schema": "commercial-generated-exercise-1",
+        "source": {
+          "accounting": {
+            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1",
+            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+            "identity": {
+              "id": "explicit-accounting",
+              "revision": "1"
+            },
+            "recognition": [
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 0,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              },
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 1,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              }
+            ],
+            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1"
+          },
+          "accounting_rates": [
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 0,
+              "review": "original-yield"
+            },
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 1,
+              "review": "original-yield"
+            }
+          ],
+          "credit": {
+            "draw_stream": {
+              "kind": "counter_splitmix64_v1",
+              "seed": 7,
+              "stream_id": "stable-crn",
+              "stream_revision": "1"
+            },
+            "identity": {
+              "id": "physical-review",
+              "revision": "1"
+            },
+            "intervals": [
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0410958904109589,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0958904109589041,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "max_jumps_per_path": 4,
+            "paths": [
+              {
+                "initial_live_state": "performing",
+                "path_id": "borrower",
+                "path_key": 17
+              }
+            ]
+          },
+          "factor_policy": {
+            "clock": "credit_act365_elapsed_from_source_asof-1",
+            "full_checkpoints": "retain_actual_native_endpoints-1",
+            "observation_mapping": "explicit_equal_calendar_span-1",
+            "overnight": "pre_observation_accumulator_partial_weight-1",
+            "partial_calendar_day": "simple_partial_native_daycount-1",
+            "review": {
+              "id": "partial-clock",
+              "revision": "1"
+            }
+          },
+          "schema": "commercial-source-credit-accounting-proof-1",
+          "source": {
+            "acquisition": {
+              "cost": 100.0,
+              "identity": {
+                "id": "purchase",
+                "revision": "1"
+              },
+              "income_review": {
+                "id": "income-review",
+                "revision": "1"
+              },
+              "original_annual_effective_rate": 0.0,
+              "original_yield_anchor": {
+                "id": "original-only",
+                "revision": "1"
+              }
+            },
+            "current": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "baseline",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "original": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "base",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "policy": {
+              "fees": "integral_cash-1",
+              "identity": {
+                "id": "contract-review",
+                "revision": "1"
+              },
+              "recognition": "native_factor_checkpoint_rights-1",
+              "reset_income": "reviewed_frozen_original_reference-1"
+            },
+            "schema": "commercial-source-income-proof-1"
+          }
+        },
+        "time_ordinals": [
+          738886,
+          738891,
+          738901,
+          738921
+        ],
+        "training": {
+          "credit_seed": 7,
+          "market_seed": [
+            7
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "training",
+            "revision": "1"
+          }
+        }
+      },
+      "corrected_regressions": [
+        {
+          "active_features": [
+            0
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636740639939751841,
+            4585563952523155217,
+            4579957400272297988,
+            4572046759397693668
+          ],
+          "means": [
+            13560479215500918784,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 4,
+          "scales": [
+            4582133296237893661,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4632532750199372421,
+            4628716547237393428,
+            4622808480374713111,
+            4620397765859055057
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            5
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636287,
+            4590536407345862405,
+            4590536407345863741,
+            0,
+            0,
+            0,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432
+          ],
+          "means": [
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 4,
+          "scales": [
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4640808218146269097,
+            4633042052195348385,
+            4625366456085621716,
+            4623888826059686389,
+            4171085891653045965,
+            3921158292937765756,
+            3677196935957883863,
+            3432667864608444174,
+            0,
+            0
+          ]
+        }
+      ],
+      "legacy_regressions": [
+        {
+          "active_features": [
+            0
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636740639939751841,
+            4585563952523155217,
+            4579957400272297988,
+            4572046759397693668
+          ],
+          "means": [
+            13560479215500918784,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 4,
+          "scales": [
+            4582133296237893661,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4632532750199372421,
+            4628716547237393428,
+            4622808480374713111,
+            4620397765859055057
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            5
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636287,
+            4590536407345862405,
+            4590536407345863741,
+            0,
+            0,
+            0,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432,
+            4365315093425225432
+          ],
+          "means": [
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13555834878385192960,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 4,
+          "scales": [
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585876221406954080,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4640808218146269097,
+            4633042052195348385,
+            4625366456085621716,
+            4623888826059686389,
+            4171085891653045965,
+            3921158292937765756,
+            3677196935957883863,
+            3432667864608444174,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "put/correlated_ou",
+      "raw": {
+        "admission_tier": "bounded_generated_1024_samples-1",
+        "annual_covariance": [
+          0.04,
+          0.009,
+          0.009,
+          0.01
+        ],
+        "coupon_loadings": [
+          {
+            "driver_index": 0,
+            "loading": 1.0,
+            "observation_index": 0,
+            "period_id": "reset-second"
+          }
+        ],
+        "discount_curve": {
+          "currency": "USD",
+          "curve_id": "flat",
+          "discount_factors": [
+            1.0,
+            1.0
+          ],
+          "right_tail": "reject",
+          "role": {
+            "collateral_index": "cash",
+            "kind": "collateral"
+          },
+          "source_id": "synthetic",
+          "source_revision": "1",
+          "times_years": [
+            0.0,
+            1.0
+          ]
+        },
+        "drivers": [
+          {
+            "driver_id": "index-rate",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 0.7,
+            "observation_policy": "observable_date_midnight_utc-1"
+          },
+          {
+            "driver_id": "correlated-observable",
+            "initial_level": 0.0,
+            "long_run_mean": 0.0,
+            "mean_reversion": 1.4,
+            "observation_policy": "observable_date_midnight_utc-1"
+          }
+        ],
+        "evaluation": {
+          "credit_seed": 11,
+          "market_seed": [
+            11
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "evaluation",
+            "revision": "1"
+          }
+        },
+        "fixed_base_oas": 0.0,
+        "hazard_loadings": [],
+        "identity": {
+          "id": "synthetic-gaussian",
+          "revision": "learned/put/cubic/correlated_ou/coarse/256/7/11/admit"
+        },
+        "parallel_bump": 0.0,
+        "policy": {
+          "exercise_dates": [
+            {
+              "call_clean_price_factor": null,
+              "call_fee": 0.0,
+              "ordinal": 738891,
+              "put_clean_price_factor": 1.001,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            },
+            {
+              "call_clean_price_factor": null,
+              "call_fee": 0.0,
+              "ordinal": 738901,
+              "put_clean_price_factor": 1.0,
+              "put_fee": 0.0,
+              "timing": "after_scheduled_cash"
+            }
+          ],
+          "identity": {
+            "id": "exercise-review",
+            "revision": "1"
+          },
+          "information_policy": "native_observable_markov_state-1",
+          "schema": "commercial-native-exercise-1",
+          "simultaneous_priority": "issuer"
+        },
+        "regression_policy": "native_observable_cubic_svd_train_evaluate-1",
+        "schema": "commercial-generated-exercise-1",
+        "source": {
+          "accounting": {
+            "cash_application": "exact_native_coupon_cash_origin_fifo-1",
+            "default_disposition": "transfer_all_gross_legal_and_recognized_claims_no_implicit_chargeoff-1",
+            "exit_disposition": "collect_legal_balance_reverse_recognized_realize_remaining_carry-1",
+            "identity": {
+              "id": "explicit-accounting",
+              "revision": "1"
+            },
+            "recognition": [
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 0,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              },
+              {
+                "by_origin": [
+                  "full_accrual",
+                  "full_accrual",
+                  "full_accrual"
+                ],
+                "interval_index": 1,
+                "review": {
+                  "id": "full-accrual",
+                  "revision": "1"
+                }
+              }
+            ],
+            "unrecognized_cash": "defer_unrecognized_cash_until_reviewed_recognition-1"
+          },
+          "accounting_rates": [
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 0,
+              "review": "original-yield"
+            },
+            {
+              "annual_effective_rates": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "interval_index": 1,
+              "review": "original-yield"
+            }
+          ],
+          "credit": {
+            "draw_stream": {
+              "kind": "counter_splitmix64_v1",
+              "seed": 7,
+              "stream_id": "stable-crn",
+              "stream_revision": "1"
+            },
+            "identity": {
+              "id": "physical-review",
+              "revision": "1"
+            },
+            "intervals": [
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0410958904109589,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 0.0,
+                      "weight": 1.0
+                    }
+                  ]
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "end_year": 0.0958904109589041,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "interest_recovery_fraction": [
+                  0.5,
+                  0.5,
+                  0.5
+                ],
+                "loss_given_default": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              }
+            ],
+            "max_jumps_per_path": 4,
+            "paths": [
+              {
+                "initial_live_state": "performing",
+                "path_id": "borrower",
+                "path_key": 17
+              }
+            ]
+          },
+          "factor_policy": {
+            "clock": "credit_act365_elapsed_from_source_asof-1",
+            "full_checkpoints": "retain_actual_native_endpoints-1",
+            "observation_mapping": "explicit_equal_calendar_span-1",
+            "overnight": "pre_observation_accumulator_partial_weight-1",
+            "partial_calendar_day": "simple_partial_native_daycount-1",
+            "review": {
+              "id": "partial-clock",
+              "revision": "1"
+            }
+          },
+          "schema": "commercial-source-credit-accounting-proof-1",
+          "source": {
+            "acquisition": {
+              "cost": 100.0,
+              "identity": {
+                "id": "purchase",
+                "revision": "1"
+              },
+              "income_review": {
+                "id": "income-review",
+                "revision": "1"
+              },
+              "original_annual_effective_rate": 0.0,
+              "original_yield_anchor": {
+                "id": "original-only",
+                "revision": "1"
+              }
+            },
+            "current": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "baseline",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "original": {
+              "asof_ordinal": 738886,
+              "assumption": {
+                "id": "research",
+                "revision": "1"
+              },
+              "contract": {
+                "id": "commercial",
+                "revision": "1"
+              },
+              "currency": "USD",
+              "direction": "receipt",
+              "measure": "pricing",
+              "model_version": "term-contracts-1",
+              "monetary_unit": "currency_units",
+              "observed_publication_cutoff_unix_seconds": 1704067200,
+              "opening_principal": 100.0,
+              "path": {
+                "id": "base",
+                "revision": "1"
+              },
+              "periods": [
+                {
+                  "coupon": {
+                    "annual_rate": 0.0,
+                    "kind": "fixed"
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738901,
+                  "fee": 0.0,
+                  "payment_ordinal": 738901,
+                  "period_id": "zero-first",
+                  "start_ordinal": 738886
+                },
+                {
+                  "coupon": {
+                    "all_in_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "calculation": "term_simple",
+                    "calendar": {
+                      "id": "synthetic-gaussian",
+                      "revision": "1"
+                    },
+                    "complete_calendar_mapping": true,
+                    "index": {
+                      "average_calendar_days": null,
+                      "index_id": "SYNTHETIC-1M",
+                      "kind": "term",
+                      "tenor_months": 1
+                    },
+                    "index_bounds": {
+                      "cap": null,
+                      "floor": null
+                    },
+                    "kind": "indexed",
+                    "lookback_business_days": 0,
+                    "margin": 0.0,
+                    "margin_treatment": "simple",
+                    "observation_shift": false,
+                    "observations": [
+                      {
+                        "fixing_ordinal": 738901,
+                        "interest_end_ordinal": 738916,
+                        "interest_start_ordinal": 738901,
+                        "observation_end_ordinal": 738916,
+                        "observation_start_ordinal": 738901,
+                        "rate": 0.0,
+                        "selection_cutoff_unix_seconds": 1705363200,
+                        "source": {
+                          "information_unix_seconds": 1705363200,
+                          "kind": "conditional_projection",
+                          "measure": "pricing",
+                          "model": {
+                            "id": "synthetic-gaussian",
+                            "revision": "1"
+                          },
+                          "path": {
+                            "id": "base",
+                            "revision": "1"
+                          }
+                        }
+                      }
+                    ],
+                    "reset_cutoff_unix_seconds": 1705363200
+                  },
+                  "day_count": "act365_fixed",
+                  "end_ordinal": 738916,
+                  "fee": 0.0,
+                  "payment_ordinal": 738921,
+                  "period_id": "reset-second",
+                  "start_ordinal": 738901
+                }
+              ],
+              "position_id": "commercial",
+              "principal_plan": {
+                "kind": "supplied",
+                "principal_payments": [
+                  0.0,
+                  100.0
+                ]
+              },
+              "reporting_end_ordinal": 738901,
+              "scenario_id": "base",
+              "schema": "term-enhancements-1",
+              "tail_end_ordinal": 738921
+            },
+            "policy": {
+              "fees": "integral_cash-1",
+              "identity": {
+                "id": "contract-review",
+                "revision": "1"
+              },
+              "recognition": "native_factor_checkpoint_rights-1",
+              "reset_income": "reviewed_frozen_original_reference-1"
+            },
+            "schema": "commercial-source-income-proof-1"
+          }
+        },
+        "time_ordinals": [
+          738886,
+          738891,
+          738901,
+          738921
+        ],
+        "training": {
+          "credit_seed": 7,
+          "market_seed": [
+            7
+          ],
+          "paths": 256,
+          "randomness_domain": {
+            "id": "training",
+            "revision": "1"
+          }
+        }
+      },
+      "corrected_regressions": [
+        {
+          "active_features": [
+            0,
+            1
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636741137314613792,
+            4586312068859464845,
+            13805407197138551650,
+            4577406304060229632,
+            4560335912797929472,
+            13786188623045165056,
+            4556259496659661024,
+            13794255988543397988,
+            4575299734882235894,
+            4567460951146531162
+          ],
+          "means": [
+            13546827679130451968,
+            4329225879298244608,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 10,
+          "scales": [
+            4581892934939259209,
+            4577455298936629138,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4635352434796250676,
+            4631177977476876216,
+            4630554477071276999,
+            4626314362537667653,
+            4626115673937251393,
+            4623545285413278996,
+            4621816059991126095,
+            4621074461375164016,
+            4620448780033480421,
+            4616908998537324308
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            1,
+            6
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636284,
+            4590607644800302380,
+            13617759373261537280,
+            4590607644800300942,
+            4391033905430204512,
+            13627886262401163187,
+            4386511269562879700,
+            4403106715493310828,
+            13625639733850014104,
+            4395500028099649465,
+            4395308177395023872,
+            13617565859215048704,
+            4395310376418279424,
+            13609455861448572928,
+            13611210682006503424,
+            4391625912953602048,
+            13619903970691514368,
+            13618005663866159104,
+            13611219478099525632,
+            4391627012465229824
+          ],
+          "means": [
+            13540072279689396224,
+            13560408846756741120,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13540072279689396224,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 10,
+          "scales": [
+            4585945559195940897,
+            4581497169045980288,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585945559195940897,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4638988046597319738,
+            4633457708644240653,
+            4633005391237446529,
+            4629123703574777514,
+            4627521430956797150,
+            4624695920095271171,
+            4623839168252231923,
+            4622626719867292496,
+            4621172767887426490,
+            4618021153883379077,
+            4392045575747915449,
+            4387409388685435136,
+            4153310058089392138,
+            4147925758719713705,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "legacy_regressions": [
+        {
+          "active_features": [
+            0,
+            1
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636741137314613989,
+            4586312068859465464,
+            13805407197138551264,
+            4577406304063467522,
+            4560335912834301958,
+            13786188623019196435,
+            4556259496659681888,
+            13794255988543403316,
+            4575299734882238862,
+            4567460951146528471
+          ],
+          "means": [
+            13546827679130451968,
+            4329225879298244608,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            0,
+            4607182418800017408,
+            0,
+            0,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738891,
+          "rank": 10,
+          "scales": [
+            4581892934939259209,
+            4577455298936629138,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4635352434796250685,
+            4631177977476876219,
+            4630554477071277001,
+            4626314362537667660,
+            4626115673937251388,
+            4623545285413278990,
+            4621816059991126093,
+            4621074461375164017,
+            4620448780033480420,
+            4616908998537324307
+          ]
+        },
+        {
+          "active_features": [
+            0,
+            1,
+            6
+          ],
+          "basis_degree": 3,
+          "coefficients": [
+            4636737291354636284,
+            4590607644800302380,
+            13617759373261537280,
+            4590607644800300942,
+            4391033905430204512,
+            13627886262401163187,
+            4386511269562879700,
+            4403106715493310828,
+            13625639733850014104,
+            4395500028099649465,
+            4395308177395023872,
+            13617565859215048704,
+            4395310376418279424,
+            13609455861448572928,
+            13611210682006503424,
+            4391625912953602048,
+            13619903970691514368,
+            13618005663866159104,
+            13611219478099525632,
+            4391627012465229824
+          ],
+          "means": [
+            13540072279689396224,
+            13560408846756741120,
+            4607182418800017408,
+            0,
+            0,
+            0,
+            13540072279689396224,
+            4607182418800017408,
+            0,
+            4607182418800017408,
+            0
+          ],
+          "observations": 256,
+          "observed_live_states": [
+            "performing"
+          ],
+          "ordinal": 738901,
+          "rank": 10,
+          "scales": [
+            4585945559195940897,
+            4581497169045980288,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4585945559195940897,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408,
+            4607182418800017408
+          ],
+          "singular_values": [
+            4638988046597319738,
+            4633457708644240653,
+            4633005391237446529,
+            4629123703574777514,
+            4627521430956797150,
+            4624695920095271171,
+            4623839168252231923,
+            4622626719867292496,
+            4621172767887426490,
+            4618021153883379077,
+            4392045575747915449,
+            4387409388685435136,
+            4153310058089392138,
+            4147925758719713705,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

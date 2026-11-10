@@ -162,3 +162,200 @@ pub fn encode<T: Serialize>(value: &T, maximum_bytes: usize) -> Result<Vec<u8>, 
         .retained
         .ok_or_else(|| "missing JSON staging buffer".into())
 }
+
+/// Exact serializer-byte equality with only the smaller encoding retained.
+///
+/// Both complete sizes are admitted before staging. The other serializer writes
+/// directly against that immutable encoding: no second encoding, Value tree,
+/// digest, financial projection or thread is created. A mismatch does not stop
+/// traversal, so later serializer, capacity and cancellation errors still fail.
+/// These are byte/component limits, not allocator overhead or process RSS bounds.
+pub fn serialized_equal_checked<A: Serialize, B: Serialize>(
+    left: &A,
+    right: &B,
+    maximum_bytes: usize,
+    maximum_combined_bytes: usize,
+    mut probe: impl FnMut() -> Result<(), String>,
+) -> Result<bool, String> {
+    probe()?;
+    let left_size = checked_size(left, maximum_bytes, &mut probe)?;
+    let right_size = checked_size(right, maximum_bytes, &mut probe)?;
+    let combined = left_size
+        .checked_add(right_size)
+        .ok_or("JSON comparison byte count overflow")?;
+    if combined > maximum_combined_bytes {
+        return Err("JSON comparison exceeds combined byte admission".into());
+    }
+    let equal = if left_size <= right_size {
+        compare_encoding(left, right, left_size, right_size, &mut probe)?
+    } else {
+        compare_encoding(right, left, right_size, left_size, &mut probe)?
+    };
+    probe()?;
+    Ok(equal)
+}
+
+struct ProbedWriter<'a, W, F> {
+    output: W,
+    probe: &'a mut F,
+}
+impl<W: Write, F: FnMut() -> Result<(), String>> Write for ProbedWriter<'_, W, F> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        // A serializer may submit an entire unescaped string in one write.
+        // Bound the interval between probes even for that case.
+        for chunk in bytes.chunks(32768) {
+            (self.probe)().map_err(io::Error::other)?;
+            self.output.write_all(chunk)?;
+        }
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (self.probe)().map_err(io::Error::other)?;
+        self.output.flush()
+    }
+}
+
+fn checked_size<T: Serialize, F: FnMut() -> Result<(), String>>(
+    value: &T,
+    maximum: usize,
+    probe: &mut F,
+) -> Result<usize, String> {
+    let mut writer = ProbedWriter {
+        output: BoundedWriter {
+            size: 0,
+            maximum,
+            retained: None,
+        },
+        probe,
+    };
+    serde_json::to_writer(&mut writer, value).map_err(|e| e.to_string())?;
+    Ok(writer.output.size)
+}
+
+struct CompareWriter<'a> {
+    expected: &'a [u8],
+    offset: usize,
+    maximum: usize,
+    equal: bool,
+    overrun: &'static str,
+}
+impl Write for CompareWriter<'_> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let end = self
+            .offset
+            .checked_add(bytes.len())
+            .ok_or_else(|| io::Error::other("JSON comparison offset overflow"))?;
+        if end > self.maximum {
+            return Err(io::Error::other(self.overrun));
+        }
+        self.equal &= self.expected.get(self.offset..end) == Some(bytes);
+        self.offset = end;
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+fn compare_encoding<A: Serialize, B: Serialize, F: FnMut() -> Result<(), String>>(
+    retained: &A,
+    streamed: &B,
+    retained_size: usize,
+    streamed_size: usize,
+    probe: &mut F,
+) -> Result<bool, String> {
+    // Reserve once before encoding; no growing Vec or second encoding can
+    // coexist with this owner. Refuse an allocator-reported excess capacity.
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(retained_size)
+        .map_err(|e| e.to_string())?;
+    if bytes.capacity() > retained_size {
+        return Err("JSON comparison buffer exceeds exact reservation".into());
+    }
+    let mut writer = ProbedWriter {
+        output: BoundedWriter {
+            size: 0,
+            maximum: retained_size,
+            retained: Some(bytes),
+        },
+        probe,
+    };
+    serde_json::to_writer(&mut writer, retained).map_err(|e| e.to_string())?;
+    if writer.output.size != retained_size {
+        return Err("JSON serialization changed after sizing".into());
+    }
+    let bytes = writer
+        .output
+        .retained
+        .ok_or("missing JSON comparison encoding")?;
+    let mut writer = ProbedWriter {
+        output: CompareWriter {
+            expected: &bytes,
+            offset: 0,
+            maximum: streamed_size,
+            equal: retained_size == streamed_size,
+            overrun: "JSON serialization changed after sizing",
+        },
+        probe: writer.probe,
+    };
+    serde_json::to_writer(&mut writer, streamed).map_err(|e| e.to_string())?;
+    if writer.output.offset != streamed_size {
+        return Err("JSON serialization changed after sizing".into());
+    }
+    Ok(writer.output.equal)
+}
+
+/// Compare a serializer directly with previously retained immutable bytes.
+/// No encoding or Value tree is allocated. The caller owns the provenance of
+/// `expected`; this function establishes byte equality, not source authority.
+/// Complete traversal is retained until an explicit byte/cancellation refusal.
+pub fn serialized_matches_checked<T: Serialize>(
+    expected: &[u8],
+    value: &T,
+    maximum_bytes: usize,
+    mut probe: impl FnMut() -> Result<(), String>,
+) -> Result<bool, String> {
+    if expected.len() > maximum_bytes {
+        return Err("JSON comparison reference exceeds byte admission".into());
+    }
+    probe()?;
+    let mut writer = ProbedWriter {
+        output: CompareWriter {
+            expected,
+            offset: 0,
+            maximum: maximum_bytes,
+            equal: true,
+            overrun: "serialized JSON exceeds selected byte admission",
+        },
+        probe: &mut probe,
+    };
+    serde_json::to_writer(&mut writer, value).map_err(|e| e.to_string())?;
+    let equal = writer.output.equal && writer.output.offset == expected.len();
+    probe()?;
+    Ok(equal)
+}
+
+/// Exact comparison with retained bytes, funding the audited traversal and
+/// every compared byte before visiting/forwarding it. No reference encoding,
+/// parsed Value or monetary checkpoint is constructed. Provenance remains the
+/// caller's responsibility; a mismatch cannot grant resource/publication rights.
+pub fn serialized_matches_counted<T: Serialize>(
+    expected: &[u8],
+    value: &T,
+    maximum_bytes: usize,
+    charge: impl FnMut(usize) -> Result<(), String>,
+) -> Result<(bool, super::prepaid_json::WriteWork), String> {
+    if expected.len() > maximum_bytes {
+        return Err("JSON comparison reference exceeds byte admission".into());
+    }
+    let mut writer = CompareWriter {
+        expected,
+        offset: 0,
+        maximum: maximum_bytes,
+        equal: true,
+        overrun: "serialized JSON exceeds selected byte admission",
+    };
+    let work = super::prepaid_json::write_with_output_charge(&mut writer, value, charge)?;
+    Ok((writer.equal && writer.offset == expected.len(), work))
+}

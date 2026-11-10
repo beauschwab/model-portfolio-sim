@@ -37,6 +37,24 @@ fn main() {
             .get("request")
             .and_then(|r| r.get("schema"))
             .and_then(Value::as_str)
+            .is_some_and(|s| {
+                matches!(
+                    s,
+                    "commercial-generated-candidate-journal-1"
+                        | "commercial-generated-candidate-fee-journal-1"
+                )
+            })
+        {
+            return portfolio_decision_native::commercial_candidate_journal::run_generated_stream_started(
+                &input,
+                Box::new(io::stdout()),
+                dispatcher_started,
+            );
+        }
+        if value
+            .get("request")
+            .and_then(|r| r.get("schema"))
+            .and_then(Value::as_str)
             == Some("commercial-credit-ledger-1")
         {
             return portfolio_decision_native::commercial_ledger::run_started(

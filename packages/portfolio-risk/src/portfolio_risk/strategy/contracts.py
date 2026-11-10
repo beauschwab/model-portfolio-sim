@@ -47,6 +47,9 @@ class PreparedLibrary(_RequiredPreparedLibrary, total=False):
     funding_policy:str
     funding_vectors:dict[tuple[str,int],np.ndarray]
     funding_sources:dict
+    # Separate supplied service income/cost release, outside external NII.
+    nonintegral_fee_income:np.ndarray
+    fee_income_vectors:dict[tuple[str,int],np.ndarray]
     runoff: np.ndarray
     cash_interest: np.ndarray
     vectors: dict[tuple[str, int], np.ndarray]

@@ -2,6 +2,7 @@
 from copy import deepcopy
 from pathlib import Path
 import json
+import math
 import pytest
 from portfolio_risk.core.commercial_candidate_native import run
 from portfolio_risk.analytics.commercial_candidate_reference import verify
@@ -15,6 +16,42 @@ def test_purchased_native_commercial_candidate_replays_complete_graph_and_journa
     assert receipt['purchased_journal_replayed']and receipt['complete_tail_replayed']
     assert result['full_end_ordinal']>result['reporting_end_ordinal']
     assert result['opening_identity_verified']is False
+
+
+@pytest.mark.parametrize('face',[0.,100.])
+def test_cached_schedule_preserves_realized_default_recovery_and_zero_weight_sources(face):
+    request=raw()
+    for allocation in request['allocation']:allocation['face']=face
+    for unit in request['commercial']['units']:
+        for position in unit['graph']['positions']:
+            originals=[*position['original_pricing'],*position.get('original_physical',[])]
+            current=[source for histories in position['histories']
+                     for role in ('physical','pricing','pricing_down','pricing_up')
+                     for source in histories[role]]
+            for history in [*originals,*current]:
+                credit=history['source']['credit']
+                credit['draw_stream']=dict(kind='supplied',stream_id='schedule-default-control',
+                    stream_revision='1',paths=[dict(path_key=path['path_key'],
+                        pairs=[dict(waiting_uniform=math.exp(-100.*2./365.),destination_uniform=.5)])
+                        for path in credit['paths']])
+            for history in current:
+                interval=history['source']['credit']['intervals'][0]
+                interval['hazards_per_year'][0][3]=100.
+                interval['loss_given_default']=[.4]*3
+                for tail in interval['complete_recovery_tails']:tail[0]['lag_years']=40./365.
+    result,_=run(request)
+    receipt=verify(request,result)
+    assert receipt['purchased_journal_replayed']and receipt['complete_tail_replayed']
+    source=result['preparation']['native_preparation']['source']
+    physical=[s for graph in source['native_graphs']for s in graph['native_sources']if s['role']=='physical']
+    assert physical
+    for history in physical:
+        paths=history['projection']['carry']['credit']['result']['paths']
+        assert all(p['default']is not None and p['default']['economic_principal_loss']>0. for p in paths)
+        assert any(c['kind']=='recovery'for c in history['cash'])
+    lineage=result['tables']['commercial_source_lineage']
+    assert lineage and any(row['native_atomic_group']['next']['in_default']for row in lineage)
+    assert any(row['native_atomic_group']['year']>=40./365. for row in lineage)
 
 
 @pytest.mark.parametrize('basis,floor,status', [

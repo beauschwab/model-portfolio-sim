@@ -5,7 +5,7 @@ import json
 import math
 from dataclasses import fields
 from types import SimpleNamespace
-from .commercial_source_reference import compare, verify_source, project
+from .commercial_source_reference import acquired_coupon_basis, project_owned, compare, verify_source, project
 from .commercial_credit_reference import replay, typed, full_end
 from .commercial_accounting_reference import groups
 from .modeled_json_identity import exact_json_identity
@@ -65,6 +65,8 @@ def compile_original_acquisition(histories,stops_by_history,check=lambda:False,*
 def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisition=None):
     """Recompute both coupons, original quote, actual CTMC and accounting books."""
     check();identity(raw,actual['raw_request'])
+    from .commercial_secondary_reference import verify_loan_transfer
+    verify_loan_transfer(raw,actual,check)
     identity(list(stops),actual.get('native_stops',[]))
     if actual['schema']!='commercial-source-credit-accounting-proof-1':raise ArithmeticError('commercial compiler schema differs')
     for name in ('original_anchor_refitted','mixed_ledger_adoption','empirical_adoption','accounting_approval'):
@@ -72,9 +74,9 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
     if actual.get('prospective_accounting_rate_policy') is not (raw['source']['policy']['reset_income']=='reviewed_prospective_at_period_start-1'):
         raise ArithmeticError('commercial accounting policy identity differs')
     for role in ('original','current'):
-        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check)
+        source=actual[role+'_source'];identity(raw['source'][role],source['raw']);compare(raw['factor_policy'],source['policy'],check=check);verify_source(raw['source'][role],source,check,acquired_coupon_basis(raw['source'],check,raw['factor_policy']))
     verify_draw_sources(raw,actual,check,original_acquisition=original_acquisition)
-    original,_=project(raw['source']['original'],check);a=raw['source']['acquisition'];quote=sum((e['components']['principal']+e['components']['cash_interest']+e['components']['fees'])*math.pow(1.+a['original_annual_effective_rate'],-e['day_offset']/365.) for e in original['schedule']['events'])
+    original,_=project_owned(raw['source'],'original',check,raw['factor_policy']);a=raw['source']['acquisition'];quote=sum((e['components']['principal']+e['components']['cash_interest']+e['components']['fees'])*math.pow(1.+a['original_annual_effective_rate'],-e['day_offset']/365.) for e in original['schedule']['events'])
     if original_acquisition is not None:
         if not exact_json_identity(typed(raw['source']['acquisition']),original_acquisition['acquisition']) or not any(b['path_key']==raw['credit']['paths'][0]['path_key'] and exact_json_identity(b['original'],typed(raw['source']['original'])) for b in original_acquisition['original_bindings']):raise ArithmeticError('current Physical acquisition does not bind original stopped source/anchors')
         binding=next(b for b in original_acquisition['original_bindings']if b['path_key']==raw['credit']['paths'][0]['path_key'])
@@ -88,6 +90,10 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
         quote=original_acquisition['original_stopped_cash_quote']
     compare(float(quote),actual['original_cash_quote'],check=check)
     expected=replay(raw,check,stops=stops);identity(expected['prepared'],actual['prepared_credit_request']);carry=actual['carry'];identity(expected['prepared'],carry['raw_request'])
+    from .commercial_factor_work_reference import verify_finite
+    verify_finite(raw,actual,expected['prepared'],check)
+    from .commercial_tail_work_reference import verify as verify_tail
+    verify_tail(raw,actual,expected,check)
     if carry.get('schema')!='credit-path-income-proof-1':raise ArithmeticError('commercial carry schema differs')
     for name in ('original_anchor_refitted','corporate_source_binding','mixed_ledger_adoption','accounting_approval','complete_coupon_settlement_ownership'):
         if carry.get(name) is not False:raise ArithmeticError('commercial carry eligibility differs')
@@ -108,6 +114,9 @@ def verify_compiler(raw,actual,check=lambda:False,*,stops=(),original_acquisitio
     for admission in (actual['admission'],carry['admission'],actual['original_source']['admission'],actual['current_source']['admission']):
         for key,value in admission.items():
             if key=='carry':continue
+            # The selected structural operation ledger was independently
+            # recomputed above; it is deliberately a nested typed receipt.
+            if key=='counted_work' and raw['source'].get('transfer',{}).get('source_work_policy')=='counted_finite_transfer_contract_factor_work-1':continue
             if key=='full_credit_end_year':compare(float(full_end(raw)),value,check=check);continue
             if type(value) is not int or value<0:raise ArithmeticError('commercial admission integer identity differs')
     if len(gs)>actual['admission']['carry_points_upper'] or actual['admission']['joined_work_upper']>8_000_000 or actual['admission']['joined_bytes_upper']>128<<20:
@@ -177,15 +186,15 @@ def _rows(writer,table,check):
         for row in frame.iter_rows(named=True):check();yield row
 
 
-def verify_stream(raw,prepared,writer,check=lambda:False):
+def verify_stream(raw,prepared,writer,check=lambda:False,*,storage=None):
     """Replay ordered saved source groups, journal lines and daily gross books."""
     if not exact_json_identity(writer.completion,dict(complete=True,protocol=6)):raise ArithmeticError('commercial producer completion differs')
     specs=prepared['spec'];positions={p.id:p for p in specs['positions']};alloc={a['position_id']:a['allocated_face'] for a in raw['allocations']};weights={(p['scenario'],p['position_id'],p['path_key']):p['source_weight'] for p in raw['participations']}
-    expected=[];bindings=[]
+    expected=storage.sequence(events=True) if storage is not None else [];bindings=[]
     for si,source in enumerate(prepared['sources']):
         current=source['raw']['source']['current'];scenario=current['scenario_id'];position=current['position_id'];origin_day=source.get('origin_day',0);source_class=source.get('source_class','commercial_loan-1');allocation=alloc[position]/current['opening_principal']
         for p in source['raw']['credit']['paths']:
-            key=(scenario,position,p['path_key']);weight=weights[key];factor_=allocation*weight;tracking=({},{});last=None;daily={}
+            key=(scenario,position,p['path_key']);weight=weights[key];factor_=allocation*weight;tracking=({},{});last=None;daily=storage.snapshots() if storage is not None else {}
             for gi,g in enumerate(source['groups']):
                 if g['path_key']!=p['path_key']:continue
                 days=g['year']*365.;rounded=round(days);elapsed=rounded if g['year']==rounded/365. else math.ceil(days)
@@ -194,16 +203,20 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
                 lines=journal_lines(g,tracking,factor_);expected.append((scenario,day,origin_day/365.+g['year'],len(bindings),gi,dict(scenario=scenario,day=day,native_credit_year=g['year'],source_class=source_class,source_origin_day=origin_day,global_native_credit_year=origin_day/365.+g['year'],date_policy=DATE_POLICY,position_id=position,path_key=p['path_key'],source_weight=float(weight),allocation_factor=float(allocation),native_group_index=gi,native_atomic_group=g),lines));daily[day]=g['next'];last=g['next']
             bindings.append(dict(source_class=source_class,origin_day=origin_day,key=key,allocation=float(allocation),weight=float(weight),daily=daily,closing=last))
     order={name:i for i,name in enumerate(['baseline']+[s.name for s in specs['scenarios']])};expected.sort(key=lambda e:(order[e[0]],e[1],e[2],e[3],e[4]))
-    lineage=list(_rows(writer,'commercial_source_lineage',check))
-    if len(lineage)!=len(expected):raise ArithmeticError('commercial persisted group coverage differs')
-    transactions={};sequences=defaultdict(int)
+    lineage=_rows(writer,'commercial_source_lineage',check)
+    if storage is None:
+        lineage=list(lineage)
+        if len(lineage)!=len(expected):raise ArithmeticError('commercial persisted group coverage differs')
+    else:
+        lineage=storage.coverage(lineage,len(expected),'commercial persisted group coverage differs')
+    transactions=storage.transactions() if storage is not None else {};sequences=defaultdict(int)
     for row,item in zip(lineage,expected):
         scenario,day,_,_,_,want,lines=item;group=json.loads(row.pop('native_atomic_group_json'));tx=row.pop('transaction_number');row['native_atomic_group']=group;compare(want,row,check=check)
         if lines:
             if type(tx) is not int or tx<=sequences[scenario]:raise ArithmeticError('commercial persisted transaction order differs')
             sequences[scenario]=tx;transactions[(scenario,tx)]=(day,positions[want['position_id']].account,want['native_atomic_group']['phase'],want['position_id'],lines)
         elif tx is not None:raise ArithmeticError('empty commercial source created transaction')
-    current=None;observed=[];seen=set();journal_count=0
+    current=None;observed=[];seen=storage.transactions() if storage is not None else set();journal_count=0
     def flush():
         if current in transactions:
             day,account,event,position,lines=transactions[current]
@@ -217,8 +230,8 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
             current=key;observed=[]
         observed.append({k:row[k] for k in ('day','account','event','gl_account','instrument_id','debit','credit')})
     if current is not None:flush()
-    if seen!=set(transactions):raise ArithmeticError('missing commercial persisted journal source')
-    expected_daily=[];expected_closing=[]
+    if (seen!=set(transactions) if storage is None else not seen.same_keys(transactions)):raise ArithmeticError('missing commercial persisted journal source')
+    expected_daily=storage.sequence() if storage is not None else [];expected_closing=storage.sequence() if storage is not None else []
     for scenario in order:
         for day in range(prepared['horizon']+1):
             for b in bindings:
@@ -229,9 +242,11 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
                 expected_daily.append(value)
                 if day==prepared['horizon']:expected_closing.append(value)
     for table,wanted in (('commercial_daily',expected_daily),('commercial_closing',expected_closing)):
-        rows=[]
-        for row in _rows(writer,table,check):row['unweighted_book']=json.loads(row.pop('unweighted_book_json'));rows.append(row)
-        compare(wanted,rows,check=check)
+        def received():
+            for row in _rows(writer,table,check):
+                row['unweighted_book']=json.loads(row.pop('unweighted_book_json'));yield row
+        if storage is None:compare(wanted,list(received()),check=check)
+        else:storage.compare_rows(wanted,received(),check)
     gl,count=replay_partitions(writer.frames('journal'));trial=list(_rows(writer,'trial_balance',check));seen=set()
     for r in trial:
         key=tuple(r[k] for k in ('scenario','account','gl_account','instrument_id'))
@@ -239,7 +254,8 @@ def verify_stream(raw,prepared,writer,check=lambda:False):
         compare(float(gl[key]),r['balance'],check=check);seen.add(key)
     if seen!=set(gl):raise ArithmeticError('commercial persisted closing GL missing')
     from .commercial_reports_reference import verify as verify_reports
-    verify_reports(prepared,expected,writer,check)
+    if storage is None:verify_reports(prepared,expected,writer,check)
+    else:storage.verify_reports(prepared,expected,writer,check)
     return dict(verified=True,journal_replayed=True,journal_rows=count,commercial_source_recomputed=True,commercial_credit_clock_recomputed=True,
         original_yield_anchors_retained=True,gross_coupon_origins_reconciled=True,ordered_same_sim_journal_replayed=True,dated_source_reconciled=True,
         complete_unweighted_tail_verified=True,persisted_partitions_replayed=True,accounting_standard_approval=False,empirical_validation=False,capital_ftp_eligible=False)

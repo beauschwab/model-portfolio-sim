@@ -37,6 +37,11 @@ pub(crate) fn draw_event_id(draw: &PerformingDrawTranche) -> String {
 pub(crate) fn source_end_year(r: &Request) -> Result<f64, String> {
     let mut end = r.source.current.tail_end_ordinal;
     for d in &r.performing_draw_tranches {
+        if d.source.transfer.is_some() {
+            return Err(
+                "secondary drawn rights require separate native tranche transfer ownership".into(),
+            );
+        }
         end = end.max(d.source.current.tail_end_ordinal);
     }
     let days = end
@@ -123,17 +128,19 @@ fn project_draws_internal(
         .iter()
         .map(|terms| {
             check()?;
-            let original = NativeFactors::compile_for_measure(
+            let original = NativeFactors::compile_for_measure_with_work(
                 terms.source.original.clone(),
                 r.factor_policy.clone(),
                 0,
                 source_measure(measure),
+                r.counted_work.as_deref(),
             )?;
-            let current = NativeFactors::compile_for_measure(
+            let current = NativeFactors::compile_for_measure_with_work(
                 terms.source.current.clone(),
                 r.factor_policy.clone(),
                 queries,
                 source_measure(measure),
+                r.counted_work.as_deref(),
             )?;
             if measure == CreditMeasure::Physical && check_quote {
                 source_income::original_cash_quote(&terms.source, original.source())?;

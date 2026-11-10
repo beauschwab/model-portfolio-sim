@@ -9,6 +9,16 @@ use crate::{
 use portfolio_model_core::{credit::CreditMeasure, strict_json};
 use serde::{Deserialize, Serialize};
 mod capacity;
+pub(crate) mod fees;
+pub use fees::{Acquisition as FeeAcquisition, Projection as FeeProjection};
+#[cfg(test)]
+mod counted_work_tests;
+#[cfg(test)]
+mod fee_tests;
+mod physical;
+#[cfg(test)]
+mod physical_tests;
+pub use physical::PhysicalPathInputs;
 pub(crate) fn raw_recipe_upper(raw: &owner::Request) -> Result<usize, String> {
     capacity::raw_recipe_upper(raw)
 }
@@ -25,7 +35,11 @@ pub struct Request {
     pub current_physical: Vec<stochastic::Request>,
     pub current_pricing: Vec<stochastic::Request>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub physical_path_inputs: Option<PhysicalPathInputs>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oas_calibration: Option<stochastic::calibration::Policy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fee_acquisition: Option<Box<FeeAcquisition>>,
 }
 #[derive(Debug, Serialize)]
 pub struct Admission {
@@ -40,19 +54,25 @@ pub struct EconomicSource {
     native_stops: Vec<owner::NativeStop>,
     cash: Vec<EconomicCash>,
     pub weight: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) generated_fee_projection: Option<FeeProjection>,
 }
 impl EconomicSource {
-    pub(crate) fn replay_pricing(
+    pub(crate) fn replay_pricing_with_fees(
         raw_request: owner::Request,
         native_stops: Vec<owner::NativeStop>,
         weight: f64,
+        context: Option<&std::sync::Arc<fees::Context>>,
     ) -> Result<Self, String> {
         let result = owner::evaluate_economic_with_stops(
             &raw_request,
             CreditMeasure::Pricing,
             &native_stops,
         )?;
+        let generated_fee_projection =
+            FeeProjection::build(context, &raw_request, result.carry(), &native_stops)?;
         Ok(Self {
+            generated_fee_projection,
             raw_request,
             native_stops,
             cash: economic_cash(result.carry())?,
@@ -75,8 +95,15 @@ impl EconomicSource {
         Vec<owner::NativeStop>,
         Vec<EconomicCash>,
         f64,
+        Option<FeeProjection>,
     ) {
-        (self.raw_request, self.native_stops, self.cash, self.weight)
+        (
+            self.raw_request,
+            self.native_stops,
+            self.cash,
+            self.weight,
+            self.generated_fee_projection,
+        )
     }
 }
 #[derive(Serialize)]
@@ -92,6 +119,8 @@ pub struct PhysicalSource {
     native_stops: Vec<owner::NativeStop>,
     cash: Vec<EconomicCash>,
     book_points: Vec<BookPoint>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) generated_fee_projection: Option<FeeProjection>,
 }
 #[derive(Serialize)]
 pub struct BookPoint {
@@ -210,8 +239,17 @@ fn contractual_coupon_shape(
     strict_json::encode(&shape, 1 << 20)
 }
 fn same_contract(a: &owner::Request, b: &owner::Request) -> Result<(), String> {
-    let a = &a.source.current;
-    let b = &b.source.current;
+    same_contract_source(
+        &a.source.current,
+        &b.source.current,
+        a.source.current.asof_ordinal,
+    )
+}
+fn same_contract_source(
+    a: &crate::products::term::contracts::indexed::ContractPathRequest,
+    b: &crate::products::term::contracts::indexed::ContractPathRequest,
+    asof: i32,
+) -> Result<(), String> {
     if a.contract != b.contract
         || a.position_id != b.position_id
         || a.currency != b.currency
@@ -223,7 +261,6 @@ fn same_contract(a: &owner::Request, b: &owner::Request) -> Result<(), String> {
     {
         return Err("generated roles require unchanged native acquired contract/face/principal/date identity".into());
     }
-    let asof = a.asof_ordinal;
     for (a, b) in a.periods.iter().zip(&b.periods) {
         if a.period_id != b.period_id
             || a.start_ordinal != b.start_ordinal
@@ -244,7 +281,10 @@ fn same_contract(a: &owner::Request, b: &owner::Request) -> Result<(), String> {
 }
 fn compatible(q: &stochastic::Request, p: &stochastic::Request) -> Result<(), String> {
     same_contract(&q.source, &p.source)?;
-    if !encoded_equal(&q.policy, &p.policy)?
+    fees::compatible(q, p)?;
+    physical::same_draw_catalog(&q.source, &p.source)?;
+    if q.regression_policy != p.regression_policy
+        || !encoded_equal(&q.policy, &p.policy)?
         || q.time_ordinals != p.time_ordinals
         || !encoded_equal(&q.coupon_loadings, &p.coupon_loadings)?
         || q.drivers.len() != p.drivers.len()
@@ -256,9 +296,21 @@ fn compatible(q: &stochastic::Request, p: &stochastic::Request) -> Result<(), St
     }
     Ok(())
 }
-fn compact_upper(law: &stochastic::Request) -> Result<usize, String> {
+pub(crate) fn compact_upper(law: &stochastic::Request) -> Result<usize, String> {
     let raw = raw_recipe_upper(&law.source)?;
-    let cash = law.source.source.current.periods.len() + 36;
+    let legacy_cash = law.source.source.current.periods.len()
+        + 36
+        + law
+            .source
+            .performing_draw_tranches
+            .iter()
+            .map(|d| d.source.current.periods.len() + 1)
+            .sum::<usize>();
+    let cash = if law.source.counted_work.is_some() {
+        stochastic::cash_event_bound(&law.source)?
+    } else {
+        legacy_cash
+    };
     // EconomicCash contains a native <=256-byte event id, a native kind, four
     // scalars and Vec/String capacity. The single stop has bounded identities.
     let samples = mul(
@@ -267,30 +319,8 @@ fn compact_upper(law: &stochastic::Request) -> Result<usize, String> {
     )?;
     // A policy retains a regression at every actual reviewed exercise date.
     // Account for all numeric/feature/state vectors and their Vec capacities.
-    let observations = law
-        .source
-        .source
-        .current
-        .periods
-        .iter()
-        .map(|p| match &p.coupon {
-            crate::products::term::contracts::indexed::Coupon::Indexed { observations, .. } => {
-                observations.len()
-            }
-            _ => 0,
-        })
-        .sum::<usize>();
-    let features = add(
-        add(mul(law.drivers.len(), 2)?, 4)?,
-        add(
-            observations,
-            mul(law.source.source.current.periods.len(), 2)?,
-        )?,
-    )?;
-    let columns = (law.training.paths / 2).min(add(
-        add(1, features)?,
-        mul(features, add(features, 1)?)? / 2,
-    )?);
+    let features = stochastic::feature_bound(law)?;
+    let columns = stochastic::regression_columns_upper(law)?;
     let vector_elements = add(mul(features, 3)?, mul(columns, 2)?)?;
     let regression = add(
         std::mem::size_of::<stochastic::Regression>(),
@@ -300,19 +330,116 @@ fn compact_upper(law: &stochastic::Request) -> Result<usize, String> {
         )?,
     )?;
     add(
-        samples,
+        add(samples, fees::compact_upper(law)?)?,
         add(
-            mul(strict_json::serialized_size(law, 1 << 20)?, 20)?,
+            add(
+                mul(strict_json::serialized_size(law, 1 << 20)?, 20)?,
+                law.source
+                    .counted_work
+                    .as_ref()
+                    .map_or(0, |a| a.retained_bytes()),
+            )?,
             mul(mul(law.policy.exercise_dates.len(), regression)?, 2)?,
         )?,
     )
 }
-fn acquisition_law(r: &Request) -> stochastic::Request {
+fn acquisition_law(r: &Request) -> Result<stochastic::Request, String> {
     let mut law = r.original_physical.clone();
     law.source.source.current = law.source.source.original.clone();
-    law
+    for draw in &mut law.source.performing_draw_tranches {
+        draw.source.current = draw.source.original.clone();
+    }
+    refresh_counted_source(&mut law.source)?;
+    Ok(law)
+}
+fn pricing_admission(law: &stochastic::Request) -> Result<(usize, usize), String> {
+    let (mut work, bytes) = stochastic::admitted_law(law, CreditMeasure::Pricing)?;
+    // Every generated owner fits one Q training sample, then compiles each
+    // evaluation prefix and stopped tail. No template/catalog/fee variant runs
+    // standalone exercise's extra hypothetical training-source replay. Retain
+    // all actual owners, full source bounds, basis and checked numerical work.
+    let source = stochastic::admitted_source(law, CreditMeasure::Pricing)?;
+    work = work
+        .checked_sub(mul(law.training.paths, source.joined_work_upper)?)
+        .ok_or("generated Pricing pass ownership differs")?;
+    Ok((work, bytes))
+}
+pub(crate) fn bind_counted_source(raw: &mut owner::Request) -> Result<(), String> {
+    let authority =
+        crate::products::term::contracts::indexed::work::GeneratedCatalogAuthority::bind(raw)?;
+    raw.counted_work = Some(Box::new(authority));
+    Ok(())
+}
+pub(crate) fn refresh_counted_source(raw: &mut owner::Request) -> Result<(), String> {
+    if raw.counted_work.is_some() {
+        bind_counted_source(raw)?;
+    }
+    Ok(())
+}
+fn counted_selected(r: &Request) -> bool {
+    r.physical_path_inputs
+        .as_ref()
+        .is_some_and(|p| p.source_work_policy.is_some())
+        || r.fee_acquisition
+            .as_ref()
+            .is_some_and(|p| p.source_work_policy == "counted_native_contract_factor_work-1")
+}
+pub(crate) fn selected_request(r: &Request) -> Result<std::borrow::Cow<'_, Request>, String> {
+    if !counted_selected(r) {
+        return Ok(std::borrow::Cow::Borrowed(r));
+    }
+    let mut selected = r.clone();
+    for law in std::iter::once(&mut selected.pricing_training)
+        .chain(std::iter::once(&mut selected.original_physical))
+        .chain(selected.current_physical.iter_mut())
+        .chain(selected.current_pricing.iter_mut())
+    {
+        if let Some(authority) = &law.source.counted_work {
+            authority.verify(&law.source)?;
+        } else {
+            bind_counted_source(&mut law.source)?;
+        }
+    }
+    Ok(std::borrow::Cow::Owned(selected))
+}
+/// Arc bodies are shared by the original proof and the cloned NativeSource.
+/// Subtract only a guaranteed body minimum; every clone retains its own header.
+pub(crate) fn shared_authority_lower(
+    r: &Request,
+    law: &stochastic::Request,
+    original: bool,
+) -> Result<usize, String> {
+    let selected = selected_request(r)?;
+    let r = selected.as_ref();
+    if !counted_selected(r) {
+        return Ok(0);
+    }
+    let mut law = law.clone();
+    if law.source.counted_work.is_none() {
+        bind_counted_source(&mut law.source)?;
+    }
+    let inputs = if original {
+        physical::original(r)
+    } else {
+        physical::current(r, &law)?
+    };
+    let mut n = 0;
+    for index in 0..law.evaluation.paths {
+        let raw = physical::source(&law, inputs, index, original)?;
+        let cloned = raw.clone();
+        n = add(
+            n,
+            raw.counted_work
+                .as_ref()
+                .unwrap()
+                .shared_body_lower_with(cloned.counted_work.as_ref().unwrap()),
+        )?;
+    }
+    Ok(n)
 }
 pub fn admit(r: &Request) -> Result<Admission, String> {
+    let selected = selected_request(r)?;
+    let r = selected.as_ref();
     check()?;
     if r.schema != SCHEMA
         || r.admission_tier != "bounded_generated_policy_replay-1"
@@ -324,24 +451,30 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
     {
         return Err("explicit bounded generated Pricing/Physical role tier required".into());
     }
-    let (mut work, trainbytes) =
-        stochastic::admitted_law(&r.pricing_training, CreditMeasure::Pricing)?;
+    let (fee_work, fee_bytes) = fees::audit(r)?;
+    let (mut work, trainbytes) = pricing_admission(&r.pricing_training)?;
+    work = add(work, fee_work)?;
     let mut peak_bytes = trainbytes;
-    let mut bytes = compact_upper(&r.pricing_training)?;
+    let mut bytes = add(compact_upper(&r.pricing_training)?, fee_bytes)?;
     compatible(&r.pricing_training, &r.original_physical)?;
-    let original_law = acquisition_law(r);
-    if original_law.source.reviewed_credit_actions.is_some()
-        || r.current_physical
-            .iter()
-            .any(|p| p.source.reviewed_credit_actions.is_some())
-    {
-        return Err("generated Physical reviewed credit actions require separately path-specific supplied action ownership".into());
-    }
+    let original_law = acquisition_law(r)?;
+    physical::validate(r)?;
     same_contract(&r.original_physical.source, &original_law.source)?;
-    let (pwork, pbytes) = stochastic::admitted_law(&original_law, CreditMeasure::Physical)?;
+    physical::same_draw_catalog(&r.original_physical.source, &original_law.source)?;
+    let original_upper = physical::upper(&original_law, physical::original(r), true)?;
+    let (pwork, pbytes) = (original_upper.0, original_upper.1);
     work = add(work, mul(pwork, 2)?)?;
     peak_bytes = peak_bytes.max(pbytes);
-    bytes = add(bytes, mul(compact_upper(&r.original_physical)?, 2)?)?;
+    bytes = add(
+        bytes,
+        mul(
+            physical::expanded_compact(&r.original_physical, &original_upper)?,
+            2,
+        )?
+        .checked_sub(shared_authority_lower(r, &original_law, true)?)
+        .ok_or("shared original authority reservation differs")?,
+    )?;
+    bytes = add(bytes, physical::retained_inputs(r)?)?;
     let mut pricing_paths = r.pricing_training.evaluation.paths;
     let mut physical_paths = r.original_physical.evaluation.paths;
     let mut roles = std::collections::BTreeSet::new();
@@ -357,7 +490,7 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
         {
             return Err("generated Pricing scenarios require immutable baseOAS, paired CRN and distinct bump roles".into());
         }
-        let (w, b) = stochastic::admitted_law(law, CreditMeasure::Pricing)?;
+        let (w, b) = pricing_admission(law)?;
         work = add(work, w)?;
         peak_bytes = peak_bytes.max(b);
         bytes = add(bytes, compact_upper(law)?)?;
@@ -383,21 +516,18 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
         }) {
             return Err("generated Physical scenario lacks explicit base Pricing policy".into());
         }
-        let (w, b) = stochastic::admitted_law(law, CreditMeasure::Physical)?;
+        let upper = physical::upper(law, physical::current(r, law)?, false)?;
+        let (w, b) = (upper.0, upper.1);
         work = add(work, w)?;
-        let a = owner::admit(&law.source)?;
         peak_bytes = peak_bytes.max(b);
         bytes = add(
             bytes,
             // One genuine financial owner exists at a time. All retained raw
             // recipes, cash and ordered book coefficient points are admitted.
             add(
-                compact_upper(law)?,
+                physical::expanded_compact(law, &upper)?,
                 mul(
-                    mul(
-                        a.accounting_groups_upper,
-                        add(512, mul(a.lots_per_path_upper, 32)?)?,
-                    )?,
+                    mul(upper.2, add(512, mul(upper.3, 32)?)?)?,
                     law.evaluation.paths,
                 )?,
             )?,
@@ -487,6 +617,7 @@ fn pricing_role_with_policy(
         return Err("original generated fitted policy source identity differs".into());
     }
     let tape = stochastic::generate_tape(law, &law.evaluation)?;
+    let fee_context = fees::Context::pricing(law);
     let mut sources = Vec::new();
     for i in 0..law.evaluation.paths {
         check()?;
@@ -497,7 +628,13 @@ fn pricing_role_with_policy(
         drop(prefix);
         let result = owner::evaluate_economic_with_stops(&raw, CreditMeasure::Pricing, &stops)?;
         let cash = economic_cash(result.carry())?;
+        if raw.counted_work.is_some() && cash.len() > stochastic::cash_event_bound(&raw)? {
+            return Err("native cash output exceeds counted source inventory".into());
+        }
+        let generated_fee_projection =
+            FeeProjection::build(fee_context.as_ref(), &raw, result.carry(), &stops)?;
         sources.push(EconomicSource {
+            generated_fee_projection,
             raw_request: raw,
             native_stops: stops,
             cash,
@@ -531,6 +668,8 @@ pub(crate) fn prepare_with_original_pricing(
     prepare_internal(r, Some(original))
 }
 fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepared, String> {
+    let selected = selected_request(r)?;
+    let r = selected.as_ref();
     let admission = admit(r)?;
     let original_pricing = if let Some(original) = original {
         original
@@ -540,19 +679,24 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
     // Acquisition expectations originate in the explicitly retained original
     // source, including its scenario/path/fixing identities. Current scenario
     // labels never replace this authority.
-    let acquisition_law = acquisition_law(r);
+    let acquisition_law = acquisition_law(r)?;
     let original_tape = stochastic::generate_tape(&acquisition_law, &acquisition_law.evaluation)?;
     let mut original_physical_sources = Vec::new();
+    let original_fee_context = fees::Context::physical(r, &acquisition_law, true)?;
     for i in 0..r.original_physical.evaluation.paths {
         check()?;
-        let mut raw = stochastic::generated_path(
+        let mut raw = physical::generated_path(
             &acquisition_law,
-            &acquisition_law.evaluation,
+            physical::original(r),
             &original_tape,
             i,
-            CreditMeasure::Physical,
+            true,
         )?;
+        for draw in &mut raw.performing_draw_tranches {
+            draw.source.original = draw.source.current.clone();
+        }
         raw.source.original = raw.source.current.clone();
+        refresh_counted_source(&mut raw)?;
         let prefix = owner::evaluate_physical_prefix_for_acquisition(&raw)?;
         let stops = first_stop(
             &original_pricing.fitted_policy,
@@ -564,10 +708,17 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
         )?;
         drop(prefix);
         let stopped = owner::evaluate_physical_prefix_with_stops_for_acquisition(&raw, &stops)?;
+        let cash = economic_cash(stopped.carry())?;
+        if raw.counted_work.is_some() && cash.len() > stochastic::cash_event_bound(&raw)? {
+            return Err("native cash output exceeds counted source inventory".into());
+        }
+        let generated_fee_projection =
+            FeeProjection::build(original_fee_context.as_ref(), &raw, stopped.carry(), &stops)?;
         original_physical_sources.push(EconomicSource {
+            generated_fee_projection,
             raw_request: raw,
             native_stops: stops,
-            cash: economic_cash(stopped.carry())?,
+            cash,
             weight: 1. / r.original_physical.evaluation.paths as f64,
         });
     }
@@ -577,12 +728,24 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
         .collect();
     let original_acquisition_proof =
         owner::NativeOriginalAcquisitionProof::compile_generated(&inputs)?;
+    // Original reviewed actions are validated by the genuine full owner too;
+    // they never alter acquisition cash or fit continuation.
+    for source in &original_physical_sources {
+        if source.raw_request.reviewed_credit_actions.is_some() {
+            owner::evaluate_with_native_original_acquisition(
+                &source.raw_request,
+                &source.native_stops,
+                &original_acquisition_proof,
+            )?;
+        }
+    }
     let mut current_pricing = Vec::new();
     for law in &r.current_pricing {
         current_pricing.push(pricing_role(law)?);
     }
     let mut current_physical = Vec::new();
     for law in &r.current_physical {
+        let fee_context = fees::Context::physical(r, law, false)?;
         let tape = stochastic::generate_tape(law, &law.evaluation)?;
         let policy = &current_pricing
             .iter()
@@ -600,14 +763,11 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
             .take(law.evaluation.paths)
         {
             check()?;
-            let mut raw = stochastic::generated_path(
-                law,
-                &law.evaluation,
-                &tape,
-                i,
-                CreditMeasure::Physical,
-            )?;
+            let mut raw =
+                physical::generated_path(law, physical::current(r, law)?, &tape, i, false)?;
+            physical::retain_original_draws(&mut raw, &original.raw_request)?;
             raw.source.original = original.raw_request.source.original.clone();
+            refresh_counted_source(&mut raw)?;
             let prefix = owner::evaluate_physical_prefix_for_acquisition(&raw)?;
             let stops = first_stop(policy, law, &raw, prefix.carry(), &tape, i)?;
             drop(prefix);
@@ -617,12 +777,18 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
                 &original_acquisition_proof,
             )?;
             let cash = economic_cash(projection.carry())?;
+            if raw.counted_work.is_some() && cash.len() > stochastic::cash_event_bound(&raw)? {
+                return Err("native cash output exceeds counted source inventory".into());
+            }
             let book_points = projection.accounting().groups().iter().map(|g| BookPoint {
                 year:g.year, principal:g.next.principal,
                 interest_income_lines:g.postings.iter().filter(|p|p.posting.account == portfolio_model_core::credit_accounting::AccountCode::InterestIncome).map(|p|p.posting.amount).collect(),
             }).collect();
+            let generated_fee_projection =
+                FeeProjection::build(fee_context.as_ref(), &raw, projection.carry(), &stops)?;
             drop(projection);
             sources.push(PhysicalSource {
+                generated_fee_projection,
                 weight: 1. / law.evaluation.paths as f64,
                 raw_request: raw,
                 native_stops: stops,
@@ -654,7 +820,7 @@ fn prepare_internal(r: &Request, original: Option<PricingRole>) -> Result<Prepar
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn request() -> Request {
+    pub(super) fn request() -> Request {
         let q: stochastic::Request = serde_json::from_slice(include_bytes!(
             "../../../../../../examples/models/commercial-generated-exercise-1.json"
         ))
@@ -692,6 +858,8 @@ mod tests {
             current_physical: vec![p],
             current_pricing: vec![q],
             oas_calibration: None,
+            fee_acquisition: None,
+            physical_path_inputs: None,
         }
     }
     #[test]
@@ -739,4 +907,126 @@ mod tests {
         mismatch.current_physical[0].evaluation.credit_seed += 1;
         assert!(admit(&mismatch).is_err());
     }
+}
+
+/// Source catalogs and expanded Physical owners coexist with the consuming
+/// generated journal. Shared proof/compact state retain their old reservations.
+pub fn physical_journal_retained_upper(r: &Request) -> Result<usize, String> {
+    let selected = selected_request(r)?;
+    let r = selected.as_ref();
+    let original_upper = physical::upper(&r.original_physical, physical::original(r), true)?;
+    let mut bytes = add(
+        mul(
+            physical::expanded_compact(&r.original_physical, &original_upper)?,
+            2,
+        )?
+        .checked_sub(shared_authority_lower(r, &r.original_physical, true)?)
+        .ok_or("shared original authority reservation differs")?,
+        physical::retained_inputs(r)?,
+    )?;
+    for law in &r.current_physical {
+        let upper = physical::upper(law, physical::current(r, law)?, false)?;
+        bytes = add(bytes, physical::expanded_compact(law, &upper)?)?;
+        bytes = add(
+            bytes,
+            mul(upper.4, law.evaluation.paths)?
+                .checked_sub(shared_authority_lower(r, law, false)?)
+                .ok_or("shared Physical authority reservation differs")?,
+        )?;
+        bytes = add(
+            bytes,
+            mul(
+                mul(upper.2, add(512, mul(upper.3, 32)?)?)?,
+                law.evaluation.paths,
+            )?,
+        )?;
+        bytes = add(bytes, mul(law.evaluation.paths, 8192)?)?;
+    }
+    Ok(bytes)
+}
+
+#[derive(Debug)]
+pub struct PhysicalSourceCapacity {
+    pub work_upper: usize,
+    pub retained_bytes_upper: usize,
+    pub full_credit_end_year: f64,
+    pub raw_recipe_bytes_upper: usize,
+}
+/// Maximum one genuine selected Physical owner, including every stopped source
+/// and reviewed action. Omission preserves the historical template reservation.
+pub fn current_physical_source_capacity(
+    r: &Request,
+    law: &stochastic::Request,
+) -> Result<PhysicalSourceCapacity, String> {
+    let selected = selected_request(r)?;
+    let r = selected.as_ref();
+    let mut selected_law = law.clone();
+    if counted_selected(r) {
+        bind_counted_source(&mut selected_law.source)?;
+    }
+    let law = &selected_law;
+    let inputs = physical::current(r, law)?;
+    let mut result = PhysicalSourceCapacity {
+        work_upper: 0,
+        retained_bytes_upper: 0,
+        full_credit_end_year: 0.,
+        raw_recipe_bytes_upper: 0,
+    };
+    let count = if inputs.is_some() {
+        law.evaluation.paths
+    } else {
+        1
+    };
+    for index in 0..count {
+        check()?;
+        let raw = if inputs.is_some() {
+            physical::source(law, inputs, index, false)?
+        } else {
+            (*law.source).clone()
+        };
+        let raw_bytes = raw_recipe_upper(&raw)?;
+        let admitted = if inputs.is_some() {
+            let mut expanded = law.clone();
+            *expanded.source = raw;
+            stochastic::admitted_source(&expanded, CreditMeasure::Physical)?
+        } else {
+            owner::admit(&raw)?
+        };
+        result.work_upper = result.work_upper.max(admitted.joined_work_upper);
+        result.retained_bytes_upper = result.retained_bytes_upper.max(admitted.joined_bytes_upper);
+        result.full_credit_end_year = result
+            .full_credit_end_year
+            .max(admitted.full_credit_end_year);
+        result.raw_recipe_bytes_upper = result.raw_recipe_bytes_upper.max(raw_bytes);
+    }
+    if let Some(fee) = &law.nonintegral_fees {
+        let (work, bytes) =
+            crate::products::commercial::fee_source::admit(&fee.policy, &law.source)?;
+        let a = r
+            .fee_acquisition
+            .as_ref()
+            .ok_or("generated fee acquisition absent")?;
+        let releases = a
+            .physical_releases_by_scenario
+            .iter()
+            .find(|h| h.scenario_id == law.source.source.current.scenario_id)
+            .ok_or("generated fee release coverage absent")?;
+        let events = add(
+            add(
+                crate::products::commercial::fee_source::event_bound(&fee.policy),
+                a.allocations.len(),
+            )?,
+            releases.acquisition_releases.len(),
+        )?;
+        result.work_upper = add(result.work_upper, add(mul(work, 2)?, mul(events, 1024)?)?)?;
+        result.retained_bytes_upper = add(
+            result.retained_bytes_upper,
+            add(mul(bytes, 2)?, mul(events, 4096)?)?,
+        )?;
+        result.full_credit_end_year = result.full_credit_end_year.max(
+            f64::from(fee.policy.complete_end_ordinal - law.source.source.current.asof_ordinal)
+                / 365.,
+        );
+    }
+    Ok(result)
 }

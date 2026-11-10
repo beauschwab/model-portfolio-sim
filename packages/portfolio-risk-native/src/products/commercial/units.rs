@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 pub const SCHEMA: &str = "commercial-units-1";
+#[path = "units_fixed_capacity.rs"]
+mod fixed_capacity;
+pub use fixed_capacity::{fixed_construction_capacity, FixedConstructionCapacity};
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Unit {
@@ -31,6 +34,20 @@ pub struct Request {
     pub base_scenario_id: String,
     pub units: Vec<Unit>,
 }
+
+/// The unit identity borrows the raw preparation request only for this callback.
+/// Source scope/index semantics are those of `graph::SourceObservation`.
+#[derive(Serialize)]
+pub struct UnitSourceObservation<'a> {
+    pub unit_index: usize,
+    pub unit_id: &'a str,
+    #[serde(flatten)]
+    pub source: graph::SourceObservation<'a>,
+}
+
+pub type SourceObserver<'observer> =
+    dyn for<'a> FnMut(UnitSourceObservation<'a>) -> Result<(), String> + 'observer;
+
 #[derive(Clone, Serialize)]
 pub struct CashEvent {
     pub scenario_id: String,
@@ -64,6 +81,8 @@ pub struct ResultData {
     pub shape: [usize; 4],
     pub metrics: Vec<&'static str>,
     pub values: Vec<f64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub fee_income_values: Vec<f64>,
     pub funding: Funding,
     pub native_graphs: Vec<graph::ResultData>,
     pub admitted_work_upper: usize,
@@ -77,6 +96,9 @@ pub struct Prepared {
 impl Prepared {
     pub fn source(&self) -> &ResultData {
         &self.source
+    }
+    pub fn into_source(self) -> ResultData {
+        self.source
     }
 }
 fn check() -> Result<(), String> {
@@ -249,8 +271,19 @@ pub fn audit_source_work(r: &Request) -> Result<usize, String> {
             .checked_add(graph::audit_admitted_work(&u.graph)?)
             .ok_or("commercial unit joined work overflow")?;
     }
-    let cells =
-        r.units.len() * r.units[0].graph.scenarios.len() * 10 * (r.reporting_ordinals.len() - 1);
+    let coefficient_lanes = 10
+        + usize::from(r.units.iter().any(|u| {
+            u.graph.positions.iter().any(|p| {
+                p.fees.is_some()
+                    || p.generated_policy
+                        .as_ref()
+                        .is_some_and(|g| g.fee_acquisition.is_some())
+            })
+        }));
+    let cells = r.units.len()
+        * r.units[0].graph.scenarios.len()
+        * coefficient_lanes
+        * (r.reporting_ordinals.len() - 1);
     work = work
         .checked_add(cells * 128)
         .ok_or("commercial units output overflow")?;
@@ -272,6 +305,34 @@ pub fn audit_source_work(r: &Request) -> Result<usize, String> {
     Ok(work)
 }
 pub fn prepare(r: &Request) -> Result<Prepared, String> {
+    prepare_observed(r, None)
+}
+
+/// Prepare unchanged coefficients while observing already compiled complete
+/// finite sources. The entire request is checked for generated selections
+/// before preparing any unit; generated preparation remains available through
+/// the historical `prepare` entrypoint.
+pub fn prepare_with_source_observer(
+    r: &Request,
+    observer: &mut SourceObserver<'_>,
+) -> Result<Prepared, String> {
+    if r.units.iter().any(|u| {
+        u.graph
+            .positions
+            .iter()
+            .any(|p| p.generated_policy.is_some())
+    }) {
+        return Err(
+            "finite commercial unit source observer does not support generated policies".into(),
+        );
+    }
+    prepare_observed(r, Some(observer))
+}
+
+fn prepare_observed(
+    r: &Request,
+    mut observer: Option<&mut SourceObserver<'_>>,
+) -> Result<Prepared, String> {
     let work = audit_source_work(r)?;
     let scenarios = r.units[0]
         .graph
@@ -283,25 +344,58 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
     let n = r.units.len();
     let h = r.reporting_ordinals.len() - 1;
     let mut values = vec![0.; s * n * 10 * h];
+    let mut fee_income_values = if r.units.iter().any(|u| {
+        u.graph.positions.iter().any(|p| {
+            p.fees.is_some()
+                || p.generated_policy
+                    .as_ref()
+                    .is_some_and(|g| g.fee_acquisition.is_some())
+        })
+    }) {
+        vec![0.; s * n * h]
+    } else {
+        Vec::new()
+    };
     let mut units = Vec::new();
     let mut native_graphs = Vec::new();
     let mut cash = Vec::new();
     for (ui, u) in r.units.iter().enumerate() {
         check()?;
-        let g = graph::analyze(&u.graph)?;
+        let g = if let Some(observer) = observer.as_mut() {
+            let mut observe = |source: graph::SourceObservation<'_>| {
+                observer(UnitSourceObservation {
+                    unit_index: ui,
+                    unit_id: &u.unit_id,
+                    source,
+                })
+            };
+            graph::analyze_with_source_observer(&u.graph, &mut observe)?
+        } else {
+            graph::analyze(&u.graph)?
+        };
         let purchase = u.graph.as_of_ordinal;
         let period = r.reporting_ordinals[..h]
             .iter()
             .position(|d| *d == purchase)
             .ok_or("commercial purchase report boundary absent")?;
-        let quote = g.original_oas[0].original_signed_cash_quote / u.unit_face;
+        let loan_quote = g.original_oas[0].original_signed_cash_quote / u.unit_face;
+        let quote = u.graph.positions[0].fees.as_ref().map_or_else(
+            || {
+                u.graph.positions[0]
+                    .generated_policy
+                    .as_ref()
+                    .and_then(|g| g.fee_acquisition.as_ref())
+                    .map_or(loan_quote, |f| f.total_purchase_cost / u.unit_face)
+            },
+            |f| f.total_purchase_cost / u.unit_face,
+        );
         for source in g
             .native_sources
             .iter()
             .filter(|s| s.role == crate::products::installment::graph::Role::Physical)
         {
             let acquisition = &source.source_request.source.acquisition;
-            if !near(acquisition.cost / u.unit_face, quote) {
+            if !near(acquisition.cost / u.unit_face, loan_quote) {
                 return Err("commercial Pricing quote and independently supplied Physical acquisition cost differ".into());
             }
             let scene = scenarios
@@ -318,6 +412,20 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
                 let left = f64::from(days[0] - purchase) / 365.;
                 let right = f64::from(days[1] - purchase) / 365.;
                 let (native_principal, nii) = source.physical_period(left, right)?;
+                if let Some(fees) = &source.fee_projection {
+                    let index = (scene * n + ui) * h + pi;
+                    fee_income_values[index] = money(
+                        fee_income_values[index]
+                            + source.weight * fees.income_period(left, right)? / u.unit_face,
+                    )?;
+                }
+                if let Some(fees) = source.generated_fee_source() {
+                    let fee_at = (scene * n + ui) * h + pi;
+                    fee_income_values[fee_at] = money(
+                        fee_income_values[fee_at]
+                            + source.weight * fees.income_period(left, right)? / u.unit_face,
+                    )?;
+                }
                 let principal = money(native_principal / u.unit_face)?;
                 let at = ((scene * n + ui) * 10) * h + pi;
                 let metrics = [
@@ -336,7 +444,17 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
                     values[at + mi * h] = money(values[at + mi * h] + source.weight * value)?;
                 }
             }
-            for c in &source.cash {
+            for c in source
+                .cash
+                .iter()
+                .chain(source.fee_projection.iter().flat_map(|f| f.cash.iter()))
+                .chain(
+                    source
+                        .generated_fee_source()
+                        .into_iter()
+                        .flat_map(|f| f.cash().iter()),
+                )
+            {
                 let principal = source.weight * c.principal / u.unit_face;
                 let interest = source.weight * c.interest / u.unit_face;
                 let fees = source.weight * c.fees / u.unit_face;
@@ -422,7 +540,7 @@ pub fn prepare(r: &Request) -> Result<Prepared, String> {
             demand[ix * f + di] = -v;
         }
     }
-    let source=ResultData{schema:SCHEMA,raw_source:r.clone(),scenario_ids:scenarios.clone(),units,shape:[s,n,10,h],metrics:METRICS.to_vec(),values,
+    let source=ResultData{schema:SCHEMA,raw_source:r.clone(),scenario_ids:scenarios.clone(),units,shape:[s,n,10,h],metrics:METRICS.to_vec(),values,fee_income_values,
         funding:Funding{scenario_ids:scenarios,ordinals:dates,shape:[s,n,f],demand,cash_events:cash,policy:"actual end-of-day cash attribution identical to native daily Sim; complete native source/prepayment/draw/default/recovery cash tails, separately reviewed acquisition cash, no expected-loss cash or implicit reinvestment"},native_graphs,admitted_work_upper:work,
         scope:"commercial credit NII from authoritative Physical InterestIncome postings; live/default principal amounts and supplied regulatory weights; unconditional supplied paired Pricing marks at frozen purchase OAS; no automatic regulatory eligibility, empirical calibration or Physical exercise policy inference"};
     strict_json::serialized_size(&source, 32 << 20)?;
@@ -476,6 +594,14 @@ fn evaluate_retained(
             }
         }
         let nii = money(values[..h].iter().sum())?;
+        let mut fee_income = vec![0.; h];
+        if !r.fee_income_values.is_empty() {
+            for (ui, x) in faces.iter().enumerate() {
+                for (hi, amount) in fee_income.iter_mut().enumerate() {
+                    *amount = money(*amount + x * r.fee_income_values[(si * n + ui) * h + hi])?;
+                }
+            }
+        }
         worst = worst.min(nii);
         let f = r.funding.ordinals.len();
         let mut cash = Vec::new();
@@ -511,6 +637,15 @@ fn evaluate_retained(
             cash.push(json!({"ordinal":day,"purchase_cash":purchase,"principal_cash":principal,"interest_cash":interest,"fee_cash":fees,"cumulative_bank_cash":total,"funding_demand":expected}));
         }
         scenarios.push(json!({"scenario_id":r.scenario_ids[si],"shape":[m,h],"values":values,"incremental_external_nii":nii,"cash":cash}));
+        if !r.fee_income_values.is_empty() {
+            let last = scenarios
+                .last_mut()
+                .ok_or("commercial scenario reduction absent")?;
+            let total = money(fee_income.iter().sum())?;
+            last["incremental_nonintegral_fee_income"] = json!(total);
+            last["nonintegral_fee_income_by_period"] = json!(fee_income);
+            last["incremental_nii_plus_fee_income"] = json!(money(nii + total)?);
+        }
     }
     check()?;
     Ok(

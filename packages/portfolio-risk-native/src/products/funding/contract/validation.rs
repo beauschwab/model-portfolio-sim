@@ -20,6 +20,10 @@ pub(super) fn coupon_metadata(
         work(observations.len(), total)?;
         for o in observations {
             match &o.source {
+                RateSource::ConditionalPublishedProjection { .. } => return Err(
+                    "delayed modeled publication requires an observable commercial source owner"
+                        .into(),
+                ),
                 RateSource::Observed { fixing, .. } => identity(fixing, bytes)?,
                 RateSource::ConditionalProjection { model, path, .. } => {
                     identity(model, bytes)?;

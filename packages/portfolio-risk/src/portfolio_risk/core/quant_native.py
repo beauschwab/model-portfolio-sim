@@ -435,3 +435,27 @@ def funding_coefficients(coefficients,amounts):
     status=invoke(values.ctypes.data_as(pointer),allocations.ctypes.data_as(pointer),values.shape[0],values.shape[1],result.ctypes.data_as(pointer))
     if status:raise ValueError(f'native dated funding coefficient evaluation failed ({status})')
     return result
+
+
+def income_coefficients(coefficients,amounts,interest_income):
+    """Transport prepared service-income coefficients; native reduction only."""
+    values=np.require(coefficients,dtype=np.float64,requirements=['C','A'])
+    allocations=np.require(amounts,dtype=np.float64,requirements=['C','A'])
+    interest=np.require(interest_income,dtype=np.float64,requirements=['C','A'])
+    if (values.ndim!=2 or allocations.ndim!=1 or interest.ndim!=1
+            or values.shape!=(len(allocations),len(interest))):
+        raise ValueError('separate income coefficient shape mismatch')
+    lib,_=_load(str(library_path()))
+    try:
+        version=lib.portfolio_income_coefficients_version
+        version.argtypes=[];version.restype=ctypes.c_uint32
+        invoke=lib.portfolio_income_coefficients_call
+    except AttributeError as exc:raise RuntimeError('separate income native contract missing; rebuild and restart') from exc
+    if version()!=1:raise RuntimeError('separate income native contract mismatch; rebuild and restart')
+    pointer=ctypes.POINTER(ctypes.c_double)
+    invoke.argtypes=[pointer,pointer,pointer,ctypes.c_size_t,ctypes.c_size_t,pointer];invoke.restype=ctypes.c_int
+    periods=len(interest);result=np.empty(2*periods+2,dtype=np.float64)
+    status=invoke(values.ctypes.data_as(pointer),allocations.ctypes.data_as(pointer),
+        interest.ctypes.data_as(pointer),len(allocations),periods,result.ctypes.data_as(pointer))
+    if status:raise ValueError(f'native separate income coefficient evaluation failed ({status})')
+    return result[:periods],result[periods:2*periods],float(result[-2]),float(result[-1])

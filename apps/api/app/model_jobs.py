@@ -14,7 +14,7 @@ def native_result(owner,request,stopping):
     if db.REPO is None or active is None:raise RuntimeError('model analyses require a durable worker')
     if source_identity()!=request['source_sha256']:raise RuntimeError('MODEL_VERSION_CHANGED: model source differs from queued identity')
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
     publication_deadline=request['publication_deadline_unix'] if commercial else time.time()+request['timeout']
     if type(publication_deadline) not in (float,int) or not math.isfinite(publication_deadline):raise ValueError('original model publication deadline required')
     remaining=publication_deadline-time.time()
@@ -29,13 +29,16 @@ def native_result(owner,request,stopping):
                 row['owner']!=active['owner'] or not db.REPO.owns(active['owner'])]
         return last[1]
     owner.report('Running explicit native model contract',.1)
-    if request['schema'] in {'commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
-        if request['schema']=='commercial-fee-journal-1':from portfolio_risk.core.commercial_fee_native import run
+    if request['schema'] in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+        if request['schema']=='commercial-cut-mixed-journal-1':from portfolio_risk.core.commercial_cut_mixed_native import run
+        elif request['schema']=='commercial-candidate-holding-journal-1':from portfolio_risk.core.commercial_candidate_holding_native import run
+        elif request['schema']=='commercial-candidate-fee-treasury-1':from portfolio_risk.core.commercial_fee_candidate_treasury_native import run
+        elif request['schema']=='commercial-fee-journal-1':from portfolio_risk.core.commercial_fee_native import run
         elif request['schema']=='commercial-treasury-1':from portfolio_risk.core.commercial_treasury_native import run
         elif request['schema']=='commercial-holding-journal-1':from portfolio_risk.core.commercial_holding_native import run
         else:from portfolio_risk.core.commercial_candidate_native import run
         result,execution=run(request['request'],threads=request['threads'],expected_binary=request['binary_sha256'],cancelled=cancelled,timeout=min(request['timeout'],remaining))
-    elif request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    elif request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         if request['schema']=='product-mixed-product-credit-1':
             from portfolio_risk.core import product_credit_mixed_native as runtime
         elif request['schema']=='product-mixed-consumer-credit-1':
@@ -91,7 +94,7 @@ def verify_final_execution(request,*,deadline,job,stopping):
             if not path.is_file() or _hash(path)!=expected:
                 raise RuntimeError('MODEL_VERSION_CHANGED: modeled artifacts changed at final publication')
     else:
-        if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+        if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
             from portfolio_risk.core.product_strategy_native import binary_identity
         else:
             from portfolio_risk.core.model_native import binary_identity
@@ -109,6 +112,15 @@ def verify_source(request,result,check=lambda:False):
         from portfolio_risk.analytics.commercial_cohort_reference import verify
         return verify(request['request'],result,check)
     check()
+    if request['schema']=='commercial-cut-mixed-journal-1':
+        from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
+        return verify(request['request'],result,check)
+    if request['schema']=='commercial-candidate-holding-journal-1':
+        from portfolio_risk.analytics.commercial_candidate_holding_reference import verify
+        return verify(request['request'],result,check)
+    if request['schema']=='commercial-candidate-fee-treasury-1':
+        from portfolio_risk.analytics.commercial_fee_candidate_treasury_reference import verify
+        return verify(request['request'],result,check)
     if request["schema"]=="commercial-fee-journal-1":
         from portfolio_risk.analytics.commercial_fee_reference import verify
         return verify(request["request"],result,check)
@@ -585,7 +597,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         return indexed_verify(request,result,expected_deadline=expected_deadline,request_manifest=request_manifest,job=job,stopping=stopping)
     from .model_tables import restore_sources
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
     execution=result['execution'];deadline=execution.get('publication_deadline_unix')
     if 'prior_opening_verification'in execution and 'prior_publication'not in request:
         raise ValueError('unbound prior-publication evidence')
@@ -611,7 +623,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
             from portfolio_risk.core.product_candidate_native import command
             executed=command(executed,timeout=request['timeout'])
         expected['executed_input_sha256']=hashlib.sha256(json.dumps(executed,allow_nan=False,separators=(',',':')).encode()).hexdigest()
-    if request['schema'] in {'commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if request['schema'] in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         from .commercial_execution_envelope import retained_command
         milliseconds=execution.get('native_timeout_ms')
         executed=retained_command(request['schema'],request['request'],request['timeout'],milliseconds)
@@ -627,7 +639,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         raise ValueError('persisted model queued request manifest differs')
     check=publication_check(deadline,job,stopping);check()
     commercial_cohort=is_commercial_cohort(request['schema'],request['request'])
-    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
+    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
         if not result['execution'].get('source_verification'):raise ValueError('missing independent source verification receipt')
         restored=restore_sources(result['model_result'],result['execution']['table_layouts'])
         if commercial:
@@ -640,7 +652,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         if canonical(execution['summary'])!=canonical(source_summary(restored)):
             raise ValueError('persisted model summary differs from verified source')
     if time.time()>=deadline:raise TimeoutError('model source publication deadline exceeded')
-    if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         from portfolio_risk.core.product_strategy_native import binary_identity
     else:
         from portfolio_risk.core.model_native import binary_identity
@@ -659,10 +671,10 @@ def run(owner,request,stopping):
         return indexed_run(owner,request,stopping)
     prior=None
     if 'prior_publication'in request:
-        if request['schema']!='commercial-holding-journal-1':raise ValueError('private prior binding requires native holding contract')
-        from . import commercial_prior_source as source
+        from .commercial_prior_dispatch import source_for
+        source=source_for(request['schema'])
         check=publication_check(request['publication_deadline_unix'],db.ACTIVE_JOB.get(),stopping)
-        expected=source.materialize(request['prior_publication'],request['request']['revised_sources'],request['request']['cut_ordinal'])
+        expected=source.materialize(request['prior_publication'],request['request']['revised_sources'if request['schema']=='commercial-holding-journal-1'else 'revised_candidate'],request['request']['cut_ordinal'])
         from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
         if not exact_json_identity(expected,request['request']):raise ValueError('server-bound prior holding input changed')
         prior=source.reopen(db.REPO,db.CODEC,request['prior_publication'],check)
@@ -755,6 +767,9 @@ def verify_modeled_persisted(request, result, *, job, stopping, expected_deadlin
     Existing independent scalar verifiers consume one persisted partition at a
     time. This never calls a product pricer or hydrates a complete journal.
     """
+    if request.get('specification',{}).get('schema') in {'commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:
+        from .commercial_generated_jobs import verify_persisted
+        return verify_persisted(request,result,job=job,stopping=stopping,expected_deadline=expected_deadline)
     import io
     import json
     import math

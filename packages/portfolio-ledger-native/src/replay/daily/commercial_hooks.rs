@@ -58,7 +58,7 @@ impl Sim<'_> {
                     if self.detail {
                         self.sink.emit("commercial_fee_lineage",json!({"scenario":self.scenario.name,"day":day,"position_id":b.position_id,
                         "path_key":b.path_key,"native_year":f.native_years[i],"source_weight":b.source_weight,"allocation_factor":b.allocated_face/b.native_unit_face,
-                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.groups()[i]}))?;
+                        "native_group_index":i,"transaction_number":if lines.is_empty(){None}else{Some(self.sequence)},"native_fee_group":f.source.group(i)}))?;
                     }
                     state.fees[fi] = next;
                     continue;
@@ -67,8 +67,8 @@ impl Sim<'_> {
             let b = &c.bindings[binding];
             let pi = c.positions[binding];
             let a = self.aid[self.positions[pi].account.as_str()];
-            let group = &b.accounting.groups()[index];
-            let stage = state.stage(c, binding, group)?;
+            let group = b.accounting.group(index);
+            let stage = state.stage(c, binding, &group)?;
             let entries = stage
                 .lines
                 .iter()
@@ -144,6 +144,8 @@ impl Sim<'_> {
                     | "credit_default_deferred_income"
                     | "commercial_fee_payable"
                     | "commercial_deferred_fee_income"
+                    | "commercial_acquired_fee_liability"
+                    | "commercial_acquired_fee_liability_valuation_adjustment"
             ) {
                 liabilities -= value;
             } else {

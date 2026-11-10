@@ -1,0 +1,26 @@
+{
+  "capability_version": 1,
+  "product_abi_numeric_layouts_changed": false,
+  "symbols": [
+    {
+      "name": "portfolio_income_coefficients_version",
+      "signature": "uint32_t portfolio_income_coefficients_version(void)",
+      "result": "1 for the separate retained noninterest-income capability"
+    },
+    {
+      "name": "portfolio_income_coefficients_call",
+      "signature": "int32_t portfolio_income_coefficients_call(const double *fee_coefficients, const double *amounts, const double *interest_income, size_t units, size_t periods, double *output)",
+      "result": "0 on success; 1 for pointer/shape admission failure; 2 for invalid financial values, bounded monetary overflow or a contained panic; failures write no output"
+    }
+  ],
+  "inputs": {
+    "fee_coefficients": "row-major units * periods finite f64 retained nonintegral fee-income coefficients",
+    "amounts": "units nonnegative finite allocations bounded by MAX_MONETARY_AMOUNT",
+    "interest_income": "periods finite authoritative incremental external NII values bounded by MAX_MONETARY_AMOUNT"
+  },
+  "output": "2 * periods + 2 f64 values: period fee income, period external NII plus fee income, total fee income, total external NII plus fee income",
+  "bounds": "1 <= periods <= 4096; 0 <= units <= 1024; units * periods <= 1000000. All computed monetary results must be finite and within MAX_MONETARY_AMOUNT.",
+  "caller_contract": "Inputs are aligned readable synchronous f64 buffers; output is aligned writable and must not overlap any input. Fee/amount pointers may be null only when units is zero. Interest and output pointers must be nonnull. The caller retains ownership through return. The function validates all values before writing output.",
+  "execution_scope": "Native reduction in retained unit order. Signed service fee income remains separate from external NII; the combined output is a disclosure and does not change optimizer objectives, regulatory coefficients or KPI methods. No pricing, source regeneration, fee classification or policy inference occurs.",
+  "compatibility": "Additive named exports retain numeric product ABI 10 operations and historical buffers unchanged. Missing exports or a version other than 1 require a matching library rebuild and restart; no financial fallback is permitted. Selected fee libraries require retained matching fee coefficients and explicit rebuilding."
+}

@@ -1,3 +1,4 @@
+pub mod acquisition;
 pub mod cash;
 pub mod continuation;
 pub mod credit_compiler;

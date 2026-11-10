@@ -86,6 +86,7 @@ struct Source {
 impl income::NativeEarnedFactors for Source {
     fn bound(&self) -> income::NativeFactorBound {
         income::NativeFactorBound {
+            maximum_terminal_steps_per_path: 0,
             maximum_atoms_per_query: 1,
             retained_source_bytes: 1024,
             source_work: 100,
@@ -371,6 +372,7 @@ struct ZeroNet;
 impl income::NativeEarnedFactors for ZeroNet {
     fn bound(&self) -> income::NativeFactorBound {
         income::NativeFactorBound {
+            maximum_terminal_steps_per_path: 0,
             maximum_atoms_per_query: 1,
             retained_source_bytes: 1024,
             source_work: 100,

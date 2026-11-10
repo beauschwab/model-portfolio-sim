@@ -2,7 +2,7 @@
 from copy import deepcopy
 import math
 from .commercial_credit_reference import STATES
-from .commercial_source_reference import project,compare
+from .commercial_source_reference import project_owned, project,compare
 from .commercial_dto import typed
 
 
@@ -10,7 +10,7 @@ def partition(raw,projection,stops,check=lambda:False):
     paths=projection['credit']['result']['paths']
     if len(paths)!=1:raise ArithmeticError('one complete acquired Physical path required')
     path=paths[0];terms=raw.get('performing_draw_tranches',[]);n=len(terms);result=dict(base=[],tranches=[[]for _ in terms],acquired=[False]*n);principal=[0.]*n;default_principal=[0.]*n
-    offsets=[];audit=len(project(raw['source']['current'],check)[0]['audit'])
+    offsets=[];audit=len(project_owned(raw['source'],'current',check,raw['factor_policy'])[0]['audit'])
     for d in terms:
         count=len(project(d['source']['current'],check)[0]['audit']);offsets.append((audit,audit+count));audit+=count
     by_id={d['review']['id']:i for i,d in enumerate(terms)};prior=None;source_index=recovery_index=0
@@ -22,7 +22,7 @@ def partition(raw,projection,stops,check=lambda:False):
             new=next((t for t in point.get('draw_tranches',[])if not result['acquired'][by_id[t['tranche_id']]]),None)
             if new is None:push(result['base'],year,point['cash'])
             else:i=by_id[new['tranche_id']];result['acquired'][i]=True;principal[i]=new['nominal_draw']
-        elif kind=='contractual_cash':
+        elif kind in ('contractual_cash','pending_coupon_cash'):
             paid=projection['native_source_cash'][source_index]['cash'];source_index+=1
             if paid.get('tranche_id')is None:push(result['base'],year,point['cash'])
             else:i=by_id[paid['tranche_id']];principal[i]-=paid['principal'];push(result['tranches'][i],year,point['cash'])

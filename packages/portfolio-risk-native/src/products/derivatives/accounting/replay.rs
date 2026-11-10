@@ -256,6 +256,7 @@ pub(super) fn evaluate(
                 cash_sources.extend(cash.recognition_sources.iter().cloned());
                 for selected in &cash.sources {
                     match selected {
+                        crate::products::term::contracts::indexed::RateSource::ConditionalPublishedProjection { .. } => return Err("delayed modeled publication requires an observable commercial source owner".into()),
                         crate::products::term::contracts::indexed::RateSource::Observed {
                             fixing, ..
                         } => cash_sources.push(fixing.clone()),

@@ -164,6 +164,11 @@ fn owned(intents: Vec<ca::JournalIntent>, lots: &[CouponLot], path: u64) -> Vec<
                     &l.coupon_id,
                     l.earning_origin_index,
                 )) == i.claim_id
+                    || (l.coupon_id.starts_with("pending-coupon:")
+                        && Some(format!(
+                            "commercial-legal-cash:{path}:{}:{}",
+                            l.coupon_id, l.earning_origin_index
+                        )) == i.claim_id)
             });
             i.postings.into_iter().map(move |posting| OwnedPosting {
                 coupon_id: lot.map(|l| l.coupon_id.clone()),
@@ -366,11 +371,160 @@ pub fn apply(
         let mut legal = BTreeMap::new();
         let mut waivers = Vec::new();
         let mut recovery_index = 0;
+        let mut source_cash = carry
+            .native_source_cash()
+            .iter()
+            .filter(|c| c.path_key == path.path_key);
+        let mut pending_cash_index = 0usize;
         for (year, _, event) in events {
             let mut g = match event {
                 Event::Source(g) => {
                     let mut g = *g;
-                    if g.phase == "default_gross_transfer" {
+                    let cash = if matches!(g.phase, "contractual_cash" | "pending_coupon_cash") {
+                        let c = source_cash
+                            .next()
+                            .ok_or("reviewed settlement missing native source cash")?;
+                        if c.year != year || c.path_key != path.path_key {
+                            return Err("reviewed settlement native source order differs".into());
+                        }
+                        Some(c)
+                    } else {
+                        None
+                    };
+                    if g.phase == "pending_coupon_fixing" && g.next.in_default {
+                        // Each newly quantifiable contingent fragment has its own
+                        // native coupon identity. Older reviewed claims are never
+                        // replaced by the unreviewed source snapshot.
+                        let fresh: Vec<_> = g
+                            .next
+                            .lots
+                            .iter()
+                            .filter(|l| {
+                                let id = interest_claim_id(
+                                    path.path_key,
+                                    &l.coupon_id,
+                                    l.earning_origin_index,
+                                );
+                                !state.claims.iter().any(|c| c.claim_id == id)
+                            })
+                            .collect();
+                        if fresh.len() != 1 || !fresh[0].coupon_id.starts_with("pending-coupon:") {
+                            return Err("pending publication requires one separately owned native coupon fragment".into());
+                        }
+                        let lot = fresh[0];
+                        if lot.recognized_remaining != 0. || g.effective_interest != 0. {
+                            return Err(
+                                "pending default publication cannot restart effective income"
+                                    .into(),
+                            );
+                        }
+                        let id = interest_claim_id(
+                            path.path_key,
+                            &lot.coupon_id,
+                            lot.earning_origin_index,
+                        );
+                        if legal.insert(id.clone(), lot.legal_remaining).is_some() {
+                            return Err("pending legal coupon claim already initialized".into());
+                        }
+                        let source = Identity {
+                            id: carry.credit().result.source_id.clone(),
+                            revision: carry.credit().result.source_revision.clone(),
+                        };
+                        let at = ordinal(asof, year)?;
+                        state.claims.push(initial_claim(
+                            id,
+                            0.,
+                            0.,
+                            0.,
+                            0.,
+                            0.,
+                            Vec::new(),
+                            at,
+                            actions,
+                            &source,
+                        ));
+                        state.claims.push(initial_claim(
+                            format!(
+                                "commercial-legal-cash:{}:{}:{}",
+                                path.path_key, lot.coupon_id, lot.earning_origin_index
+                            ),
+                            lot.legal_remaining,
+                            0.,
+                            0.,
+                            0.,
+                            0.,
+                            Vec::new(),
+                            at,
+                            actions,
+                            &source,
+                        ));
+                        let req =
+                            context(actions, &state, asof, year, end, currency, path.path_key)?;
+                        state = ca::evaluate_reviewed_actions(&req)?.closing;
+                    } else if g.phase == "pending_coupon_cash" && g.next.in_default {
+                        let c = cash.ok_or("pending reviewed cash source absent")?;
+                        if c.cash.principal != 0.
+                            || c.cash.fee != 0.
+                            || c.cash.interest.to_bits() != g.cash.to_bits()
+                        {
+                            return Err("pending reviewed cash source amount differs".into());
+                        }
+                        let lot = g
+                            .next
+                            .lots
+                            .iter()
+                            .find(|l| l.coupon_id == c.cash.coupon_id)
+                            .ok_or("pending reviewed cash coupon lot absent")?;
+                        let id = interest_claim_id(
+                            path.path_key,
+                            &lot.coupon_id,
+                            lot.earning_origin_index,
+                        );
+                        let right = legal
+                            .get_mut(&id)
+                            .ok_or("pending reviewed legal coupon absent")?;
+                        *right = legal_collect(*right, c.cash.interest);
+                        let req =
+                            context(actions, &state, asof, year, end, currency, path.path_key)?;
+                        let paid = ca::settle_interest_recoveries(&ca::InterestRecoveryRequest {
+                            schema: "credit-interest-recovery-1".into(),
+                            measure: CashflowMeasure::Physical,
+                            currency: currency.into(),
+                            monetary_unit: "currency_units".into(),
+                            position_id: path.path_key.to_string(),
+                            recognition_ordinal: req.recognition_ordinal,
+                            reporting_end_ordinal: end,
+                            policy: actions.policy.clone(),
+                            opening: state.clone(),
+                            settlements: if c.cash.interest == 0. {
+                                Vec::new()
+                            } else {
+                                vec![ca::ReviewedInterestRecovery {
+                                    recovery: Identity {
+                                        id: format!(
+                                            "native-pending-interest:{}:{pending_cash_index}:{}:{}",
+                                            path.path_key,
+                                            lot.native_audit_index,
+                                            lot.earning_origin_index
+                                        ),
+                                        revision: "1".into(),
+                                    },
+                                    claim_id: format!(
+                                        "commercial-legal-cash:{}:{}:{}",
+                                        path.path_key, lot.coupon_id, lot.earning_origin_index
+                                    ),
+                                    recognition_ordinal: req.recognition_ordinal,
+                                    amount: c.cash.interest,
+                                    policy_review: actions.policy.identity.clone(),
+                                    source: actions.policy.identity.clone(),
+                                    excess_cash: actions.policy.excess_cash_recovery,
+                                }]
+                            },
+                        })?;
+                        g.postings = owned(paid.intents, &g.next.lots, path.path_key);
+                        state = paid.closing;
+                        pending_cash_index += 1;
+                    } else if g.phase == "default_gross_transfer" {
                         let claim = path
                             .default
                             .as_ref()

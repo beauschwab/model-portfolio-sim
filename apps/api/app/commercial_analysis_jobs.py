@@ -6,7 +6,7 @@ import time
 from . import persistence as db
 from portfolio_risk.analytics.modeled_json_identity import exact_json_identity as exact
 
-SCHEMAS=frozenset({'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','commercial-holding-journal-1','commercial-fee-journal-1','graph-cohort-audit-1'})
+SCHEMAS=frozenset({'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','commercial-holding-journal-1','commercial-fee-journal-1','graph-cohort-audit-1'})
 
 
 def _library_bounded(ref,budget):
@@ -85,11 +85,11 @@ def prepare_publication(request,output,*,payload_identity,expected_deadline,job,
     verify_persisted(raw,saved,expected_deadline=expected_deadline,request_manifest=bound['request'],job=bound,stopping=stopping)
     prior=None
     if 'prior_publication'in raw:
-        if raw['schema']!='commercial-holding-journal-1':raise ValueError('native holding prior binding required')
-        from . import commercial_prior_source as source
+        from .commercial_prior_dispatch import source_for
+        source=source_for(raw['schema'])
         from .completed_source_reader import exact as source_exact
         from .model_tables import restore_sources
-        source_exact(source.materialize(raw['prior_publication'],raw['request']['revised_sources'],raw['request']['cut_ordinal']),raw['request'],'server-bound prior input changed')
+        source_exact(source.materialize(raw['prior_publication'],raw['request']['revised_sources'if raw['schema']=='commercial-holding-journal-1'else 'revised_candidate'],raw['request']['cut_ordinal']),raw['request'],'server-bound prior input changed')
         prior=source.reopen(repo,codec,raw['prior_publication'],budget.checkpoint)
         prior.match(restore_sources(saved['model_result'],saved['execution']['table_layouts']),budget.checkpoint)
         source_exact(prior.receipt(),saved['execution'].get('prior_opening_verification'),'persisted prior-opening evidence changed')

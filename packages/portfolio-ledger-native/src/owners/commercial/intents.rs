@@ -1,11 +1,50 @@
 //! Borrowed complete native commercial groups, applied only by the existing Sim.
 //! No deserializable checkpoint, money override, credit loop or source projector.
+pub use super::event_index::{
+    sort_upper as commercial_event_sort_upper, EventIndexInventory, EventSortUpper,
+};
+use super::event_index::{Index, OrderedEvents};
 use crate::owners::consumer::state::{accrue, gl_with_owner, IncomeOwner, Line};
 use crate::transport::types::Spec;
 use portfolio_compute_control::checkpoint;
 use portfolio_model_core::commercial_coupon_accounting::{AtomicGroup, ResultData, Snapshot};
 use portfolio_model_core::credit_accounting::AccountCode;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet},
+};
+#[path = "runtime_capacity.rs"]
+mod runtime_capacity;
+pub(crate) use runtime_capacity::finite_runtime_capacity;
+
+/// Native accounting capability; caller JSON cannot create a sealed source.
+mod sealed {
+    pub trait Sealed {}
+}
+pub(crate) use sealed::Sealed;
+pub trait AccountingSource: sealed::Sealed {
+    fn group_count(&self) -> usize;
+    fn group(&self, index: usize) -> Cow<'_, AtomicGroup>;
+    fn has_closing(&self, path_key: u64) -> bool;
+    fn year(&self, index: usize) -> f64 {
+        self.group(index).year
+    }
+    fn compact_bytes(&self) -> Option<usize> {
+        None
+    }
+}
+impl sealed::Sealed for ResultData {}
+impl AccountingSource for ResultData {
+    fn group_count(&self) -> usize {
+        self.groups().len()
+    }
+    fn group(&self, index: usize) -> Cow<'_, AtomicGroup> {
+        Cow::Borrowed(&self.groups()[index])
+    }
+    fn has_closing(&self, path_key: u64) -> bool {
+        self.closing().iter().any(|s| s.path_key == path_key)
+    }
+}
 
 pub const DATE_POLICY: &str = "actual_credit_clock_order_day_end_journal_no_retiming_source-1";
 pub const PROTOCOL: u32 = 6;
@@ -34,6 +73,34 @@ pub fn admit_upper(groups: usize, lots: usize, days: usize) -> Result<(usize, us
         return Err("commercial daily upper exceeds 8M/32MiB before source generation".into());
     }
     Ok((work, bytes))
+}
+/// Compact numeric work: stage/reconcile includes linear stock-key searches for
+/// each posting/lot, hence an explicit quadratic worst case in the lot count.
+/// Daily expected values and each account's gross scan traverse all path stocks;
+/// snapshot selection is a separate linear pass. Encoding is a transport phase.
+pub fn compact_work_upper(
+    rows: usize,
+    lots: usize,
+    days: usize,
+    accounts: usize,
+) -> Result<usize, String> {
+    let add = |a: usize, b: usize| a.checked_add(b).ok_or("compact work overflow");
+    let mul = |a: usize, b: usize| a.checked_mul(b).ok_or("compact work overflow");
+    let stocks = add(mul(lots, 2)?, 8)?;
+    let events = mul(mul(rows, add(stocks, 24)?)?, 4)?;
+    let daily = mul(
+        mul(
+            mul(add(days, 1)?, add(accounts, 1)?)?,
+            add(add(stocks, lots)?, 4)?,
+        )?,
+        8,
+    )?;
+    let snapshots = mul(mul(add(days, 1)?, add(lots, 1)?)?, 4)?;
+    let work = add(events, add(daily, snapshots)?)?;
+    if work > 8_000_000 {
+        return Err("compact numeric work exceeds8M".into());
+    }
+    Ok(work)
 }
 /// Sealed native financial ownership; never accepted as a caller money override.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,14 +131,75 @@ pub struct Binding<'a> {
     pub source_weight: f64,
     pub allocated_face: f64,
     pub native_unit_face: f64,
-    pub accounting: &'a ResultData,
+    pub accounting: &'a dyn AccountingSource,
+}
+/// Sealed borrowed or compact native fee owner. A caller cannot implement it.
+pub trait FeeSource: sealed::Sealed {
+    fn measure(&self) -> portfolio_model_core::cashflow::CashflowMeasure;
+    fn asof(&self) -> i32;
+    fn fee_count(&self) -> usize;
+    fn positions_match(&self, position: &str) -> bool;
+    fn group_count(&self) -> usize;
+    fn group(&self, index: usize) -> Cow<'_, portfolio_model_core::nonintegral_fee::Group>;
+    fn compact_bytes(&self) -> Option<usize> {
+        None
+    }
+}
+impl sealed::Sealed for portfolio_model_core::nonintegral_fee::ResultData {}
+impl FeeSource for portfolio_model_core::nonintegral_fee::ResultData {
+    fn measure(&self) -> portfolio_model_core::cashflow::CashflowMeasure {
+        self.raw_request().measure
+    }
+    fn asof(&self) -> i32 {
+        self.raw_request().asof_ordinal
+    }
+    fn fee_count(&self) -> usize {
+        self.raw_request().fees.len()
+    }
+    fn positions_match(&self, position: &str) -> bool {
+        self.raw_request()
+            .fees
+            .iter()
+            .all(|f| f.position_id == position)
+    }
+    fn group_count(&self) -> usize {
+        self.groups().len()
+    }
+    fn group(&self, index: usize) -> Cow<'_, portfolio_model_core::nonintegral_fee::Group> {
+        Cow::Borrowed(&self.groups()[index])
+    }
+}
+/// Numeric compact fee replay: cloning current gross states/stocks is bounded
+/// by fee count, each posting performs tree lookups, and every daily snapshot
+/// visits all eight gross endpoints. Tuple/calendar ordering is charged too.
+pub fn compact_fee_work_upper(
+    groups: usize,
+    postings: usize,
+    fees: usize,
+    days: usize,
+) -> Result<usize, String> {
+    let work = groups
+        .checked_mul(
+            fees.checked_mul(128)
+                .and_then(|v| v.checked_add(512))
+                .ok_or("compact fee work overflow")?,
+        )
+        .and_then(|v| v.checked_add(postings.checked_mul(128)?))
+        .and_then(|v| v.checked_add(fees.checked_mul(days.checked_add(1)?)?.checked_mul(128)?))
+        .ok_or("compact fee work overflow")?;
+    if work > 8_000_000 {
+        return Err("compact fee numeric work exceeds8M".into());
+    }
+    Ok(work)
 }
 pub struct FeeBinding<'a> {
     pub loan_binding: usize,
-    pub source: &'a portfolio_model_core::nonintegral_fee::ResultData,
+    /// Producer-retained native position before an explicit candidate mapping.
+    pub native_position_id: &'a str,
+    pub source: &'a dyn FeeSource,
     pub native_years: &'a [f64],
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Scheduled {
     Loan(usize, usize),
     Fee(usize, usize),
@@ -80,9 +208,9 @@ pub struct Compiled<'a> {
     pub(crate) bindings: Vec<Binding<'a>>,
     pub(crate) positions: Vec<usize>,
     pub(crate) position_owners: Vec<bool>,
-    events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
+    events: Index<'a>,
     pub(crate) fees: Vec<FeeBinding<'a>>,
-    fee_events: BTreeMap<(String, usize), Vec<(usize, usize)>>,
+    fee_events: Index<'a>,
     pub work_upper: usize,
     pub retained_bytes_upper: usize,
 }
@@ -132,6 +260,19 @@ mod calendar_tests {
         assert_eq!(day(f64::from_bits(year.to_bits() + 1), 35).unwrap(), 11);
         assert!(day(f64::from_bits(year.to_bits() + 1), 10).is_err());
     }
+    #[test]
+    fn compact_numeric_work_counts_lot_searches_accounts_and_outer_calendar() {
+        use super::compact_work_upper;
+        let base = compact_work_upper(32, 1, 30, 1).unwrap();
+        assert!(compact_work_upper(32, 2, 30, 1).unwrap() > base);
+        assert!(compact_work_upper(32, 1, 30, 2).unwrap() > base);
+        assert!(compact_work_upper(32, 1, 1080, 1).unwrap() > base);
+        assert!(compact_work_upper(4096, 192, 1080, 50).is_err());
+        assert!(compact_work_upper(usize::MAX, 1, 30, 1).is_err());
+        assert!(compact_work_upper(1, usize::MAX, 30, 1).is_err());
+        assert!(compact_work_upper(1, 1, usize::MAX, 1).is_err());
+        assert!(compact_work_upper(1, 1, 30, usize::MAX).is_err());
+    }
 }
 impl<'a> Compiled<'a> {
     pub fn attach_fees(&mut self, spec: &Spec, fees: Vec<FeeBinding<'a>>) -> Result<(), String> {
@@ -139,80 +280,93 @@ impl<'a> Compiled<'a> {
             return Err("fee ownership already bound".into());
         }
         let mut seen = BTreeSet::new();
+        let mut fee_events = Index::default();
         for (fi, f) in fees.iter().enumerate() {
             checkpoint()?;
             let b = self
                 .bindings
                 .get(f.loan_binding)
                 .ok_or("fee parent binding missing")?;
-            if !seen.insert(f.loan_binding) || f.native_years.len() != f.source.groups().len() {
+            if f.source.measure() != portfolio_model_core::cashflow::CashflowMeasure::Physical {
+                return Err("daily fee ownership requires Physical source measure".into());
+            }
+            if !seen.insert(f.loan_binding) || f.native_years.len() != f.source.group_count() {
                 return Err("unique complete fee group timeline required".into());
             }
-            for fee in &f.source.raw_request().fees {
-                if fee.position_id != b.position_id {
-                    return Err("fee source position mismatch".into());
-                }
+            if !f.source.positions_match(f.native_position_id) {
+                return Err("fee source position mismatch".into());
             }
-            for (i, (g, year)) in f.source.groups().iter().zip(f.native_years).enumerate() {
+            let compact = f.source.compact_bytes();
+            let mut postings = 0usize;
+            let timeline = fee_events.register(b.scenario)?;
+            for (i, year) in f.native_years.iter().enumerate() {
+                let g = f.source.group(i);
+                postings = postings
+                    .checked_add(g.postings.len())
+                    .ok_or("fee posting overflow")?;
                 let elapsed = day(*year, spec.horizon_days - b.origin_day)?;
-                if f.source.raw_request().asof_ordinal + elapsed as i32 != g.event.ordinal {
+                if f.source.asof() + elapsed as i32 != g.event.ordinal {
                     return Err("fee action cannot be retimed against native calendar".into());
                 }
-                self.fee_events
-                    .entry((b.scenario.into(), b.origin_day + elapsed))
-                    .or_default()
-                    .push((fi, i));
+                fee_events.push(
+                    timeline,
+                    b.origin_day + elapsed,
+                    b.origin_day as f64 / 365. + *year,
+                    Scheduled::Fee(fi, i),
+                )?;
                 let rows = g.postings.len() + 2;
-                self.work_upper = self
-                    .work_upper
-                    .checked_add(rows * (spec.horizon_days + 1) * 16)
-                    .ok_or("fee work overflow")?;
+                if compact.is_none() {
+                    self.work_upper = self
+                        .work_upper
+                        .checked_add(rows * (spec.horizon_days + 1) * 16)
+                        .ok_or("fee work overflow")?;
+                    self.retained_bytes_upper = self
+                        .retained_bytes_upper
+                        .checked_add(rows * 4096)
+                        .ok_or("fee byte overflow")?;
+                }
+            }
+            if let Some(bytes) = compact {
+                let runtime = f
+                    .source
+                    .group_count()
+                    .checked_mul(1024)
+                    .and_then(|v| v.checked_add(f.source.fee_count().checked_mul(4096)?))
+                    .and_then(|v| v.checked_add(256))
+                    .ok_or("compact fee runtime bytes overflow")?;
                 self.retained_bytes_upper = self
                     .retained_bytes_upper
-                    .checked_add(rows * 4096)
-                    .ok_or("fee byte overflow")?;
+                    .checked_add(bytes)
+                    .and_then(|v| v.checked_add(runtime))
+                    .ok_or("compact fee bytes overflow")?;
+                self.work_upper = self
+                    .work_upper
+                    .checked_add(compact_fee_work_upper(
+                        f.source.group_count(),
+                        postings,
+                        f.source.fee_count(),
+                        spec.horizon_days,
+                    )?)
+                    .ok_or("compact fee work overflow")?;
             }
         }
         if self.work_upper > 8_000_000 || self.retained_bytes_upper > 32 << 20 {
             return Err("joined commercial/fee ledger exceeds8M/32MiB".into());
         }
+        fee_events.seal()?;
+        self.fee_events = fee_events;
         self.fees = fees;
         Ok(())
     }
-    pub(crate) fn ordered_events(&self, scenario: &str, day: usize) -> Vec<Scheduled> {
-        let mut out = self
-            .events(scenario, day)
-            .iter()
-            .map(|&(b, i)| Scheduled::Loan(b, i))
-            .collect::<Vec<_>>();
-        if let Some(events) = self.fee_events.get(&(scenario.into(), day)) {
-            out.extend(events.iter().map(|&(b, i)| Scheduled::Fee(b, i)));
-        }
-        let key = |e: &Scheduled| match *e {
-            Scheduled::Loan(b, i) => (
-                self.bindings[b].origin_day as f64 / 365.
-                    + self.bindings[b].accounting.groups()[i].year,
-                0,
-                b,
-                i,
-            ),
-            Scheduled::Fee(b, i) => (
-                self.bindings[self.fees[b].loan_binding].origin_day as f64 / 365.
-                    + self.fees[b].native_years[i],
-                1,
-                b,
-                i,
-            ),
-        };
-        out.sort_by(|a, b| {
-            let a = key(a);
-            let b = key(b);
-            a.0.total_cmp(&b.0)
-                .then(a.1.cmp(&b.1))
-                .then(a.2.cmp(&b.2))
-                .then(a.3.cmp(&b.3))
-        });
-        out
+    pub(crate) fn ordered_events(&self, scenario: &str, day: usize) -> OrderedEvents<'_> {
+        OrderedEvents::new(&self.events, &self.fee_events, scenario, day)
+    }
+    /// Metadata observations only. Historical source/construction/runtime
+    /// admission remains unchanged; this is not a complete allocation proof.
+    pub fn event_index_inventory(
+        &self,
+    ) -> Result<(EventIndexInventory, EventIndexInventory), String> {
+        Ok((self.events.inventory()?, self.fee_events.inventory()?))
     }
     pub fn new(spec: &Spec, bindings: Vec<Binding<'a>>) -> Result<Self, String> {
         checkpoint()?;
@@ -221,13 +375,14 @@ impl<'a> Compiled<'a> {
             positions: Vec::new(),
             position_owners: vec![false; spec.positions.len()],
             bindings,
-            events: BTreeMap::new(),
+            events: Index::default(),
             fees: Vec::new(),
-            fee_events: BTreeMap::new(),
+            fee_events: Index::default(),
             work_upper: 0,
             retained_bytes_upper: 0,
         };
         if result.bindings.is_empty() {
+            result.events.seal()?;
             return Ok(result);
         }
         if !spec.reverse_severities.is_empty() {
@@ -292,18 +447,18 @@ impl<'a> Compiled<'a> {
             }
             b.factor()?;
             *weights.entry((b.scenario, pi)).or_default() += b.source_weight;
-            let groups = b.accounting.groups();
-            let opening = groups
-                .iter()
+            let opening = (0..b.accounting.group_count())
+                .map(|i| b.accounting.group(i))
                 .find(|g| g.path_key == b.path_key && g.phase == "reviewed_opening_snapshot")
                 .ok_or("native commercial acquisition opening missing")?;
             if opening.next.principal.to_bits() != b.native_unit_face.to_bits() {
                 return Err("commercial allocation denominator must bind actual native unit opening principal".into());
             }
             let mut found = false;
-            for (index, g) in groups
-                .iter()
-                .enumerate()
+            let mut compact_rows = 0usize;
+            let timeline = result.events.register(b.scenario)?;
+            for (index, g) in (0..b.accounting.group_count())
+                .map(|i| (i, b.accounting.group(i)))
                 .filter(|(_, g)| g.path_key == b.path_key)
             {
                 checkpoint()?;
@@ -316,39 +471,68 @@ impl<'a> Compiled<'a> {
                     .origin_day
                     .checked_add(day(g.year, remaining)?)
                     .ok_or("commercial global day overflow")?;
-                result
-                    .events
-                    .entry((b.scenario.into(), at))
-                    .or_default()
-                    .push((bi, index));
+                result.events.push(
+                    timeline,
+                    at,
+                    b.origin_day as f64 / 365. + b.accounting.year(index),
+                    Scheduled::Loan(bi, index),
+                )?;
                 let rows = g
                     .postings
                     .len()
                     .checked_add(g.next.lots.len() * 2 + 1)
                     .ok_or("commercial ledger upper overflow")?;
+                let compact = b.accounting.compact_bytes().is_some();
+                compact_rows = compact_rows
+                    .checked_add(rows)
+                    .ok_or("compact row overflow")?;
                 result.work_upper = result
                     .work_upper
                     .checked_add(
-                        rows.checked_mul(spec.horizon_days + 1)
-                            .and_then(|v| v.checked_mul(16))
-                            .ok_or("commercial ledger upper overflow")?,
+                        rows.checked_mul(if compact {
+                            0
+                        } else {
+                            (spec.horizon_days + 1) * 16
+                        })
+                        .ok_or("commercial ledger upper overflow")?,
                     )
                     .ok_or("commercial ledger upper overflow")?;
                 result.retained_bytes_upper = result
                     .retained_bytes_upper
-                    .checked_add(
+                    .checked_add(if compact {
+                        128
+                    } else {
                         rows.checked_mul(4096)
-                            .ok_or("commercial ledger upper overflow")?,
-                    )
+                            .ok_or("commercial ledger upper overflow")?
+                    })
                     .ok_or("commercial ledger upper overflow")?;
             }
-            if !found
-                || !b
-                    .accounting
-                    .closing()
-                    .iter()
-                    .any(|s| s.path_key == b.path_key)
-            {
+            if let Some(bytes) = b.accounting.compact_bytes() {
+                result.retained_bytes_upper = result
+                    .retained_bytes_upper
+                    .checked_add(bytes)
+                    .ok_or("commercial compact capacity overflow")?;
+                let lots = opening.next.lots.len().max(
+                    (0..b.accounting.group_count())
+                        .map(|i| b.accounting.group(i).next.lots.len())
+                        .max()
+                        .unwrap_or(0),
+                );
+                result.work_upper = result
+                    .work_upper
+                    .checked_add(compact_work_upper(
+                        compact_rows,
+                        lots,
+                        spec.horizon_days,
+                        spec.accounts.len(),
+                    )?)
+                    .ok_or("compact reconciliation work overflow")?;
+                result.retained_bytes_upper = result
+                    .retained_bytes_upper
+                    .checked_add((lots + 8) * 4096)
+                    .ok_or("compact runtime capacity overflow")?;
+            }
+            if !found || !b.accounting.has_closing(b.path_key) {
                 return Err(
                     "complete native commercial path/closing missing even for zero participation"
                         .into(),
@@ -372,25 +556,9 @@ impl<'a> Compiled<'a> {
         if result.work_upper > 8_000_000 || result.retained_bytes_upper > 32 << 20 {
             return Err("commercial daily owner exceeds 8M/32MiB before Sim".into());
         }
-        for refs in result.events.values_mut() {
-            refs.sort_by(|&(a, i), &(b, j)| {
-                (result.bindings[a].origin_day as f64 / 365.
-                    + result.bindings[a].accounting.groups()[i].year)
-                    .total_cmp(
-                        &(result.bindings[b].origin_day as f64 / 365.
-                            + result.bindings[b].accounting.groups()[j].year),
-                    )
-                    .then(a.cmp(&b))
-                    .then(i.cmp(&j))
-            });
-        }
+        result.events.seal()?;
         checkpoint()?;
         Ok(result)
-    }
-    pub(crate) fn events(&self, scenario: &str, day: usize) -> &[(usize, usize)] {
-        self.events
-            .get(&(scenario.into(), day))
-            .map_or(&[], Vec::as_slice)
     }
 }
 impl Binding<'_> {
@@ -427,6 +595,18 @@ pub(crate) struct Stage {
     next: Tracking,
 }
 impl Runtime {
+    pub(crate) fn extend_cut(&mut self, c: &Compiled<'_>) -> Result<(), String> {
+        checkpoint()?;
+        if self.paths.len() > c.bindings.len() || self.fees.len() > c.fees.len() {
+            return Err("native cut cannot remove surviving owner state".into());
+        }
+        self.paths.resize(c.bindings.len(), Tracking::default());
+        self.fees.resize(
+            c.fees.len(),
+            crate::owners::commercial::fees::FeeTracking::default(),
+        );
+        Ok(())
+    }
     pub(crate) fn snapshots<'a>(
         &'a self,
         c: &'a Compiled<'_>,
@@ -540,6 +720,62 @@ impl Runtime {
                 });
             }
             next.legal_principal = Some(reviewed.legal_principal);
+        }
+        if b.accounting.compact_bytes().is_some() {
+            // Absolute native endpoints are source authority. Do not rebuild a
+            // compact monetary state by repeated floating-point delta addition.
+            let s = &g.next;
+            next.stocks = vec![
+                (
+                    (AccountCode::LivePrincipal, None, None),
+                    if s.in_default { 0. } else { s.principal },
+                ),
+                (
+                    (AccountCode::DefaultPrincipal, None, None),
+                    if s.in_default { s.principal } else { 0. },
+                ),
+                (
+                    (AccountCode::LiveBookAdjustment, None, None),
+                    if s.in_default { 0. } else { s.book_adjustment },
+                ),
+                (
+                    (AccountCode::DefaultBookAdjustment, None, None),
+                    if s.in_default { s.book_adjustment } else { 0. },
+                ),
+            ];
+            if let Some(reviewed) = &s.reviewed_credit_state {
+                next.stocks
+                    .push(((AccountCode::Allowance, None, None), -reviewed.allowance));
+            }
+            for lot in &s.lots {
+                for (account, value) in [
+                    (
+                        AccountCode::LiveAccruedInterest,
+                        if lot.default_claim {
+                            0.
+                        } else {
+                            lot.recognized_remaining
+                        },
+                    ),
+                    (
+                        AccountCode::DefaultAccruedInterest,
+                        if lot.default_claim {
+                            lot.recognized_remaining
+                        } else {
+                            0.
+                        },
+                    ),
+                ] {
+                    next.stocks.push((
+                        (
+                            account,
+                            Some(lot.coupon_id.clone()),
+                            Some(lot.earning_origin_index),
+                        ),
+                        value,
+                    ));
+                }
+            }
         }
         reconcile(&next, &g.next)?;
         next.snapshot = Some(g.next.clone());

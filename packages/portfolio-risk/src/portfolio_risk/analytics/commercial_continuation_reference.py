@@ -20,8 +20,8 @@ def prefix(raw, check=lambda: False):
     if type(cut) is not int or cut <= origin:
         raise ArithmeticError('holding cut must follow original acquisition')
     year = (cut-origin)/365.
-    for field in ('original', 'acquisition', 'policy'):
-        raw_identity(old['source'][field], new['source'][field])
+    for field in ('original', 'acquisition', 'policy', 'transfer'):
+        raw_identity(old['source'].get(field), new['source'].get(field))
     for field in ('factor_policy', 'performing_draw_tranches', 'prepayment_terms', 'maturity_basis_policy', 'reviewed_credit_actions'):
         raw_identity(old.get(field), new.get(field))
     a = deepcopy(old['source']['current']); b = deepcopy(new['source']['current'])
@@ -61,8 +61,10 @@ def verify(raw, result, check=lambda: False):
         raise ArithmeticError('holding continuation schema differs')
     if result.get('complete_origin_replayed') is not True:raise ArithmeticError('complete original replay missing')
     for flag in ('credit_clock_restarted', 'original_anchor_refitted', 'second_acquisition_posted', 'mixed_ledger_adoption',
-                 'verified_prior_publication', 'secondary_acquisition_adoption', 'empirical_validation'):
+                 'verified_prior_publication', 'empirical_validation'):
         if result.get(flag) is not False:raise ArithmeticError('holding adoption boundary differs')
+    selected=raw['completed_source']['source'].get('transfer')is not None
+    if result.get('secondary_acquisition_adoption')is not selected:raise ArithmeticError('secondary holding owner selection differs')
     year = prefix(raw, check); compare(year, result['cut_year'], check=check)
     a = verify_compiler(raw['completed_source'], result['completed'], check)
     b = verify_compiler(raw['revised_source'], result['revised'], check)
@@ -93,4 +95,4 @@ def verify(raw, result, check=lambda: False):
         compare(expected, actual, check=check)
     return dict(verified=True, raw_source_recomputed=True, completed_prefix_recomputed=True, original_yield_retained=True,
                 subsequent_postings_recomputed=True, credit_clock_restarted=False, mixed_ledger_adoption=False,
-                verified_prior_publication=False, secondary_acquisition_adoption=False, empirical_validation=False)
+                verified_prior_publication=False, secondary_acquisition_adoption=selected, empirical_validation=False)

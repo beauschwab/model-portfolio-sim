@@ -22,6 +22,9 @@ EXAMPLES={
     'commercial-candidate-journal-1':'commercial-candidate-journal-1.json',
     'commercial-generated-exercise-1':'commercial-generated-exercise-1.json',
     'commercial-treasury-1':'commercial-treasury-1.json',
+    'commercial-candidate-fee-treasury-1':'commercial-candidate-fee-treasury-1.json',
+    'commercial-candidate-holding-journal-1':'commercial-candidate-holding-journal-1.json',
+    'commercial-cut-mixed-journal-1':'commercial-cut-mixed-journal-1.json',
     'commercial-product-graph-1':'commercial-product-graph-1.json',
     'commercial-units-1':'commercial-units-1.json',
     'consumer-installment-1':'consumer-installment-1.json',
@@ -87,6 +90,19 @@ class PublishedHoldingRequest(BaseModel):
     timeout:float=Field(default=1800.,ge=.001,le=1800,allow_inf_nan=False)
 
 
+class PublishedCandidateHoldingRequest(BaseModel):
+    model_config=ConfigDict(extra='forbid',strict=True)
+    expected_revision:int=Field(ge=0)
+    source_job_id:str=Field(min_length=1,max_length=100)
+    cut_ordinal:int
+    revised_candidate:dict
+    timeout:float=Field(default=1800.,ge=.001,le=1800,allow_inf_nan=False)
+
+
+class PublishedCutMixedRequest(PublishedCandidateHoldingRequest):
+    pass
+
+
 async def _published_holding_body(http:Request):
     import time
     from .completed_source_reader import loads
@@ -114,6 +130,40 @@ def published_holding(request:PublishedHoldingRequest,raw_body:Annotated[tuple|N
     try:
         captured=source.capture(db.REPO,db.CODEC,request.source_job_id,request.cut_ordinal,check)
         raw=source.materialize(captured,request.revised_sources,request.cut_ordinal)
+    except KeyError as exc:raise HTTPException(404,'unknown completed holding source')from exc
+    except (ValueError,TypeError)as exc:raise HTTPException(422,str(exc))from exc
+    except TimeoutError as exc:raise HTTPException(408,str(exc))from exc
+    selected=ModelRunRequest(expected_revision=request.expected_revision,schema_name=source.SCHEMA,request=raw,timeout=request.timeout)
+    return enqueue(selected,'model_analysis',store.run_model_analysis,accepted_start=started,prior_publication=captured)
+
+
+@router.post('/candidate-holding-journals',response_model=JobStatus)
+def published_candidate_holding(request:PublishedCandidateHoldingRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
+    from . import commercial_candidate_prior_source as source
+    return _published_candidate(request,raw_body,source)
+
+
+@router.post('/cut-mixed-journals',response_model=JobStatus)
+def published_cut_mixed(request:PublishedCutMixedRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
+    from . import commercial_cut_prior_source as source
+    return _published_candidate(request,raw_body,source)
+
+
+def _published_candidate(request,raw_body,source):
+    import time
+    started=time.time()if raw_body is None else raw_body[1]
+    if raw_body is not None:
+        from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
+        if not exact_json_identity(raw_body[0].get('revised_candidate'),request.revised_candidate):
+            raise HTTPException(422,'original published holding sources changed during parsing')
+    if db.REPO is None:raise HTTPException(409,'durable repository required')
+    deadline=started+request.timeout
+    def check():
+        if time.time()>=deadline:raise TimeoutError('original published holding queue deadline expired')
+        return False
+    try:
+        captured=source.capture(db.REPO,db.CODEC,request.source_job_id,request.cut_ordinal,check)
+        raw=source.materialize(captured,request.revised_candidate,request.cut_ordinal)
     except KeyError as exc:raise HTTPException(404,'unknown completed holding source')from exc
     except (ValueError,TypeError)as exc:raise HTTPException(422,str(exc))from exc
     except TimeoutError as exc:raise HTTPException(408,str(exc))from exc
@@ -153,10 +203,10 @@ async def _selected_cd_body(http:Request):
     # commercial operations retain original scalar categories and reject duplicates.
     value=json.loads(body,object_pairs_hook=object_pairs)
     if type(value)is not dict:return None
-    selected={'term-product-graph-2','term-product-reprice-2','commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
+    selected={'term-product-graph-2','term-product-reprice-2','commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
     cohort='graph-cohort-audit-1'in schemas and commercial_kind
     if not schemas.intersection(selected) and not cohort:return None
-    bound=1024*1024 if schemas.intersection({'commercial-generated-exercise-1','commercial-holding-continuation-1'}) else 2*1024*1024 if schemas.intersection({'commercial-treasury-1','commercial-holding-journal-1','commercial-fee-journal-1'}) else 32*1024*1024 if cohort or schemas.intersection({'commercial-product-graph-1','commercial-units-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}) else 2*1024*1024
+    bound=1024*1024 if schemas.intersection({'commercial-generated-exercise-1','commercial-holding-continuation-1'}) else 2*1024*1024 if schemas.intersection({'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}) else 32*1024*1024 if cohort or schemas.intersection({'commercial-product-graph-1','commercial-units-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}) else 2*1024*1024
     if len(body)>bound:raise HTTPException(422,'bounded selected HTTP raw bytes')
     if duplicates:raise HTTPException(422,'duplicate field `'+duplicates[0]+'`')
     return (value.get('request'),started)
@@ -186,21 +236,21 @@ def aged_library(request:ModelRunRequest,raw_body:Annotated[tuple|None,Depends(_
 def enqueue(request,kind,operation,*,accepted_start=None,prior_publication=None):
     from .commercial_selection import is_commercial_cohort
     indexed_deadline=None
-    if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'market-indexed-books-1','term-product-graph-2','term-product-reprice-2','commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:
+    if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'market-indexed-books-1','term-product-graph-2','term-product-reprice-2','commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:
         import time
         indexed_deadline=(time.time() if accepted_start is None else accepted_start)+request.timeout
     if db.REPO is None:raise HTTPException(409,'model analyses require durable storage')
     if request.schema_name not in EXAMPLES:raise HTTPException(422,'unsupported model analysis contract')
     try:
         size=len(json.dumps(request.request,allow_nan=False,separators=(',',':')).encode())
-        bound=1024*1024 if request.schema_name in {'commercial-generated-exercise-1','commercial-holding-continuation-1'} else 2*1024*1024 if request.schema_name in {'commercial-treasury-1','commercial-holding-journal-1','commercial-fee-journal-1','nonintegral-fee-accounting-1'} else 32*1024*1024
+        bound=1024*1024 if request.schema_name in {'commercial-generated-exercise-1','commercial-holding-continuation-1'} else 2*1024*1024 if request.schema_name in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','nonintegral-fee-accounting-1'} else 32*1024*1024
         if size>bound-1024:raise ValueError('model request exceeds selected byte bound')
     except (ValueError,TypeError) as exc:raise HTTPException(422,str(exc)) from exc
     state=store.snapshot()
     if state['revision']!=request.expected_revision:raise db.Conflict('inputs changed; reload before running')
     from numba import get_num_threads
     from portfolio_risk.core.model_native import binary_identity
-    if request.schema_name in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if request.schema_name in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         from portfolio_risk.core.product_strategy_native import binary_identity
     from portfolio_risk.analytics.balance_stream import source_identity
     try:
@@ -215,10 +265,10 @@ def enqueue(request,kind,operation,*,accepted_start=None,prior_publication=None)
     payload=dict(schema=request.schema_name,request=request.request,timeout=request.timeout,
         threads=state['settings'].n_threads or get_num_threads(),binary_sha256=identity,source_sha256=source_identity())
     if prior_publication is not None:
-        if request.schema_name!='commercial-holding-journal-1':raise HTTPException(422,'holding prior binding requires holding native contract')
+        if request.schema_name not in {'commercial-holding-journal-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1'}:raise HTTPException(422,'holding prior binding requires holding native contract')
         from copy import deepcopy
         payload['prior_publication']=deepcopy(prior_publication)
-    if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:
+    if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:
         payload.update(publication_deadline_unix=indexed_deadline)
         if time.time()>=indexed_deadline:raise HTTPException(408,'original commercial queue deadline expired')
     if request.schema_name=='market-indexed-books-1':
