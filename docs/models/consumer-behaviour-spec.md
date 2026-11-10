@@ -98,8 +98,10 @@ draw streams, contractual boundaries, signed accrual/basis, LGD/CCF and full
 recovery tails. Hazard slots must be explicitly zero placeholders. Projection
 fills only those slots. It neither replaces other monetary inputs nor regenerates
 draws. There is no Physical-to-Pricing conversion, OAS solve or pricing adoption.
-Complete credit-path outputs retain recoveries beyond contractual end. They are
-not daily installment/card cashflow or journal acceptance.
+Complete credit-path outputs retain recoveries beyond contractual end. The
+separately selected [daily product adapter](consumer-behaviour-product-paths.md)
+uses zero-monetary shared state paths and one daily product cashflow owner.
+Neither component establishes journal acceptance.
 
 The fit input is bounded to 4 MiB, 20,000 records, eight columns and 32 term
 levels; existing estimator work/parameter limits still apply. Projection has a
@@ -129,6 +131,6 @@ chronological training/holdout periods. It has no observed bank provenance.
 Component tests cover all three products, explicit state/closure rules, held-out
 coefficient invariance, raw/availability refusal, minimum support, category/term
 definitions, complete recovery tails, identical draws and cancellation. Matching
-installed artifacts, independent raw/persisted publication verification, daily
-product actions, full regression and actual integration are separate acceptance
+installed artifacts, independent raw/persisted publication verification, the
+separately selected daily adapter, full regression and actual integration are separate acceptance
 steps. `adoption_eligible` and empirical-accuracy flags remain false.

@@ -8,9 +8,12 @@ interval-censored native fitters. It projects fitted Physical hazards into share
 credit paths without changing supplied cash laws or random streams. Component
 fixtures include all three products, hand two-group rates and a synthetic monthly
 panel with holdout isolation. See [the component contract](consumer-behaviour-spec.md).
-Matching installed/public-route checks and full regression remain pending. Daily
-installment/card action ownership, independent publication and broader #91 adoption
-are still required; this component does not close #91 or tracker #25.
+The additive `consumer-behaviour-product-paths-1` adapter now connects fitted
+states to daily installment/card cashflows, with explicit ceiling-to-day mapping,
+collision rejection and exact-zero gross card closure. See
+[the daily contract](consumer-behaviour-product-paths.md). Matching installed/public-route
+checks and full regression remain pending. Independent publication and broader
+adoption remain separate; these component checkpoints do not close tracker #25.
 
 ## Current accepted integration and shared-source follow-through
 

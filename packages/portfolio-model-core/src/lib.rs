@@ -21,6 +21,7 @@ pub use models::joint_state;
 pub use products::commercial::coupon_accounting as commercial_coupon_accounting;
 pub use products::consumer::behavior as consumer_behavior;
 pub use products::consumer::contracts as consumer_contract;
+pub use products::consumer::product_paths as consumer_product_paths;
 pub use products::deposits::state as deposit_state;
 pub use products::installment::accounting as consumer_credit_accounting;
 pub use products::installment::state as consumer_installment;

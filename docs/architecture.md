@@ -8,6 +8,9 @@ Python financial implementations are independent reference oracles for tests.
 The standalone [consumer panel specification](models/consumer-behaviour-spec.md)
 maps product observations and fits/projects hazards in Rust. Its Python entrypoint
 is process transport only; it adds no durable publication or saved-book adoption.
+The selected [daily consumer adapter](models/consumer-behaviour-product-paths.md)
+uses zero-monetary CTMC states and one Rust installment/card cashflow owner, with
+explicit daily clock reduction and exact-zero card closure.
 
 ```mermaid
 flowchart LR
