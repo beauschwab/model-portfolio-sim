@@ -200,6 +200,7 @@ fn permitted_column(p: Product, name: &str) -> Option<covariate::FeatureRole> {
         | "hpi_chg_12m" => Some(Macro),
         "used_vehicle_idx_chg_12m" if p == Product::Auto => Some(Macro),
         "prime_minus_policy" | "real_dpi_growth" if p != Product::Auto => Some(Macro),
+        "card_apr_spread" if p == Product::CreditCard => Some(Macro),
         _ => None,
     }
 }

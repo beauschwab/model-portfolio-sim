@@ -11,6 +11,10 @@ is process transport only; it adds no durable publication or saved-book adoption
 The selected [daily consumer adapter](models/consumer-behaviour-product-paths.md)
 uses zero-monetary CTMC states and one Rust installment/card cashflow owner, with
 explicit daily clock reduction and exact-zero card closure.
+The core [consumer macro replay](models/consumer-macro-scenarios.md) binds supplied
+Physical scenarios to those daily owners, with training-only innovation moments,
+original draws and aggregate admission. Public transport and joined Pricing/EIR
+income integration remain pending under #92.
 
 ```mermaid
 flowchart LR
