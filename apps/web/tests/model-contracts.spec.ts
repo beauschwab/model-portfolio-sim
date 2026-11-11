@@ -221,3 +221,27 @@ for(const schema of ['term-product-graph-2','term-product-reprice-2']) test(`${s
   await reopened.getByLabel('Stored analysis job').fill(id);await reopened.getByRole('button',{name:'Open stored analysis',exact:true}).click();
   await expect(reopened.getByRole('status')).toContainText(id);
 });
+
+
+test('lifetime economic loss sensitivity publishes and reopens complete source tables',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'Open Product Models',exact:true}).click();
+  const panel=page.getByRole('region',{name:'Product Models',exact:true});
+  await panel.getByLabel('Product model',{exact:true}).selectOption('lifetime-credit-loss-1');
+  const editor=panel.getByLabel('Product terms, path assumptions and source policies');
+  await expect(editor).toContainText('synthetic-lifetime-example');
+  await panel.getByRole('button',{name:'Run product analysis',exact:true}).click();
+  await expect(panel.getByRole('status')).toContainText('Analysis saved:',{timeout:40000});
+  await expect(panel.getByText('Economic loss is compared across supplied scenarios',{exact:false})).toBeVisible();
+  const id=await panel.getByLabel('Stored analysis job').inputValue();
+  await panel.getByLabel('Model result table').selectOption('/model_result/sensitivity');
+  await expect(panel.getByRole('columnheader',{name:'spread',exact:true})).toBeVisible();
+  await expect(panel.getByRole('link',{name:'Download Parquet',exact:true})).toBeVisible();
+  await page.reload();await page.getByRole('button',{name:'Open Product Models',exact:true}).click();
+  const reopened=page.getByRole('region',{name:'Product Models',exact:true});
+  await reopened.getByLabel('Stored analysis job').fill(id);
+  await reopened.getByRole('button',{name:'Open stored analysis',exact:true}).click();
+  await expect(reopened.getByRole('status')).toContainText(id);
+  await expect(reopened.getByText('Economic loss is compared across supplied scenarios',{exact:false})).toBeVisible();
+  await reopened.getByLabel('Model result table').selectOption('/model_result/holdout_outcomes');
+  await expect(reopened.getByRole('columnheader',{name:'reported_minus_projected',exact:true})).toBeVisible();
+});

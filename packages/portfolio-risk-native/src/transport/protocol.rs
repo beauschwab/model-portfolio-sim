@@ -241,6 +241,12 @@ enum Request {
         threads: usize,
         request: Box<crate::market::curves::quote_bootstrap::Request>,
     },
+    #[serde(rename = "lifetime-credit-loss-1")]
+    LifetimeLoss {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<crate::models::lifetime_loss::Request>,
+    },
     #[serde(rename = "nonintegral-fee-accounting-1")]
     NonintegralFees {
         threads: usize,
@@ -542,6 +548,10 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             execution_timeout_ms,
             ..
         }
+        | Request::LifetimeLoss {
+            execution_timeout_ms,
+            ..
+        }
         | Request::NonintegralFees {
             execution_timeout_ms,
             ..
@@ -589,6 +599,8 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         portfolio_compute_control::scope(Some(control.clone()), || {
             let limit = if matches!(&request, Request::CommercialGeneratedExercise { .. }) {
                 1 << 20
+            } else if matches!(&request, Request::LifetimeLoss { .. }) {
+                2 << 20
             } else if matches!(&request, Request::NonintegralFees { .. }) {
                 portfolio_model_core::nonintegral_fee::MAX_INPUT
             } else if matches!(
@@ -617,6 +629,7 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     };
     let threads = match &request {
         Request::CommercialGeneratedExercise { threads, .. }
+        | Request::LifetimeLoss { threads, .. }
         | Request::NonintegralFees { threads, .. }
         | Request::HedgeAccounting { threads, .. }
         | Request::HedgeTreasury { threads, .. }
@@ -730,6 +743,14 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     let pool =
         crate::runtime::compute::pool(threads).map_err(|_| "native thread pool unavailable")?;
     pool.install(|| match request {
+        Request::LifetimeLoss { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = crate::models::lifetime_loss::evaluate(&request)?;
+                let value = serde_json::to_value(result).map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(value))
+            })
+        }
         Request::NonintegralFees { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
                 let result = portfolio_model_core::nonintegral_fee::evaluate_with_check(

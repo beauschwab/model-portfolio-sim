@@ -108,7 +108,7 @@ def test_commercial_analysis_sql_lock_rechecks_all_verified_authority(durable,mo
     row=db.REPO.job(jid);assert row['status']!='done' and row['result'] is None
 
 
-@pytest.mark.parametrize('schema',['commercial-holding-continuation-1','commercial-holding-journal-1','nonintegral-fee-accounting-1'])
+@pytest.mark.parametrize('schema',['commercial-holding-continuation-1','commercial-holding-journal-1','nonintegral-fee-accounting-1','lifetime-credit-loss-1'])
 @pytest.mark.parametrize('target',['late_source','late_partition','late_stop','queued_request','attempt','producer_deadline'])
 def test_commercial_holding_sql_transaction_keeps_original_authority(durable,monkeypatch,schema,target):
     import sqlalchemy as sa

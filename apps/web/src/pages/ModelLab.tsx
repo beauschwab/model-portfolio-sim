@@ -3,6 +3,7 @@ import { api, awaitJob, type ResultPage } from '../lib/api';
 import { Button, Card, CardBody, CardHeader, DataTable } from '../components/ui';
 
 const labels:Record<string,string>={
+  'lifetime-credit-loss-1':'Lifetime economic loss and scenario sensitivity',
   'commercial-product-graph-1':'Commercial loan pricing, credit and income graph',
   'commercial-units-1':'Commercial purchase-date risk, income and funding coefficients',
   'commercial-generated-exercise-1':'Commercial exercise under supplied market and credit paths',
@@ -121,6 +122,7 @@ export default function ModelLab(){
     {verification.formal_hedge_relationships_replayed&&<p className="mt-2 text-xs text-paper-faint">Formal relationships, assessments, hedged-item basis and OCI mechanics were independently replayed from the stored derivative source under the explicit rule matrix and reviewed assessment band. Accounting-standard approval, observed effectiveness, portfolio-layer and saved-book adoption remain open.</p>}
     {verification.derivative_closing_capital_recomputed&&<p className="mt-2 text-xs text-paper-faint">The standalone derivative journal was replayed, its balances through the reporting node mapped to reviewed bridge accounts and the capital ratios recomputed independently. No hedge accounting is applied, so every mark is in earnings; regulatory eligibility, risk weights and FTP remain supplied or open.</p>}
     {verification.closing_capital_recomputed&&<p className="mt-2 text-xs text-paper-faint">The formal hedge journal was replayed, its closing balances mapped to reviewed bridge accounts and the capital ratios recomputed independently. Cash-flow-hedge AOCI enters eligible capital only under the supplied policy; an explicit interim report selects a reporting node before the complete tail. Regulatory eligibility, risk weights and FTP remain supplied or open.</p>}
+    {verification.scenario_model_sensitivity_recomputed&&<p className="mt-2 text-xs text-paper-faint">Economic loss is compared across supplied scenarios and model assumptions. Ranges show sensitivity; allowance policy and model adoption require separate review.</p>}
     {verification.mixed_product_credit_only&&<p className="mt-2 text-xs text-paper-faint">Acquired installment and card owners share the dated book's ordered daily cash and general ledger. Purchase, allowance, interest and recovery rights were checked through complete closing. Joint stochastic, saved-book and empirical gates remain open.</p>}
   </CardBody></Card>}
   {paths.length>0&&<Card><CardHeader title="Dated results and state" sub={`${table?.total??0} rows in selected table`}/><CardBody>

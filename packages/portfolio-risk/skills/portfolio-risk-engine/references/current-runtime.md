@@ -158,3 +158,7 @@ Component bounds are not total RSS or mixed 60,000-position acceptance. Check th
 exact selected lane's current admission and immutable receipts; historical scale
 evidence, synthetic fixtures and passing local tests do not prove deployment,
 empirical prediction, reviewed bank policies or accounting/regulatory approval.
+
+## Consumer lifetime-loss analysis
+
+`lifetime-credit-loss-1` retains complete paired Physical credit sources and supplied macro/model choices. Rust calculates economic loss, full recovery tails, product ranges and completed-outcome comparisons. Independent raw/persisted replay, original deadlines and final SQL/object/executable/source checks gate durable publication. The offline competing-risk challenger scores holdout Brier/calibration on the same declared panel; it is not a production backend. See repository `docs/models/lifetime-loss-sensitivity.md` for admission, assumptions and the reproducible synthetic pack. Allowance approval, observed accuracy, broader product adoption and deployment remain separate.

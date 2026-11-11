@@ -375,3 +375,9 @@ def analyze_term_sequence_graph(request: dict) -> dict:
 def reprice_term_sequence_graph(base: dict, current: dict) -> dict:
     """Hold the immutable original quote/Q/OAS receipt through current scenarios."""
     return term_call("term-product-reprice-2", dict(base=base,current=current))
+
+
+def evaluate_lifetime_credit_loss(request: dict, **execution_options) -> dict:
+    """Transport complete Physical credit sources for economic loss sensitivity."""
+    from ..core.model_native import run
+    return run("lifetime-credit-loss-1", request, **execution_options)[0]

@@ -10,6 +10,7 @@ use std::{fmt, io::Write, time::Instant};
 struct Probe {
     selected: bool,
     graph: bool,
+    lifetime_loss: bool,
     timeout: Option<u64>,
 }
 impl<'de> Deserialize<'de> for Probe {
@@ -25,6 +26,8 @@ impl<'de> Deserialize<'de> for Probe {
                 while let Some(key) = map.next_key::<String>()? {
                     let value = map.next_value::<Box<RawValue>>()?;
                     if key == "schema" {
+                        out.lifetime_loss |= serde_json::from_str::<String>(value.get())
+                            .is_ok_and(|v| v == crate::models::lifetime_loss::SCHEMA);
                         out.selected |=
                             serde_json::from_str::<String>(value.get()).is_ok_and(|v| {
                                 v == crate::products::commercial::stochastic_exercise::SCHEMA
@@ -57,7 +60,7 @@ pub(crate) fn selected(
         return None;
     }
     let probe = serde_json::from_slice::<Probe>(input).ok()?;
-    if !(probe.selected || probe.graph && probe.timeout.is_some()) {
+    if !(probe.selected || probe.lifetime_loss || probe.graph && probe.timeout.is_some()) {
         return None;
     }
     Some((|| {
@@ -71,7 +74,13 @@ pub(crate) fn selected(
         scope(Some(control), || {
             strict_json::parse_checked(
                 input,
-                (if probe.selected { 1 << 20 } else { 32 << 20 }) + 4096,
+                (if probe.lifetime_loss {
+                    2 << 20
+                } else if probe.selected {
+                    1 << 20
+                } else {
+                    32 << 20
+                }) + 4096,
                 checkpoint,
             )?;
             checkpoint()?;

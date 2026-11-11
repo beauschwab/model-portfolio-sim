@@ -44,6 +44,8 @@ flowchart LR
 | `portfolio-model-core` | Shared bounded credit, exact-observation fitting, dated contracts and supplied-fixing arithmetic. Its analysis entrypoints do not imply full scenario/ledger integration. |
 | `portfolio-compute-control` | Shared native deadline/cancellation checkpoints. |
 
+Rust `models/lifetime_loss.rs` owns the additive [consumer lifetime-loss report](models/lifetime-loss-sensitivity.md): complete paired Physical sources, macro/model ranges and economic outcome comparisons. The API transports and independently replays raw and persisted evidence under original deadlines and final SQL/object/source fences. The offline competing-risk challenger and same-panel scoring harness are independent validation tooling, absent from production dispatch.
+
 ## Revision and execution flow
 
 Inputs are typed snapshots of books, markets, assumptions, settings and provenance.

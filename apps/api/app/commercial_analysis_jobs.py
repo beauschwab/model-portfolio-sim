@@ -6,7 +6,7 @@ import time
 from . import persistence as db
 from portfolio_risk.analytics.modeled_json_identity import exact_json_identity as exact
 
-SCHEMAS=frozenset({'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','commercial-holding-journal-1','commercial-fee-journal-1','graph-cohort-audit-1'})
+SCHEMAS=frozenset({'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','lifetime-credit-loss-1','nonintegral-fee-accounting-1','commercial-holding-journal-1','commercial-fee-journal-1','graph-cohort-audit-1'})
 
 
 def _library_bounded(ref,budget):
