@@ -52,7 +52,10 @@ def run(schema,request,*,threads=1,expected_binary=None,cancelled=None,timeout=1
     envelope=dict(schema=schema,threads=threads,request=request)
     controlled=schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','lifetime-credit-loss-1','consumer-macro-scenarios-1','consumer-macro-products-1','consumer-behaviour-spec-1','consumer-behaviour-product-paths-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'} or is_generated_oas_calibration(schema,request)
     if controlled:envelope['execution_timeout_ms']=max(1,int(timeout*1000))
-    data=json.dumps(envelope,allow_nan=False,separators=(',',':')).encode()
+    # New macro byte budgets use UTF-8, matching the native canonical source.
+    # Historical transport bytes and the public canonical evidence hash stay unchanged.
+    ascii_transport=schema not in {'consumer-macro-scenarios-1','consumer-macro-products-1'}
+    data=json.dumps(envelope,ensure_ascii=ascii_transport,allow_nan=False,separators=(',',':')).encode()
     input_limit=1024*1024 if schema in {'commercial-generated-exercise-1','commercial-holding-continuation-1','consumer-behaviour-product-paths-1'} else 2*1024*1024 if schema in {'lifetime-credit-loss-1','nonintegral-fee-accounting-1'} else 4*1024*1024 if schema=='consumer-macro-scenarios-1' else 8*1024*1024 if schema in {'consumer-behaviour-spec-1','consumer-macro-products-1'} else MAX_INPUT
     output_limit=96*1024*1024+4096 if schema=='consumer-macro-products-1' else 32*1024*1024 if controlled else MAX_OUTPUT
     if len(data)>input_limit:raise ValueError('model request exceeds bounded native input')

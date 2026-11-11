@@ -27,6 +27,8 @@ def example(name):
 def test_macro_native_covariance_and_chronological_holdout_are_independent():
     request = example('consumer-macro-scenarios-1')
     result = analyze_consumer_macro(request)
+    from portfolio_risk.analytics.consumer_macro_reference import verify
+    assert verify(request, result)['verified']
     train = result['diagnostics']['training']
     assert train['mean_annualized_standardized_innovation'] == [0., 0.]
     for row, expected in zip(train['sample_annual_covariance'], [[4/3, 8/3], [8/3, 16/3]]):
@@ -68,3 +70,17 @@ def test_macro_native_refuses_pricing_mismatched_draws_and_cancellation():
         project_consumer_macro_products(request)
     with pytest.raises(InterruptedError, match='cancelled'):
         project_consumer_macro_products(request, cancelled=lambda: True)
+
+
+def test_macro_native_covariance_preserves_small_signed_residuals():
+    from portfolio_risk.analytics.consumer_macro_reference import verify
+    case=json.loads((Path(__file__).parent/'fixtures/consumer-macro-cancellation.json').read_bytes())
+    result=analyze_consumer_macro(case['request'])
+    assert verify(case['request'],result)['verified']
+
+
+def test_macro_native_and_reference_share_utf8_source_byte_admission():
+    from portfolio_risk.analytics.consumer_macro_reference import verify
+    from test_consumer_macro_reference import unicode_source
+    request=unicode_source()
+    assert verify(request,analyze_consumer_macro(request))['verified']

@@ -34,6 +34,12 @@ errors are separate. The training identity includes only available training rows
 frozen definitions and training policy; changing holdout observations changes the
 raw-source hash but not fitted training moments or identity.
 
+The unreleased macro moment reducer keeps observation order and uses compensated
+summation for means and signed covariance products. Large opposing products must
+retain small residual covariance; the independent `math.fsum` comparison bound
+is unchanged. Existing monetary reducers and released product calculations are
+unaffected.
+
 ## Projection and daily ownership
 
 Mapping to `consumer-behaviour-spec-1` requires exact coverage of selected macro
@@ -60,7 +66,34 @@ caps raw input at 4 MiB, 16 drivers, 4,096 history rows, 16 paths, 64 projection
 intervals and four scenarios. These are work/serialization bounds, not an RSS or
 production scale guarantee. Failure returns no partial result.
 
+These two new macro routes count UTF-8 source bytes in both the process adapter
+and independent verifier. Optional ASCII escaping does not consume the raw-source
+budget. Historical routes retain their transport encoding; the public canonical
+evidence hash keeps its existing encoding, and the executed-input hash binds the
+actual UTF-8 bytes delivered to the native process.
+
 ## Evidence and remaining scope
+
+The unreleased macro contract uses the explicit result `identity_policy`
+`consumer-macro-typed-binary64-1`. The digest begins with that UTF-8 policy name,
+then encodes values with tags: null `n`, booleans `t/f`, strings `s`, binary64 `d`,
+signed integers `i`, unsigned integers above i64 max `u`, arrays `a` and objects
+`o`. Lengths/counts and integer/float bits are eight-byte little-endian values;
+strings are UTF-8; object keys are sorted and encoded as strings. Array order,
+signed zero, integer precision and source coordinates remain exact. This avoids
+using language-specific JSON float spelling as a cross-language identity. The
+native hash walk retains the original callback. Existing released schemas and
+their hashes are unchanged; matching rebuilt macro artifacts are required.
+
+`consumer_macro_reference.verify` independently binds the complete typed raw
+source and training-only identity, checks source/scenario domains and release
+chronology, and reconstructs moments using Python `math.fsum`. Its statistical
+comparison bound is `1e-12 + 1e-12 * abs(expected)`; monetary tolerances are
+unchanged. Native fixture variants cover signed zero, integer path keys above
+2^63 and Unicode identities. Corrupted source hashes, covariance, holdout means,
+row order, exclusions and permission flags reject. This explicit verifier is
+not an execution backend. Its receipt covers macro source/innovation diagnostics
+only, not the fitted credit hazards, daily product cashflows or publication.
 
 Synthetic controls independently check training covariance entries 4/3, 8/3 and
 16/3, holdout isolation, late releases, actual draw mismatch, unknown units/lags,
@@ -78,7 +111,8 @@ The process deadline starts at entry and includes JSON preparation, executable
 hashing, input-file writing and final canonical evidence hashing; each boundary
 is checked before process creation or returning a result.
 
-Remaining #92 work includes independent raw-source verification and a joined analysis with separately supplied Pricing
+Remaining #92 work includes complete independent fitted-hazard/daily-source
+verification and a joined analysis with separately supplied Pricing
 parents and retained original OAS, plus frozen-EIR income accounting. Gross
 contract interest is not NII. Physical conditional forecasts must never drive
 OAS or EVE. Saved books, durable publication, capital/FTP, deployment and observed

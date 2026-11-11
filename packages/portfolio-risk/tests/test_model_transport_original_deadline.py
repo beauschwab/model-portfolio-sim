@@ -91,3 +91,31 @@ def test_final_canonical_hash_cannot_return_after_original_control_expires(monke
     monkeypatch.setattr(model_native.json, 'dumps', delayed_final)
     with pytest.raises(InterruptedError if cancel else TimeoutError):
         model_native.run('consumer-macro-products-1', {}, timeout=.1, cancelled=lambda: cancelled[0])
+
+
+@pytest.mark.parametrize('schema,ascii_transport',[
+    ('consumer-macro-scenarios-1',False),('consumer-macro-products-1',False),
+    ('consumer-behaviour-spec-1',True),('commercial-generated-exercise-1',True),
+])
+def test_selected_macro_utf8_transport_preserves_historical_and_public_hashes(monkeypatch,tmp_path,schema,ascii_transport):
+    import hashlib
+    import json
+    monkeypatch.setattr(model_native,'binary_identity',lambda:'a'*64)
+    @contextmanager
+    def scratch(**kwargs):yield tmp_path
+    monkeypatch.setattr(model_native,'scratch_directory',scratch)
+    payload=[]
+    class Completed:
+        returncode=0
+        def __init__(self,*args,stdin,stdout,**kwargs):
+            payload.append(stdin.read());stdout.write(b'{"ok":true,"result":{}}')
+        def poll(self):return 0
+        def wait(self,**kwargs):return 0
+    monkeypatch.setattr(model_native.subprocess,'Popen',Completed)
+    raw={'source':'\u754c'}
+    _,execution=model_native.run(schema,raw,timeout=1.)
+    public=dict(schema=schema,threads=1,request=raw)
+    expected=json.dumps(dict(public,execution_timeout_ms=1000),ensure_ascii=ascii_transport,allow_nan=False,separators=(',',':')).encode()
+    assert payload==[expected]
+    assert execution['executed_input_sha256']==hashlib.sha256(expected).hexdigest()
+    assert execution['input_sha256']==hashlib.sha256(json.dumps(public,allow_nan=False,separators=(',',':')).encode()).hexdigest()
