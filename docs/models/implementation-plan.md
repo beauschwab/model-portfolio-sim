@@ -1,5 +1,20 @@
 # Product model enhancement implementation and evidence
 
+## Auto collateral component (2026-11-11)
+
+The native `consumer-auto-collateral-1` library component values auto collateral
+from a supplied segment depreciation curve, a supplied used-vehicle index and
+supplied mileage and condition haircuts. It computes loss given default as
+exposure less haircut sale value plus repossession and remarketing costs, with a
+deficiency recovery tail and cash lags that do not enter the loss. Borrower
+equity is derived as a hazard covariate for the existing covariate estimator,
+and each interval is written as a `credit-model-1` period with term LGD and
+recovery timing. Seven fixtures cover the #94 hand LGD cases, probability
+conservation, bit-identical zero-coefficient behaviour and an index shock on
+shared draws. Synthetic fits stay adoption-ineligible. Transport, joint-driver
+and auto-graph wiring, independent verification and observed histories remain
+open under #94 and #25. See [the contract](consumer-auto-collateral.md).
+
 ## Consumer panel specification component
 
 The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit
