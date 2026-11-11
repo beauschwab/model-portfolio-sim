@@ -39,7 +39,7 @@ balances for the reconciliation.
 
 Every result is reduced to named scalars: row counts, the sum of each numeric
 column (with its L1 norm as the comparison scale), distinct counts of text
-columns, and every scalar in the result. A bank has about 470 metrics. A metric
+columns, and every scalar in the result. A bank has about 465 metrics. A metric
 that disappears or appears is a difference, so output-contract changes show up.
 
 | Metrics | Relative | Absolute | Why |
@@ -51,8 +51,10 @@ that disappears or appears is a difference, so output-contract changes show up.
 | everything else | 1e-7 | 1e-6 | Model outputs; allows cross-platform math-library roundoff only |
 
 Relative tolerance is applied to the larger L1 scale, so a sum of offsetting
-values is not held to an impossible precision. Solver iteration counts and
-residuals are not compared. These tolerances are for this suite's aggregates;
+values is not held to an impossible precision. Solver iteration counts,
+residuals and the list of constraints reported as binding are not compared:
+they depend on how the platform breaks ties. Shadow prices, allocations and
+the objective are. These tolerances are for this suite's aggregates;
 they do not replace or loosen any engine test tolerance.
 
 ## Updating goldens

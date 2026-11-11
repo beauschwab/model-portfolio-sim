@@ -241,7 +241,9 @@ def tolerance(name):
 
 
 def ignored(name):
-    """Solver work counters and residuals depend on the platform's pivoting order, not on the economics."""
+    """Solver work counters, residuals and which tied constraints are reported as binding depend on
+    the platform's pivoting order, not on the economics. Shadow prices and allocations are compared."""
+    if name.startswith('optimize.binding_constraints.'): return not name.endswith('.shadow_price.sum')
     return name.startswith(('optimize.solver.', 'optimize.native_max_violation'))
 
 
@@ -265,6 +267,13 @@ def compare(expected, actual):
 class Stack:
     """A private API and worker on a temporary SQLite store and object folder."""
     def __enter__(self):
+        # Ports are picked and released before the servers bind them, so a clash is possible.
+        for attempt in range(3):
+            try: return self._start()
+            except Failure:
+                if attempt == 2: raise
+
+    def _start(self):
         self.folder = tempfile.mkdtemp(prefix='golden-bank-')
         ports = []
         for _ in range(2):
@@ -274,9 +283,10 @@ class Stack:
             DATABASE_URL='sqlite:///' + os.path.join(self.folder, 'state.db').replace('\\', '/'), ARTIFACT_URL=os.path.join(self.folder, 'objects'),
             WORKBENCH_TENANT_ID='golden', WORKBENCH_WORKSPACE_ID='bank', WORKBENCH_WORKER_URL=f'http://127.0.0.1:{ports[1]}',
             WORKBENCH_WORKER_TOKEN='', WORKBENCH_API_TOKEN='', NUMBA_NUM_THREADS='2')
+        self.logs = [open(os.path.join(self.folder, f'{module}.log'), 'w') for module in ('main', 'worker')]
         self.processes = [subprocess.Popen([sys.executable, '-m', 'uvicorn', f'app.{module}:app', '--host', '127.0.0.1', '--port', str(port)],
-            cwd=REPO / 'apps' / 'api', env=env, stdout=open(os.path.join(self.folder, f'{module}.log'), 'w'), stderr=subprocess.STDOUT)
-            for module, port in zip(('main', 'worker'), ports)]
+            cwd=REPO / 'apps' / 'api', env=env, stdout=log, stderr=subprocess.STDOUT)
+            for module, port, log in zip(('main', 'worker'), ports, self.logs)]
         self.url = f'http://127.0.0.1:{ports[0]}'
         deadline = time.monotonic() + 180
         while True:
@@ -286,7 +296,7 @@ class Stack:
                 return self
             except OSError:
                 if time.monotonic() > deadline or any(p.poll() is not None for p in self.processes):
-                    self.__exit__(None, None, None)
+                    self.__exit__(Failure, None, None)
                     raise Failure(f'API or worker did not start; logs in {self.folder}')
                 time.sleep(.5)
 
@@ -295,7 +305,11 @@ class Stack:
         for process in self.processes:
             try: process.wait(20)
             except subprocess.TimeoutExpired: process.kill()
-        if kind is not None: print(f'server logs kept in {self.folder}', file=sys.stderr)
+        for log in self.logs: log.close()
+        if kind is not None: print(f'server logs kept in {self.folder}', file=sys.stderr)  # failures keep their evidence
+        else:
+            import shutil
+            shutil.rmtree(self.folder, ignore_errors=True)
 
 
 def main(argv=None):

@@ -64,6 +64,8 @@ class Comparison(unittest.TestCase):
     def test_run_dependent_solver_counters_are_not_golden(self):
         self.assertTrue(suite.ignored('optimize.solver.simplex_iterations'))
         self.assertFalse(suite.ignored('optimize.worst_case_nii_$'))
+        self.assertTrue(suite.ignored('optimize.binding_constraints.rows'))
+        self.assertFalse(suite.ignored('optimize.binding_constraints.shadow_price.sum'))
 
 
 class GateScoring(unittest.TestCase):

@@ -91,7 +91,6 @@
  "optimize.allocation.notional.sum": [167435953479.58774, 167435953479.58774],
  "optimize.allocation.purchase_m.sum": [72.0, 72.0],
  "optimize.allocation.rows": [10, null],
- "optimize.binding_constraints.rows": [11, null],
  "optimize.binding_constraints.shadow_price.sum": [47.98568488086683, 47.98568488086683],
  "optimize.cash_budget_$": [2000000000.0, 2000000000.0],
  "optimize.dynamic_validated": [false, null],
