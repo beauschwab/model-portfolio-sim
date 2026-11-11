@@ -142,8 +142,8 @@
 - Run `make check-architecture` for boundary/contract changes: static boundaries, script tests and reproducible native/HTTP/MCP contracts. CI also enforces this file's 150-line maximum, including blank lines.
 - Run affected numerical/publication/ownership gates from the nested test instructions; kernel edits require the full engine suite. Explicit Python oracles must stay independent. Fresh-process default/ownership tests run
   outside reference context and forbid Python financial callbacks.
-- Root commands: `make install`, `dev-api`, `dev-worker`, `dev-web`, `test-py`, `test`, `build-native`, `build`. Engine/API tests and browser checks establish their stated scope only; retain existing PostgreSQL,
-  immutable storage and optional Iceberg retry/idempotency contracts.
+- Root commands: `make install`, `dev-api`, `dev-worker`, `dev-web`, `build-native`, `build`. Test tiers: `smoke` (under five minutes, after `build-native`), `test-changed` (suites mapped from changed paths in
+  `scripts/select_tests.py`), `test-py`/`test` (full); CI selects by path on PRs and runs everything nightly. Each tier establishes its stated scope only; retain PostgreSQL, immutable storage and Iceberg retry/idempotency contracts.
 - Keep detailed schema/adoption rules in the linked current model documents and [implementation plan](docs/models/implementation-plan.md); do not append version logs here or to operator skill/reference entrypoints.
 - Historical text is preserved unchanged in [the root archive](docs/changelog/agents-history.md) and [per-source archives](docs/changelog/agents-history-manifest.json). The [review
   checklist](docs/reviews/issue-67-agent-contract.md) maps former sections to current rules; archive relative paths refer to their original source location.

@@ -1,6 +1,7 @@
 name: Rust workbench service
 
 on:
+  workflow_call:
   push:
     paths:
       - 'packages/portfolio-model-core/src/lifecycle/**'

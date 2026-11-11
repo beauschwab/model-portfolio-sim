@@ -1,5 +1,6 @@
 name: Native component tests
 on:
+  workflow_call:
   pull_request:
     paths: ['packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-verification-native/**', 'scripts/check_native_components.py', 'scripts/generate_*platform_proof*.py', '.github/workflows/native-components.yml']
   push:

@@ -1,0 +1,30 @@
+name: Nightly full suites
+# Pull requests run only the workflows whose path filters match the change. This runs all of
+# them on the default branch every night, and on demand, regardless of what changed.
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  architecture:
+    uses: ./.github/workflows/architecture.yml
+  backend-storage:
+    uses: ./.github/workflows/backend-storage.yml
+  ledger-native:
+    uses: ./.github/workflows/ledger-native.yml
+  lifecycle-verifier:
+    uses: ./.github/workflows/lifecycle-verifier.yml
+  mcp:
+    uses: ./.github/workflows/mcp.yml
+  native-components:
+    uses: ./.github/workflows/native-components.yml
+  native-products:
+    uses: ./.github/workflows/native-products.yml
+  native-service:
+    uses: ./.github/workflows/native-service.yml
+  product-browser-acceptance:
+    uses: ./.github/workflows/product-browser-acceptance.yml
+  storage-operations:
+    uses: ./.github/workflows/storage-operations.yml

@@ -1,5 +1,5 @@
 # Rates Workbench monorepo
-.PHONY: install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test-web test build build-native check-architecture check-native-service
+.PHONY: smoke test-changed install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test-web test build build-native check-architecture check-native-service
 .NOTPARALLEL: test test-web
 
 install:            ## python (editable) + node deps
@@ -37,6 +37,12 @@ check-architecture: ## static boundaries and reproducible HTTP/native contracts
 test-py: check-architecture ## engine and API regression suites
 	cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q
 	cd apps/api && uv run --extra dev python -m pytest tests/ -q
+
+smoke:              ## under 5 minutes: contracts, web build, one test per engine area (after build-native)
+	python scripts/select_tests.py --smoke
+
+test-changed:       ## only the suites affected by changes against origin/main
+	python scripts/select_tests.py --run
 
 test: test-py test-mcp check-native-service test-web ## full local matrix; build financial native artifacts first
 
