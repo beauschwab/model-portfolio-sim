@@ -25,7 +25,8 @@ jobs:
           python-version: '3.12'
       - run: bun install --frozen-lockfile
       - run: uv sync --project apps/api --extra dev --locked
-      - run: uv sync --project packages/portfolio-risk --extra dev --locked
+      # The engine lockfile is not kept current on main; the other engine workflows also sync it unlocked.
+      - run: uv sync --project packages/portfolio-risk --extra dev
       - run: uv sync --project apps/mcp --extra dev --locked
       - uses: actions/cache@v4
         id: native
