@@ -3,7 +3,7 @@ name = "rates-workbench-mcp"
 version = "0.2.0"
 description = "MCP transport for the Rates Workbench HTTP API"
 requires-python = ">=3.11"
-dependencies = ["mcp>=1.26,<2", "httpx>=0.28,<1", "jsonschema>=4.23,<5", "pyarrow>=19,<24"]
+dependencies = ["mcp>=1.26,<2", "httpx>=0.28,<1", "jsonschema>=4.23,<5", "pyarrow>=19,<26"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.25"]

@@ -23,7 +23,7 @@ dev-mcp:            ## Stdio MCP adapter; API and worker run separately
 
 test-mcp:           ## Protocol, permissions and bounded transport
 	uv run --project apps/mcp --extra dev python -m pytest apps/mcp/tests -q
-	cd apps/api && uv run --extra dev --with-editable ../mcp python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py -q
+	cd apps/api && uv run --extra dev --extra analysts python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py tests/test_analysts.py tests/test_analyst_acp.py -q
 
 check-architecture: ## static boundaries and reproducible HTTP/native contracts
 	python scripts/check_agent_contract.py

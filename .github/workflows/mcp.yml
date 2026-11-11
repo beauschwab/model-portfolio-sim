@@ -29,5 +29,5 @@ jobs:
       - run: uv run --project apps/api python scripts/build_native.py
       - run: uv run --project apps/api python scripts/build_ledger_native.py
       - run: uv run --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
-      - run: uv run --extra dev --with-editable ../mcp python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py -q
+      - run: uv run --extra dev --extra analysts python -m pytest tests/test_agent_routes.py tests/test_agent_mcp_integration.py tests/test_analysts.py tests/test_analyst_acp.py -q
         working-directory: apps/api

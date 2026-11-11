@@ -11,6 +11,9 @@ flowchart LR
     MCP --> API
     UI[React workbench] --> Client[Typed API client]
     Client --> API[FastAPI]
+    API --> Goose[Optional Goose ACP analyst]
+    Goose --> Evidence[Read-only evidence MCP gateway]
+    Evidence --> API
     API --> SQL[SQLite / PostgreSQL revisions and jobs]
     API --> Objects[Immutable Parquet / JSON / Arrow artifacts]
     SQL --> Worker[One durable worker per workspace]
@@ -37,6 +40,7 @@ flowchart LR
 | `app/telemetry.py`, `app/job_queue.py`, `app/result_transport.py` | Progress/workload metadata, queue orchestration and ARW1 transport. |
 | `app/persistence.py`, `app/repository.py`, `app/artifacts.py` | Durable revisions/jobs, portable transactional SQL and immutable checksummed objects. Storage does not import feature handlers. |
 | `app/worker.py` | Lease ownership, one heavy job at a time, recovery, native invocation and publication fencing. |
+| `app/analyst_*` | Optional Goose ACP supervision, private conversations and captured evidence in additive application SQL tables. A signed turn gateway permits only reviewed HTTP reads; no financial execution or worker ownership. See [embedded analysts](embedded-analysts.md). |
 | `portfolio-risk` Python package | Public input/output adapters, explicit test reference calculations and independent verification. |
 | `portfolio-risk-native` | Built-in pricing, calibration, shared draws, dependency graph, risk/income/forecast controllers and treasury. |
 | `portfolio-decision-native` | Transactional edit/strategy coordinator, LP construction, HiGHS invocation, allocation validation and combined workflow. |

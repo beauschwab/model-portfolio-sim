@@ -61,6 +61,19 @@ version 2 or upgrades version 1 by adding the catalog-publication receipt table;
 existing revisions are preserved. Unknown versions are rejected. Future changes need
 explicit migrations; `create_all` is not a general upgrade mechanism.
 
+The optional [embedded analyst pilot](embedded-analysts.md) adds application-owned
+`analyst_conversations`, `analyst_turns` and `analyst_evidence` tables in the same
+database. These do not alter shared financial schema version 2 or native service
+ownership. Enabled API startup creates the initial tables; initialize them once
+before starting multiple replicas. Future analyst schema changes require explicit
+migrations. Prompts, answers and captured pages can contain portfolio data and
+must follow the database's access, backup and retention policies. No automated
+transcript retention or deletion is included in the pilot.
+The local OpenRouter launcher (`bun run dev:analysts`) loads only the ignored
+`apps/api/.env.analysts` in addition to process settings. The provider key stays
+server-side and is required before inference admission; it is never persisted
+in conversation receipts. See the embedded analyst guide for setup and live checks.
+
 API and worker should use the same immutable application image, dependency lock,
 Python/platform, and optional native binaries. Run manifests record source and
 binary hashes, versions, paths/seeds/settings and exact typed inputs. A queued

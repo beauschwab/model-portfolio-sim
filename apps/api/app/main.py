@@ -31,6 +31,11 @@ from .schemas import (Allocation, OptimizeRequest, Program, AssumptionPatch, Job
 async def request_context(request: Request):
     import hmac
     config = persistence.CONFIG
+    if request.url.path == '/analysts/tools/call':
+        # The handler validates a signed, expiring turn capability. It never accepts
+        # the ordinary API credential and exposes only the reviewed read allowlist.
+        yield
+        return
     if config and config.api_token and not hmac.compare_digest(
             request.headers.get('authorization', ''), f'Bearer {config.api_token}'):
         raise HTTPException(401, 'Authentication required')
@@ -64,9 +69,12 @@ async def request_context(request: Request):
 @asynccontextmanager
 async def lifespan(_app):
     persistence.start()
+    from . import analyst_routes
     try:
+        analyst_routes.start()
         yield
     finally:
+        await analyst_routes.stop()
         persistence.stop()
 
 
@@ -81,6 +89,8 @@ from .model_routes import router as model_router
 app.include_router(model_router)
 from .agent_routes import router as agent_router
 app.include_router(agent_router)
+from .analyst_routes import router as analyst_router
+app.include_router(analyst_router)
 
 
 @app.post('/decision/sessions')

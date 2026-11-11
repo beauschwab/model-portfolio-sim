@@ -19,6 +19,7 @@ def generate():
     api = app.openapi()
     policy = json.loads((TARGET / 'policy.json').read_text())
     operations = {}
+    reviewed = set()
     for path, methods in api['paths'].items():
         for method, operation in methods.items():
             if method not in {'get', 'post', 'put', 'patch', 'delete'}:
@@ -27,6 +28,11 @@ def generate():
             if key not in policy:
                 raise ValueError(f'Unreviewed MCP permission: {key}')
             entry = policy[key]
+            reviewed.add(key)
+            if entry.get('exposed') is False:
+                if not entry.get('reason'):
+                    raise ValueError(f'Excluded MCP route requires a reviewed reason: {key}')
+                continue
             if entry['permission'] not in {'read', 'compute', 'edit', 'publish', 'cancel'}:
                 raise ValueError(f'Unknown permission: {key}')
             groups = {}
@@ -82,7 +88,7 @@ def generate():
             schema['$defs'] = needed
             operations[name] = dict(method=method.upper(), path=path, description=description,
                                     inputSchema=schema, **entry)
-    if set(policy) != {f'{v["method"]} {v["path"]}' for v in operations.values()}:
+    if set(policy) != reviewed:
         raise ValueError('Stale MCP permission entry')
     catalog = dict(version=1, operations=operations, model_contracts=sorted(EXAMPLES))
     return json.dumps(catalog, indent=2, sort_keys=True) + '\n'
