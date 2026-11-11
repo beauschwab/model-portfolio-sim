@@ -65,8 +65,7 @@ def principal(request, scope):
 
 def capability_signature(payload):
     # Domain-separated from gateway identity signatures, which share the deployment secret.
-    return hmac.new(secret(), b'analyst-capability-1
-' + payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(secret(), b'analyst-capability-1\n' + payload.encode(), hashlib.sha256).hexdigest()
 
 
 def capability(turn, scope):
