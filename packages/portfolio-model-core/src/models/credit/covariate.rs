@@ -259,23 +259,30 @@ pub struct ProjectedCreditHazards {
     pub intervals: Vec<ProjectedInterval>,
     pub work_units: usize,
 }
-struct Budget {
+struct Budget<'a> {
+    external: &'a mut dyn FnMut() -> Result<(), String>,
     start: Instant,
     timeout: Duration,
     work: usize,
 }
-impl Budget {
-    fn new(timeout_ms: u64) -> Result<Self, String> {
+impl<'a> Budget<'a> {
+    fn new(
+        timeout_ms: u64,
+        external: &'a mut dyn FnMut() -> Result<(), String>,
+    ) -> Result<Self, String> {
         if !(1..=3_600_000).contains(&timeout_ms) {
             return Err("timeout_ms outside bounded domain".into());
         }
+        external()?;
         Ok(Self {
+            external,
             start: Instant::now(),
             timeout: Duration::from_millis(timeout_ms),
             work: 0,
         })
     }
     fn charge(&mut self, n: usize) -> Result<(), String> {
+        (self.external)()?;
         self.work = self.work.checked_add(n).ok_or("covariate work overflow")?;
         if self.work > MAX_WORK {
             return Err("covariate work admission exceeded".into());
@@ -817,7 +824,15 @@ fn resolved(rows: &[OriginModel; 3], ps: &[P], values: &[f64]) -> [ResolvedRow; 
 }
 
 pub fn fit(request: &CovariateFitRequest) -> Result<CovariateFitResult, String> {
-    let mut budget = Budget::new(request.optimizer.timeout_ms)?;
+    fit_with_check(request, &mut || Ok(()))
+}
+
+/// Keep the enclosing coordinator's original deadline/cancellation inside fitting.
+pub fn fit_with_check(
+    request: &CovariateFitRequest,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<CovariateFitResult, String> {
+    let mut budget = Budget::new(request.optimizer.timeout_ms, check)?;
     let mut bytes = 0;
     if request.schema != SCHEMA
         || request.measure != CreditMeasure::Physical
@@ -1272,7 +1287,14 @@ pub fn fit(request: &CovariateFitRequest) -> Result<CovariateFitResult, String> 
 }
 
 pub fn project(request: &CovariateProjectionRequest) -> Result<ProjectedCreditHazards, String> {
-    let mut budget = Budget::new(request.timeout_ms)?;
+    project_with_check(request, &mut || Ok(()))
+}
+
+pub fn project_with_check(
+    request: &CovariateProjectionRequest,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<ProjectedCreditHazards, String> {
+    let mut budget = Budget::new(request.timeout_ms, check)?;
     let mut bytes = 0;
     if request.schema != SCHEMA
         || request.measure != CreditMeasure::Physical
@@ -1616,7 +1638,8 @@ mod tests {
             right_censored: destination.is_none(),
         };
         let cases = vec![make("one", 1.0, 0.0, Some(3)), make("two", 2.0, 1.0, None)];
-        let mut budget = Budget::new(60_000).unwrap();
+        let mut check = || Ok(());
+        let mut budget = Budget::new(60_000, &mut check).unwrap();
         let values = vec![-1.0, 0.2];
         let value = objective(&rows, &ps, &values, &cases, (1, 1), &mut budget, true).unwrap();
         let (a, b) = ((-1.0_f64).exp(), (-0.8_f64).exp());

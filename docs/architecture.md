@@ -5,6 +5,13 @@ a dedicated worker, native financial runtimes, and durable storage. The current
 production policy is [rust-production-contract.md](rust-production-contract.md).
 Python financial implementations are independent reference oracles for tests.
 
+The standalone [consumer panel specification](models/consumer-behaviour-spec.md)
+maps product observations and fits/projects hazards in Rust. Its Python entrypoint
+is process transport only; it adds no durable publication or saved-book adoption.
+The selected [daily consumer adapter](models/consumer-behaviour-product-paths.md)
+uses zero-monetary CTMC states and one Rust installment/card cashflow owner, with
+explicit daily clock reduction and exact-zero card closure.
+
 ```mermaid
 flowchart LR
     Agent[MCP client] --> MCP[Stdio HTTP adapter]
@@ -35,7 +42,7 @@ flowchart LR
 | `app/operations.py` | Allowlisted application composition, preserving existing queued operation names. |
 | `app/*_jobs.py` | Domain engine adapters. The caller supplies the state owner; no duplicated state dictionaries. |
 | `app/telemetry.py`, `app/job_queue.py`, `app/result_transport.py` | Progress/workload metadata, queue orchestration and ARW1 transport. |
-| `app/persistence.py`, `app/repository.py`, `app/artifacts.py` | Durable revisions/jobs, portable transactional SQL and immutable checksummed objects. Storage does not import feature handlers. |
+| `app/persistence.py`, `app/repository.py`, `app/artifacts.py`, `app/local_files.py` | Durable revisions/jobs, portable transactional SQL, immutable checksummed objects and shared platform filesystem paths. Storage does not import feature handlers. |
 | `app/worker.py` | Lease ownership, one heavy job at a time, recovery, native invocation and publication fencing. |
 | `portfolio-risk` Python package | Public input/output adapters, explicit test reference calculations and independent verification. |
 | `portfolio-risk-native` | Built-in pricing, calibration, shared draws, dependency graph, risk/income/forecast controllers and treasury. |

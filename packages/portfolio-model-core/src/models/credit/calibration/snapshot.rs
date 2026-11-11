@@ -436,12 +436,14 @@ fn hazards(rows: &[RowModel; 3], values: &[f64], case: &Case) -> Option<[[f64; 5
 }
 
 struct Objective<'a> {
+    check: &'a mut dyn FnMut() -> Result<(), String>,
     rows: &'a [RowModel; 3],
     evaluations: usize,
     work: usize,
 }
 impl Objective<'_> {
     fn diagnostics(&mut self, values: &[f64], cases: &[Case]) -> Result<PanelDiagnostics, String> {
+        (self.check)()?;
         self.evaluations += 1;
         if self.evaluations > 2400 {
             return Err("total objective evaluation limit exceeded".into());
@@ -456,6 +458,7 @@ impl Objective<'_> {
             predicted_endpoint_counts: [[0.0; 5]; 3],
         };
         for case in cases {
+            (self.check)()?;
             let Some(q) = hazards(self.rows, values, case) else {
                 out.log_likelihood = None;
                 out.domain_rejected_intervals +=
@@ -639,6 +642,15 @@ fn severity(rows: &[&DefaultOutcome]) -> SeverityFit {
 }
 
 pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationResult, String> {
+    fit_with_check(request, &mut || Ok(()))
+}
+
+/// Preserve the caller's scalar deadline and cancellation through panel fitting.
+pub fn fit_with_check(
+    request: &SnapshotCalibrationRequest,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<SnapshotCalibrationResult, String> {
+    check()?;
     if request.schema != SCHEMA {
         return Err("unsupported snapshot calibration schema".into());
     }
@@ -763,6 +775,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
     let mut account_rows: HashMap<&str, Vec<&SnapshotInterval>> = HashMap::new();
     unique.clear();
     for r in &request.snapshots {
+        check()?;
         for v in [&r.snapshot_id, &r.account_id, &r.source_id] {
             label(v, &mut metadata)?;
         }
@@ -805,6 +818,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
         }
     }
     for rows in account_rows.values_mut() {
+        check()?;
         rows.sort_by_key(|r| r.start);
         for pair in rows.windows(2) {
             if pair[0].end != pair[1].start || pair[0].destination != pair[1].origin {
@@ -830,6 +844,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
     }
     let mut values: Vec<f64> = params.iter().map(|p| p.value).collect();
     let mut objective = Objective {
+        check,
         rows: &request.rows,
         evaluations: 0,
         work: 0,
@@ -908,6 +923,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
     let mut default_accounts = HashSet::new();
     unique.clear();
     for r in &request.default_outcomes {
+        (objective.check)()?;
         for v in [&r.outcome_id, &r.account_id, &r.source_id] {
             label(v, &mut metadata)?;
         }
@@ -954,6 +970,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
         let mut previous = d;
         let mut recovered = 0.0;
         for cash in &r.recoveries {
+            (objective.check)()?;
             range(cash.principal, 0.0, MAX_MONETARY_AMOUNT)?;
             let t = time(cash.time)?;
             if t < previous || t > resolved {
@@ -1047,6 +1064,7 @@ pub fn fit(request: &SnapshotCalibrationRequest) -> Result<SnapshotCalibrationRe
             .into(),
         })
         .collect();
+    (objective.check)()?;
     Ok(SnapshotCalibrationResult {
         schema: SCHEMA.into(),
         measure: CreditMeasure::Physical,

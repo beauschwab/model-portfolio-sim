@@ -11,6 +11,8 @@ struct Probe {
     selected: bool,
     graph: bool,
     lifetime_loss: bool,
+    consumer_behavior: bool,
+    consumer_products: bool,
     timeout: Option<u64>,
 }
 impl<'de> Deserialize<'de> for Probe {
@@ -26,6 +28,12 @@ impl<'de> Deserialize<'de> for Probe {
                 while let Some(key) = map.next_key::<String>()? {
                     let value = map.next_value::<Box<RawValue>>()?;
                     if key == "schema" {
+                        out.consumer_products |= serde_json::from_str::<String>(value.get())
+                            .is_ok_and(|v| {
+                                v == portfolio_model_core::consumer_product_paths::SCHEMA
+                            });
+                        out.consumer_behavior |= serde_json::from_str::<String>(value.get())
+                            .is_ok_and(|v| v == crate::models::consumer_behavior::SCHEMA);
                         out.lifetime_loss |= serde_json::from_str::<String>(value.get())
                             .is_ok_and(|v| v == crate::models::lifetime_loss::SCHEMA);
                         out.selected |=
@@ -60,7 +68,12 @@ pub(crate) fn selected(
         return None;
     }
     let probe = serde_json::from_slice::<Probe>(input).ok()?;
-    if !(probe.selected || probe.lifetime_loss || probe.graph && probe.timeout.is_some()) {
+    if !(probe.selected
+        || probe.lifetime_loss
+        || probe.consumer_behavior
+        || probe.consumer_products
+        || probe.graph && probe.timeout.is_some())
+    {
         return None;
     }
     Some((|| {
@@ -74,7 +87,11 @@ pub(crate) fn selected(
         scope(Some(control), || {
             strict_json::parse_checked(
                 input,
-                (if probe.lifetime_loss {
+                (if probe.consumer_products {
+                    1 << 20
+                } else if probe.consumer_behavior {
+                    8 << 20
+                } else if probe.lifetime_loss {
                     2 << 20
                 } else if probe.selected {
                     1 << 20

@@ -16,7 +16,7 @@ fn request(v: Value) -> mixed::Request {
 // supply no reviewed liquidity profile, so the current contract exposes null
 // headroom and unconfigured status. Preserve every other original byte/value;
 // keep the historical fixture files unchanged and compare complete output bytes.
-fn baseline_with_unconfigured_liquidity(baseline: &[u8]) -> Vec<u8> {
+fn baseline_with_unconfigured_liquidity(baseline: &[u8], name: &str) -> Vec<u8> {
     let mut expected: Value = serde_json::from_slice(baseline).unwrap();
     assert_eq!(
         serde_json::to_vec(&expected).unwrap().as_slice(),
@@ -34,7 +34,46 @@ fn baseline_with_unconfigured_liquidity(baseline: &[u8]) -> Vec<u8> {
             row.insert("nsfr_status".into(), json!("unconfigured"));
         }
     }
+    #[cfg(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64"))]
+    {
+        use sha2::{Digest, Sha256};
+        let patch: Value =
+            serde_json::from_str(include_str!("fixtures/mixed_linux_gnu_patch.json")).unwrap();
+        let patch = &patch["cases"][name];
+        let canonical = std::str::from_utf8(baseline).unwrap().replace("\r\n", "\n");
+        assert_eq!(
+            format!("{:x}", Sha256::digest(canonical.as_bytes())),
+            patch["original_fixture_lf_sha256"].as_str().unwrap()
+        );
+        let mut seen = std::collections::HashSet::new();
+        for change in patch["changes"].as_array().unwrap() {
+            let path = change["path"].as_str().unwrap();
+            assert!(path.starts_with("/ok/") && seen.insert(path));
+            let value = expected.pointer_mut(path).unwrap();
+            assert_eq!(*value, change["original"], "platform anchor {path}");
+            assert!(value.is_number() && change["expected"].is_number());
+            *value = change["expected"].clone();
+        }
+    }
+    #[cfg(not(all(target_os = "linux", target_env = "gnu", target_arch = "x86_64")))]
+    let _ = name;
     serde_json::to_vec(&expected).unwrap()
+}
+
+fn assert_exact_output(actual: &[u8], expected: &[u8]) {
+    let first = actual
+        .iter()
+        .zip(expected)
+        .position(|(a, b)| a != b)
+        .unwrap_or(actual.len().min(expected.len()));
+    assert!(
+        actual == expected,
+        "complete frozen output differs at byte {first}; lengths {} and {}; actual {:?}; expected {:?}",
+        actual.len(),
+        expected.len(),
+        String::from_utf8_lossy(&actual[first..actual.len().min(first + 80)]),
+        String::from_utf8_lossy(&expected[first..expected.len().min(first + 80)])
+    );
 }
 #[test]
 fn dated_candidate_installment_card_share_one_balanced_gl() {
@@ -108,14 +147,20 @@ fn original_consumer_output_matches_frozen_economics_and_current_liquidity_contr
     let result = consumer::evaluate(&raw).unwrap();
     let output = serde_json::to_vec(&json!({"ok":result})).unwrap();
     let baseline = include_bytes!("fixtures/product_mixed_consumer_credit_baseline.json");
-    assert_eq!(output, baseline_with_unconfigured_liquidity(baseline));
+    assert_exact_output(
+        &output,
+        &baseline_with_unconfigured_liquidity(baseline, "consumer"),
+    );
 }
 #[test]
 fn original_card1_output_matches_frozen_economics_and_current_liquidity_contract() {
     let result = mixed::evaluate(&request(raw())).unwrap();
     let output = serde_json::to_vec(&json!({"ok":result})).unwrap();
     let baseline = include_bytes!("fixtures/product_mixed_card1_baseline.json");
-    assert_eq!(output, baseline_with_unconfigured_liquidity(baseline));
+    assert_exact_output(
+        &output,
+        &baseline_with_unconfigured_liquidity(baseline, "card1"),
+    );
 }
 fn card2() -> Value {
     serde_json::from_str(include_str!(

@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 import numpy as np
 import polars as pl
 from pydantic import BaseModel
+from .local_files import local_root as _local_object_root
 
 
 def _selected_probe(cancelled):
@@ -49,20 +50,6 @@ class ObjectReference(dict):
     Ordinary user dictionaries are never promoted to storage references. The
     tagged codec representation keeps this object rooted across load/dump cycles.
     """
-
-
-def _local_object_root(url):
-    root = Path(url).resolve()
-    # Win32 rename/read calls otherwise impose MAX_PATH on full object names,
-    # even when the configured root and temporary file fit within that limit.
-    # Keep the immutable relative keys and workspace identity unchanged.
-    if os.name == "nt":
-        absolute = str(root)
-        if not absolute.startswith("\\\\?\\"):
-            absolute = ("\\\\?\\UNC\\" + absolute[2:] if absolute.startswith("\\\\")
-                        else "\\\\?\\" + absolute)
-        root = Path(absolute)
-    return root
 
 
 class Objects:

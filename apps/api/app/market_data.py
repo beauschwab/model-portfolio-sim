@@ -153,7 +153,8 @@ def catalog():
 
 
 def _root():
-    return Path(os.getenv("MARKET_DATA_DIR", str(ROOT)))
+    from .local_files import local_root
+    return local_root(os.getenv("MARKET_DATA_DIR", str(ROOT)))
 
 
 def _json(value):
