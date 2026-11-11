@@ -1,0 +1,51 @@
+{
+  "id": "prairie-20b",
+  "name": "Prairie Community Bank (synthetic, $20B)",
+  "description": "Deposit-funded community bank: large retail non-maturity base, fixed-rate lending, modest securities book. The retail extract uses core-system column names and needs a column map.",
+  "generator": {
+    "seed": 2026020,
+    "prefix": "PR",
+    "entity": "prairie-bank",
+    "total_assets": 20000000000,
+    "mix": {
+      "money_market_assets": 0.06, "securities": 0.20, "resi_mortgage": 0.34, "commercial": 0.40,
+      "retail_deposits": 0.66, "wholesale_deposits": 0.08, "time_deposits": 0.09, "short_term_borrowings": 0.03, "debt": 0.04
+    },
+    "counts": {"securities": 60, "commercial_loans": 70, "long_term_debt": 12, "wholesale_deposits": 30, "time_deposits": 40},
+    "commercial_float_share": 0.35,
+    "brokered_cd_share": 0.10,
+    "tape": {
+      "mortgages": 1200, "deposits": 900,
+      "states": {"TX": 0.5, "OTHER": 0.5},
+      "segments": {"DDA": 0.35, "NOW": 0.10, "SAV": 0.30, "MMDA": 0.25},
+      "headers": {
+        "loan_id": "ACCT_NBR", "product": "PROD_TYPE", "balance": "CUR_BAL", "currency": "CCY", "entity": "LEGAL_ENTITY",
+        "accounting_category": "ACCTG_CLASS", "assumption_set": "ASSUMP_SET", "fico": "FICO_SCORE", "age_months": "AGE_MO",
+        "remaining_term_months": "REM_TERM_MO", "oltv": "ORIG_LTV", "factor": "POOL_FACTOR", "wac": "NOTE_RATE",
+        "net_coupon": "NET_RATE", "price": "MARK_PX", "hpi_orig_ratio": "HPI_RATIO", "pay_delay_days": "PAY_DELAY",
+        "state": "PROP_STATE", "channel": "ORIG_CHANNEL", "delinquency": "DLQ_STATUS", "rate_type": "RATE_TYPE", "book_yield": "BOOK_YLD",
+        "segment": "DEP_SEGMENT", "insured_status": "FDIC_STATUS", "relationship": "RELATIONSHIP",
+        "rate_paid": "INT_RATE_PAID", "svc_cost": "SVC_COST"
+      }
+    }
+  },
+  "cohort_defaults": {},
+  "settings": {"compute_backend": "rust", "n_paths": 64, "n_paths_base": 256, "n_threads": 2, "seed": 7, "horizon_months": 24, "shocks_bp": [-200.0, -100.0, 100.0, 200.0]},
+  "market": {
+    "swap_rates": [0.0425, 0.0405, 0.0395, 0.0392, 0.0391, 0.0398, 0.0408, 0.0422, 0.043, 0.0436],
+    "vol_pts": [[1.0, 2.0, 0.25], [1.0, 5.0, 0.24], [1.0, 10.0, 0.235], [3.0, 2.0, 0.24], [3.0, 5.0, 0.23], [3.0, 10.0, 0.225], [5.0, 2.0, 0.235], [5.0, 5.0, 0.225], [5.0, 10.0, 0.22]]
+  },
+  "scenario": {"name": "golden_up_200", "ust10y_bp": [100, 200], "twos_tens_bp": [0, -25], "spread_bp": [10, 25], "vol_bp": [0, 0]},
+  "optimize": {"lcr_min": 0.75, "nsfr_min": 1.0, "cet1_min": 0.08, "eve_limit": 0.75, "max_total_assets": 22000000000, "cash_budget": 500000000, "scenarios": ["golden_up_200"]},
+  "strategy": [
+    {"template": "agency_mbs", "purchase_m": 0, "notional": 250000000},
+    {"template": "cml_fixed_5y", "purchase_m": 6, "notional": 150000000},
+    {"template": "cd_2y", "purchase_m": 0, "notional": 200000000}
+  ],
+  "reconciliation": {"tolerance_abs_usd": 0.05, "expected_breaks": {}, "not_in_books": ["3000"]},
+  "expected_gates": {
+    "G1-data-accepted": {"exceptions": []},
+    "G2-mapping-approved": {"exceptions": []},
+    "G3-reconciled": {"exceptions": []}
+  }
+}
