@@ -107,6 +107,14 @@ pub struct InstallmentResult {
 }
 
 pub fn project(r: &InstallmentRequest) -> Result<InstallmentResult, String> {
+    project_with_check(r, &mut || Ok(()))
+}
+
+pub fn project_with_check(
+    r: &InstallmentRequest,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<InstallmentResult, String> {
+    check()?;
     validate(r)?;
     let end = horizon(r.as_of_ordinal, r.horizon_days)?;
     let steps: BTreeMap<_, _> = r.steps.iter().map(|s| (s.ordinal, &s.action)).collect();
@@ -130,6 +138,7 @@ pub fn project(r: &InstallmentRequest) -> Result<InstallmentResult, String> {
     let mut points = Vec::new();
     let mut default = None;
     for day in days {
+        check()?;
         if day > previous
             && balance > 0.0
             && !matches!(state, ConsumerState::Default | ConsumerState::PaidOff)
@@ -303,6 +312,7 @@ pub fn project(r: &InstallmentRequest) -> Result<InstallmentResult, String> {
     {
         return Err("installment principal conservation failed".into());
     }
+    check()?;
     Ok(InstallmentResult {
         schema: SCHEMA.into(),
         identity: r.identity.clone(),

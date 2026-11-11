@@ -5,6 +5,13 @@ a dedicated worker, native financial runtimes, and durable storage. The current
 production policy is [rust-production-contract.md](rust-production-contract.md).
 Python financial implementations are independent reference oracles for tests.
 
+The standalone [consumer panel specification](models/consumer-behaviour-spec.md)
+maps product observations and fits/projects hazards in Rust. Its Python entrypoint
+is process transport only; it adds no durable publication or saved-book adoption.
+The selected [daily consumer adapter](models/consumer-behaviour-product-paths.md)
+uses zero-monetary CTMC states and one Rust installment/card cashflow owner, with
+explicit daily clock reduction and exact-zero card closure.
+
 ```mermaid
 flowchart LR
     Agent[MCP client] --> MCP[Stdio HTTP adapter]
@@ -38,7 +45,7 @@ flowchart LR
 | `app/operations.py` | Allowlisted application composition, preserving existing queued operation names. |
 | `app/*_jobs.py` | Domain engine adapters. The caller supplies the state owner; no duplicated state dictionaries. |
 | `app/telemetry.py`, `app/job_queue.py`, `app/result_transport.py` | Progress/workload metadata, queue orchestration and ARW1 transport. |
-| `app/persistence.py`, `app/repository.py`, `app/artifacts.py` | Durable revisions/jobs, portable transactional SQL and immutable checksummed objects. Storage does not import feature handlers. |
+| `app/persistence.py`, `app/repository.py`, `app/artifacts.py`, `app/local_files.py` | Durable revisions/jobs, portable transactional SQL, immutable checksummed objects and shared platform filesystem paths. Storage does not import feature handlers. |
 | `app/worker.py` | Lease ownership, one heavy job at a time, recovery, native invocation and publication fencing. |
 | `app/analyst_*` | Optional Goose ACP supervision, private conversations and captured evidence in additive application SQL tables. A signed turn gateway permits only reviewed HTTP reads; no financial execution or worker ownership. See [embedded analysts](embedded-analysts.md). |
 | `portfolio-risk` Python package | Public input/output adapters, explicit test reference calculations and independent verification. |
@@ -47,6 +54,8 @@ flowchart LR
 | `portfolio-ledger-native` | Raw daily-spec normalization, bounded daily event/GL execution and closing reduction. |
 | `portfolio-model-core` | Shared bounded credit, exact-observation fitting, dated contracts and supplied-fixing arithmetic. Its analysis entrypoints do not imply full scenario/ledger integration. |
 | `portfolio-compute-control` | Shared native deadline/cancellation checkpoints. |
+
+Rust `models/lifetime_loss.rs` owns the additive [consumer lifetime-loss report](models/lifetime-loss-sensitivity.md): complete paired Physical sources, macro/model ranges and economic outcome comparisons. The API transports and independently replays raw and persisted evidence under original deadlines and final SQL/object/source fences. The offline competing-risk challenger and same-panel scoring harness are independent validation tooling, absent from production dispatch.
 
 ## Revision and execution flow
 

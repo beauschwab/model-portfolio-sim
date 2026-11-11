@@ -204,8 +204,30 @@ fn totals(lots: &[Lot]) -> ([f64; 3], [f64; 3], [f64; 3]) {
 }
 
 pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
+    simulate_with_check(r, None, &mut || Ok(()))
+}
+
+/// Additive analytical owner for explicitly selected zero-rights closure.
+/// Ordinary consumer-card-1 requests cannot select this policy through JSON.
+pub fn simulate_with_zero_balance_closure(
+    r: &CardRequest,
+    closure_ordinal: i32,
+) -> Result<CardResult, String> {
+    simulate_with_check(r, Some(closure_ordinal), &mut || Ok(()))
+}
+
+/// The selected closure and ordinary paths share the same controlled owner.
+pub fn simulate_with_check(
+    r: &CardRequest,
+    closure: Option<i32>,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<CardResult, String> {
+    check()?;
     validate(r)?;
     let end = horizon(r.as_of_ordinal, r.horizon_days)?;
+    if closure.is_some_and(|day| day < r.as_of_ordinal || day > end) {
+        return Err("card closure outside complete horizon".into());
+    }
     let mut by_day = BTreeMap::<i32, Vec<&CardAction>>::new();
     for s in &r.steps {
         by_day.entry(s.ordinal).or_default().push(&s.action);
@@ -246,9 +268,13 @@ pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
     let mut statements = Vec::new();
     let mut default = None;
     for day in r.as_of_ordinal..=end {
+        check()?;
         // Prior day's interest is accrued before today's transactions; same-day actions retain input order.
         if day > r.as_of_ordinal
-            && !matches!(state, ConsumerState::Default | ConsumerState::Nonaccrual)
+            && !matches!(
+                state,
+                ConsumerState::Default | ConsumerState::Nonaccrual | ConsumerState::PaidOff
+            )
         {
             let tau = actual_year_fraction(day - 1, day, r.day_count)?;
             for (j, l) in lots.iter_mut().enumerate() {
@@ -279,6 +305,9 @@ pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
             for action in actions {
                 if state == ConsumerState::Default {
                     return Err("card action after default".into());
+                }
+                if state == ConsumerState::PaidOff {
+                    return Err("card action after zero-balance closure".into());
                 }
                 match action {
                     CardAction::Draw {
@@ -437,7 +466,7 @@ pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
                 }
             }
         }
-        if state != ConsumerState::Default {
+        if !matches!(state, ConsumerState::Default | ConsumerState::PaidOff) {
             if r.opening_due_ordinal == Some(day) || r.cycles.iter().any(|c| c.due_ordinal == day) {
                 let unpaid: f64 = lots.iter().map(|l| l.statement_remaining).sum();
                 if unpaid > 1e-9 {
@@ -502,6 +531,33 @@ pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
                 });
             }
         }
+        if closure == Some(day) {
+            if matches!(state, ConsumerState::Default | ConsumerState::PaidOff)
+                || minimum_remaining != 0.
+                || lots.iter().any(|lot| {
+                    [
+                        lot.principal,
+                        lot.interest,
+                        lot.unbilled,
+                        lot.unrecognized_billed,
+                        lot.fees,
+                        lot.shadow,
+                        lot.statement_remaining,
+                    ]
+                    .iter()
+                    .any(|v| *v != 0.)
+                })
+            {
+                return Err(
+                    "card closure requires exactly zero gross rights and pending minimum".into(),
+                );
+            }
+            // Cancel only the undrawn commitment. There is no cash, debt waiver,
+            // interest recognition or allowance posting at zero-rights closure.
+            limit = 0.;
+            state = ConsumerState::PaidOff;
+            grace = false;
+        }
         let (p, i, f) = totals(&lots);
         let principal = p.iter().sum::<f64>();
         let debt = principal + i.iter().sum::<f64>() + f.iter().sum::<f64>();
@@ -546,6 +602,7 @@ pub fn simulate(r: &CardRequest) -> Result<CardResult, String> {
         return Err("card principal conservation failed".into());
     }
     cashflows.sort_by_key(|c| c.ordinal);
+    check()?;
     Ok(CardResult {
         schema: SCHEMA.into(),
         identity: r.identity.clone(),

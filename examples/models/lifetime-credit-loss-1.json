@@ -1,0 +1,691 @@
+{
+  "schema": "lifetime-credit-loss-1",
+  "model_version": "lifetime-credit-loss-1",
+  "source_id": "synthetic-lifetime-example",
+  "source_revision": "1",
+  "data_kind": "synthetic",
+  "training_split_id": "synthetic-training",
+  "holdout_split_id": "synthetic-held-out",
+  "training_end": 739889,
+  "assumptions": [
+    "supplied-not-fitted-hazard-laws",
+    "supplied-lag-aligned-physical-forecasts",
+    "supplied-recovery-and-draw-policy",
+    "fixed-row-hand-assumption"
+  ],
+  "drivers": [
+    {
+      "driver_id": "unemployment-change",
+      "unit": "percentage_points",
+      "scaling_source_id": "synthetic-training-scaling",
+      "scaling_training_end": 739889,
+      "availability_lag_days": 30,
+      "offset": 0.0,
+      "scale": 1.0,
+      "minimum": -10.0,
+      "maximum": 10.0
+    }
+  ],
+  "base_scenario_id": "base",
+  "scenarios": [
+    {
+      "scenario_id": "base",
+      "source_id": "synthetic-base-forecast",
+      "source_revision": "1",
+      "forecast_as_of_ordinal": 739890,
+      "lag_aligned_values": [
+        [
+          0.0
+        ]
+      ]
+    },
+    {
+      "scenario_id": "lower",
+      "source_id": "synthetic-lower-forecast",
+      "source_revision": "1",
+      "forecast_as_of_ordinal": 739890,
+      "lag_aligned_values": [
+        [
+          -1.0
+        ]
+      ]
+    },
+    {
+      "scenario_id": "higher",
+      "source_id": "synthetic-higher-forecast",
+      "source_revision": "1",
+      "forecast_as_of_ordinal": 739890,
+      "lag_aligned_values": [
+        [
+          1.0
+        ]
+      ]
+    }
+  ],
+  "cohorts": [
+    {
+      "cohort_id": "auto-vintage-1",
+      "product": "auto",
+      "vintage": "synthetic-origin",
+      "monetary_multiplier": 1.0,
+      "probability_weights": [
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125,
+        0.03125
+      ],
+      "source": {
+        "schema": "credit-path-1",
+        "measure": "physical",
+        "monetary_unit": "USD currency_units",
+        "source_id": "synthetic-consumer-paths",
+        "source_revision": "1",
+        "model_policy_id": "supplied-example-hazards",
+        "origin_time": {
+          "ordinal": 739890,
+          "seconds_of_day": 0
+        },
+        "max_jumps_per_path": 10,
+        "intervals": [
+          {
+            "end_year": 1.0,
+            "hazards_per_year": [
+              [
+                0,
+                0,
+                0,
+                0.2,
+                0.3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ],
+            "accrual_rates": [
+              0.1,
+              0,
+              0
+            ],
+            "loss_given_default": [
+              0.4,
+              0.4,
+              0.4
+            ],
+            "credit_conversion_factor": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "interest_recovery_fraction": [
+              1,
+              1,
+              1
+            ],
+            "complete_recovery_tails": [
+              [
+                {
+                  "lag_years": 2,
+                  "weight": 1
+                }
+              ],
+              [
+                {
+                  "lag_years": 2,
+                  "weight": 1
+                }
+              ],
+              [
+                {
+                  "lag_years": 2,
+                  "weight": 1
+                }
+              ]
+            ]
+          }
+        ],
+        "boundaries": [
+          {
+            "event_id": "quarter-1",
+            "policy_id": "supplied-amortization",
+            "year": 0.25,
+            "action": {
+              "kind": "repayment",
+              "principal_fraction": [
+                0.25,
+                0.25,
+                0.25
+              ],
+              "interest_fraction": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "cancel_undrawn_fraction": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "event_id": "quarter-2",
+            "policy_id": "supplied-amortization",
+            "year": 0.5,
+            "action": {
+              "kind": "repayment",
+              "principal_fraction": [
+                0.3333333333333333,
+                0.3333333333333333,
+                0.3333333333333333
+              ],
+              "interest_fraction": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "cancel_undrawn_fraction": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "event_id": "quarter-3",
+            "policy_id": "supplied-amortization",
+            "year": 0.75,
+            "action": {
+              "kind": "repayment",
+              "principal_fraction": [
+                0.5,
+                0.5,
+                0.5
+              ],
+              "interest_fraction": [
+                1.0,
+                1.0,
+                1.0
+              ],
+              "cancel_undrawn_fraction": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "event_id": "contractual-maturity",
+            "policy_id": "supplied-terms",
+            "year": 1,
+            "action": {
+              "kind": "maturity"
+            }
+          }
+        ],
+        "draw_stream": {
+          "kind": "counter_splitmix64_v1",
+          "stream_id": "paired-synthetic-credit",
+          "stream_revision": "1",
+          "seed": 93
+        },
+        "paths": [
+          {
+            "path_id": "sample-0",
+            "path_key": 0,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-1",
+            "path_key": 1,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-2",
+            "path_key": 2,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-3",
+            "path_key": 3,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-4",
+            "path_key": 4,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-5",
+            "path_key": 5,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-6",
+            "path_key": 6,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-7",
+            "path_key": 7,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-8",
+            "path_key": 8,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-9",
+            "path_key": 9,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-10",
+            "path_key": 10,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-11",
+            "path_key": 11,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-12",
+            "path_key": 12,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-13",
+            "path_key": 13,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-14",
+            "path_key": 14,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-15",
+            "path_key": 15,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-16",
+            "path_key": 16,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-17",
+            "path_key": 17,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-18",
+            "path_key": 18,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-19",
+            "path_key": 19,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-20",
+            "path_key": 20,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-21",
+            "path_key": 21,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-22",
+            "path_key": 22,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-23",
+            "path_key": 23,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-24",
+            "path_key": 24,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-25",
+            "path_key": 25,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-26",
+            "path_key": 26,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-27",
+            "path_key": 27,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-28",
+            "path_key": 28,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-29",
+            "path_key": 29,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-30",
+            "path_key": 30,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          },
+          {
+            "path_id": "sample-31",
+            "path_key": 31,
+            "initial_live_state": "performing",
+            "principal": 100,
+            "undrawn_commitment": 0.0,
+            "accrued_interest": 0,
+            "book_adjustment": -3
+          }
+        ]
+      },
+      "models": [
+        {
+          "kind": "constant_row",
+          "model_id": "constant",
+          "model_version": "supplied-1",
+          "hazards_per_year": [
+            [
+              0,
+              0,
+              0,
+              0.2,
+              0.3
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        {
+          "kind": "supplied_covariate",
+          "model_id": "covariate",
+          "model_version": "supplied-1",
+          "coefficient_source_id": "synthetic-law",
+          "coefficient_source_revision": "1",
+          "training_end": 739889,
+          "beta": [
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              1.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ],
+            [
+              0.0
+            ]
+          ]
+        },
+        {
+          "kind": "fixed_row_assumption",
+          "model_id": "fixed",
+          "model_version": "supplied-1",
+          "assumption_id": "fixed-row-hand-assumption",
+          "hazards_per_year": [
+            [
+              [
+                0,
+                0,
+                0,
+                0.1,
+                0.3
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "cohort_id": "auto-vintage-1",
+      "vintage": "synthetic-origin",
+      "source_id": "synthetic-observed-outcomes",
+      "source_revision": "1",
+      "monetary_unit": "USD currency_units",
+      "observed_through_year": 3.0,
+      "reported_principal_loss": 6.0,
+      "reported_signed_interest_loss": 0.0
+    }
+  ]
+}

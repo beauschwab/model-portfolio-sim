@@ -158,3 +158,12 @@ Component bounds are not total RSS or mixed 60,000-position acceptance. Check th
 exact selected lane's current admission and immutable receipts; historical scale
 evidence, synthetic fixtures and passing local tests do not prove deployment,
 empirical prediction, reviewed bank policies or accounting/regulatory approval.
+
+## Consumer lifetime-loss analysis
+
+`lifetime-credit-loss-1` retains complete paired Physical credit sources and supplied macro/model choices. Rust calculates economic loss, full recovery tails, product ranges and completed-outcome comparisons. Independent raw/persisted replay, original deadlines and final SQL/object/executable/source checks gate durable publication. The offline competing-risk challenger scores holdout Brier/calibration on the same declared panel; it is not a production backend. See repository `docs/models/lifetime-loss-sensitivity.md` for admission, assumptions and the reproducible synthetic pack. Allowance approval, observed accuracy, broader product adoption and deployment remain separate.
+
+## Consumer product panel analysis
+
+`consumer-behaviour-spec-1` is standalone native analytical fitting and shared-credit-path projection. It requires explicit product DPD/exit policies, exact versus snapshot observations, frozen driver transforms/availability lags, term conventions and training support. Monthly snapshots retain the interval-censored likelihood. See repository `docs/models/consumer-behaviour-spec.md`. Daily installment/card action ownership, independently verified durable publication, observed predictive validation and adoption remain separate; this entrypoint is not exposed as a saved ModelLab model.
+`consumer-behaviour-product-paths-1` explicitly projects fitted Physical states into daily installment/card cashflows. Shared CTMC monetary stocks are zero; the product owns all cash and rights. Retain original fractional clocks, selected ceiling-to-day mapping, rejection of same-day collisions, complete recovery tails and exact-zero card closure. See repository `docs/models/consumer-behaviour-product-paths.md`. Saved books, independently verified publication, accounting, capital/FTP, observed validation and deployment remain separate.

@@ -270,18 +270,26 @@ fn money(b: f64, u: f64, a: f64, k: f64) -> Result<(), String> {
 }
 
 pub fn evaluate(request: &CreditPathRequest) -> Result<CreditPathsResult, String> {
-    Ok(evaluate_internal(request, false, None)?.result)
+    evaluate_with_check(request, &mut || Ok(()))
+}
+
+/// Cooperative control is checked within path, event and recovery loops.
+pub fn evaluate_with_check(
+    request: &CreditPathRequest,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<CreditPathsResult, String> {
+    Ok(evaluate_internal(request, false, None, check)?.result)
 }
 
 pub fn evaluate_traced(request: &CreditPathRequest) -> Result<CreditPathTraceResult, String> {
-    evaluate_internal(request, true, None)
+    evaluate_internal(request, true, None, &mut || Ok(()))
 }
 
 pub(crate) fn evaluate_income_internal(
     request: &CreditPathRequest,
     income: &mut crate::accounting::credit::income::Owner<'_>,
 ) -> Result<CreditPathTraceResult, String> {
-    evaluate_internal(request, true, Some(income))
+    evaluate_internal(request, true, Some(income), &mut || Ok(()))
 }
 
 struct Validated<'a> {
@@ -480,7 +488,9 @@ fn evaluate_internal(
     request: &CreditPathRequest,
     retain_trace: bool,
     mut income: Option<&mut crate::accounting::credit::income::Owner<'_>>,
+    check: &mut dyn FnMut() -> Result<(), String>,
 ) -> Result<CreditPathTraceResult, String> {
+    check()?;
     let Validated {
         horizon,
         draws,
@@ -492,6 +502,7 @@ fn evaluate_internal(
     let mut sojourns = Vec::new();
     let mut paths = Vec::with_capacity(request.paths.len());
     for opening in &request.paths {
+        check()?;
         if let Some(owner) = income.as_deref_mut() {
             owner.begin(opening)?;
         }
@@ -526,6 +537,7 @@ fn evaluate_internal(
             || boundary_index < request.boundaries.len()
                 && request.boundaries[boundary_index].year == t
         {
+            check()?;
             tick(&mut work, 1)?;
             if let Some(owner) = income.as_deref_mut() {
                 owner.check()?;
@@ -662,6 +674,7 @@ fn evaluate_internal(
                     for (recovery_index, point) in
                         term.complete_recovery_tails[live].iter().enumerate()
                     {
+                        check()?;
                         tick(&mut work, 1)?;
                         if let Some(owner) = income.as_deref_mut() {
                             owner.check()?;
@@ -754,6 +767,7 @@ fn evaluate_internal(
                     .get(boundary_index)
                     .filter(|x| x.year == t)
                 {
+                    check()?;
                     tick(&mut work, 1)?;
                     if let Some(owner) = income.as_deref_mut() {
                         owner.check()?;
@@ -949,5 +963,6 @@ fn evaluate_internal(
         work_units: work,
         paths,
     };
+    check()?;
     Ok(CreditPathTraceResult { result, sojourns })
 }

@@ -8,6 +8,9 @@ Local Windows object roots use absolute extended-length filesystem paths, includ
 UNC roots, so atomic publication and later checksum/bounded reads can address long
 workspace artifact paths. Relative content-addressed keys, hashes and workspace
 scope are unchanged; no operating-system registry setting is required.
+The standalone local market-snapshot store uses the same path normalization for
+raw observations, atomic temporary writes, snapshot reads and listings. Failed
+replacement preserves the prior bytes and removes only its new temporary file.
 
 ## Development
 

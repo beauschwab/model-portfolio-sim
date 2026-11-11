@@ -1,5 +1,9 @@
 # Native revolving credit-card statement state
 
+The separately selected [fitted-state daily adapter](consumer-behaviour-product-paths.md)
+adds an exact-zero-rights closure owner. Ordinary `consumer-card-1` JSON retains
+the open-line behavior described below; it never infers closure from zero balance.
+
 `portfolio_model_core::consumer_card::simulate` accepts strict `consumer-card-1`
 requests. The model is distinct from installment amortization: purchase, cash
 advance and promotional principal can grow with supplied draws and shrink with

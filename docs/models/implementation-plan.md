@@ -1,5 +1,20 @@
 # Product model enhancement implementation and evidence
 
+## Consumer panel specification component
+
+The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit
+policies and available borrower/macro observations into the existing exact or
+interval-censored native fitters. It projects fitted Physical hazards into shared
+credit paths without changing supplied cash laws or random streams. Component
+fixtures include all three products, hand two-group rates and a synthetic monthly
+panel with holdout isolation. See [the component contract](consumer-behaviour-spec.md).
+The additive `consumer-behaviour-product-paths-1` adapter now connects fitted
+states to daily installment/card cashflows, with explicit ceiling-to-day mapping,
+collision rejection and exact-zero gross card closure. See
+[the daily contract](consumer-behaviour-product-paths.md). Matching installed/public-route
+checks and full regression remain pending. Independent publication and broader
+adoption remain separate; these component checkpoints do not close tracker #25.
+
 ## Current accepted integration and shared-source follow-through
 
 PR #123 merged at `21ef0a755955a999f1c723eebd301a8d8e76c72a` with full local
@@ -1829,8 +1844,12 @@ The current additive contracts include [consumer installment lending](consumer-i
 [revolving cards](consumer-card.md), [indexed/optional corporate and CD contracts](term-enhancements.md),
 [joint daily credit state](credit-state.md) and [daily credit replay](credit-replay.md).
 The proposed [consumer behaviour states, covariates and driver specification](consumer-behaviour-drivers.md)
-(#91–#95) fixes the product mappings those estimators need; it is a specification,
-not an installed contract. The companion
+(#91–#94) fixes the product mappings those estimators need; these remain specifications.
+The additive [#95 lifetime-loss report and independent challenger](lifetime-loss-sensitivity.md)
+provide bounded complete-path sensitivity, completed-outcome hooks and same-panel
+synthetic diagnostics. Supplied macro paths, coefficients, LGD/CCF/recovery policies
+and broader product adoption remain separate. Passing synthetic validation does
+not close observed accuracy or reviewed-policy gates. The companion
 [deposit behaviour specification](deposit-behaviour-drivers.md) (#102–#106) and
 [commercial and CRE credit specification](commercial-credit-drivers.md) (#107–#111)
 are proposals of the same standing. Every external source cited across the

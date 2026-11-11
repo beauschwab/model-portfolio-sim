@@ -1,0 +1,45 @@
+name: Native component tests
+on:
+  pull_request:
+    paths: ['packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-verification-native/**', 'scripts/check_native_components.py', 'scripts/generate_*platform_proof*.py', '.github/workflows/native-components.yml']
+  push:
+    branches: [main]
+    paths: ['packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-verification-native/**', 'scripts/check_native_components.py', 'scripts/generate_*platform_proof*.py', '.github/workflows/native-components.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  components:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          components: rustfmt, clippy
+      - name: Independent platform proof
+        run: uv run --project packages/portfolio-risk --extra dev python scripts/generate_card2_platform_proof.py artifacts/card2-platform/proof.json
+      - name: Independent mixed platform proof
+        run: uv run --project packages/portfolio-risk --extra dev python scripts/generate_mixed_platform_proofs.py artifacts/mixed-platform/patch.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: independent-platform-proofs-${{ matrix.os }}
+          path: |
+            artifacts/card2-platform
+            artifacts/mixed-platform
+      - run: uv run --no-project --with libclang --with cmake python scripts/check_native_components.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-components-${{ matrix.os }}
+          path: |
+            artifacts/native-components
+            artifacts/card2-platform
+          if-no-files-found: error

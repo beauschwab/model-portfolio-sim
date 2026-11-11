@@ -7,6 +7,18 @@ There is no selectable Python financial implementation or fallback here.
 from ..core.quant_native import term_call
 
 
+def fit_consumer_behaviour(request: dict, **execution_options) -> dict:
+    """Transport explicit product panels to standalone native analysis; no adoption."""
+    from ..core.model_native import run
+    return run("consumer-behaviour-spec-1", request, **execution_options)[0]
+
+
+def project_consumer_behaviour_products(request: dict, **execution_options) -> dict:
+    """Transport explicit fitted-state/daily-product analysis with one cash owner."""
+    from ..core.model_native import run
+    return run("consumer-behaviour-product-paths-1", request, **execution_options)[0]
+
+
 def journal_commercial_cut_mixed(request: dict, **execution_options) -> dict:
     """Transport complete source authority into a genuinely resumed native Sim."""
     from ..core.commercial_cut_mixed_native import run
@@ -375,3 +387,9 @@ def analyze_term_sequence_graph(request: dict) -> dict:
 def reprice_term_sequence_graph(base: dict, current: dict) -> dict:
     """Hold the immutable original quote/Q/OAS receipt through current scenarios."""
     return term_call("term-product-reprice-2", dict(base=base,current=current))
+
+
+def evaluate_lifetime_credit_loss(request: dict, **execution_options) -> dict:
+    """Transport complete Physical credit sources for economic loss sensitivity."""
+    from ..core.model_native import run
+    return run("lifetime-credit-loss-1", request, **execution_options)[0]
