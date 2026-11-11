@@ -8,3 +8,5 @@ import pytest
 @pytest.fixture(autouse=True)
 def isolated_runtime(monkeypatch):
     monkeypatch.setenv("WORKBENCH_EXECUTION", "memory")
+    # Existing contract tests cover the full surface; test_supported_scope.py covers the v1 default.
+    monkeypatch.setenv("WORKBENCH_EXPERIMENTAL_MODELS", "1")

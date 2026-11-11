@@ -10,7 +10,7 @@ const workerPort = Number(process.env.WORKBENCH_TEST_WORKER_PORT ?? 8014);
 const webPort = Number(process.env.WORKBENCH_TEST_WEB_PORT ?? 5186);
 const folder = join(tmpdir(), `wbs-${randomUUID().slice(0, 8)}`);
 const env = {
-  NUMBA_NUM_THREADS: '4', WORKBENCH_ENV: 'development', WORKBENCH_EXECUTION: 'external',
+  NUMBA_NUM_THREADS: '4', WORKBENCH_EXPERIMENTAL_MODELS: '1', WORKBENCH_ENV: 'development', WORKBENCH_EXECUTION: 'external',
   DATABASE_URL: `sqlite:///${join(folder, 'test.db').replaceAll('\\', '/')}`,
   ARTIFACT_URL: join(folder, 'objects'), WORKBENCH_TENANT_ID: 'browser-tests',
   WORKBENCH_WORKSPACE_ID: randomUUID(), WORKBENCH_BALANCE_LARGE_BOOK: '0',

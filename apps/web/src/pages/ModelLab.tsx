@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, awaitJob, type ResultPage } from '../lib/api';
-import { Button, Card, CardBody, CardHeader, DataTable } from '../components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, DataTable } from '../components/ui';
 
 const labels:Record<string,string>={
   'lifetime-credit-loss-1':'Lifetime economic loss and scenario sensitivity',
@@ -53,6 +53,7 @@ const labels:Record<string,string>={
 
 export default function ModelLab(){
   const [schemas,setSchemas]=useState<string[]>([]),[schema,setSchema]=useState('consumer-installment-1');
+  const [experimental,setExperimental]=useState<string[]>([]),[experimentalEnabled,setExperimentalEnabled]=useState(false);
   const [draft,setDraft]=useState(''),[revision,setRevision]=useState<number>(),[durable,setDurable]=useState(false);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[job,setJob]=useState(''),[reopen,setReopen]=useState('');
   const [paths,setPaths]=useState<string[]>([]),[path,setPath]=useState(''),[table,setTable]=useState<ResultPage>();
@@ -66,7 +67,7 @@ export default function ModelLab(){
     try{const value=await api.modelExample(selected);if(token===generation.current){setDraft(JSON.stringify(value.request,null,2));setRevision(value.revision);}}
     catch(e){if(token===generation.current)setError(String(e));}finally{if(token===generation.current)setBusy(false);}
   };
-  useEffect(()=>{let active=true;api.modelContracts().then(value=>{if(active){setSchemas(value.schemas);setDurable(value.durable);const selected=value.schemas[0];if(selected){setSchema(selected);void load(selected);}else{setError('No product models are available.');}}}).catch(e=>{if(active)setError(String(e));});
+  useEffect(()=>{let active=true;api.modelContracts().then(value=>{if(active){setSchemas(value.schemas);setExperimental(value.experimental??[]);setExperimentalEnabled(Boolean(value.experimental_enabled));setDurable(value.durable);const selected=value.schemas[0];if(selected){setSchema(selected);void load(selected);}else{setError('No product models are available.');}}}).catch(e=>{if(active)setError(String(e));});
     return()=>{active=false;generation.current++;};},[]);
   const show=async(id:string,token:number)=>{
     const manifest=await api.modelManifest(id);
@@ -87,7 +88,8 @@ export default function ModelLab(){
   return <div className="space-y-3"><Card><CardHeader title="Product model analysis" sub="Explicit assumptions · dated cashflows · retained source identities"/><CardBody>
     <p className="mb-3 text-xs text-paper-faint">Examples use synthetic assumptions. Each run stores its complete inputs and model identity. Analysis does not change saved books or establish observed predictive accuracy; adoption into pricing, strategy and accounting requires the corresponding model checks.</p>
     <div className="mb-3 flex flex-wrap items-end gap-2"><label className="text-xs">Product model <select aria-label="Product model" value={schema} disabled={busy} className="ml-2 rounded border border-line bg-surface p-1" onChange={e=>{setSchema(e.target.value);void load(e.target.value);}}>
-      {schemas.map(s=><option key={s} value={s}>{labels[s]??s}</option>)}</select></label><Button disabled={busy} onClick={()=>void load(schema)}>Load synthetic example</Button></div>
+      {schemas.map(s=><option key={s} value={s}>{(labels[s]??s)+(experimental.includes(s)?' (experimental)':'')}</option>)}</select></label>{experimental.includes(schema)&&<Badge tone="warning">Experimental</Badge>}<Button disabled={busy} onClick={()=>void load(schema)}>Load synthetic example</Button></div>
+    <p className="mb-3 text-xs text-paper-faint" data-testid="model-scope">{experimentalEnabled?'Experimental models are enabled on this deployment. They are outside the supported v1 scope.':`This deployment runs the supported v1 scope. ${experimental.length} experimental models are not enabled.`}</p>
     <label htmlFor="model-input" className="text-xs">Product terms, path assumptions and source policies</label>
     <textarea id="model-input" disabled={busy} className="mt-1 h-72 w-full rounded border border-line bg-surface p-2 font-mono text-xs" value={draft} onChange={e=>{generation.current++;setDraft(e.target.value);clear();}}/>
     <div className="mt-2 flex flex-wrap gap-2"><Button disabled={busy||!durable||revision===undefined||!draft.trim()} onClick={()=>void run()}>{busy?'Calculating…':'Run product analysis'}</Button>
