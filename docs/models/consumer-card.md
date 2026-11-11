@@ -1,5 +1,9 @@
 # Native revolving credit-card statement state
 
+The separately selected [behaviour layer](consumer-card-behaviour.md) fits payment,
+purchase and state behaviour and supplies the actions below. It does not change
+this mechanics stage.
+
 The separately selected [fitted-state daily adapter](consumer-behaviour-product-paths.md)
 adds an exact-zero-rights closure owner. Ordinary `consumer-card-1` JSON retains
 the open-line behavior described below; it never infers closure from zero balance.
