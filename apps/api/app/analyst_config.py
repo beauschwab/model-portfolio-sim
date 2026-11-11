@@ -63,10 +63,16 @@ def principal(request, scope):
     return user
 
 
+def capability_signature(payload):
+    # Domain-separated from gateway identity signatures, which share the deployment secret.
+    return hmac.new(secret(), b'analyst-capability-1
+' + payload.encode(), hashlib.sha256).hexdigest()
+
+
 def capability(turn, scope):
     raw = json.dumps(dict(turn=turn['id'], exp=turn['deadline'], **scope), sort_keys=True).encode()
     payload = base64.urlsafe_b64encode(raw).decode().rstrip('=')
-    signature = hmac.new(secret(), payload.encode(), hashlib.sha256).hexdigest()
+    signature = capability_signature(payload)
     return 'analyst1.' + payload + '.' + signature
 
 
@@ -75,7 +81,7 @@ def verify_capability(token, scope):
         if len(token) > 2048:
             raise ValueError()
         prefix, payload, signature = token.split('.')
-        expected = hmac.new(secret(), payload.encode(), hashlib.sha256).hexdigest()
+        expected = capability_signature(payload)
         if prefix != 'analyst1' or not hmac.compare_digest(signature, expected):
             raise ValueError()
         value = json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))

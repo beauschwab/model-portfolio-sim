@@ -148,6 +148,11 @@ def test_scope_and_capability_expiry(analyst_store):
     scope = analyst_store.repo.identity
     token = capability({'id': 'turn', 'deadline': time.time()+30}, scope)
     assert verify_capability(token, scope) == 'turn'
+    # A bare HMAC over the payload (the gateway-identity construction) is not a capability.
+    payload = token.split('.')[1]
+    bare = hmac.new(os.environ['WORKBENCH_ANALYST_SECRET'].encode(), payload.encode(), hashlib.sha256).hexdigest()
+    with pytest.raises(Exception) as exc: verify_capability(f'analyst1.{payload}.{bare}', scope)
+    assert exc.value.status_code == 401
     for value, other_scope in [(token+'x', scope), (token, scope | {'workspace': 'other'}),
             (capability({'id': 'turn', 'deadline': time.time()-1}, scope), scope)]:
         with pytest.raises(Exception) as exc: verify_capability(value, other_scope)

@@ -186,9 +186,12 @@ def stop_turn(cid: str, tid: str, request: Request):
 @router.post('/tools/call')
 async def call_tool(request: Request):
     # This endpoint accepts ONLY a turn capability, never an ordinary browser/API identity.
-    repo = repository()
+    # Verify the capability before any storage work: this route is outside the ordinary API credential.
+    if persistence.REPO is None:
+        raise HTTPException(503, 'Analysts require durable storage')
     token = request.headers.get('authorization', '').removeprefix('Bearer ')
-    tid = verify_capability(token, repo.repo.identity)
+    tid = verify_capability(token, persistence.REPO.identity)
+    repo = repository()
     raw = bytearray()
     async for chunk in request.stream():
         if len(raw) + len(chunk) > 32768:
