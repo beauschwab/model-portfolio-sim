@@ -1,0 +1,433 @@
+{
+  "schema": "consumer-macro-scenarios-1",
+  "measure": "physical",
+  "as_of": {
+    "ordinal": 730850,
+    "seconds_of_day": 0
+  },
+  "common_random_numbers": {
+    "id": "shared",
+    "revision": "1"
+  },
+  "policy": {
+    "id": "synthetic-conditional-policy",
+    "revision": "1"
+  },
+  "drivers": [
+    {
+      "driver_id": "rate",
+      "metric": "short_rate",
+      "region_id": "US",
+      "unit": "percent",
+      "raw_domain": [
+        -20.0,
+        30.0
+      ],
+      "availability_lag_days": 0,
+      "innovation_scale": 1.0,
+      "scaling_source": {
+        "id": "frozen-scale",
+        "revision": "1"
+      },
+      "scaling_training_end": {
+        "ordinal": 728660,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "id": "rate",
+        "revision": "1"
+      }
+    },
+    {
+      "driver_id": "unemployment",
+      "metric": "unemployment_level",
+      "region_id": "US",
+      "unit": "percent",
+      "raw_domain": [
+        0.0,
+        100.0
+      ],
+      "availability_lag_days": 0,
+      "innovation_scale": 1.0,
+      "scaling_source": {
+        "id": "frozen-scale",
+        "revision": "1"
+      },
+      "scaling_training_end": {
+        "ordinal": 728660,
+        "seconds_of_day": 0
+      },
+      "source": {
+        "id": "unemployment",
+        "revision": "1"
+      }
+    }
+  ],
+  "history": {
+    "source": {
+      "id": "synthetic-history",
+      "revision": "1"
+    },
+    "data_kind": "synthetic",
+    "training_split": {
+      "id": "train",
+      "revision": "1"
+    },
+    "holdout_split": {
+      "id": "holdout",
+      "revision": "1"
+    },
+    "training_end": {
+      "ordinal": 730120,
+      "seconds_of_day": 0
+    },
+    "holdout_end": {
+      "ordinal": 730850,
+      "seconds_of_day": 0
+    },
+    "observations": [
+      {
+        "row_id": "synthetic-0",
+        "start": {
+          "ordinal": 728660,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 729025,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          5.0,
+          10.0
+        ],
+        "end_values": [
+          4.0,
+          8.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 729025,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 729025,
+            "seconds_of_day": 0
+          }
+        ]
+      },
+      {
+        "row_id": "synthetic-1",
+        "start": {
+          "ordinal": 729025,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 729390,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          4.0,
+          8.0
+        ],
+        "end_values": [
+          5.0,
+          10.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 729390,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 729390,
+            "seconds_of_day": 0
+          }
+        ]
+      },
+      {
+        "row_id": "synthetic-2",
+        "start": {
+          "ordinal": 729390,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 729755,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          5.0,
+          10.0
+        ],
+        "end_values": [
+          4.0,
+          8.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 729755,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 729755,
+            "seconds_of_day": 0
+          }
+        ]
+      },
+      {
+        "row_id": "synthetic-3",
+        "start": {
+          "ordinal": 729755,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 730120,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          4.0,
+          8.0
+        ],
+        "end_values": [
+          5.0,
+          10.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 730120,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 730120,
+            "seconds_of_day": 0
+          }
+        ]
+      },
+      {
+        "row_id": "synthetic-4",
+        "start": {
+          "ordinal": 730120,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 730485,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          5.0,
+          10.0
+        ],
+        "end_values": [
+          4.0,
+          8.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 730485,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 730485,
+            "seconds_of_day": 0
+          }
+        ]
+      },
+      {
+        "row_id": "synthetic-5",
+        "start": {
+          "ordinal": 730485,
+          "seconds_of_day": 0
+        },
+        "end": {
+          "ordinal": 730850,
+          "seconds_of_day": 0
+        },
+        "start_values": [
+          4.0,
+          8.0
+        ],
+        "end_values": [
+          5.0,
+          10.0
+        ],
+        "published_at": [
+          {
+            "ordinal": 730850,
+            "seconds_of_day": 0
+          },
+          {
+            "ordinal": 730850,
+            "seconds_of_day": 0
+          }
+        ]
+      }
+    ]
+  },
+  "interval_ends": [
+    {
+      "ordinal": 730880,
+      "seconds_of_day": 0
+    },
+    {
+      "ordinal": 730910,
+      "seconds_of_day": 0
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "baseline",
+      "kind": "baseline",
+      "source": {
+        "id": "baseline",
+        "revision": "1"
+      },
+      "conditional_rate_source": {
+        "id": "baseline-rates",
+        "revision": "1"
+      },
+      "issued_at": {
+        "ordinal": 730850,
+        "seconds_of_day": 0
+      },
+      "paths": [
+        {
+          "path_key": 17,
+          "short_rates_percent": [
+            5.0,
+            5.0
+          ],
+          "values": [
+            [
+              5.0,
+              10.0
+            ],
+            [
+              5.0,
+              10.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "up",
+      "kind": "parallel_up200",
+      "source": {
+        "id": "up",
+        "revision": "1"
+      },
+      "conditional_rate_source": {
+        "id": "up-rates",
+        "revision": "1"
+      },
+      "issued_at": {
+        "ordinal": 730850,
+        "seconds_of_day": 0
+      },
+      "paths": [
+        {
+          "path_key": 17,
+          "short_rates_percent": [
+            7.0,
+            7.0
+          ],
+          "values": [
+            [
+              7.0,
+              11.0
+            ],
+            [
+              7.0,
+              11.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "down",
+      "kind": "parallel_down200",
+      "source": {
+        "id": "down",
+        "revision": "1"
+      },
+      "conditional_rate_source": {
+        "id": "down-rates",
+        "revision": "1"
+      },
+      "issued_at": {
+        "ordinal": 730850,
+        "seconds_of_day": 0
+      },
+      "paths": [
+        {
+          "path_key": 17,
+          "short_rates_percent": [
+            3.0,
+            3.0
+          ],
+          "values": [
+            [
+              3.0,
+              9.0
+            ],
+            [
+              3.0,
+              9.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "adverse",
+      "kind": "severely_adverse",
+      "source": {
+        "id": "adverse",
+        "revision": "1"
+      },
+      "conditional_rate_source": {
+        "id": "adverse-rates",
+        "revision": "1"
+      },
+      "issued_at": {
+        "ordinal": 730850,
+        "seconds_of_day": 0
+      },
+      "paths": [
+        {
+          "path_key": 17,
+          "short_rates_percent": [
+            2.0,
+            2.0
+          ],
+          "values": [
+            [
+              2.0,
+              14.0
+            ],
+            [
+              2.0,
+              14.0
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "credit_draw_stream": {
+    "kind": "supplied",
+    "stream_id": "shared",
+    "stream_revision": "1",
+    "paths": [
+      {
+        "path_key": 17,
+        "pairs": [
+          {
+            "waiting_uniform": 0.9940179640539353,
+            "destination_uniform": 0.4
+          }
+        ]
+      }
+    ]
+  }
+}

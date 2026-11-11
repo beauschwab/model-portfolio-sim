@@ -63,13 +63,11 @@ def test_public_card_executable_identity_mismatch_before_execution():
 
 
 def test_public_card_cancellation_after_process_start_stages_no_receipt(monkeypatch):
-    original=model_native.subprocess.Popen;children=[];checks=0
+    original=model_native.subprocess.Popen;children=[]
     def launched(*a,**k):
         child=original(*a,**k);children.append(child);return child
     def stopped():
-        nonlocal checks
-        checks+=1
-        return checks>=2
+        return bool(children)
     monkeypatch.setattr(model_native.subprocess,'Popen',launched)
     with pytest.raises(InterruptedError,match='cancelled'):
         model_native.run(SCHEMA,raw(),cancelled=stopped,timeout=30.)

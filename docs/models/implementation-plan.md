@@ -1,5 +1,17 @@
 # Product model enhancement implementation and evidence
 
+## Consumer conditional macro core component
+
+The Rust `consumer-macro-scenarios-1` and `consumer-macro-products-1` components
+add explicit conditional Physical paths, training-only covariance diagnostics,
+source/draw binding and bounded replay through all three daily consumer owners.
+See [the contract and remaining scope](consumer-macro-scenarios.md). These core
+components include controlled standalone native transport but do not close #92:
+independent verification and joined frozen-OAS Pricing/frozen-EIR income acceptance
+remain outstanding.
+Component fixtures are synthetic; full combined regression is required before
+integration. #93/#94 and the broader #15/#25 adoption gates remain open.
+
 ## Consumer panel specification component
 
 The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit

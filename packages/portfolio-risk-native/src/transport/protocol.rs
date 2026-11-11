@@ -253,6 +253,18 @@ enum Request {
         execution_timeout_ms: u64,
         request: Box<crate::models::consumer_behavior::Request>,
     },
+    #[serde(rename = "consumer-macro-scenarios-1")]
+    ConsumerMacro {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<portfolio_model_core::consumer_macro::Request>,
+    },
+    #[serde(rename = "consumer-macro-products-1")]
+    ConsumerMacroProducts {
+        threads: usize,
+        execution_timeout_ms: u64,
+        request: Box<portfolio_model_core::consumer_macro_products::Request>,
+    },
     #[serde(rename = "consumer-behaviour-product-paths-1")]
     ConsumerProductPaths {
         threads: usize,
@@ -568,6 +580,14 @@ fn execute(input: &[u8]) -> Result<Output, String> {
             execution_timeout_ms,
             ..
         }
+        | Request::ConsumerMacro {
+            execution_timeout_ms,
+            ..
+        }
+        | Request::ConsumerMacroProducts {
+            execution_timeout_ms,
+            ..
+        }
         | Request::ConsumerProductPaths {
             execution_timeout_ms,
             ..
@@ -621,7 +641,12 @@ fn execute(input: &[u8]) -> Result<Output, String> {
                 1 << 20
             } else if matches!(&request, Request::LifetimeLoss { .. }) {
                 2 << 20
-            } else if matches!(&request, Request::ConsumerBehavior { .. }) {
+            } else if matches!(&request, Request::ConsumerMacro { .. }) {
+                4 << 20
+            } else if matches!(
+                &request,
+                Request::ConsumerMacroProducts { .. } | Request::ConsumerBehavior { .. }
+            ) {
                 8 << 20
             } else if matches!(&request, Request::ConsumerProductPaths { .. }) {
                 1 << 20
@@ -655,6 +680,8 @@ fn execute(input: &[u8]) -> Result<Output, String> {
         Request::CommercialGeneratedExercise { threads, .. }
         | Request::LifetimeLoss { threads, .. }
         | Request::ConsumerBehavior { threads, .. }
+        | Request::ConsumerMacro { threads, .. }
+        | Request::ConsumerMacroProducts { threads, .. }
         | Request::ConsumerProductPaths { threads, .. }
         | Request::NonintegralFees { threads, .. }
         | Request::HedgeAccounting { threads, .. }
@@ -769,6 +796,28 @@ fn execute(input: &[u8]) -> Result<Output, String> {
     let pool =
         crate::runtime::compute::pool(threads).map_err(|_| "native thread pool unavailable")?;
     pool.install(|| match request {
+        Request::ConsumerMacro { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = portfolio_model_core::consumer_macro::evaluate(
+                    &request,
+                    &mut portfolio_compute_control::checkpoint,
+                )?;
+                let value = serde_json::to_value(result).map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(value))
+            })
+        }
+        Request::ConsumerMacroProducts { request, .. } => {
+            portfolio_compute_control::scope(adapter_control, || {
+                let result = portfolio_model_core::consumer_macro_products::evaluate(
+                    &request,
+                    &mut portfolio_compute_control::checkpoint,
+                )?;
+                let value = serde_json::to_value(result).map_err(|e| e.to_string())?;
+                portfolio_compute_control::checkpoint()?;
+                Ok(Output::Kpi(value))
+            })
+        }
         Request::ConsumerProductPaths { request, .. } => {
             portfolio_compute_control::scope(adapter_control, || {
                 let result = portfolio_model_core::consumer_product_paths::evaluate_checked(
@@ -1409,10 +1458,11 @@ pub fn respond(input: &[u8]) -> (Vec<u8>, bool) {
 }
 pub fn respond_started(input: &[u8], started: std::time::Instant) -> (Vec<u8>, bool) {
     if let Some(selected) =
-        crate::products::commercial::stochastic_boundary::selected(input, started, || {
+        crate::products::commercial::stochastic_boundary::selected(input, started, |output_limit| {
             let result = std::panic::catch_unwind(|| execute(input))
                 .unwrap_or_else(|_| Err("native generated request failed validation".into()))?;
-            let mut output = crate::products::commercial::stochastic_boundary::Output(Vec::new());
+            let mut output =
+                crate::products::commercial::stochastic_boundary::Output::new(output_limit);
             serde_json::to_writer(&mut output, &Response::Success { ok: true, result })
                 .map_err(|e| e.to_string())?;
             portfolio_compute_control::checkpoint()?;

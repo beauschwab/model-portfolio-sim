@@ -1,0 +1,1304 @@
+{
+  "schema": "consumer-macro-products-1",
+  "timeout_ms": 120000,
+  "macro_source": {
+    "schema": "consumer-macro-scenarios-1",
+    "measure": "physical",
+    "as_of": {
+      "ordinal": 730850,
+      "seconds_of_day": 0
+    },
+    "common_random_numbers": {
+      "id": "shared",
+      "revision": "1"
+    },
+    "policy": {
+      "id": "synthetic-conditional-policy",
+      "revision": "1"
+    },
+    "drivers": [
+      {
+        "driver_id": "rate",
+        "metric": "short_rate",
+        "region_id": "US",
+        "unit": "percent",
+        "raw_domain": [
+          -20.0,
+          30.0
+        ],
+        "availability_lag_days": 0,
+        "innovation_scale": 1.0,
+        "scaling_source": {
+          "id": "frozen-scale",
+          "revision": "1"
+        },
+        "scaling_training_end": {
+          "ordinal": 728660,
+          "seconds_of_day": 0
+        },
+        "source": {
+          "id": "rate",
+          "revision": "1"
+        }
+      },
+      {
+        "driver_id": "unemployment",
+        "metric": "unemployment_level",
+        "region_id": "US",
+        "unit": "percent",
+        "raw_domain": [
+          0.0,
+          100.0
+        ],
+        "availability_lag_days": 0,
+        "innovation_scale": 1.0,
+        "scaling_source": {
+          "id": "frozen-scale",
+          "revision": "1"
+        },
+        "scaling_training_end": {
+          "ordinal": 728660,
+          "seconds_of_day": 0
+        },
+        "source": {
+          "id": "unemployment",
+          "revision": "1"
+        }
+      }
+    ],
+    "history": {
+      "source": {
+        "id": "synthetic-history",
+        "revision": "1"
+      },
+      "data_kind": "synthetic",
+      "training_split": {
+        "id": "train",
+        "revision": "1"
+      },
+      "holdout_split": {
+        "id": "holdout",
+        "revision": "1"
+      },
+      "training_end": {
+        "ordinal": 730120,
+        "seconds_of_day": 0
+      },
+      "holdout_end": {
+        "ordinal": 730850,
+        "seconds_of_day": 0
+      },
+      "observations": [
+        {
+          "row_id": "synthetic-0",
+          "start": {
+            "ordinal": 728660,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 729025,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            5.0,
+            10.0
+          ],
+          "end_values": [
+            4.0,
+            8.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 729025,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 729025,
+              "seconds_of_day": 0
+            }
+          ]
+        },
+        {
+          "row_id": "synthetic-1",
+          "start": {
+            "ordinal": 729025,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 729390,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            4.0,
+            8.0
+          ],
+          "end_values": [
+            5.0,
+            10.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 729390,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 729390,
+              "seconds_of_day": 0
+            }
+          ]
+        },
+        {
+          "row_id": "synthetic-2",
+          "start": {
+            "ordinal": 729390,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 729755,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            5.0,
+            10.0
+          ],
+          "end_values": [
+            4.0,
+            8.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 729755,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 729755,
+              "seconds_of_day": 0
+            }
+          ]
+        },
+        {
+          "row_id": "synthetic-3",
+          "start": {
+            "ordinal": 729755,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 730120,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            4.0,
+            8.0
+          ],
+          "end_values": [
+            5.0,
+            10.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 730120,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 730120,
+              "seconds_of_day": 0
+            }
+          ]
+        },
+        {
+          "row_id": "synthetic-4",
+          "start": {
+            "ordinal": 730120,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 730485,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            5.0,
+            10.0
+          ],
+          "end_values": [
+            4.0,
+            8.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 730485,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 730485,
+              "seconds_of_day": 0
+            }
+          ]
+        },
+        {
+          "row_id": "synthetic-5",
+          "start": {
+            "ordinal": 730485,
+            "seconds_of_day": 0
+          },
+          "end": {
+            "ordinal": 730850,
+            "seconds_of_day": 0
+          },
+          "start_values": [
+            4.0,
+            8.0
+          ],
+          "end_values": [
+            5.0,
+            10.0
+          ],
+          "published_at": [
+            {
+              "ordinal": 730850,
+              "seconds_of_day": 0
+            },
+            {
+              "ordinal": 730850,
+              "seconds_of_day": 0
+            }
+          ]
+        }
+      ]
+    },
+    "interval_ends": [
+      {
+        "ordinal": 730880,
+        "seconds_of_day": 0
+      },
+      {
+        "ordinal": 730910,
+        "seconds_of_day": 0
+      }
+    ],
+    "scenarios": [
+      {
+        "scenario_id": "baseline",
+        "kind": "baseline",
+        "source": {
+          "id": "baseline",
+          "revision": "1"
+        },
+        "conditional_rate_source": {
+          "id": "baseline-rates",
+          "revision": "1"
+        },
+        "issued_at": {
+          "ordinal": 730850,
+          "seconds_of_day": 0
+        },
+        "paths": [
+          {
+            "path_key": 17,
+            "short_rates_percent": [
+              5.0,
+              5.0
+            ],
+            "values": [
+              [
+                5.0,
+                10.0
+              ],
+              [
+                5.0,
+                10.0
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "scenario_id": "up",
+        "kind": "parallel_up200",
+        "source": {
+          "id": "up",
+          "revision": "1"
+        },
+        "conditional_rate_source": {
+          "id": "up-rates",
+          "revision": "1"
+        },
+        "issued_at": {
+          "ordinal": 730850,
+          "seconds_of_day": 0
+        },
+        "paths": [
+          {
+            "path_key": 17,
+            "short_rates_percent": [
+              7.0,
+              7.0
+            ],
+            "values": [
+              [
+                7.0,
+                11.0
+              ],
+              [
+                7.0,
+                11.0
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "scenario_id": "down",
+        "kind": "parallel_down200",
+        "source": {
+          "id": "down",
+          "revision": "1"
+        },
+        "conditional_rate_source": {
+          "id": "down-rates",
+          "revision": "1"
+        },
+        "issued_at": {
+          "ordinal": 730850,
+          "seconds_of_day": 0
+        },
+        "paths": [
+          {
+            "path_key": 17,
+            "short_rates_percent": [
+              3.0,
+              3.0
+            ],
+            "values": [
+              [
+                3.0,
+                9.0
+              ],
+              [
+                3.0,
+                9.0
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "scenario_id": "adverse",
+        "kind": "severely_adverse",
+        "source": {
+          "id": "adverse",
+          "revision": "1"
+        },
+        "conditional_rate_source": {
+          "id": "adverse-rates",
+          "revision": "1"
+        },
+        "issued_at": {
+          "ordinal": 730850,
+          "seconds_of_day": 0
+        },
+        "paths": [
+          {
+            "path_key": 17,
+            "short_rates_percent": [
+              2.0,
+              2.0
+            ],
+            "values": [
+              [
+                2.0,
+                14.0
+              ],
+              [
+                2.0,
+                14.0
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "credit_draw_stream": {
+      "kind": "supplied",
+      "stream_id": "shared",
+      "stream_revision": "1",
+      "paths": [
+        {
+          "path_key": 17,
+          "pairs": [
+            {
+              "waiting_uniform": 0.9940179640539353,
+              "destination_uniform": 0.4
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "products": [
+    {
+      "product_id": "personal-17",
+      "mappings": [
+        {
+          "column_name": "unemp_level",
+          "driver_id": "unemployment"
+        }
+      ],
+      "template": {
+        "schema": "consumer-behaviour-product-paths-1",
+        "timeout_ms": 30000,
+        "fit": {
+          "timeout_ms": 60000,
+          "specification": {
+            "schema": "consumer-behaviour-spec-1",
+            "identity": {
+              "revision": "1",
+              "id": "reviewed-fit-policy"
+            },
+            "product": "personal",
+            "watch_dpd": 30,
+            "delinquent_dpd": 60,
+            "default_dpd": 120,
+            "permitted_default_causes": [
+              "charge_off",
+              "bankruptcy"
+            ],
+            "modified_policy": "reject",
+            "columns": [
+              {
+                "definition": {
+                  "scale": 1.0,
+                  "offset": 0.0,
+                  "role": "macro",
+                  "raw_upper": 100.0,
+                  "raw_lower": 0.0,
+                  "name": "unemp_level",
+                  "scaling_review": {
+                    "revision": "1",
+                    "id": "frozen-supplied-transform"
+                  },
+                  "unit": "percent"
+                },
+                "availability_lag_days": 0,
+                "scaling_training_end": {
+                  "ordinal": 730120,
+                  "seconds_of_day": 0
+                },
+                "categories": {}
+              }
+            ],
+            "terms": [
+              {
+                "name": "reference",
+                "first_month": 0
+              }
+            ],
+            "term_convention": "hold_start_level_within_interval",
+            "minimum_training_support_years": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "omitted_driver_assumptions": [
+              "Synthetic one-driver fixture. All other borrower/macro effects and finer term levels are explicitly omitted."
+            ]
+          },
+          "fit_template": {
+            "kind": "exact",
+            "request": {
+              "observation_mode": "exact_transition_times",
+              "holdout_source": {
+                "revision": "1",
+                "id": "holdout-observations"
+              },
+              "train_start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "schema": "credit-covariate-1",
+              "holdout_end": {
+                "ordinal": 730850,
+                "seconds_of_day": 0
+              },
+              "model_policy": {
+                "revision": "1",
+                "id": "reviewed-fit-policy"
+              },
+              "measure": "physical",
+              "optimizer": {
+                "relative_information_tolerance": 1e-08,
+                "timeout_ms": 60000,
+                "projected_gradient_tolerance": 1e-09,
+                "max_iterations": 100,
+                "max_backtracks": 32
+              },
+              "training_split": {
+                "revision": "1",
+                "id": "train"
+              },
+              "term_levels": [],
+              "population": {
+                "revision": "1",
+                "id": "synthetic-population"
+              },
+              "rows": [
+                {
+                  "kind": "fixed_row",
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.2,
+                    0.0
+                  ],
+                  "review": {
+                    "id": "synthetic-fixed-row",
+                    "revision": "1"
+                  },
+                  "rationale": "Synthetic zero macro effect control"
+                },
+                {
+                  "kind": "fixed_row",
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.2,
+                    0.0
+                  ],
+                  "review": {
+                    "id": "synthetic-fixed-row",
+                    "revision": "1"
+                  },
+                  "rationale": "Synthetic zero macro effect control"
+                },
+                {
+                  "kind": "fixed_row",
+                  "hazards_per_year": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.2,
+                    0.0
+                  ],
+                  "review": {
+                    "id": "synthetic-fixed-row",
+                    "revision": "1"
+                  },
+                  "rationale": "Synthetic zero macro effect control"
+                }
+              ],
+              "data_kind": "synthetic",
+              "train_end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "training_source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "holdout_split": {
+                "revision": "1",
+                "id": "holdout"
+              },
+              "columns": [],
+              "segments": []
+            }
+          },
+          "records": [
+            {
+              "record_id": "g0a0",
+              "account_id": "g0a0",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": "charge_off",
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_transition",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 0.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g0a1",
+              "account_id": "g0a1",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_censor",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 0.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g0a2",
+              "account_id": "g0a2",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_censor",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 0.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g0a3",
+              "account_id": "g0a3",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_censor",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 0.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g1a0",
+              "account_id": "g1a0",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": "charge_off",
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_transition",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 1.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g1a1",
+              "account_id": "g1a1",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": "charge_off",
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_transition",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 1.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g1a2",
+              "account_id": "g1a2",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_censor",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 1.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            },
+            {
+              "record_id": "g1a3",
+              "account_id": "g1a3",
+              "source": {
+                "revision": "1",
+                "id": "training-observations"
+              },
+              "start": {
+                "ordinal": 730120,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730485,
+                "seconds_of_day": 0
+              },
+              "start_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "end_status": {
+                "days_past_due": 0,
+                "exit": null,
+                "balance": 100.0,
+                "line_open": true,
+                "modified_or_reaged": false
+              },
+              "observation": "exact_censor",
+              "loan_age_months": 0,
+              "features": {
+                "unemp_level": {
+                  "value": 1.0,
+                  "observed_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "published_at": {
+                    "ordinal": 730120,
+                    "seconds_of_day": 0
+                  },
+                  "source": {
+                    "id": "synthetic-macro",
+                    "revision": "1"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "projection": {
+          "model_revision": {
+            "id": "native-fitted-panel",
+            "revision": "1"
+          },
+          "review": {
+            "id": "analytical-only",
+            "revision": "1"
+          },
+          "scenario_id": "base",
+          "timeout_ms": 60000,
+          "intervals": [
+            {
+              "interval_id": "period-0",
+              "start": {
+                "ordinal": 730850,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730880,
+                "seconds_of_day": 0
+              },
+              "available_time": {
+                "ordinal": 730850,
+                "seconds_of_day": 0
+              },
+              "kind": "supplied_projected",
+              "source": {
+                "id": "synthetic-projected-driver",
+                "revision": "1"
+              },
+              "covariates": [
+                0.0
+              ],
+              "term_level": "reference"
+            },
+            {
+              "interval_id": "period-1",
+              "start": {
+                "ordinal": 730880,
+                "seconds_of_day": 0
+              },
+              "end": {
+                "ordinal": 730910,
+                "seconds_of_day": 0
+              },
+              "available_time": {
+                "ordinal": 730850,
+                "seconds_of_day": 0
+              },
+              "kind": "supplied_projected",
+              "source": {
+                "id": "synthetic-projected-driver",
+                "revision": "1"
+              },
+              "covariates": [
+                0.0
+              ],
+              "term_level": "reference"
+            }
+          ],
+          "path_source": {
+            "schema": "credit-path-1",
+            "measure": "physical",
+            "monetary_unit": "USD",
+            "source_id": "synthetic-example",
+            "source_revision": "1",
+            "model_policy_id": "supplied-example-hazards",
+            "origin_time": {
+              "ordinal": 730850,
+              "seconds_of_day": 0
+            },
+            "max_jumps_per_path": 10,
+            "intervals": [
+              {
+                "end_year": 0.0821917808219178,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "accrual_rates": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "loss_given_default": [
+                  0.4,
+                  0.4,
+                  0.4
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "interest_recovery_fraction": [
+                  1,
+                  1,
+                  1
+                ],
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ]
+                ]
+              },
+              {
+                "end_year": 0.1643835616438356,
+                "hazards_per_year": [
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ]
+                ],
+                "accrual_rates": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "loss_given_default": [
+                  0.4,
+                  0.4,
+                  0.4
+                ],
+                "credit_conversion_factor": [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                "interest_recovery_fraction": [
+                  1,
+                  1,
+                  1
+                ],
+                "complete_recovery_tails": [
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ],
+                  [
+                    {
+                      "lag_years": 2,
+                      "weight": 1
+                    }
+                  ]
+                ]
+              }
+            ],
+            "boundaries": [],
+            "draw_stream": {
+              "kind": "supplied",
+              "stream_id": "shared",
+              "stream_revision": "1",
+              "paths": [
+                {
+                  "path_key": 17,
+                  "pairs": [
+                    {
+                      "waiting_uniform": 0.9940179640539353,
+                      "destination_uniform": 0.4
+                    }
+                  ]
+                }
+              ]
+            },
+            "paths": [
+              {
+                "path_id": "example-loan",
+                "path_key": 17,
+                "initial_live_state": "performing",
+                "principal": 0.0,
+                "undrawn_commitment": 0.0,
+                "accrued_interest": 0.0,
+                "book_adjustment": 0.0
+              }
+            ]
+          }
+        },
+        "policy": {
+          "review": {
+            "id": "synthetic-daily-clock-review",
+            "revision": "1"
+          },
+          "clock": "next_calendar_day_boundary",
+          "same_day_transitions": "reject",
+          "live_states": [
+            "performing",
+            "delinquent",
+            "delinquent"
+          ]
+        },
+        "products": [
+          {
+            "kind": "installment",
+            "path_id": "example-loan",
+            "path_key": 17,
+            "contract": {
+              "schema": "consumer-installment-1",
+              "identity": {
+                "position_id": "personal-1",
+                "original_loan_id": "loan-1",
+                "cohort_id": "cohort-1",
+                "currency": "USD",
+                "source_revision": "tape-1",
+                "model_version": "consumer-installment-1",
+                "assumption_id": "supplied-1",
+                "run_id": "base",
+                "measure": "physical"
+              },
+              "product": {
+                "kind": "personal",
+                "vintage_ordinal": 730485,
+                "dti": 0.4,
+                "dti_definition": "monthly-debt/gross-monthly-income",
+                "channel": "branch",
+                "collection_fraction": 0.5,
+                "collection_cost": 0.0,
+                "recovery_delay_days": 20
+              },
+              "as_of_ordinal": 730850,
+              "horizon_days": 60,
+              "original_principal": 1000.0,
+              "opening_principal": 1000.0,
+              "opening_accrued_interest": 0.0,
+              "opening_unrecognized_interest": 0.0,
+              "opening_fees": 0.0,
+              "initial_state": "performing",
+              "note_rate": 0.0,
+              "disclosed_apr": 0.5,
+              "day_count": "act365_fixed",
+              "original_payment": 529.0,
+              "payment_dates": [
+                730910
+              ],
+              "prepayment_penalty_fraction": 0.0,
+              "accrue_contract_interest_in_nonaccrual": true,
+              "steps": []
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

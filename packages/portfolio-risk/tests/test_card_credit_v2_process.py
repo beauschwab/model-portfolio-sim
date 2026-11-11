@@ -97,13 +97,11 @@ def test_public_card2_integer_financial_json_normalizes_without_retyping_dates()
 
 
 def test_public_card2_cancel_after_process_start_has_no_receipt(monkeypatch):
-    original=model_native.subprocess.Popen;children=[];checks=0
+    original=model_native.subprocess.Popen;children=[]
     def launched(*a,**k):
         child=original(*a,**k);children.append(child);return child
     def cancelled():
-        nonlocal checks
-        checks+=1
-        return checks>=2
+        return bool(children)
     monkeypatch.setattr(model_native.subprocess,'Popen',launched)
     with pytest.raises(InterruptedError,match='cancelled'):model_native.run(SCHEMA,raw(),cancelled=cancelled,timeout=30.)
     assert len(children)==1 and children[0].poll() is not None
