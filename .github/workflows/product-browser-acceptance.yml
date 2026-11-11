@@ -1,0 +1,92 @@
+name: Product browser and service acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/product-browser-acceptance.yml']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/product-browser-acceptance.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_BUILD_JOBS: '2'
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@1.93.1
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - run: uv sync --project apps/api --extra dev --extra iceberg --locked
+      - run: bun install --frozen-lockfile
+      - run: uv run --no-sync --project apps/api python scripts/build_native.py
+      - run: uv run --no-sync --project apps/api python scripts/build_ledger_native.py
+      - run: uv run --no-sync --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
+      - run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Complete Rust service and browser matrix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, subprocess, time
+          root = Path.cwd()
+          out = root / 'artifacts/full-browser-service'
+          out.mkdir(parents=True)
+          def sources():
+              files = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+              return {f: hashlib.sha256((root/f).read_bytes()).hexdigest() for f in files if f}
+          before = sources()
+          env = os.environ.copy()
+          env['WORKBENCH_TEST_LEDGER_EXE'] = str(root / 'packages/portfolio-decision-native/target/release/portfolio-model-ledger')
+          gates = [
+              ('service-format', root, ['cargo','fmt','--manifest-path','apps/api-rust/Cargo.toml','--','--check']),
+              ('service-strict', root, ['cargo','clippy','--locked','--manifest-path','apps/api-rust/Cargo.toml','--all-targets','--features','s3,fault-injection','--','-D','warnings']),
+              ('service-tests', root, ['cargo','test','--locked','--manifest-path','apps/api-rust/Cargo.toml','--features','fault-injection']),
+              ('service-build', root, ['cargo','build','--locked','--manifest-path','apps/api-rust/Cargo.toml']),
+          ]
+          for suite, config in [('memory','playwright.config.ts'),('cohorts','playwright.cohorts.config.ts'),('durable','playwright.stream.config.ts'),('native','playwright.native.config.ts')]:
+              gates.append((f'browser-{suite}', root/'apps/web', ['bunx','playwright','test','-c',config,'--reporter=line,json','--output',str(out/f'{suite}-traces')]))
+          receipt = {'head_sha': subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(), 'source_sha256':before, 'gates':[], 'all_passed':False}
+          try:
+              for name, cwd, command in gates:
+                  print('START', name, flush=True)
+                  env['PLAYWRIGHT_JSON_OUTPUT_NAME'] = str(out/f'{name}.json')
+                  log = out/f'{name}.log'
+                  started = time.monotonic()
+                  with log.open('wb') as stream:
+                      result = subprocess.run(command,cwd=cwd,env=env,stdout=stream,stderr=subprocess.STDOUT)
+                  receipt['gates'].append({'name':name,'command':command,'exit_code':result.returncode,'seconds':time.monotonic()-started,'log_sha256':hashlib.sha256(log.read_bytes()).hexdigest()})
+                  print(log.read_text(errors='replace'), flush=True)
+                  if sources() != before:
+                      raise RuntimeError('tracked source changed during acceptance')
+              receipt['all_passed'] = all(g['exit_code']==0 for g in receipt['gates'])
+          finally:
+              receipt['source_unchanged'] = sources() == before
+              receipt['all_passed'] = receipt['all_passed'] and receipt['source_unchanged']
+              (out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          if not receipt['all_passed']:
+              raise RuntimeError('complete service/browser acceptance failed')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-browser-service-acceptance
+          path: artifacts/full-browser-service
+          if-no-files-found: warn
