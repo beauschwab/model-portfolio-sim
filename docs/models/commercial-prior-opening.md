@@ -77,3 +77,8 @@ optional MCP import skip is separately covered by the dedicated real-API/worker
 integration pass. MCP29 and the web build pass. See
 [the acceptance review](../reviews/2026-10-12-commercial-prior-opening.md)
 for retained scope, exact identities and the unchanged native financial source.
+
+The additive candidate loan/fee route now uses the same bounded reader and final
+SQL authority checks; see [verified candidate prior openings](commercial-candidate-prior-opening.md).
+Its separate receipt also binds gross unweighted loan/fee snapshots through the
+cut. Historical route receipts and limits remain unchanged.

@@ -19,6 +19,83 @@ fn result(v: Value) -> Result<Value, String> {
     serde_json::to_value(evaluate(&r)?).map_err(|e| e.to_string())
 }
 #[test]
+fn acquired_fee_asset_and_liability_release_separately_from_service_cash() {
+    for sign in [1., -1.] {
+        let mut r = raw();
+        r["fees"][0]["entitlement"] = json!(sign * 5.);
+        r["events"] = json!([
+            event(0, 0, "acquire", sign * 4., "other_reviewed"),
+            event(10, 1, "earn", sign * 5., "service"),
+            event(10, 2, "release_acquired_cost", sign * 1., "other_reviewed"),
+            event(20, 3, "cash", sign * 5., "settlement"),
+            event(20, 4, "release_acquired_cost", sign * 3., "other_reviewed")
+        ]);
+        let actual = result(r).unwrap();
+        let report = &actual["reporting"][0]["state"];
+        assert_eq!(
+            report[if sign > 0. {
+                "acquired_fee_asset"
+            } else {
+                "acquired_fee_liability"
+            }],
+            sign * 3.
+        );
+        assert_eq!(report["earned"], sign * 5.);
+        assert_eq!(
+            actual["closing"][0]["state"]["released_acquired_cost"],
+            sign * 4.
+        );
+        assert!(actual["closing"][0]["state"]
+            .get("acquired_fee_asset")
+            .is_none());
+        assert!(actual["closing"][0]["state"]
+            .get("acquired_fee_liability")
+            .is_none());
+        assert_eq!(actual["groups"][0]["postings"][0]["account"], "cash");
+        assert_eq!(
+            actual["groups"][2]["postings"][0]["account"],
+            "fee_acquisition_expense"
+        );
+    }
+}
+#[test]
+fn acquired_fee_basis_cannot_be_reacquired_or_over_released() {
+    for events in [
+        vec![
+            event(0, 0, "acquire", 4., "other_reviewed"),
+            event(0, 1, "acquire", 4., "other_reviewed"),
+        ],
+        vec![
+            event(0, 0, "acquire", 4., "other_reviewed"),
+            event(1, 1, "release_acquired_cost", 5., "other_reviewed"),
+        ],
+        vec![event(1, 0, "acquire", 4., "other_reviewed")],
+    ] {
+        let mut r = raw();
+        r["events"] = json!(events);
+        assert!(result(r).is_err());
+    }
+}
+#[test]
+fn explicit_pricing_fee_projection_cannot_enter_the_physical_accounting_entrypoint() {
+    let mut r = raw();
+    r["measure"] = json!("pricing");
+    r["events"] = json!([
+        event(10, 0, "earn", 5., "service"),
+        event(20, 1, "cash", 5., "settlement")
+    ]);
+    let typed: Request = serde_json::from_value(r).unwrap();
+    assert!(evaluate(&typed).is_err());
+    let actual =
+        portfolio_model_core::nonintegral_fee::evaluate_pricing_with_check(&typed, || Ok(()))
+            .unwrap();
+    assert_eq!(
+        actual.raw_request().measure,
+        portfolio_model_core::cashflow::CashflowMeasure::Pricing
+    );
+    assert_eq!(actual.closing()[0].state.earned, 5.);
+}
+#[test]
 fn earned_receivable_survives_report_and_later_cash_has_no_second_income() {
     let mut r = raw();
     r["events"] = json!([
@@ -328,4 +405,74 @@ fn preflight_rejects_excessive_cardinality_and_calendar_before_generation() {
     let mut r = raw();
     r["complete_end_ordinal"] = json!(730000 + 36601);
     assert!(result(r).unwrap_err().contains("calendar"));
+}
+
+#[test]
+fn acquired_fee_face_six_cost_five_has_contra_valuation_without_new_service_income() {
+    use portfolio_model_core::nonintegral_fee as f;
+    use serde_json::json;
+    for sign in [1., -1.] {
+        let id = json!({"id":"reviewed-transfer","revision":"1"});
+        let source = json!({"schema":f::SCHEMA,"measure":"physical","currency":"USD","monetary_unit":"currency_units","policy":id,"asof_ordinal":738856,"reporting_end_ordinal":738896,"complete_end_ordinal":738896,"fees":[{"fee_id":"bought","source":id,"classification_review":id,"service":id,"position_id":"commercial","tranche_id":"original","entitlement":sign*6.,"prepaid_refunds_allowed":false}],"events":[{"event_id":"seller-service","fee_id":"bought","source":id,"review":id,"ordinal":738866,"sequence":0,"action":"earn","reason":"service","amount":sign*6.},{"event_id":"buyer-cash","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":1,"action":"cash","reason":"settlement","amount":sign*6.}]});
+        let full: f::Request = serde_json::from_value(source.clone()).unwrap();
+        let transfer = f::transfer_before(
+            &full,
+            738886,
+            serde_json::from_value(id.clone()).unwrap(),
+            || Ok(()),
+        )
+        .unwrap();
+        let mut raw = source.clone();
+        raw["asof_ordinal"] = json!(738886);
+        raw["events"] = json!([
+            {"event_id":"buyer-basis","fee_id":"bought","source":id,"review":id,"ordinal":738886,"sequence":0,"action":"acquire","reason":"other_reviewed","amount":-sign},
+            {"event_id":"buyer-cash","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":1,"action":"cash","reason":"settlement","amount":sign*6.},
+            {"event_id":"buyer-release","fee_id":"bought","source":id,"review":id,"ordinal":738896,"sequence":2,"action":"release_acquired_cost","reason":"other_reviewed","amount":-sign}
+        ]);
+        let raw: f::Request = serde_json::from_value(raw).unwrap();
+        let out = f::evaluate_transferred_with_check(&raw, &transfer, || Ok(())).unwrap();
+        let mut collision = raw.clone();
+        collision.events[0].event_id = "native-fee-transfer:reviewed-transfer:0".into();
+        assert!(
+            f::evaluate_transferred_with_check(&collision, &transfer, || Ok(()))
+                .unwrap_err()
+                .contains("reserved")
+        );
+        let basis = &out.groups()[1].next;
+        if sign > 0. {
+            assert_eq!(basis.fee_receivable, 6.);
+            assert_eq!(basis.acquired_fee_asset_valuation_adjustment, -1.);
+            assert_eq!(basis.acquired_fee_liability, 0.);
+        } else {
+            assert_eq!(basis.fee_payable, -6.);
+            assert_eq!(basis.acquired_fee_liability_valuation_adjustment, 1.);
+            assert_eq!(basis.acquired_fee_asset, 0.);
+        }
+        let postings = out
+            .groups()
+            .iter()
+            .flat_map(|g| &g.postings)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            postings
+                .iter()
+                .filter(|p| p.account == f::Account::FeeIncome)
+                .map(|p| p.amount)
+                .sum::<f64>(),
+            0.
+        );
+        assert_eq!(
+            postings
+                .iter()
+                .filter(|p| p.account == f::Account::Cash)
+                .map(|p| p.amount)
+                .sum::<f64>(),
+            sign
+        );
+        let close = &out.closing()[0].state;
+        assert_eq!(close.fee_receivable, 0.);
+        assert_eq!(close.fee_payable, 0.);
+        assert_eq!(close.acquired_fee_asset_valuation_adjustment, 0.);
+        assert_eq!(close.acquired_fee_liability_valuation_adjustment, 0.);
+    }
 }

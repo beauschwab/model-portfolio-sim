@@ -17,6 +17,10 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const SCHEMA: &str = "commercial-native-exercise-1";
+#[path = "fee_exercise.rs"]
+mod fee_owner;
+pub use fee_owner::compile as compile_with_fees;
+pub use fee_owner::{prepare as prepare_with_fees, Market as FeeDiscounts};
 const MAX_PATHS: usize = 64;
 const MAX_DATES: usize = 128;
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,12 +67,21 @@ pub struct NativeExercisePolicy {
     pub parallel_bump: f64,
     pub finite_distribution: bool,
     pub continuous_model_convergence: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub joint_fee_values: Option<JointFeeValues>,
     #[serde(skip)]
     keys: BTreeMap<(i32, Vec<u8>), usize>,
     #[serde(skip)]
     asof: i32,
     #[serde(skip)]
     position_id: String,
+}
+#[derive(Debug, Serialize)]
+pub struct JointFeeValues {
+    pub loan_value: f64,
+    pub fee_value: f64,
+    pub fee_discount_spread: f64,
+    pub decision_criterion: &'static str,
 }
 fn check() -> Result<(), String> {
     portfolio_compute_control::checkpoint()
@@ -92,6 +105,26 @@ pub(crate) fn admitted_work_with_measure(
     p: &Policy,
     raws: &[(&owner::Request, f64)],
     measure: portfolio_model_core::credit::CreditMeasure,
+) -> Result<usize, String> {
+    admitted_work_inner(p, raws, measure, true)
+}
+/// Joint fee exercise separately reserves and caches genuine stopped sources.
+pub fn admitted_reduction_work(
+    p: &Policy,
+    raws: &[(&owner::Request, f64)],
+) -> Result<usize, String> {
+    admitted_work_inner(
+        p,
+        raws,
+        portfolio_model_core::credit::CreditMeasure::Pricing,
+        false,
+    )
+}
+fn admitted_work_inner(
+    p: &Policy,
+    raws: &[(&owner::Request, f64)],
+    measure: portfolio_model_core::credit::CreditMeasure,
+    include_stopped: bool,
 ) -> Result<usize, String> {
     check()?;
     if p.schema != SCHEMA
@@ -177,6 +210,24 @@ pub(crate) fn admitted_work_with_measure(
                     .ok_or("native exercise work overflow")?,
             )
             .ok_or("native exercise work overflow")?;
+        let stop_trials = if include_stopped && raw.factor_policy.terminal_obligations.is_some() {
+            p.exercise_dates
+                .iter()
+                .map(|d| {
+                    usize::from(d.call_clean_price_factor.is_some())
+                        + usize::from(d.put_clean_price_factor.is_some())
+                })
+                .sum::<usize>()
+        } else {
+            0
+        };
+        work = work
+            .checked_add(
+                a.joined_work_upper
+                    .checked_mul(stop_trials)
+                    .ok_or("native stopped continuation work overflow")?,
+            )
+            .ok_or("native stopped continuation work overflow")?;
     }
     if !near(weights, 1.) || work > 8_000_000 {
         return Err(
@@ -436,6 +487,14 @@ pub(crate) fn select(
         .put_clean_price_factor
         .map(|f| term::amount(p * f + a + date.put_fee))
         .transpose()?;
+    select_values(priority, continuation, call, put)
+}
+pub(crate) fn select_values(
+    priority: SimultaneousPriority,
+    continuation: f64,
+    call: Option<f64>,
+    put: Option<f64>,
+) -> Result<(Decision, f64), String> {
     // Exactly the supplied-DAG game convention, with stable continuation ties.
     let mut choice = Decision::Continue;
     let mut value = continuation;
@@ -470,6 +529,73 @@ pub(crate) fn select(
         }
     }
     Ok((choice, value))
+}
+
+/// One genuine native stopped source supplies both immediate exit cash and
+/// complete pending post-exit coupon tails. No caller payoff replaces it.
+fn stopped_source(
+    raw: &owner::Request,
+    policy: &Policy,
+    date: &ExerciseDate,
+    action: owner::NativeStopAction,
+) -> Result<(owner::NativeStop, owner::EconomicResult), String> {
+    let (factor, fee) = match action {
+        owner::NativeStopAction::Call => (
+            date.call_clean_price_factor.ok_or("call terms absent")?,
+            date.call_fee,
+        ),
+        owner::NativeStopAction::Put => (
+            date.put_clean_price_factor.ok_or("put terms absent")?,
+            date.put_fee,
+        ),
+    };
+    let stop = owner::NativeStop::from_compiled_policy_with_timing(
+        raw.credit.paths[0].path_key,
+        format!("native-exercise:{}:{}", policy.identity.id, date.ordinal),
+        date.ordinal,
+        action,
+        factor,
+        fee,
+        policy.identity.clone(),
+        match date.timing {
+            ExerciseTiming::BeforeScheduledCash => owner::NativeStopTiming::BeforeScheduledCash,
+            ExerciseTiming::AfterScheduledCash => owner::NativeStopTiming::AfterScheduledCash,
+        },
+        policy
+            .rights_only_termination
+            .as_ref()
+            .map(|r| r.review.clone()),
+    )?;
+    let source = owner::evaluate_economic_with_stops(
+        raw,
+        portfolio_model_core::credit::CreditMeasure::Pricing,
+        std::slice::from_ref(&stop),
+    )?;
+    Ok((stop, source))
+}
+fn stopped_value(
+    raw: &owner::Request,
+    policy: &Policy,
+    date: &ExerciseDate,
+    action: owner::NativeStopAction,
+    curve: &SuppliedCurve,
+    oas: f64,
+    bump: f64,
+) -> Result<f64, String> {
+    let (stop, source) = stopped_source(raw, policy, date, action)?;
+    let t = f64::from(date.ordinal - raw.source.current.asof_ordinal) / 365.;
+    let discount = df(curve, t, oas, bump)?;
+    commercial_cash::economic_cash(source.carry())?
+        .iter()
+        .filter(|c| {
+            c.year > t
+                || c.year == t
+                    && (date.timing == ExerciseTiming::BeforeScheduledCash
+                        || c.event_id == stop.event_id())
+        })
+        .try_fold(0., |sum, c| {
+            term::amount(sum + c.total()? * df(curve, c.year, oas, bump)? / discount)
+        })
 }
 
 /// Conditional expectations and stopping cash are constructed from native
@@ -585,7 +711,48 @@ pub fn compile(
                 return Err("rights-only native exercise after principal settlement requires an explicit legal termination owner".into());
             }
             let (choice, value) = if live(state) && (p > 0. || rights_only) {
-                select(date, policy.simultaneous_priority, continuation, p, a)?
+                let conditional_stop = |action| {
+                    members.iter().try_fold(0., |sum, &i| {
+                        let v = &views[i];
+                        let value = if v.raw.factor_policy.terminal_obligations.is_some() {
+                            stopped_value(v.raw, policy, date, action, curve, oas, bump)?
+                        } else {
+                            let (_, principal, interest) =
+                                crate::products::commercial::exercise::state(
+                                    v.raw,
+                                    v.carry,
+                                    t,
+                                    date.timing,
+                                )?;
+                            match action {
+                                owner::NativeStopAction::Call => term::amount(
+                                    principal
+                                        * date
+                                            .call_clean_price_factor
+                                            .ok_or("call factor absent")?
+                                        + interest
+                                        + date.call_fee,
+                                )?,
+                                owner::NativeStopAction::Put => term::amount(
+                                    principal
+                                        * date.put_clean_price_factor.ok_or("put factor absent")?
+                                        + interest
+                                        + date.put_fee,
+                                )?,
+                            }
+                        };
+                        term::amount(sum + v.weight / probability * value)
+                    })
+                };
+                let call = date
+                    .call_clean_price_factor
+                    .map(|_| conditional_stop(owner::NativeStopAction::Call))
+                    .transpose()?;
+                let put = date
+                    .put_clean_price_factor
+                    .map(|_| conditional_stop(owner::NativeStopAction::Put))
+                    .transpose()?;
+                select_values(policy.simultaneous_priority, continuation, call, put)?
             } else {
                 (Decision::Continue, continuation)
             };
@@ -635,6 +802,7 @@ pub fn compile(
         parallel_bump: bump,
         finite_distribution: true,
         continuous_model_convergence: false,
+        joint_fee_values: None,
     };
     strict_json::serialized_size(&result, 32 << 20)?;
     check()?;
@@ -648,7 +816,33 @@ impl NativeExercisePolicy {
         raw: &owner::Request,
         c: &carry::ResultData,
     ) -> Result<Vec<owner::NativeStop>, String> {
+        self.stops_for_inner(raw, c, None)
+    }
+    pub fn loan_value(&self) -> f64 {
+        self.joint_fee_values
+            .as_ref()
+            .map_or(self.value, |v| v.loan_value)
+    }
+    pub fn stops_for_with_fees(
+        &self,
+        raw: &owner::Request,
+        c: &carry::ResultData,
+        fees: &crate::products::commercial::fee_source::Policy,
+    ) -> Result<Vec<owner::NativeStop>, String> {
+        self.stops_for_inner(raw, c, Some(fees))
+    }
+    fn stops_for_inner(
+        &self,
+        raw: &owner::Request,
+        c: &carry::ResultData,
+        fees: Option<&crate::products::commercial::fee_source::Policy>,
+    ) -> Result<Vec<owner::NativeStop>, String> {
         check()?;
+        if self.joint_fee_values.is_some() != fees.is_some() {
+            return Err(
+                "joint loan/fee exercise requires the same native fee observed-prefix owner".into(),
+            );
+        }
         if raw.source.current.asof_ordinal != self.asof
             || raw.source.current.position_id != self.position_id
             || raw.credit.paths.len() != 1
@@ -668,7 +862,12 @@ impl NativeExercisePolicy {
             if !live(state) || p == 0. && !rights_only {
                 continue;
             }
-            let key = encode(&information(raw, c, date.ordinal, date.timing)?)?;
+            let info = if let Some(fees) = fees {
+                fee_owner::information(raw, c, fees, date.ordinal, date.timing)?
+            } else {
+                information(raw, c, date.ordinal, date.timing)?
+            };
+            let key = encode(&info)?;
             let n = &self.nodes[*self.keys.get(&(date.ordinal, key)).ok_or(
                 "Physical observed state is absent from native Pricing continuation policy",
             )?];

@@ -77,7 +77,7 @@ def test_analysis_admission_rejects_unversioned_or_stale_request(durable):
     with pytest.raises(HTTPException):model_routes.example('../../AGENTS.md')
 
 
-@pytest.mark.parametrize('schema',['conditional-exercise-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','joint-market-credit-1','market-quote-bootstrap-1','observed-deposit-calibration-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'])
+@pytest.mark.parametrize('schema',['conditional-exercise-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','joint-market-credit-1','market-quote-bootstrap-1','observed-deposit-calibration-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-cut-mixed-journal-1'])
 @pytest.mark.parametrize('failure',['amount','receipt','deadline','cancel','source'])
 def test_persisted_independent_source_publication_fails_closed(durable,monkeypatch,schema,failure):
     import polars as pl
@@ -109,7 +109,7 @@ def test_persisted_independent_source_publication_fails_closed(durable,monkeypat
     assert row['status']!='done' and row['result'] is None
 
 
-@pytest.mark.parametrize('schema',['strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'])
+@pytest.mark.parametrize('schema',['strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-cut-mixed-journal-1'])
 @pytest.mark.parametrize('failure',['binary','source'])
 def test_final_progress_fences_strategy_process_source_and_executable(durable,monkeypatch,schema,failure):
     from portfolio_risk.core import product_strategy_native
@@ -127,7 +127,7 @@ def test_final_progress_fences_strategy_process_source_and_executable(durable,mo
     assert 'MODEL_VERSION_CHANGED' in row['detail']
 
 
-@pytest.mark.parametrize('schema',['conditional-exercise-1','observed-deposit-calibration-1','market-quote-bootstrap-1','consumer-installment-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','card-product-graph-1','aged-units-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'])
+@pytest.mark.parametrize('schema',['conditional-exercise-1','observed-deposit-calibration-1','market-quote-bootstrap-1','consumer-installment-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','card-product-graph-1','aged-units-1','strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-cut-mixed-journal-1'])
 @pytest.mark.parametrize('failure',['deadline','source','binary','stop'])
 def test_all_model_publications_keep_final_execution_fences(durable,monkeypatch,schema,failure):
     from portfolio_risk.core import model_native,product_strategy_native
@@ -137,7 +137,7 @@ def test_all_model_publications_keep_final_execution_fences(durable,monkeypatch,
         if isinstance(result,dict) and 'model_result' in result:
             if failure=='deadline':result['execution']['publication_deadline_unix']=0.
             elif failure=='source':monkeypatch.setattr(balance_stream,'source_identity',lambda:'changed')
-            elif failure=='binary':monkeypatch.setattr(product_strategy_native if schema in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'} else model_native,'binary_identity',lambda:'changed')
+            elif failure=='binary':monkeypatch.setattr(product_strategy_native if schema in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-cut-mixed-journal-1'} else model_native,'binary_identity',lambda:'changed')
             else:worker.STOP.set()
         return original(result)
     monkeypatch.setattr(db.CODEC,'dump',changed)

@@ -6,7 +6,9 @@ from app.commercial_execution_envelope import retained_command
 @pytest.mark.parametrize('schema,op',[
     ('commercial-holding-journal-1','analyze_commercial_holding_journal'),
     ('commercial-candidate-journal-1','analyze_commercial_candidate_journal'),
-    ('commercial-treasury-1','analyze_commercial_treasury')])
+    ('commercial-treasury-1','analyze_commercial_treasury'),
+    ('commercial-candidate-fee-treasury-1','analyze_commercial_candidate_fee_treasury'),
+    ('commercial-candidate-holding-journal-1','analyze_commercial_candidate_holding_journal')])
 @pytest.mark.parametrize('milliseconds',[1001,2003,8011,1800000])
 def test_retained_commercial_millisecond_is_exact(schema,op,milliseconds):
     raw={'schema':schema}

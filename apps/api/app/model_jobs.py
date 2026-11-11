@@ -14,7 +14,7 @@ def native_result(owner,request,stopping):
     if db.REPO is None or active is None:raise RuntimeError('model analyses require a durable worker')
     if source_identity()!=request['source_sha256']:raise RuntimeError('MODEL_VERSION_CHANGED: model source differs from queued identity')
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
     publication_deadline=request['publication_deadline_unix'] if commercial else time.time()+request['timeout']
     if type(publication_deadline) not in (float,int) or not math.isfinite(publication_deadline):raise ValueError('original model publication deadline required')
     remaining=publication_deadline-time.time()
@@ -29,13 +29,16 @@ def native_result(owner,request,stopping):
                 row['owner']!=active['owner'] or not db.REPO.owns(active['owner'])]
         return last[1]
     owner.report('Running explicit native model contract',.1)
-    if request['schema'] in {'commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
-        if request['schema']=='commercial-fee-journal-1':from portfolio_risk.core.commercial_fee_native import run
+    if request['schema'] in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+        if request['schema']=='commercial-cut-mixed-journal-1':from portfolio_risk.core.commercial_cut_mixed_native import run
+        elif request['schema']=='commercial-candidate-holding-journal-1':from portfolio_risk.core.commercial_candidate_holding_native import run
+        elif request['schema']=='commercial-candidate-fee-treasury-1':from portfolio_risk.core.commercial_fee_candidate_treasury_native import run
+        elif request['schema']=='commercial-fee-journal-1':from portfolio_risk.core.commercial_fee_native import run
         elif request['schema']=='commercial-treasury-1':from portfolio_risk.core.commercial_treasury_native import run
         elif request['schema']=='commercial-holding-journal-1':from portfolio_risk.core.commercial_holding_native import run
         else:from portfolio_risk.core.commercial_candidate_native import run
         result,execution=run(request['request'],threads=request['threads'],expected_binary=request['binary_sha256'],cancelled=cancelled,timeout=min(request['timeout'],remaining))
-    elif request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    elif request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         if request['schema']=='product-mixed-product-credit-1':
             from portfolio_risk.core import product_credit_mixed_native as runtime
         elif request['schema']=='product-mixed-consumer-credit-1':
@@ -91,7 +94,7 @@ def verify_final_execution(request,*,deadline,job,stopping):
             if not path.is_file() or _hash(path)!=expected:
                 raise RuntimeError('MODEL_VERSION_CHANGED: modeled artifacts changed at final publication')
     else:
-        if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+        if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
             from portfolio_risk.core.product_strategy_native import binary_identity
         else:
             from portfolio_risk.core.model_native import binary_identity
@@ -108,7 +111,17 @@ def verify_source(request,result,check=lambda:False):
     if is_commercial_cohort(request['schema'],request['request']):
         from portfolio_risk.analytics.commercial_cohort_reference import verify
         return verify(request['request'],result,check)
-    check()
+    if check():
+        raise InterruptedError('model source verification cancelled')
+    if request['schema']=='commercial-cut-mixed-journal-1':
+        from portfolio_risk.analytics.commercial_cut_mixed_reference import verify
+        return verify(request['request'],result,check)
+    if request['schema']=='commercial-candidate-holding-journal-1':
+        from portfolio_risk.analytics.commercial_candidate_holding_reference import verify
+        return verify(request['request'],result,check)
+    if request['schema']=='commercial-candidate-fee-treasury-1':
+        from portfolio_risk.analytics.commercial_fee_candidate_treasury_reference import verify
+        return verify(request['request'],result,check)
     if request["schema"]=="commercial-fee-journal-1":
         from portfolio_risk.analytics.commercial_fee_reference import verify
         return verify(request["request"],result,check)
@@ -217,9 +230,9 @@ def verify_source(request,result,check=lambda:False):
     if request['schema']=='joint-state-1':
         return _verify_joint_state(request['request'], result)
     if request['schema']=='joint-market-credit-1':
-        return _verify_joint_market_credit(request['request'], result)
+        return _verify_joint_market_credit(request['request'], result, check=check)
     if request['schema']=='market-driver-calibration-1':
-        return _verify_market_driver_calibration(request['request'], result)
+        return _verify_market_driver_calibration(request['request'], result, check=check)
     if request['schema']=='market-quote-bootstrap-1':
         return _verify_market_quote_bootstrap(request['request'], result, check=check)
     if request['schema']=='observed-deposit-calibration-1':
@@ -276,16 +289,17 @@ def _verify_joint_state(raw, result):
                 common_random_numbers_id=raw['identity']['common_random_numbers_id'])
 
 
-def _verify_joint_market_credit(raw, result):
+def _verify_joint_market_credit(raw, result, check=lambda: False):
     """Replay market-linked hazards and competing exits independently.
 
-    The market covariance implementation is verified by the native/reference
-    model-market suites. This publication oracle independently consumes the
-    persisted market tape, recomputes hazard elasticities and replays every
-    path event before publication.
+    Reconstruct the tape from the raw covariance and CRN before recomputing
+    hazard elasticities and every path event. Producer diagnostics alone cannot
+    establish the market source that supplied those hazards.
     """
     import datetime
     import math
+    from portfolio_risk.analytics.joint_market_tape_reference import verify
+    source_receipt = verify(raw['market'], result.get('market', {}), check)
     if (result.get('schema') != 'joint-market-credit-1'
             or result.get('model_version') != 'joint-market-credit-1'
             or result.get('identity') != raw['identity']
@@ -340,6 +354,7 @@ def _verify_joint_market_credit(raw, result):
     annual_samples = []
     terminal = [0.0] * (paths * drivers)
     for path_index in range(paths):
+        if check(): raise InterruptedError('joint market-credit verification cancelled')
         for step, dt in enumerate(source_market['durations_years']):
             offset = (path_index * steps + step) * drivers
             annual = [float(increments[offset + j]) / math.sqrt(float(dt)) for j in range(drivers)]
@@ -366,7 +381,9 @@ def _verify_joint_market_credit(raw, result):
     eigenvalues = diagnostics.get('correlation_eigenvalues_descending', [])
     if len(eigenvalues) != drivers or any(not math.isfinite(float(value)) or float(value) < -1e-10 for value in eigenvalues):
         raise ValueError('joint market-credit covariance eigenvalue diagnostics are invalid')
-    close(sum(float(value) for value in eigenvalues), float(drivers), 'correlation_eigenvalue_trace')
+    close(sum(float(value) for value in eigenvalues),
+          float(sum(source_market['annual_covariance'][j * drivers + j] > 0 for j in range(drivers))),
+          'correlation_eigenvalue_trace')
     retained = diagnostics.get('retained_annual_covariance', [])
     if len(retained) != drivers * drivers or any(not math.isfinite(float(value)) for value in retained):
         raise ValueError('joint market-credit retained covariance diagnostics are invalid')
@@ -375,6 +392,7 @@ def _verify_joint_market_credit(raw, result):
             raise ValueError(f'joint market-credit diagnostic {key} is invalid')
 
     for path_index, (position, output) in enumerate(zip(positions, result['paths'])):
+        if check(): raise InterruptedError('joint market-credit verification cancelled')
         if output.get('position_id') != position['position_id'] or output.get('path_key') != position['path_key']:
             raise ValueError('joint market-credit path identity mismatch')
         if len(output.get('events', [])) != steps:
@@ -382,6 +400,7 @@ def _verify_joint_market_credit(raw, result):
         balance = float(position['principal'])
         totals = [0.0, 0.0, 0.0, 0.0, 0.0]; discounted = 0.0
         for step, (period, event) in enumerate(zip(periods, output['events'])):
+            if check(): raise InterruptedError('joint market-credit verification cancelled')
             check_dt = years(period['start_ordinal'], period['end_ordinal'], raw['day_count'])
             dt = float(source_market['durations_years'][step])
             close(dt, check_dt, f'duration[{step}]')
@@ -413,13 +432,23 @@ def _verify_joint_market_credit(raw, result):
         for key, expected in zip(('total_behavioral_exit', 'total_credit_default', 'total_prepayment', 'total_recovery_cash', 'total_economic_loss'), totals):
             close(output[key], expected, key)
         close(output['discounted_live_balance'], discounted, 'discounted_live_balance')
+    if check(): raise InterruptedError('joint market-credit verification cancelled')
     return dict(verified=True, market_tape_replayed=True, hazard_elasticities_recomputed=True,
-                competing_paths_recomputed=paths, adoption_eligible=False)
+                competing_paths_recomputed=paths, adoption_eligible=False, **source_receipt)
 
 
-def _verify_market_driver_calibration(raw, result):
+def _verify_market_driver_calibration(raw, result, check=lambda: False):
     """Independently replay training moments and chronological diagnostics."""
     import math
+    def guard():
+        if check():
+            raise InterruptedError('market-driver calibration verification cancelled')
+    def checked(rows):
+        for index, row in enumerate(rows):
+            if index % 1024 == 0:
+                guard()
+            yield row
+    guard()
     if (result.get('schema') != 'market-driver-calibration-1'
             or result.get('source_status') != 'observed_rows_training_moments_chronological_holdout'):
         raise ValueError('market-driver calibration schema mismatch')
@@ -433,13 +462,13 @@ def _verify_market_driver_calibration(raw, result):
     if n < 30 or held < 10 or any(dates[i] >= dates[i + 1] for i in range(len(dates) - 1)):
         raise ValueError('market-driver chronological split is invalid')
     train, hold = values[:n], values[n:]
-    mean = [sum(row[j] for row in train) / n for j in range(4)]
-    cov = [[sum((row[j] - mean[j]) * (row[k] - mean[k]) for row in train) / (n - 1)
+    mean = [sum(row[j] for row in checked(train)) / n for j in range(4)]
+    cov = [[sum((row[j] - mean[j]) * (row[k] - mean[k]) for row in checked(train)) / (n - 1)
             for k in range(4)] for j in range(4)]
-    bias = [sum(row[j] for row in hold) / held - mean[j] for j in range(4)]
-    rmse = [math.sqrt(sum((row[j] - mean[j]) ** 2 for row in hold) / held) for j in range(4)]
+    bias = [sum(row[j] for row in checked(hold)) / held - mean[j] for j in range(4)]
+    rmse = [math.sqrt(sum((row[j] - mean[j]) ** 2 for row in checked(hold)) / held) for j in range(4)]
     outside = [sum(abs(row[j] - mean[j]) / math.sqrt(max(cov[j][j], 1e-16)) > 3.
-                   for row in hold) / held for j in range(4)]
+                   for row in checked(hold)) / held for j in range(4)]
     diag = result.get('diagnostics', {})
     if diag.get('training_rows') != n or diag.get('holdout_rows') != held:
         raise ValueError('market-driver calibration split counts differ from source')
@@ -454,11 +483,13 @@ def _verify_market_driver_calibration(raw, result):
         raise ValueError('market-driver uncertainty metadata differs from source')
     standard_error = []
     for j in range(4):
-        gamma0 = sum((row[j] - mean[j]) ** 2 for row in train) / n
+        guard()
+        gamma0 = sum((row[j] - mean[j]) ** 2 for row in checked(train)) / n
         long_run = gamma0
         for distance in range(1, lag + 1):
+            guard()
             gamma = sum((left[j] - mean[j]) * (right[j] - mean[j])
-                        for left, right in zip(train[distance:], train[:n - distance])) / n
+                        for left, right in checked(zip(train[distance:], train[:n - distance]))) / n
             long_run += 2.0 * (lag + 1 - distance) / (lag + 1) * gamma
         if not math.isfinite(long_run) or long_run < -1e-12 * max(gamma0, 1.0):
             raise ValueError('market-driver HAC variance is invalid')
@@ -474,15 +505,15 @@ def _verify_market_driver_calibration(raw, result):
         close(uncertainty['mean_standard_error'][j], standard_error[j], f'mean_standard_error[{j}]')
         for k in range(4):
             close(diag['covariance'][j][k], cov[j][k], f'covariance[{j},{k}]')
-    selected = diag.get('selected', [])
-    if (not isinstance(selected, list) or len(selected) > 8
-            or any(type(i) is not int or i < 0 or i >= n for i in selected)):
-        raise ValueError('market-driver selected scenarios are invalid')
+    from portfolio_risk.analytics.market_selection_reference import verify as verify_selection
+    verify_selection(raw, diag, mean, cov, check)
+    selected = diag['selected']
     if result.get('adoption_eligible') is not False:
         raise ValueError('market-driver calibration cannot be adoption eligible')
+    guard()
     return dict(verified=True, training_moments_recomputed=True,
                 chronological_holdout_recomputed=True, selected_count=len(selected),
-                adoption_eligible=False)
+                training_selection_recomputed=True, adoption_eligible=False)
 
 
 def _verify_market_quote_bootstrap(raw, result, check=lambda: False):
@@ -585,7 +616,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         return indexed_verify(request,result,expected_deadline=expected_deadline,request_manifest=request_manifest,job=job,stopping=stopping)
     from .model_tables import restore_sources
     from .commercial_selection import is_commercial_cohort
-    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
+    commercial=is_commercial_cohort(request['schema'],request['request']) or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}
     execution=result['execution'];deadline=execution.get('publication_deadline_unix')
     if 'prior_opening_verification'in execution and 'prior_publication'not in request:
         raise ValueError('unbound prior-publication evidence')
@@ -611,7 +642,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
             from portfolio_risk.core.product_candidate_native import command
             executed=command(executed,timeout=request['timeout'])
         expected['executed_input_sha256']=hashlib.sha256(json.dumps(executed,allow_nan=False,separators=(',',':')).encode()).hexdigest()
-    if request['schema'] in {'commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if request['schema'] in {'commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         from .commercial_execution_envelope import retained_command
         milliseconds=execution.get('native_timeout_ms')
         executed=retained_command(request['schema'],request['request'],request['timeout'],milliseconds)
@@ -627,7 +658,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         raise ValueError('persisted model queued request manifest differs')
     check=publication_check(deadline,job,stopping);check()
     commercial_cohort=is_commercial_cohort(request['schema'],request['request'])
-    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
+    if commercial_cohort or request['schema'] in {'commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1','conditional-exercise-1','market-indexed-adapter-1','market-driver-calibration-1','market-quote-bootstrap-1','observed-deposit-calibration-1','joint-market-credit-1','derivative-accounting-1','credit-path-accounting-1','joint-state-1','consumer-credit-accounting-1','card-credit-accounting-1','card-credit-accounting-2','mortgage-credit-accounting-1','strategy-product-1','product-units-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1'}:
         if not result['execution'].get('source_verification'):raise ValueError('missing independent source verification receipt')
         restored=restore_sources(result['model_result'],result['execution']['table_layouts'])
         if commercial:
@@ -640,7 +671,7 @@ def verify_persisted(request,result,*,expected_deadline,request_manifest=None,jo
         if canonical(execution['summary'])!=canonical(source_summary(restored)):
             raise ValueError('persisted model summary differs from verified source')
     if time.time()>=deadline:raise TimeoutError('model source publication deadline exceeded')
-    if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
+    if request['schema'] in {'strategy-product-1','product-candidate-journal-1','product-mixed-dated-1','product-mixed-consumer-credit-1','product-mixed-product-credit-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1'}:
         from portfolio_risk.core.product_strategy_native import binary_identity
     else:
         from portfolio_risk.core.model_native import binary_identity
@@ -659,10 +690,10 @@ def run(owner,request,stopping):
         return indexed_run(owner,request,stopping)
     prior=None
     if 'prior_publication'in request:
-        if request['schema']!='commercial-holding-journal-1':raise ValueError('private prior binding requires native holding contract')
-        from . import commercial_prior_source as source
+        from .commercial_prior_dispatch import source_for
+        source=source_for(request['schema'])
         check=publication_check(request['publication_deadline_unix'],db.ACTIVE_JOB.get(),stopping)
-        expected=source.materialize(request['prior_publication'],request['request']['revised_sources'],request['request']['cut_ordinal'])
+        expected=source.materialize(request['prior_publication'],request['request']['revised_sources'if request['schema']=='commercial-holding-journal-1'else 'revised_candidate'],request['request']['cut_ordinal'])
         from portfolio_risk.analytics.modeled_json_identity import exact_json_identity
         if not exact_json_identity(expected,request['request']):raise ValueError('server-bound prior holding input changed')
         prior=source.reopen(db.REPO,db.CODEC,request['prior_publication'],check)
@@ -755,6 +786,9 @@ def verify_modeled_persisted(request, result, *, job, stopping, expected_deadlin
     Existing independent scalar verifiers consume one persisted partition at a
     time. This never calls a product pricer or hydrates a complete journal.
     """
+    if request.get('specification',{}).get('schema') in {'commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:
+        from .commercial_generated_jobs import verify_persisted
+        return verify_persisted(request,result,job=job,stopping=stopping,expected_deadline=expected_deadline)
     import io
     import json
     import math

@@ -153,9 +153,20 @@ def verify(request,actual,check=lambda:False):
     return dict(verified=True,raw_source_recomputed=True,ordered_journal_replayed=True,complete_tail_verified=True,closing_capital_verified=request.get('capital') is not None,daily_ftp_verified=ftp is not None,economic_loss_deducted_again=False,empirical_validation=False,regulatory_credit_rwa_approval=False)
 
 
-def _capital(request,actual,frames,check):
+def _capital(request,actual,frames,check,*,fees=False,secondary_fees=False):
     from . import _mortgage_mixed_financial_reference as financial
     from .mortgage_closing_capital_reference import _financial_policy,exposure_policy,ASSETS,LIABILITIES,PENDING_GLS
+    fee_assets=frozenset(('commercial_fee_receivable','commercial_prepaid_fee_expense','commercial_acquired_fee_asset')) if fees else frozenset()
+    if secondary_fees:
+        if not fees:raise ArithmeticError('conveyed fee capital requires separate fee ownership')
+        fee_assets=fee_assets|{'commercial_acquired_fee_asset_valuation_adjustment'}
+        if actual.get('conveyed_fee_asset_adjustment_grouped') is not True:raise ArithmeticError('conveyed fee contra group identity required')
+    if fees:
+        ASSETS=ASSETS|fee_assets
+        LIABILITIES=LIABILITIES|frozenset(('commercial_fee_payable','commercial_deferred_fee_income','commercial_acquired_fee_liability'))
+        if secondary_fees:LIABILITIES=LIABILITIES|{'commercial_acquired_fee_liability_valuation_adjustment'}
+        if actual.get('separate_fee_exposure_groups') is not True or any(not fee_assets<=set(p['gl_risk_weights']) for p in request['policies']):raise ArithmeticError('separate fee GL weights/groups required')
+        if secondary_fees and any(len({p['gl_risk_weights'][gl]for gl in fee_assets})!=1 for p in request['policies']):raise ArithmeticError('one explicit conveyed asset and contra weight required')
     if not exact_json_identity(actual['commercial_closing_review'],request['review']):raise ArithmeticError('commercial closing review identity differs')
     policies={(p['scenario'],p['account']):_financial_policy(p) for p in request['policies']}; amounts={}; contributions=[];groups={}
     treatment=exposure_policy(request['exposure_policy'])
@@ -166,6 +177,7 @@ def _capital(request,actual,frames,check):
     for row in rows:
         check(); key=(row['scenario'],row['account']); p=policies[key]
         v=row['balance']*multiplier; gl=row['gl_account']; ident=row['instrument_id']
+        if secondary_fees and (gl=='commercial_acquired_fee_asset_valuation_adjustment'and v>0. or gl=='commercial_acquired_fee_liability_valuation_adjustment'and v<0.):raise ArithmeticError('conveyed fee adjustment normal balance')
         a=amounts.setdefault(key,[0.]*7)
         if gl in PENDING_GLS: financial.near(row['balance'],0.,'closed pending key')
         if gl in ('opening_equity','equity_distributions'): a[2]-=v
@@ -173,13 +185,14 @@ def _capital(request,actual,frames,check):
         elif gl=='oci': a[4]-=v
         elif gl in LIABILITIES or gl in ('book_adjustment','accrued_interest') and (*key,ident) in funding or gl=='derivative_value' and v<0: a[1]-=v
         elif gl in ASSETS:
-            weight=p['instrument_risk_weights'].get(ident,p['gl_risk_weights'].get(gl))
+            weight=p['gl_risk_weights'].get(gl) if gl in fee_assets else p['instrument_risk_weights'].get(ident,p['gl_risk_weights'].get(gl))
             if weight is None:
                 if v==0: weight=0.
                 else: raise ArithmeticError('explicit asset risk weight required')
             if type(weight) not in (float,int) or not math.isfinite(weight) or weight<0: raise ArithmeticError('risk weight domain')
             a[0]+=v; a[5]+=v*weight
-            group=groups.setdefault((*key,ident),[0.,weight])
+            group_id=f'{ident}:commercial_conveyed_fee_assets'if secondary_fees and gl in fee_assets else f'{ident}:{gl}'if gl in fee_assets else ident
+            group=groups.setdefault((*key,group_id),[0.,weight])
             if group[1]!=weight:raise ArithmeticError('one reviewed risk weight required per exposure group')
             group[0]+=v
             contributions.append(dict(scenario=key[0],account=key[1],gl_account=gl,instrument_id=ident,balance=v,risk_weight=weight,rwa_contribution=v*weight))

@@ -6,7 +6,10 @@
     "card-credit-accounting-2",
     "card-product-graph-1",
     "cd-election-1",
+    "commercial-candidate-fee-treasury-1",
+    "commercial-candidate-holding-journal-1",
     "commercial-candidate-journal-1",
+    "commercial-cut-mixed-journal-1",
     "commercial-fee-journal-1",
     "commercial-generated-exercise-1",
     "commercial-holding-continuation-1",
@@ -3432,6 +3435,154 @@
       "method": "POST",
       "path": "/models/aged-library",
       "permission": "publish"
+    },
+    "post_models_candidate_holding_journals": {
+      "description": "Published Candidate Holding [POST /models/candidate-holding-journals; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "PublishedCandidateHoldingRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "cut_ordinal": {
+                "title": "Cut Ordinal",
+                "type": "integer"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "revised_candidate": {
+                "additionalProperties": true,
+                "title": "Revised Candidate",
+                "type": "object"
+              },
+              "source_job_id": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Source Job Id",
+                "type": "string"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "source_job_id",
+              "cut_ordinal",
+              "revised_candidate"
+            ],
+            "title": "PublishedCandidateHoldingRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/PublishedCandidateHoldingRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/models/candidate-holding-journals",
+      "permission": "compute"
+    },
+    "post_models_cut_mixed_journals": {
+      "description": "Published Cut Mixed [POST /models/cut-mixed-journals; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "PublishedCutMixedRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "cut_ordinal": {
+                "title": "Cut Ordinal",
+                "type": "integer"
+              },
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "revised_candidate": {
+                "additionalProperties": true,
+                "title": "Revised Candidate",
+                "type": "object"
+              },
+              "source_job_id": {
+                "maxLength": 100,
+                "minLength": 1,
+                "title": "Source Job Id",
+                "type": "string"
+              },
+              "timeout": {
+                "default": 1800.0,
+                "maximum": 1800.0,
+                "minimum": 0.001,
+                "title": "Timeout",
+                "type": "number"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "source_job_id",
+              "cut_ordinal",
+              "revised_candidate"
+            ],
+            "title": "PublishedCutMixedRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/PublishedCutMixedRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/models/cut-mixed-journals",
+      "permission": "compute"
     },
     "post_models_holding_journals": {
       "description": "Published Holding [POST /models/holding-journals; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",

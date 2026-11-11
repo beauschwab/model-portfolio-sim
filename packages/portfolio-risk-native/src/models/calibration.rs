@@ -4,10 +4,7 @@ use crate::math::arrays::View;
 pub use crate::math::least_squares::Fit;
 use crate::math::least_squares::{self, Model};
 use crate::models::volatility::volatility;
-use nalgebra::{
-    linalg::{SymmetricEigen, SVD},
-    DMatrix, DVector,
-};
+use nalgebra::{linalg::SymmetricEigen, DMatrix, DVector};
 
 /// Raw observed (fed funds, deposit rate) rows. Both the static initialization
 /// and joint asymmetric recurrence fit are owned here, including differentiation.
@@ -228,24 +225,51 @@ pub fn fit_abcd(
     )
 }
 
-fn least_squares(x: DMatrix<f64>, y: &[f64]) -> Result<Vec<f64>, String> {
-    let size = x.nrows().max(x.ncols());
-    let svd = SVD::try_new(x, true, true, f64::EPSILON, 100_000)
-        .ok_or("regression SVD did not converge")?;
-    // NumPy's rcond=None: machine epsilon times max(m,n), relative to sigma_max.
-    let cutoff = f64::EPSILON * size as f64 * svd.singular_values[0];
-    let fit = svd
-        .solve(&DVector::from_column_slice(y), cutoff)
-        .map_err(str::to_string)?;
-    if fit.iter().any(|x| !x.is_finite()) {
-        return Err("nonfinite regression fit".into());
+// History borrows caller input. Reserve every design/copy/solver/report phase
+// before allocating the design; no request can supply a numerical allowance.
+fn history_admission(m: usize, n: usize) -> Result<(), String> {
+    portfolio_compute_control::checkpoint()?;
+    let bound = crate::math::checked_least_squares::WorkBound::new(m, n)?;
+    let preprocessing = m
+        .checked_mul(n)
+        .and_then(|v| v.checked_mul(8))
+        .and_then(|v| v.checked_add(32usize.checked_mul(m)?))
+        .and_then(|v| v.checked_add(64usize.checked_mul(n)?))
+        .ok_or("history numerical capacity overflow")?;
+    let work = bound
+        .total()
+        .checked_add(preprocessing)
+        .ok_or("history numerical capacity overflow")?;
+    if work > 4_000_000_000 || bound.bytes() > 128 << 20 {
+        return Err(format!(
+            "history numerical admission exceeded: work={work}, bytes={}",
+            bound.bytes()
+        ));
     }
-    Ok(fit.as_slice().to_vec())
+    Ok(())
+}
+fn least_squares(x: DMatrix<f64>, y: &[f64]) -> Result<Vec<f64>, String> {
+    use crate::math::checked_least_squares::{solve_with_policy, LegacyPolicy};
+    Ok(solve_with_policy(
+        &x,
+        y,
+        LegacyPolicy::History,
+        portfolio_compute_control::checkpoint,
+    )?
+    .coefficients)
 }
 
-fn variance(x: &[f64]) -> f64 {
-    let mean = x.iter().sum::<f64>() / x.len() as f64;
-    x.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / x.len() as f64
+fn variance(x: &[f64]) -> Result<f64, String> {
+    let total = x.iter().try_fold(-0., |s, v| {
+        portfolio_compute_control::checkpoint()?;
+        Ok::<_, String>(s + v)
+    })?;
+    let mean = total / x.len() as f64;
+    let squared = x.iter().try_fold(-0., |s, v| {
+        portfolio_compute_control::checkpoint()?;
+        Ok::<_, String>(s + (v - mean).powi(2))
+    })?;
+    Ok(squared / x.len() as f64)
 }
 
 #[derive(Clone)]
@@ -257,16 +281,18 @@ pub struct CurrentCouponFit {
 
 /// History rows: four swap rates, six volatility features, observed coupon.
 pub fn fit_current_coupon(history: &[f64]) -> Result<CurrentCouponFit, String> {
-    if !history.len().is_multiple_of(11)
-        || history.len() < 22
-        || history.iter().any(|x| !x.is_finite())
-    {
+    if !history.len().is_multiple_of(11) || history.len() < 22 {
         return Err("current coupon history requires finite rows with 11 columns".into());
     }
     let n = history.len() / 11;
+    history_admission(n, 11)?;
+    if history.iter().any(|x| !x.is_finite()) {
+        return Err("current coupon history requires finite rows with 11 columns".into());
+    }
     let mut design = Vec::with_capacity(history.len());
     let mut y = Vec::with_capacity(n);
     for row in history.chunks_exact(11) {
+        portfolio_compute_control::checkpoint()?;
         design.extend_from_slice(&row[..10]);
         design.push(1.);
         y.push(row[10]);
@@ -274,10 +300,14 @@ pub fn fit_current_coupon(history: &[f64]) -> Result<CurrentCouponFit, String> {
     let beta = least_squares(DMatrix::from_row_slice(n, 11, &design), &y)?;
     let fair: Vec<_> = design
         .chunks_exact(11)
-        .map(|r| r.iter().zip(&beta).map(|(a, b)| a * b).sum::<f64>())
-        .collect();
+        .map(|r| {
+            portfolio_compute_control::checkpoint()?;
+            Ok::<_, String>(r.iter().zip(&beta).map(|(a, b)| a * b).sum::<f64>())
+        })
+        .collect::<Result<_, _>>()?;
     let (mut numerator, mut denominator) = (0., 0.);
     for i in 1..n {
+        portfolio_compute_control::checkpoint()?;
         let gap = fair[i] - y[i - 1];
         numerator += gap * (y[i] - y[i - 1]);
         denominator += gap * gap;
@@ -287,11 +317,11 @@ pub fn fit_current_coupon(history: &[f64]) -> Result<CurrentCouponFit, String> {
     }
     let lambda = (numerator / denominator).clamp(0.02, 1.);
     let residual: Vec<_> = y.iter().zip(&fair).map(|(a, b)| a - b).collect();
-    let var = variance(&y);
+    let var = variance(&y)?;
     let r_squared = if var == 0. {
         0.
     } else {
-        1. - variance(&residual) / var
+        1. - variance(&residual)? / var
     };
     if !lambda.is_finite() || !r_squared.is_finite() {
         return Err("nonfinite current coupon fit".into());
@@ -305,7 +335,13 @@ pub fn fit_current_coupon(history: &[f64]) -> Result<CurrentCouponFit, String> {
 
 /// AR(1) fit, preserving the reference's clipped phi and residual convention.
 pub fn fit_ps_spread(history: &[f64], dt: f64) -> Result<[f64; 3], String> {
-    if history.len() < 3 || !dt.is_finite() || dt <= 0. || history.iter().any(|x| !x.is_finite()) {
+    if history.len() < 3 || !dt.is_finite() || dt <= 0. {
+        return Err(
+            "spread history requires at least three finite observations and positive dt".into(),
+        );
+    }
+    history_admission(history.len() - 1, 2)?;
+    if history.iter().any(|x| !x.is_finite()) {
         return Err(
             "spread history requires at least three finite observations and positive dt".into(),
         );
@@ -326,7 +362,7 @@ pub fn fit_ps_spread(history: &[f64], dt: f64) -> Result<[f64; 3], String> {
     let out = [
         (1. - phi) / dt,
         fit[1] / (1. - phi),
-        variance(&residual).sqrt() / dt.sqrt(),
+        variance(&residual)?.sqrt() / dt.sqrt(),
     ];
     if out.iter().any(|x| !x.is_finite()) {
         return Err("nonfinite spread fit".into());
@@ -451,5 +487,130 @@ mod tests {
             assert!((r.iter().map(|x| x * x).sum::<f64>() - 1.).abs() < 1e-12);
         }
         assert!((b[0] + 0.506548097).abs() < 1e-9);
+    }
+}
+
+#[cfg(test)]
+mod history_regression_tests {
+    use super::*;
+    #[test]
+    fn history_budget_boundaries_are_checked_without_allocating_designs() {
+        for m in [2usize, 3, 10, 11, 12, 21, 22, 100_000, 118_437] {
+            history_admission(m, 11).unwrap();
+        }
+        assert!(history_admission(118_438, 11)
+            .unwrap_err()
+            .contains("work=4000006734"));
+        history_admission(1_198_357, 2).unwrap();
+        assert!(history_admission(1_198_358, 2)
+            .unwrap_err()
+            .contains("bytes="));
+        assert!(history_admission(usize::MAX, 11).is_err());
+    }
+    #[test]
+    fn actual_collinear_current_coupon_histories_retain_financial_outputs() {
+        for n in [2usize, 3, 10, 11, 12, 16, 21, 22, 32, 64, 128, 256, 512] {
+            for shape in 0..4 {
+                let x: Vec<_> = (0..n).map(|i| i as f64 - (n - 1) as f64 / 2.).collect();
+                let sd = (x.iter().map(|x| x * x).sum::<f64>() / n as f64).sqrt();
+                let mut history = Vec::new();
+                for x in x.iter().map(|x| x / sd) {
+                    for j in 0..10 {
+                        history.push(match shape {
+                            0 => {
+                                if j < 2 {
+                                    x
+                                } else {
+                                    0.
+                                }
+                            }
+                            1 => {
+                                if j == 0 {
+                                    x
+                                } else if j == 1 {
+                                    7. * x
+                                } else {
+                                    0.
+                                }
+                            }
+                            2 => {
+                                if j < 4 {
+                                    0.02 + 0.001 * (j + 1) as f64 * x
+                                } else {
+                                    0.1 + 0.01 * (j - 3) as f64 * x
+                                }
+                            }
+                            _ => {
+                                if j < 4 {
+                                    0.02 + 0.001 * x
+                                } else {
+                                    0.1 + 0.01 * x
+                                }
+                            }
+                        });
+                    }
+                    history.push(0.03 + 0.001 * x);
+                }
+                let fit = fit_current_coupon(&history).unwrap();
+                for row in history.chunks_exact(11) {
+                    let predicted = row[..10]
+                        .iter()
+                        .chain(std::iter::once(&1.))
+                        .zip(&fit.beta)
+                        .map(|(x, b)| x * b)
+                        .sum::<f64>();
+                    assert!(
+                        (predicted - row[10]).abs() <= 1e-13 + 1e-11 * row[10].abs(),
+                        "n{n}/shape{shape}: {predicted} vs {}",
+                        row[10]
+                    );
+                }
+                assert!(
+                    (fit.lambda - 1.).abs() <= 1e-12 + 1e-10,
+                    "n{n}/shape{shape}: {}",
+                    fit.lambda
+                );
+                assert!(
+                    (fit.r_squared - 1.).abs() <= 1e-12 + 1e-10,
+                    "n{n}/shape{shape}: {}",
+                    fit.r_squared
+                );
+            }
+        }
+    }
+    #[test]
+    fn valid_history_legacy_coefficients_are_bit_identical() {
+        for (m, n) in [(2, 11), (10, 11), (11, 11), (12, 11), (64, 11), (4, 2)] {
+            let a = DMatrix::from_fn(m, n, |i, j| {
+                if j + 1 == n {
+                    1.
+                } else {
+                    ((i * 17 + j * 7) % 31) as f64 / 31.
+                }
+            });
+            let y: Vec<_> = (0..m).map(|i| 0.03 + 0.001 * i as f64).collect();
+            let old = nalgebra::linalg::SVD::try_new(a.clone(), true, true, f64::EPSILON, 100_000)
+                .unwrap();
+            let old_beta = old
+                .solve(
+                    &DVector::from_column_slice(&y),
+                    f64::EPSILON * m.max(n) as f64 * old.singular_values[0],
+                )
+                .unwrap();
+            let fit = least_squares(a, &y).unwrap();
+            for (x, y) in fit.iter().zip(old_beta.iter()) {
+                assert_eq!(x.to_bits(), y.to_bits());
+            }
+        }
+    }
+    #[test]
+    fn cancelled_history_does_not_construct_regression() {
+        let control = portfolio_compute_control::Control::new(1000).unwrap();
+        control.cancel();
+        let error = portfolio_compute_control::scope(Some(control), || {
+            fit_current_coupon(&[0.; 22]).map(|_| ())
+        })
+        .unwrap_err();
+        assert_eq!(error, "COMPUTE_CANCELLED");
     }
 }

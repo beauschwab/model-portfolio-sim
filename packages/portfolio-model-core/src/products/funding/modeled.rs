@@ -32,6 +32,63 @@ pub const INCOME_LANES: [&str; 7] = [
     "initial_allowance",
     "deposit_revision",
 ];
+/// Explicit fee-right funding lane. Historical source1/source2 inventories and
+/// supplied channel policies remain unchanged.
+pub const FEE_SCHEMA: &str = "modeled-product-ftp-source-channels-3";
+pub const FEE_LANES: [&str; 24] = [
+    LANES[0],
+    LANES[1],
+    LANES[2],
+    LANES[3],
+    LANES[4],
+    LANES[5],
+    LANES[6],
+    LANES[7],
+    LANES[8],
+    LANES[9],
+    LANES[10],
+    LANES[11],
+    LANES[12],
+    LANES[13],
+    LANES[14],
+    LANES[15],
+    LANES[16],
+    LANES[17],
+    "fee_receivable",
+    "fee_payable",
+    "deferred_fee_income",
+    "prepaid_fee_expense",
+    "acquired_fee_asset",
+    "acquired_fee_liability",
+];
+pub const FEE_INCOME_LANES: [&str; 11] = [
+    INCOME_LANES[0],
+    INCOME_LANES[1],
+    INCOME_LANES[2],
+    INCOME_LANES[3],
+    INCOME_LANES[4],
+    INCOME_LANES[5],
+    INCOME_LANES[6],
+    "service_fee",
+    "fee_cost_release",
+    "fee_writeoff",
+    "fee_recovery",
+];
+/// Explicit purchased fee-right adjustments. Both are nonnegative gross
+/// magnitudes; supplied channel coefficients retain the reviewed funding sign.
+/// Historical fee/source inventories and arithmetic are unchanged.
+pub const SECONDARY_FEE_SCHEMA: &str = "modeled-product-ftp-source-channels-4";
+pub const SECONDARY_FEE_LANES: [&str; 26] = {
+    let mut lanes = [""; 26];
+    let mut index = 0;
+    while index < FEE_LANES.len() {
+        lanes[index] = FEE_LANES[index];
+        index += 1;
+    }
+    lanes[24] = "acquired_fee_asset_valuation_adjustment";
+    lanes[25] = "acquired_fee_liability_valuation_adjustment";
+    lanes
+};
 pub const MAX_RAW_BYTES: usize = 1_048_576;
 pub const MAX_OUTPUT_BYTES: usize = 1_048_576;
 const MAX_EVENTS: usize = 4096;
@@ -49,6 +106,8 @@ struct Tier {
     work: usize,
     bytes: usize,
     output: usize,
+    lanes: &'static [&'static str],
+    income_lanes: &'static [&'static str],
 }
 const LEGACY: Tier = Tier {
     schema: SCHEMA,
@@ -58,6 +117,8 @@ const LEGACY: Tier = Tier {
     work: MAX_WORK,
     bytes: MAX_RAW_BYTES,
     output: MAX_OUTPUT_BYTES,
+    lanes: &LANES,
+    income_lanes: &INCOME_LANES,
 };
 const PORTFOLIO: Tier = Tier {
     schema: PORTFOLIO_SCHEMA,
@@ -67,6 +128,25 @@ const PORTFOLIO: Tier = Tier {
     work: PORTFOLIO_MAX_WORK,
     bytes: PORTFOLIO_MAX_BYTES,
     output: PORTFOLIO_MAX_BYTES,
+    lanes: &LANES,
+    income_lanes: &INCOME_LANES,
+};
+const FEES: Tier = Tier {
+    schema: FEE_SCHEMA,
+    days: 64,
+    origins: 128,
+    resets: 65,
+    work: MAX_WORK,
+    bytes: MAX_RAW_BYTES,
+    output: MAX_OUTPUT_BYTES,
+    lanes: &FEE_LANES,
+    income_lanes: &FEE_INCOME_LANES,
+};
+
+const SECONDARY_FEES: Tier = Tier {
+    schema: SECONDARY_FEE_SCHEMA,
+    lanes: &SECONDARY_FEE_LANES,
+    ..FEES
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,6 +379,18 @@ pub fn prepare_portfolio_with_check(
 ) -> Result<ResultData, String> {
     prepare_in_tier(r, check, &PORTFOLIO)
 }
+pub fn prepare_fee_with_check(
+    r: &Request,
+    check: &mut impl FnMut() -> Result<(), String>,
+) -> Result<ResultData, String> {
+    prepare_in_tier(r, check, &FEES)
+}
+pub fn prepare_secondary_fee_with_check(
+    r: &Request,
+    check: &mut impl FnMut() -> Result<(), String>,
+) -> Result<ResultData, String> {
+    prepare_in_tier(r, check, &SECONDARY_FEES)
+}
 fn prepare_in_tier(
     r: &Request,
     check: &mut impl FnMut() -> Result<(), String>,
@@ -319,7 +411,7 @@ fn prepare_in_tier(
     check_ordinal(r.full_end_ordinal)?;
     let n = usize::try_from(r.full_end_ordinal - r.start_ordinal).map_err(|_| "negative clock")?;
     if !(1..=tier.days).contains(&n) || r.states.len() != n + 1 {
-        return Err(if tier.schema == SCHEMA {
+        return Err(if tier.days == 64 {
             "complete consecutive <=64 day states required"
         } else {
             "complete consecutive <=365 day source2 states required"
@@ -344,15 +436,15 @@ fn prepare_in_tier(
     {
         return Err("explicit complete gross termination/tail required".into());
     }
-    if r.policy.channels.len() != LANES.len() {
+    if r.policy.channels.len() != tier.lanes.len() {
         return Err("all funding channel policies required".into());
     }
     for (i, p) in r.policy.channels.iter().enumerate() {
-        if p.channel != LANES[i] || !(-1..=1).contains(&p.coefficient) {
+        if p.channel != tier.lanes[i] || !(-1..=1).contains(&p.coefficient) {
             return Err("ordered explicit channel coefficients required".into());
         }
         // Gross memo and allowance lanes are preserved but cannot become liquidity.
-        if i >= 12 && p.coefficient != 0 {
+        if (12..18).contains(&i) && p.coefficient != 0 {
             return Err("memo/allowance cannot be funding exposure".into());
         }
         identity(&p.review)?;
@@ -400,7 +492,7 @@ fn prepare_in_tier(
         .checked_mul(16)
         .ok_or("reset work overflow")?;
     let work = states
-        .checked_mul(18 * 16)
+        .checked_mul(tier.lanes.len() * 16)
         .and_then(|x| x.checked_add(event_work))
         .and_then(|x| x.checked_add(origin_work))
         .and_then(|x| x.checked_add(reset_work))
@@ -409,7 +501,7 @@ fn prepare_in_tier(
     let mut checkpoint_ids = BTreeSet::new();
     for (d, s) in r.states.iter().enumerate() {
         check()?;
-        if s.ordinal != r.start_ordinal + d as i32 || s.channels.len() != LANES.len() {
+        if s.ordinal != r.start_ordinal + d as i32 || s.channels.len() != tier.lanes.len() {
             return Err("exact consecutive complete state domain".into());
         }
         text(&s.source_checkpoint_id)?;
@@ -417,7 +509,7 @@ fn prepare_in_tier(
             return Err("duplicate source checkpoint identity".into());
         }
         for (i, a) in s.channels.iter().enumerate() {
-            if a.channel != LANES[i] {
+            if a.channel != tier.lanes[i] {
                 return Err("ordered complete gross channels required".into());
             }
             money(a.amount)?;
@@ -430,7 +522,8 @@ fn prepare_in_tier(
             text(&origin.origin_id)?;
             text(&origin.source_event_id)?;
             money(origin.amount)?;
-            let i = LANES
+            let i = tier
+                .lanes
                 .iter()
                 .position(|x| *x == origin.channel)
                 .ok_or("unknown origin channel")?;
@@ -568,7 +661,7 @@ fn prepare_in_tier(
         {
             return Err("earned date/identity domain".into());
         }
-        literal(&e.channel, &INCOME_LANES)?;
+        literal(&e.channel, tier.income_lanes)?;
     }
     let mut previous_reset = None;
     for x in &r.resets {
@@ -622,7 +715,8 @@ fn prepare_in_tier(
             .ok_or("reset coverage")?;
         let cash: Vec<_> = r.cash.iter().filter(|x| x.ordinal == ordinal).collect();
         let earned: Vec<_> = r.earned.iter().filter(|x| x.ordinal == ordinal).collect();
-        let income: Vec<_> = INCOME_LANES
+        let income: Vec<_> = tier
+            .income_lanes
             .iter()
             .map(|channel| Amount {
                 channel: (*channel).into(),
@@ -670,8 +764,12 @@ fn prepare_in_tier(
     let out = ResultData {
         schema: if tier.schema == SCHEMA {
             "modeled-product-ftp-preparation-proof-result-1"
-        } else {
+        } else if tier.schema == PORTFOLIO_SCHEMA {
             "modeled-product-ftp-preparation-proof-result-2"
+        } else if tier.schema == FEE_SCHEMA {
+            "modeled-product-ftp-preparation-proof-result-3"
+        } else {
+            "modeled-product-ftp-preparation-proof-result-4"
         },
         raw_request: r.clone(),
         scale,
@@ -711,6 +809,22 @@ pub fn validate_portfolio_policy_before_source(
 ) -> Result<(), String> {
     validate_policy_in_tier(p, resets, start, end, &PORTFOLIO)
 }
+pub fn validate_fee_policy_before_source(
+    p: &Policy,
+    resets: &[Reset],
+    start: i32,
+    end: i32,
+) -> Result<(), String> {
+    validate_policy_in_tier(p, resets, start, end, &FEES)
+}
+pub fn validate_secondary_fee_policy_before_source(
+    p: &Policy,
+    resets: &[Reset],
+    start: i32,
+    end: i32,
+) -> Result<(), String> {
+    validate_policy_in_tier(p, resets, start, end, &SECONDARY_FEES)
+}
 fn validate_policy_in_tier(
     p: &Policy,
     resets: &[Reset],
@@ -733,13 +847,13 @@ fn validate_policy_in_tier(
     {
         return Err("explicit complete gross termination/tail required".into());
     }
-    if p.channels.len() != LANES.len() {
+    if p.channels.len() != tier.lanes.len() {
         return Err("all funding channel policies required".into());
     }
     for (i, c) in p.channels.iter().enumerate() {
-        if c.channel != LANES[i]
+        if c.channel != tier.lanes[i]
             || !(-1..=1).contains(&c.coefficient)
-            || i >= 12 && c.coefficient != 0
+            || (12..18).contains(&i) && c.coefficient != 0
         {
             return Err("ordered explicit channel coefficients; no memo funding".into());
         }

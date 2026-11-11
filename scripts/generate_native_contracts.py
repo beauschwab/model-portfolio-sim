@@ -44,6 +44,19 @@ def artifacts():
     md+='| Export signature | Result |\n|---|---|\n'
     for item in graph['symbols']:md+=f'| `{item["signature"]}` | {item["result"]} |\n'
     md+='\n'+graph['caller_contract']+'\n\n'+graph['execution_scope']+'\n\n'+graph['outer_scope']+'\n'
+    income=json.loads((ROOT/'docs/contracts/native-income-coefficients-1.json').read_text())
+    if (income['capability_version']!=1 or income['product_abi_numeric_layouts_changed'] is not False
+            or [item['name'] for item in income['symbols']] != [
+                'portfolio_income_coefficients_version','portfolio_income_coefficients_call']):
+        raise ValueError('separate income capability must retain its additive version1 exports')
+    md+='\n## Additive separate-income-coefficients-1 capability\n\n'
+    md+='Generated separately from `native-income-coefficients-1.json`; numeric product layouts remain unchanged.\n\n'
+    md+='| Export signature | Result |\n|---|---|\n'
+    for item in income['symbols']:md+=f'| `{item["signature"]}` | {item["result"]} |\n'
+    md+='\n| Input | Shape and meaning |\n|---|---|\n'
+    for name,description in income['inputs'].items():md+=f'| `{name}` | {description} |\n'
+    for key in ('output','bounds','caller_contract','execution_scope','compatibility'):
+        md+='\n'+income[key]+'\n'
     return {ROOT/'packages/portfolio-risk/src/portfolio_risk/core/abi_generated.py':py,
             ROOT/'packages/portfolio-risk-native/src/transport/abi_operations.rs':rs,
             ROOT/'docs/contracts/native-abi-layouts.md':md}

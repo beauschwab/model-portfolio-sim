@@ -1,0 +1,7 @@
+{
+  "error": "commercial candidate joined 32M/128MiB preflight exceeds bound before graph generation: work=33936166,bytes=34146784,physical_retained=0,one_owner=0",
+  "work": 33936166,
+  "retained_bytes": 34146784,
+  "work_cap": 32000000,
+  "retained_cap": 134217728
+}

@@ -82,7 +82,7 @@ pub(crate) fn partition(
                     push(&mut out.base, point.year, point.cash)?;
                 }
             }
-            "contractual_cash" => {
+            "contractual_cash" | "pending_coupon_cash" => {
                 let paid = result
                     .carry
                     .native_source_cash()

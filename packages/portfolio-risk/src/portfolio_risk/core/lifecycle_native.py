@@ -363,6 +363,19 @@ def evaluate_strategy(lib,allocations,base_kpis):
         result['funding_gap']=funding_coefficients(np.asarray([funding[(a['template'],a['purchase_m'])] for a in allocations]).reshape(len(allocations),len(lib['funding_ordinals'])),np.asarray(amounts))
         result['funding_ordinals']=lib['funding_ordinals'];result['funding_policy']=lib['funding_policy']
         result['reporting_ordinals']=lib['reporting_ordinals']
+    fee_selected=lib.get('preparation_schema')=='commercial-units-1' and any(
+        position.get('fees') is not None for unit in lib.get('source_request',{}).get('units',[])
+        for position in unit['graph']['positions'])
+    if fee_selected or 'nonintegral_fee_income' in lib:
+        from .quant_native import income_coefficients
+        fees=lib.get('fee_income_vectors')
+        if not fees or any((a['template'],a['purchase_m']) not in fees for a in allocations):
+            raise ValueError('REBUILD_REQUIRED: separate fee income coefficients required')
+        fee_income,combined,fee_total,combined_total=income_coefficients(
+            np.asarray([fees[(a['template'],a['purchase_m'])] for a in allocations]).reshape(len(allocations),h),
+            np.asarray(amounts),result['nii_incremental'])
+        result.update(nonintegral_fee_income_incremental=fee_income,nii_plus_fee_income_incremental=combined,
+            **{'nonintegral_fee_income_total_$':fee_total,'nii_plus_fee_income_total_$':combined_total})
     if base_kpis:
         result['kpis']=dict(zip(['d_eve_pct_eve_+200','duration_gap_y','lcr_pct','nsfr_pct','cet1_q9_pct'],map(float,scalars[2:])))
         result['kpis']['cet1_horizon_pct']=float(scalars[6])

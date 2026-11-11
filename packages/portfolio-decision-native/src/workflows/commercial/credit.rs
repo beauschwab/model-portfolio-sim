@@ -398,6 +398,7 @@ pub(crate) fn evaluate_prepared_with_fees(
                     return Err("fee parent path identity differs".into());
                 }
                 fee_bindings.push(ledger::FeeBinding {
+                    native_position_id: &fee.source().raw_request().fees[0].position_id,
                     loan_binding: parent,
                     source: fee.source(),
                     native_years: fee.native_years(),

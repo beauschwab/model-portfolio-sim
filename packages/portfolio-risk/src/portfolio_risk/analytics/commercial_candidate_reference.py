@@ -64,19 +64,21 @@ def allocation(source,allocations,check):
             total=total+amounts[0]+amounts[1]+amounts[2]+amounts[3];demand=sum((x*funding['demand'][(si*n+ui)*f+di]for ui,x in enumerate(faces)),0.)
             cash.append(dict(ordinal=day,purchase_cash=amounts[0],principal_cash=amounts[1],interest_cash=amounts[2],fee_cash=amounts[3],cumulative_bank_cash=total,funding_demand=demand))
         scenarios.append(dict(scenario_id=scenario,shape=[m,h],values=values,incremental_external_nii=nii,cash=cash))
+        if source.get('fee_income_values'):
+            fees=[sum((x*source['fee_income_values'][(si*n+ui)*h+hi]for ui,x in enumerate(faces)),0.)for hi in range(h)]
+            total=sum(fees,0.)
+            scenarios[-1].update(incremental_nonintegral_fee_income=total,nonintegral_fee_income_by_period=fees,incremental_nii_plus_fee_income=nii+total)
     return dict(schema='commercial-strategy-replay-1',units=source['units'],allocated_face=faces,total_asset_face=face,total_asset_purchase_cost=cost,worst_incremental_external_nii=worst,scenarios=scenarios,source_cash_replayed=True)
 
 
-def verify(raw,actual,check=lambda:False):
-    names='schema preparation tables producer_completion reporting_end_ordinal full_end_ordinal shared_daily_sim_adoption graph_exercise_source_adoption independent_persisted_verification opening_identity_verified mixed_ledger_adoption empirical_validation scope'
-    if set(actual)!=set(names.split())or raw['schema']!=SCHEMA or actual['schema']!=SCHEMA:raise ArithmeticError('candidate strict schema differs')
-    prep=actual['preparation']
+def verify_preparation(raw,prep,check=lambda:False):
+    """Recompute raw graph/allocation/specification without consuming a daily journal."""
     if set(prep)!=set('raw_request native_preparation allocation_replay resolved_specification admitted_work_upper retained_bytes_upper'.split())or not exact_json_identity(raw,prep['raw_request'])or set(prep['native_preparation'])!={'source'}:raise ArithmeticError('candidate immutable raw/preparation differs')
     units=raw['commercial'];source=prep['native_preparation']['source'];verify_units(units,source,check)
     expected=allocation(source,raw['allocation'],check);received=deepcopy(prep['allocation_replay']);scope=received.pop('scope',None)
     if type(scope)is not str or not scope:raise ArithmeticError('candidate allocation disclosure absent')
     compare(expected,received,check=check)
-    full=max(30,raw['reporting_end_ordinal']-raw['as_of_ordinal']);mapped={r['source_scenario_id']:r for r in raw['run_mapping']};controls=[];alloc=[];participations=[]
+    full=max(30,raw['reporting_end_ordinal']-raw['as_of_ordinal']);mapped={r['source_scenario_id']:r for r in raw['run_mapping']};controls=[];fee_sources=[];alloc=[];participations=[]
     if len(raw['owners'])!=len(units['units']):raise ArithmeticError('candidate ownership coverage differs')
     for ui,(unit,owner)in enumerate(zip(units['units'],raw['owners'],strict=True)):
         check();graph=verify_graph(unit['graph'],source['native_graphs'][ui],check);origin=unit['graph']['as_of_ordinal']-raw['as_of_ordinal']
@@ -90,6 +92,9 @@ def verify(raw,actual,check=lambda:False):
             if issuer and(native['source_request'].get('performing_draw_tranches')or native['source_request']['credit'].get('opening_undrawn_commitment',0.)!=0. or any(x!=0. for t in native['source_request']['credit']['intervals']for x in t['credit_conversion_factor'])):raise ArithmeticError('issuer security cannot own a loan funding facility')
             request=deepcopy(native['source_request']);request['source']['current']['scenario_id']=mapping['ledger_scenario_id'];request['source']['current']['position_id']=owner['position_id'];projection=native['reference'];groups=native['groups']
             controls.append(dict(raw=request,replay=projection,groups=groups,closing=[g['next']for g in groups if g['phase']=='closing_claims_retained'],origin_day=origin,source_class='issuer_ac_security-1'if issuer else'commercial_loan-1'))
+            fee=native.get('fee_projection')
+            fee_sources.append([fee['bound_path']if fee else None])
+            if fee:full=max(full,origin+fee['bound_path']['source']['raw_request']['complete_end_ordinal']-unit['graph']['as_of_ordinal'])
             participation=dict(scenario=mapping['ledger_scenario_id'],position_id=owner['position_id'],path_key=native['path_key'],source_weight=native['weight'])
             participations.append(participation)
             year=full_end(native['source_request']);days=year*365.;rounded=round(days);elapsed=rounded if rounded/365.==year else math.ceil(days)
@@ -114,7 +119,18 @@ def verify(raw,actual,check=lambda:False):
     from .commercial_reports_reference import scope as verify_scope
     verify_scope(spec,[a['position_id']for a in alloc])
     derived=dict(allocations=alloc,participations=participations);control=dict(spec=spec,horizon=full,sources=controls)
-    receipt=verify_stream(derived,control,Frames(actual['tables'],actual['producer_completion'],check),check)
+    return control,derived,fee_sources
+
+
+def verify(raw,actual,check=lambda:False):
+    names='schema preparation tables producer_completion reporting_end_ordinal full_end_ordinal shared_daily_sim_adoption graph_exercise_source_adoption independent_persisted_verification opening_identity_verified mixed_ledger_adoption empirical_validation scope'
+    if set(actual)!=set(names.split())or raw['schema']!=SCHEMA or actual['schema']!=SCHEMA:raise ArithmeticError('candidate strict schema differs')
+    prep=actual['preparation'];control,derived,fee_sources=verify_preparation(raw,prep,check);full=control['horizon']
+    if any(f is not None for rows in fee_sources for f in rows):
+        if not exact_json_identity(actual['producer_completion'],dict(complete=True,protocol=7)):raise ArithmeticError('purchased fee protocol differs')
+        from .commercial_fee_reference import verify_tables
+        receipt=verify_tables(control,fee_sources,derived,actual['tables'],check)
+    else:receipt=verify_stream(derived,control,Frames(actual['tables'],actual['producer_completion'],check),check)
     for name,value in [('reporting_end_ordinal',raw['reporting_end_ordinal']),('full_end_ordinal',raw['as_of_ordinal']+full),('shared_daily_sim_adoption',True),('graph_exercise_source_adoption',True),('independent_persisted_verification',False),('opening_identity_verified',False),('mixed_ledger_adoption',False),('empirical_validation',False)]:
         if not exact_json_identity(value,actual[name]):raise ArithmeticError('candidate eligibility/date differs/'+name)
     for name,limit in [('admitted_work_upper',32_000_000),('retained_bytes_upper',128<<20)]:

@@ -1,6 +1,35 @@
 //! Full daily research state machine; bounded table batches over a local pipe.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 mod commercial_hooks;
+mod cut;
+mod cut_inventory;
+mod cut_prefix;
+mod cut_sequential;
+mod cut_shape;
+mod cut_sim_capacity;
+mod cut_sink;
+mod cut_spec;
+pub use cut::{
+    admit_commercial_cut, commercial_cut_census, run_commercial_cut,
+    run_commercial_cut_with_inventory, CommercialCutAdmission,
+};
+pub use cut_inventory::{
+    commercial_cut_inventory, commercial_sequential_cut_inventory, CommercialCutInventory,
+    TableInventory,
+};
+pub use cut_prefix::{
+    commercial_cut_typed_prefix_inventory, commercial_fee_prefix_equal,
+    commercial_fee_prefix_shape, commercial_loan_prefix_equal, commercial_loan_prefix_shape,
+    BorrowedCutSourceInventory, TypedCutPrefixInventory, TypedPrefixShape,
+};
+pub use cut_sequential::{SequentialCommercialCut, SequentialCutReceipt};
+pub use cut_shape::{
+    charge as charge_cut_census_work, measured_shape as measure_cut_json_shape,
+    object as cut_json_object, shape as cut_json_shape, spent as cut_census_work_spent,
+    with_budget as with_cut_census_budget, Shape as CutJsonShape,
+};
+pub use cut_sink::CutSinkMemory;
+pub use cut_spec::{commercial_cut_typed_specification_inventory, TypedCutSpecificationInventory};
 #[cfg(test)]
 mod compatibility_tests;
 mod consumer_hooks;
@@ -111,6 +140,14 @@ struct JournalMessage<'a> {
     columns: &'a JournalColumns,
     dictionary: &'a [String],
 }
+/// Preserve the historical sorted object keys without cloning the row Values.
+#[derive(serde::Serialize)]
+struct RowMessage<'a> {
+    rows: &'a [Value],
+    table: &'a str,
+}
+#[cfg(test)]
+mod sink_tests;
 struct Sink {
     out: io::BufWriter<Box<dyn Write + Send>>,
     rows: BTreeMap<String, Vec<Value>>,
@@ -120,6 +157,10 @@ struct Sink {
     ids: HashMap<String, usize>,
     sent: usize,
     reports: report::Reports,
+    prepaid_frames: bool,
+    // Only the sequential cut's already-funded, unpublished prefix selects this.
+    // Financial reports and dictionary interning still execute before flush.
+    discard_frames: bool,
 }
 impl Sink {
     fn new(output: Box<dyn Write + Send>) -> Self {
@@ -132,6 +173,8 @@ impl Sink {
             ids: HashMap::new(),
             sent: 0,
             reports: report::Reports::default(),
+            prepaid_frames: false,
+            discard_frames: false,
         }
     }
     fn intern(&mut self, text: &str) -> usize {
@@ -172,7 +215,7 @@ impl Sink {
         j.instrument_id.push(i);
         j.value.push(value);
         self.count += 1;
-        if self.count >= 16384 {
+        if self.count >= cut_sink::BATCH_ROWS {
             self.flush()?;
         }
         Ok(())
@@ -192,22 +235,41 @@ impl Sink {
         }
         self.rows.entry(table.into()).or_default().push(row);
         self.count += 1;
-        if self.count >= 16384 {
+        if self.count >= cut_sink::BATCH_ROWS {
             self.flush()?;
         }
         Ok(())
     }
     fn flush(&mut self) -> R<()> {
+        if self.discard_frames {
+            portfolio_compute_control::checkpoint()?;
+            if !self.journal.value.is_empty() {
+                cut_shape::charge(9)?;
+                self.journal = JournalColumns::default();
+            }
+            for rows in self.rows.values_mut() {
+                for row in rows.drain(..) {
+                    cut_sink::discard_row(row, 0)?;
+                }
+            }
+            self.count = 0;
+            // No dictionary entry has reached the receiver. Retain every label
+            // and the row-vector high-water capacity for the resumed stream.
+            return self.out.flush().map_err(|e| e.to_string());
+        }
         if !self.journal.value.is_empty() {
-            serde_json::to_writer(
+            write_frame(
                 &mut self.out,
+                self.prepaid_frames,
                 &JournalMessage {
                     table: "journal",
                     columns: &self.journal,
                     dictionary: &self.dictionary[self.sent..],
                 },
-            )
-            .map_err(|e| e.to_string())?;
+            )?;
+            if self.prepaid_frames {
+                cut_shape::charge(2)?;
+            }
             self.out.write_all(b"\n").map_err(|e| e.to_string())?;
             self.sent = self.dictionary.len();
             self.journal = JournalColumns::default();
@@ -216,13 +278,35 @@ impl Sink {
             if rows.is_empty() {
                 continue;
             }
-            serde_json::to_writer(&mut self.out, &json!({"table":name,"rows":rows}))
-                .map_err(|e| e.to_string())?;
+            write_frame(
+                &mut self.out,
+                self.prepaid_frames,
+                &RowMessage { rows, table: name },
+            )?;
+            if self.prepaid_frames {
+                cut_shape::charge(2)?;
+            }
             self.out.write_all(b"\n").map_err(|e| e.to_string())?;
             rows.clear();
         }
         self.count = 0;
         self.out.flush().map_err(|e| e.to_string())
+    }
+}
+
+fn write_frame<T: serde::Serialize>(output: &mut dyn Write, prepaid: bool, value: &T) -> R<()> {
+    if prepaid {
+        portfolio_model_core::transport::prepaid_json::write_with_output_charge(
+            output,
+            value,
+            |work| {
+                portfolio_compute_control::checkpoint()?;
+                cut_shape::charge(work)
+            },
+        )?;
+        Ok(())
+    } else {
+        serde_json::to_writer(output, value).map_err(|e| e.to_string())
     }
 }
 
@@ -2726,7 +2810,11 @@ impl Sim<'_> {
     }
     fn run_days(mut self) -> R<()> {
         self.opening()?;
-        for day in 1..=self.spec.horizon_days {
+        self.run_range(1, self.spec.horizon_days)?;
+        self.finish()
+    }
+    fn run_range(&mut self, start: usize, end: usize) -> R<()> {
+        for day in start..=end {
             portfolio_compute_control::checkpoint()?;
             let stress = if day >= self.scenario.start_day {
                 self.severity
@@ -2892,6 +2980,9 @@ impl Sim<'_> {
             self.policies(day, stress)?;
             self.close_day(day)?;
         }
+        Ok(())
+    }
+    fn finish(&mut self) -> R<()> {
         for (ai, a) in self.accounts.iter().enumerate() {
             let mut row = json!({"scenario":self.scenario.name,"account":a.id,"entity":a.entity,"currency":a.currency,"final_cash":a.cash,"final_equity":a.equity,"minimum_cash":self.minimum_cash[ai],"peak_cash_shortfall":(a.cash_floor-self.minimum_cash[ai]).max(0.),"max_reconciliation_error":self.max_error});
             for (field, metric) in [

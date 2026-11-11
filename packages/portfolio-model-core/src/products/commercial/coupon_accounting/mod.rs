@@ -7,6 +7,7 @@ use crate::accounting::credit::income::{
 use crate::validation::limits::MAX_MONETARY_AMOUNT;
 use serde::{Deserialize, Serialize};
 
+mod fixed_capacity;
 pub mod reviews;
 
 pub const SCHEMA: &str = "commercial-coupon-accounting-proof-1";
@@ -68,6 +69,8 @@ pub struct Snapshot {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reviewed_credit_state: Option<reviews::ReviewedSnapshot>,
     pub lots: Vec<CouponLot>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pending_coupon_obligation_indices: Vec<usize>,
     /// Coupon-level source authority. Origin lots retain their separate
     /// ordered recognition reductions and are not used to net legal coupons.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -230,6 +233,7 @@ fn snapshot(p: &CarryPoint, lots: Vec<CouponLot>, default: bool) -> Result<Snaps
         in_default: default,
         reviewed_credit_state: None,
         lots,
+        pending_coupon_obligation_indices: p.pending_coupon_obligation_indices.clone(),
         canonical_legal_coupons: p.canonical_legal_coupons.clone(),
     })
 }
@@ -417,6 +421,17 @@ fn apply_cash(
     // coupon. A remainder is deferred on its selected current origin. This is
     // application of exact actual cash, never an added cash or terminal plug.
     let mut remaining = cash.cash.interest;
+    // Principal-only native cash has no coupon entitlement. Its principal,
+    // carrying basis and actual cash are posted by the shared monetary owner.
+    // A zero coupon amount cannot collect or create any gross interest lot.
+    if remaining == 0.
+        && cash.cash.principal.is_finite()
+        && cash.cash.principal > 0.
+        && cash.cash.fee == 0.
+        && !lots.iter().any(|l| l.coupon_id == cash.cash.coupon_id)
+    {
+        return Ok(());
+    }
     let indices: Vec<_> = lots
         .iter()
         .enumerate()
@@ -456,6 +471,14 @@ fn add_earned(
     c: &EarnedOriginContribution,
     recognized: bool,
 ) -> Result<(), String> {
+    add_earned_bounded(lots, c, recognized, None)
+}
+fn add_earned_bounded(
+    lots: &mut Vec<CouponLot>,
+    c: &EarnedOriginContribution,
+    recognized: bool,
+    limit: Option<usize>,
+) -> Result<(), String> {
     let entitlement = c
         .native_entitlement
         .as_ref()
@@ -466,6 +489,9 @@ fn add_earned(
     {
         i
     } else {
+        if limit.is_some_and(|limit| lots.len() >= limit) {
+            return Err("native coupon lot exceeds selected census before growth".into());
+        }
         lots.push(CouponLot {
             coupon_id: c.coupon_id.clone(),
             source_event_id: c.source_event_id.clone(),
@@ -508,6 +534,15 @@ pub(crate) fn native_default_lots(
     cash: &[SourceCashReceipt],
     check: &mut dyn FnMut() -> Result<(), String>,
 ) -> Result<Vec<CouponLot>, String> {
+    native_default_lots_bounded(path, contributions, cash, None, check)
+}
+pub(crate) fn native_default_lots_bounded(
+    path: &crate::models::credit::paths::CreditPathResult,
+    contributions: &[EarnedOriginContribution],
+    cash: &[SourceCashReceipt],
+    limit: Option<usize>,
+    check: &mut dyn FnMut() -> Result<(), String>,
+) -> Result<Vec<CouponLot>, String> {
     let mut lots = Vec::new();
     let mut earned = contributions
         .iter()
@@ -517,10 +552,11 @@ pub(crate) fn native_default_lots(
         check()?;
         while earned.peek().is_some_and(|c| c.end_year <= cash.year) {
             check()?;
-            add_earned(
+            add_earned_bounded(
                 &mut lots,
                 earned.next().ok_or("native earned cursor")?,
                 false,
+                limit,
             )?;
         }
         let event = path
@@ -538,7 +574,7 @@ pub(crate) fn native_default_lots(
     }
     for c in earned {
         check()?;
-        add_earned(&mut lots, c, false)?;
+        add_earned_bounded(&mut lots, c, false, limit)?;
     }
     Ok(lots)
 }
@@ -587,14 +623,6 @@ pub fn validate_policy(
             }
         }
     }
-    if raw
-        .raw_credit_path
-        .paths
-        .iter()
-        .any(|p| p.accrued_interest != 0.)
-    {
-        return Err("seasoned accrued prefix requires an explicit source compiler".into());
-    }
     check()?;
     Ok(())
 }
@@ -628,6 +656,7 @@ pub fn compile(
     let mut lots = Vec::<CouponLot>::new();
     let mut default = false;
     let mut recovery_index = 0;
+    let mut original_default_lot_count = 0;
     for p in carry.carry_points() {
         check()?;
         let mut source_id = None;
@@ -635,8 +664,24 @@ pub fn compile(
             "reviewed_opening_snapshot" => {
                 previous = None;
                 lots.clear();
+                // Reserved origin3 is a purchased coupon stock, not newly earned
+                // service and never a credit-state index for recognition rates.
+                while let Some(c) = contributions.get(ci).filter(|c| {
+                    c.path_key == p.path_key
+                        && c.start_year == 0.
+                        && c.end_year == 0.
+                        && c.origin_index == 3
+                }) {
+                    add_earned(&mut lots, c, true)?;
+                    ci += 1;
+                }
+                let acquired: f64 = lots.iter().map(|l| l.recognized_remaining).sum();
+                if !near(acquired, p.contractual_accrued_interest) {
+                    return Err("commercial opening lacks native acquired gross coupon lots".into());
+                }
                 default = false;
                 recovery_index = 0;
+                original_default_lot_count = 0;
             }
             "live_sojourn" => {
                 while let Some(c) = contributions
@@ -648,6 +693,51 @@ pub fn compile(
                     add_earned(&mut lots, c, mode == Recognition::FullAccrual)?;
                     ci += 1;
                 }
+            }
+            "pending_coupon_fixing" => {
+                let c = contributions
+                    .get(ci)
+                    .ok_or("pending coupon source contribution missing")?;
+                if c.path_key != p.path_key
+                    || c.end_year != p.year
+                    || c.origin_index != p.origin_index.ok_or("pending coupon origin missing")?
+                {
+                    return Err("pending coupon native source clock/origin mismatch".into());
+                }
+                if p.effective_interest.to_bits()
+                    != (if default { 0. } else { c.contractual_earned }).to_bits()
+                {
+                    return Err("pending coupon reviewed recognition differs".into());
+                }
+                add_earned(&mut lots, c, !default)?;
+                if default {
+                    for lot in &mut lots {
+                        lot.default_claim = true;
+                    }
+                }
+                ci += 1;
+            }
+            "pending_coupon_cash" => {
+                let cash = carry
+                    .native_source_cash()
+                    .get(si)
+                    .ok_or("pending coupon settlement source missing")?;
+                if cash.path_key != p.path_key
+                    || cash.year != p.year
+                    || cash.cash.principal != 0.
+                    || cash.cash.fee != 0.
+                    || cash.cash.interest.to_bits() != p.cash.to_bits()
+                {
+                    return Err("pending coupon actual settlement authority differs".into());
+                }
+                apply_cash(
+                    &mut lots,
+                    cash,
+                    p.origin_index
+                        .ok_or("pending coupon settlement origin missing")?,
+                )?;
+                source_id = Some(cash.cash.source_event_id.clone());
+                si += 1;
             }
             "contractual_cash" => {
                 let cash = carry
@@ -685,6 +775,7 @@ pub fn compile(
             }
             "default_gross_transfer" => {
                 default = true;
+                original_default_lot_count = lots.len();
                 for lot in &mut lots {
                     lot.default_claim = true;
                 }
@@ -740,7 +831,7 @@ pub fn compile(
                     actual_interest += paid.interest;
                     observed += 1;
                 }
-                if observed != lots.len()
+                if observed != original_default_lot_count
                     || actual_interest.to_bits() != recovery.interest.to_bits()
                 {
                     return Err("per-coupon default interest collection requires complete native gross recovery authority".into());
@@ -806,4 +897,72 @@ pub fn compile(
         mixed_ledger_adoption: false,
         accounting_approval: false,
     })
+}
+
+#[cfg(test)]
+mod principal_cash_tests {
+    use super::*;
+    use crate::credit_path_income::NativeContractualCash;
+    fn cash(principal: f64, interest: f64) -> SourceCashReceipt {
+        SourceCashReceipt {
+            path_key: 1,
+            year: 0.,
+            cash: NativeContractualCash {
+                coupon_id: "principal-only".into(),
+                source_event_id: "principal-only".into(),
+                native_cash_index: 0,
+                principal,
+                interest,
+                fee: 0.,
+                tranche_id: None,
+            },
+        }
+    }
+    #[test]
+    fn principal_only_cash_never_creates_coupon_lots_but_interest_requires_native_owner() {
+        assert!(apply_cash(&mut [], &cash(20., 0.), 0).is_ok());
+        assert!(apply_cash(&mut [], &cash(20., 1.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(20., -1.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(0., 0.), 0).is_err());
+        assert!(apply_cash(&mut [], &cash(f64::INFINITY, 0.), 0).is_err());
+    }
+}
+
+#[cfg(test)]
+mod selected_lot_tests {
+    use super::*;
+    #[test]
+    fn bounded_new_lots_refuse_growth_but_keep_existing_monetary_order() {
+        let mut c = EarnedOriginContribution {
+            path_key: 1,
+            interval_index: 0,
+            origin_index: 0,
+            start_year: 0.,
+            end_year: 1.,
+            coupon_id: "coupon".into(),
+            source_event_id: "coupon".into(),
+            source_id: "source".into(),
+            source_revision: "1".into(),
+            captured_segment_index: 0,
+            delta_factor: 0.1,
+            actual_principal: 100.,
+            contractual_earned: 10.,
+            native_entitlement: Some(crate::accounting::credit::income::NativeCouponEntitlement {
+                native_audit_index: 0,
+                native_cash_index: 0,
+                opening_entitlement_principal: 100.,
+            }),
+        };
+        let mut lots = Vec::new();
+        assert!(add_earned_bounded(&mut lots, &c, false, Some(0)).is_err());
+        assert!(lots.is_empty());
+        add_earned_bounded(&mut lots, &c, false, Some(1)).unwrap();
+        add_earned_bounded(&mut lots, &c, false, Some(1)).unwrap();
+        assert_eq!(lots[0].contractual_earned, 20.);
+        c.origin_index = 1;
+        assert!(add_earned_bounded(&mut lots, &c, false, Some(1)).is_err());
+        assert_eq!(lots.len(), 1);
+        add_earned_bounded(&mut lots, &c, false, Some(2)).unwrap();
+        assert_eq!(lots.len(), 2);
+    }
 }

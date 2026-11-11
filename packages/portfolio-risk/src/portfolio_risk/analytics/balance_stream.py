@@ -219,7 +219,7 @@ def _python(spec, writer, progress, cancelled):
             writer.add('reverse_grid', [dict(r, severity=severity, breached=any(v is not None for k,v in r.items() if k.startswith('first_'))) for r in result['summary']])
 
 
-def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workflow=None, consume_input=False, completion_protocol=2, retain_input=False, journal_rows=False, completion=None):
+def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workflow=None, consume_input=False, completion_protocol=2, retain_input=False, journal_rows=False, completion=None, completion_trailer=None, decode_record=None, record_bytes=None):
     binary = executable or binary_path()
     if not binary.is_file():
         raise RuntimeError('Rust state engine is not built; run scripts/build_ledger_native.py. No fallback was used.')
@@ -260,13 +260,27 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
         monitor=threading.Thread(target=watchdog,daemon=True)
         monitor.start()
         try:
-            for line in process.stdout:
+            if record_bytes is not None and (type(record_bytes) is not int or record_bytes < 1):
+                raise ValueError('positive native record byte bound required')
+            # Selected generated routes retain only one bounded source record at
+            # a time. Historical routes preserve their existing stream decoder.
+            lines = process.stdout if record_bytes is None else iter(lambda: process.stdout.readline(record_bytes + 1), b'')
+            for line in lines:
                 if cancelled and cancelled():
                     raise InterruptedError('simulation cancelled')
                 if time.monotonic()-started > timeout:
                     raise TimeoutError('native simulation timed out')
-                message = json.loads(line)
-                if 'complete' in message:
+                if record_bytes is not None and (len(line) > record_bytes or not line.endswith(b'\n')):
+                    raise ValueError('native record exceeds its declared byte bound or is truncated')
+                message = (decode_record or json.loads)(line)
+                if complete:
+                    # The explicit generated coordinator seals metadata only
+                    # after the underlying Sim has completed. No table or second
+                    # trailer may follow it; the caller validates its full identity.
+                    if completion_trailer is None or completion_trailer or not isinstance(message, dict) or not isinstance(message.get('record'), str):
+                        raise ValueError('native output follows completion')
+                    completion_trailer.update(message)
+                elif 'complete' in message:
                     if complete or message != {'complete':True, 'protocol':completion_protocol}:
                         raise ValueError('invalid completion message')
                     if completion is not None:
@@ -275,8 +289,6 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
                         if completion:raise ValueError('duplicate retained native completion')
                         completion.update(message)
                     complete = True
-                elif complete:
-                    raise ValueError('native output follows completion')
                 elif 'workflow' in message:
                     if workflow is None or workflow or dictionary or writer.counts:
                         raise ValueError('invalid workflow header')
@@ -303,7 +315,7 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
             code = process.wait(timeout=max(1.,timeout-(time.monotonic()-started)))
             if interruption:
                 raise interruption[0]
-            if code or not complete:
+            if code or not complete or completion_trailer is not None and not completion_trailer:
                 raise RuntimeError(f'native state engine failed (exit {code}): '+(writer.root/'native-stderr.log').read_text(errors='replace')[-2000:])
         finally:
             stop.set();monitor.join()

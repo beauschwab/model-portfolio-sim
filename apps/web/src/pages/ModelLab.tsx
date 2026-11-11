@@ -3,6 +3,17 @@ import { api, awaitJob, type ResultPage } from '../lib/api';
 import { Button, Card, CardBody, CardHeader, DataTable } from '../components/ui';
 
 const labels:Record<string,string>={
+  'commercial-product-graph-1':'Commercial loan pricing, credit and income graph',
+  'commercial-units-1':'Commercial purchase-date risk, income and funding coefficients',
+  'commercial-generated-exercise-1':'Commercial exercise under supplied market and credit paths',
+  'commercial-candidate-journal-1':'Commercial candidate purchases and fee journal',
+  'commercial-treasury-1':'Commercial closing capital and daily funding costs',
+  'commercial-candidate-fee-treasury-1':'Commercial purchase and service fee capital and funding costs',
+  'commercial-candidate-holding-journal-1':'Commercial candidate holding journal and retained fee rights',
+  'commercial-holding-continuation-1':'Commercial holding continuation and original acquisition',
+  'commercial-holding-journal-1':'Commercial holding journal from a retained opening',
+  'commercial-fee-journal-1':'Commercial loan and separate service fee journal',
+  'nonintegral-fee-accounting-1':'Separate service fee rights and accounting',
   'credit-path-accounting-1':'Physical credit paths and reviewed accounting',
   'derivative-accounting-1':'Physical derivative accounting',
   'hedge-accounting-1':'ASC 815 fair-value and cash-flow hedge relationships',
@@ -54,11 +65,11 @@ export default function ModelLab(){
     try{const value=await api.modelExample(selected);if(token===generation.current){setDraft(JSON.stringify(value.request,null,2));setRevision(value.revision);}}
     catch(e){if(token===generation.current)setError(String(e));}finally{if(token===generation.current)setBusy(false);}
   };
-  useEffect(()=>{let active=true;api.modelContracts().then(value=>{if(active){setSchemas(value.schemas);setDurable(value.durable);void load(value.schemas[0]);}}).catch(e=>{if(active)setError(String(e));});
+  useEffect(()=>{let active=true;api.modelContracts().then(value=>{if(active){setSchemas(value.schemas);setDurable(value.durable);const selected=value.schemas[0];if(selected){setSchema(selected);void load(selected);}else{setError('No product models are available.');}}}).catch(e=>{if(active)setError(String(e));});
     return()=>{active=false;generation.current++;};},[]);
   const show=async(id:string,token:number)=>{
     const manifest=await api.modelManifest(id);
-    if(!manifest.execution?.schema || !labels[manifest.execution.schema])throw new Error('Select a completed product model analysis job.');
+    if(!manifest.execution?.schema || !schemas.includes(manifest.execution.schema))throw new Error('Select a completed product model analysis job.');
     const next=Object.keys(manifest.tables);const first=next[0];
     const frame=first?await api.cohortTable(id,first):undefined;
     if(token===generation.current){setJob(id);setReopen(id);setPaths(next);setPath(first??'');setTable(frame);setSummary(manifest.execution.summary);setVerification(manifest.execution.source_verification??{});}
@@ -79,7 +90,7 @@ export default function ModelLab(){
     <label htmlFor="model-input" className="text-xs">Product terms, path assumptions and source policies</label>
     <textarea id="model-input" disabled={busy} className="mt-1 h-72 w-full rounded border border-line bg-surface p-2 font-mono text-xs" value={draft} onChange={e=>{generation.current++;setDraft(e.target.value);clear();}}/>
     <div className="mt-2 flex flex-wrap gap-2"><Button disabled={busy||!durable||revision===undefined||!draft.trim()} onClick={()=>void run()}>{busy?'Calculating…':'Run product analysis'}</Button>
-      {['aged-units-1','product-units-1'].includes(schema)&&<Button disabled={busy||!durable||revision===undefined||!draft.trim()} onClick={async()=>{
+      {['aged-units-1','product-units-1','commercial-units-1'].includes(schema)&&<Button disabled={busy||!durable||revision===undefined||!draft.trim()} onClick={async()=>{
         const token=++generation.current;setBusy(true);setError('');clear();
         try{const submitted=await api.buildAgedLibrary({schema_name:schema,request:JSON.parse(draft),expected_revision:revision!});
           const done=await awaitJob(submitted.id);if(done.status!=='done')throw new Error(done.detail||'Library build failed');

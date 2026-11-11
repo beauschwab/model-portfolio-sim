@@ -4,7 +4,7 @@ import io
 LIMIT=32*1024*1024
 
 
-def parquet_metadata(data, rows, schema, *, decoded, logical, check):
+def parquet_metadata(data, rows, schema, *, decoded, logical, check, decoded_limit=LIMIT, logical_limit=LIMIT):
     """Refuse excessive declared decoded column chunks before table decoding."""
     import pyarrow.parquet as pq
     import polars as pl
@@ -22,7 +22,7 @@ def parquet_metadata(data, rows, schema, *, decoded, logical, check):
             if type(size) is not int or size<0:
                 raise ValueError('deposit invalid decoded column size')
             uncompressed+=size
-            if uncompressed>LIMIT or decoded+uncompressed>LIMIT:
+            if uncompressed>LIMIT or decoded+uncompressed>decoded_limit:
                 raise ValueError('deposit decoded column-component byte cap')
     if {k:str(v) for k,v in pl.scan_parquet(io.BytesIO(data)).collect_schema().items()}!=schema:
         raise ValueError('deposit Parquet metadata schema')
@@ -32,6 +32,6 @@ def parquet_metadata(data, rows, schema, *, decoded, logical, check):
     for batch in pq.ParquetFile(io.BytesIO(data)).iter_batches(batch_size=1):
         check()
         logical+=batch.nbytes
-        if logical>LIMIT:raise ValueError('deposit logical decoded component byte cap')
+        if logical>logical_limit:raise ValueError('deposit logical decoded component byte cap')
         check()
     return decoded+uncompressed,logical

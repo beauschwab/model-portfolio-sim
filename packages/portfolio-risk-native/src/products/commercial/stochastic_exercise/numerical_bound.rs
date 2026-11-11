@@ -1,0 +1,206 @@
+//! Sealed raw-law metadata census, independent of sampled features/outcomes.
+use super::*;
+
+pub(super) const SCAN_PASSES: usize = 8;
+pub(super) const HEADER_BYTES: usize = 128;
+pub(super) struct StructuralFeatures {
+    pub active_features_upper: usize,
+    pub full_features_upper: usize,
+    pub all_credit_hazards_zero: bool,
+    pub scan_work_upper: usize,
+    #[cfg(test)]
+    pub measured_work: usize,
+}
+struct Scan {
+    used: usize,
+    upper: usize,
+}
+impl Scan {
+    fn debit(&mut self, n: usize) -> Result<(), String> {
+        self.used = self
+            .used
+            .checked_add(n)
+            .filter(|v| *v <= self.upper)
+            .ok_or("structural numerical metadata scan exceeds ticket")?;
+        Ok(())
+    }
+}
+#[cfg(test)]
+thread_local! { static CALLS:std::cell::Cell<usize>=const {std::cell::Cell::new(0)}; }
+#[cfg(test)]
+pub(super) fn calls() -> usize {
+    CALLS.get()
+}
+
+pub(super) fn inspect(r: &Request) -> Result<StructuralFeatures, String> {
+    #[cfg(test)]
+    CALLS.set(CALLS.get() + 1);
+    let draws = r.source.performing_draw_tranches.len();
+    // The header census is itself bounded/debited before reading nested Vec
+    // lengths. It reads no source identities, strings, observations or rates.
+    let mut headers = Scan {
+        used: 0,
+        upper: draws.checked_add(1).ok_or("structural headers overflow")?,
+    };
+    headers.debit(1)?;
+    let mut periods = r.source.source.current.periods.len();
+    for draw in &r.source.performing_draw_tranches {
+        check()?;
+        headers.debit(1)?;
+        periods = periods
+            .checked_add(draw.source.current.periods.len())
+            .ok_or("structural period headers overflow")?;
+    }
+    let upper = 32usize
+        .checked_add(
+            r.source
+                .credit
+                .intervals
+                .len()
+                .checked_mul(15)
+                .ok_or("structural credit scan overflow")?,
+        )
+        .and_then(|v| v.checked_add(r.annual_covariance.len()))
+        .and_then(|v| v.checked_add(r.coupon_loadings.len()))
+        .and_then(|v| v.checked_add(periods.checked_mul(2)?))
+        .and_then(|v| v.checked_add(draws.checked_mul(12)?))
+        .ok_or("structural metadata scan overflow")?;
+    let mut scan = Scan {
+        used: headers.used,
+        upper,
+    };
+    scan.debit(
+        draws
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(1))
+            .and_then(|v| v.checked_add(periods))
+            .ok_or("structural feature scan overflow")?,
+    )?;
+    let full = sources::feature_bound(r)?;
+    let mut all_credit_hazards_zero = true;
+    'hazards: for interval in &r.source.credit.intervals {
+        check()?;
+        for row in &interval.hazards_per_year {
+            for hazard in row {
+                scan.debit(1)?;
+                if *hazard != 0. {
+                    all_credit_hazards_zero = false;
+                    break 'hazards;
+                }
+            }
+        }
+    }
+    let mut covariance_zero = true;
+    for covariance in &r.annual_covariance {
+        scan.debit(1)?;
+        if *covariance != 0. {
+            covariance_zero = false;
+            break;
+        }
+    }
+    // Eight fixed header checks per draw, paid before reading them. Native
+    // SourceAdapter::draw funds the supplied opening principal iff the fixed
+    // eligible-origin bit is true at the supplied date. With every hazard zero,
+    // the credit origin/undrawn inventory cannot depend on a draw-stream sample;
+    // CCF is used only on default, which cannot occur. Supplied principal on
+    // every owner excludes any payment/rate feedback into principal/entitlement.
+    let mut supplied_draws = true;
+    for draw in &r.source.performing_draw_tranches {
+        check()?;
+        scan.debit(8)?;
+        supplied_draws &= draw.source.transfer.is_none()
+            && draw.source.current_accounting_rate_reviews.is_empty()
+            && matches!(
+                draw.source.original.principal_plan,
+                term::indexed::PrincipalPlan::Supplied { .. }
+            )
+            && matches!(
+                draw.source.current.principal_plan,
+                term::indexed::PrincipalPlan::Supplied { .. }
+            )
+            && draw.source.original.asof_ordinal == draw.draw_ordinal
+            && draw.source.current.asof_ordinal == draw.draw_ordinal
+            && draw.draw_ordinal > r.source.source.current.asof_ordinal;
+    }
+    scan.debit(8)?;
+    let supplied_sources = supplied_draws
+        && r.source.reviewed_credit_actions.is_none()
+        && r.source.source.transfer.is_none()
+        && matches!(
+            r.source.source.current.principal_plan,
+            term::indexed::PrincipalPlan::Supplied { .. }
+        );
+    let mut observations = 0usize;
+    for (_, contract) in sources::contracts(&r.source) {
+        scan.debit(1)?;
+        for period in &contract.periods {
+            check()?;
+            scan.debit(1)?;
+            if let Coupon::Indexed {
+                observations: values,
+                ..
+            } = &period.coupon
+            {
+                observations = observations
+                    .checked_add(values.len())
+                    .ok_or("structural observation headers overflow")?;
+            }
+        }
+    }
+    // Generated coupon rates can depend on the market only through these
+    // declared loadings. Pay the complete scalar scan before reading any entry;
+    // no period IDs, fixing values, or sampled features enter this proof.
+    scan.debit(r.coupon_loadings.len())?;
+    let mut coupon_loadings_zero = true;
+    for loading in &r.coupon_loadings {
+        check()?;
+        coupon_loadings_zero &= loading.loading == 0.;
+    }
+    let active = if draws > 0 && !supplied_sources {
+        full
+    } else if all_credit_hazards_zero && covariance_zero {
+        0
+    } else if all_credit_hazards_zero && supplied_sources {
+        let market = r
+            .drivers
+            .len()
+            .checked_add(if r.hazard_loadings.is_empty() {
+                0
+            } else {
+                r.drivers.len()
+            })
+            .ok_or("structural market feature upper overflow")?;
+        if coupon_loadings_zero {
+            // With no transitions/reviews and supplied principal, fixed
+            // and supplied indexed coupons have identical legal/entitlement
+            // paths at each decision clock. Availability masks depend only on
+            // raw dates. Signed or delayed cash changes these constants, never
+            // their path variation. Supplied draw activation/nominal and coupon
+            // principals are constant too. Retain every feature in the fit.
+            market
+        } else {
+            market
+                .checked_add(observations)
+                .and_then(|v| v.checked_add(1))
+                .and_then(|v| v.checked_add(periods))
+                .ok_or("structural varying feature upper overflow")?
+        }
+    } else {
+        full
+    };
+    Ok(StructuralFeatures {
+        active_features_upper: active,
+        full_features_upper: full,
+        all_credit_hazards_zero,
+        scan_work_upper: upper,
+        #[cfg(test)]
+        measured_work: scan.used,
+    })
+}
+
+#[cfg(test)]
+#[path = "numerical_bound_coupon_tests.rs"]
+mod coupon_tests;
+#[cfg(test)]
+#[path = "numerical_bound_draw_tests.rs"]
+mod draw_tests;

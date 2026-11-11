@@ -37,42 +37,9 @@ pub struct Solved {
     pub receipt: Receipt,
 }
 fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
-    let d = r.drivers.len();
-    let observations = r
-        .source
-        .source
-        .current
-        .periods
-        .iter()
-        .map(|p| match &p.coupon {
-            Coupon::Indexed { observations, .. } => observations.len(),
-            _ => 0,
-        })
-        .sum::<usize>();
     let periods = r.source.source.current.periods.len();
-    let credit_random = r
-        .source
-        .credit
-        .intervals
-        .iter()
-        .any(|p| p.hazards_per_year.iter().flatten().any(|h| *h > 0.));
-    let active_upper = if !credit_random && r.annual_covariance.iter().all(|c| *c == 0.) {
-        0
-    } else if !credit_random
-        && matches!(
-            &r.source.source.current.principal_plan,
-            term::indexed::PrincipalPlan::Supplied { .. }
-        )
-    {
-        // Without credit jumps or indexed principal, P and origin-state labels
-        // are constant across paths. Reserve OU/anchor levels, every observed
-        // fixing, net legal interest and each canonical legal coupon.
-        d + if r.hazard_loadings.is_empty() { 0 } else { d } + observations + 1 + periods
-    } else {
-        2 * d + 4 + observations + 2 * periods
-    };
-    let columns =
-        (1 + active_upper + active_upper * (active_upper + 1) / 2).min(r.training.paths / 2);
+    let numerical = regression_numerical_capacity(r)?;
+    let columns = numerical.columns;
     let n = r
         .training
         .paths
@@ -88,8 +55,20 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .max()
         .unwrap_or(0);
     let cash = periods
-        .checked_add(recovery + 4)
+        .checked_add(
+            r.source
+                .performing_draw_tranches
+                .iter()
+                .map(|d| d.source.current.periods.len() + 1)
+                .sum::<usize>(),
+        )
+        .and_then(|n| n.checked_add(recovery + 4))
         .ok_or("calibration cash bound overflow")?;
+    let cash = cash
+        .checked_add(r.nonintegral_fees.as_ref().map_or(0, |f| {
+            crate::products::commercial::fee_source::event_bound(&f.policy)
+        }))
+        .ok_or("calibration joint cash overflow")?;
     let fitting = n
         .checked_mul(r.policy.exercise_dates.len())
         .and_then(|v| v.checked_mul(columns.checked_mul(columns)?.checked_mul(16)?))
@@ -100,7 +79,8 @@ fn trial_upper(r: &Request) -> Result<(usize, usize), String> {
         .ok_or("calibration target work overflow")?;
     Ok((
         fitting
-            .checked_add(targets)
+            .checked_add(numerical.work)
+            .and_then(|v| v.checked_add(targets))
             .ok_or("calibration trial work overflow")?,
         columns,
     ))
@@ -163,6 +143,7 @@ struct TrialEvaluation {
     trained: NativeTrainedPolicy,
     values: Vec<f64>,
     decisions: Vec<Vec<Decision>>,
+    joint_values: Option<Vec<f64>>,
 }
 impl Samples {
     fn generate(r: &Request) -> Result<Self, String> {
@@ -182,8 +163,8 @@ impl Samples {
         check()?;
         let mut raw = self.raw.clone();
         raw.fixed_base_oas = oas;
-        let trained = fit_paths(&raw, &self.training)?;
         let (_, columns) = trial_upper(&raw)?;
+        let trained = fit_paths_with_columns(&raw, &self.training, columns)?;
         if trained
             .regressions()
             .iter()
@@ -210,10 +191,20 @@ impl Samples {
                 };
             }
         }
+        let joint_roots = root_values(&raw, &self.evaluation, &values)?;
+        let (values, joint_values) = if raw.nonintegral_fees.is_some() {
+            (
+                loan_values_from_joint_decisions(&raw, &self.evaluation, &decisions)?,
+                Some(joint_roots),
+            )
+        } else {
+            (joint_roots, None)
+        };
         Ok(TrialEvaluation {
             trained,
-            values: root_values(&raw, &self.evaluation, &values)?,
+            values,
             decisions,
+            joint_values,
         })
     }
     fn replay(
@@ -221,10 +212,12 @@ impl Samples {
         trained: &NativeTrainedPolicy,
         values: &[f64],
         decisions: &[Vec<Decision>],
+        joint_values: Option<&[f64]>,
     ) -> Result<(f64, Vec<EconomicSource>), String> {
         let raw = trained.request();
         let mut sum = 0.;
         let mut sources = Vec::new();
+        let fee_context = generated::fees::Context::pricing(raw);
         for (i, path) in self.evaluation.iter().enumerate() {
             check()?;
             let request = path_request(raw, &raw.evaluation, &self.evaluation_tape, i)?;
@@ -274,8 +267,12 @@ impl Samples {
             } else {
                 Vec::new()
             };
-            let source =
-                EconomicSource::replay_pricing(request, stops, 1. / self.evaluation.len() as f64)?;
+            let source = EconomicSource::replay_pricing_with_fees(
+                request,
+                stops,
+                1. / self.evaluation.len() as f64,
+                fee_context.as_ref(),
+            )?;
             let mut value = 0.;
             for cash in source.cash() {
                 if cash.year > 0. {
@@ -285,11 +282,81 @@ impl Samples {
             if !close(value, values[i]) {
                 return Err("calibration stopped native cash differs from retained policy".into());
             }
+            if let Some(joint) = joint_values {
+                let fees = source
+                    .generated_fee_projection
+                    .as_ref()
+                    .ok_or("calibration generated fee source absent")?;
+                let actual = amount(
+                    value
+                        + fees.price(
+                            &raw.discount_curve,
+                            raw.source.source.current.asof_ordinal,
+                            raw.source.source.current.asof_ordinal,
+                            raw.parallel_bump,
+                            true,
+                        )?,
+                )?;
+                if !close(actual, joint[i]) {
+                    return Err(
+                        "calibration native joint loan/fee cash differs from retained policy"
+                            .into(),
+                    );
+                }
+            }
             sum = amount(sum + value)?;
             sources.push(source);
         }
         Ok((amount(sum / self.evaluation.len() as f64)?, sources))
     }
+}
+fn loan_values_from_joint_decisions(
+    r: &Request,
+    paths: &[Path],
+    decisions: &[Vec<Decision>],
+) -> Result<Vec<f64>, String> {
+    let asof = r.source.source.current.asof_ordinal;
+    paths
+        .iter()
+        .zip(decisions)
+        .map(|(path, chosen)| {
+            let first = chosen.iter().position(|d| *d != Decision::Continue);
+            let mut value = 0.;
+            for c in &path.cash {
+                if c.year > 0.
+                    && first.is_none_or(|index| {
+                        let d = &r.policy.exercise_dates[index];
+                        exercise::cash_before(c.year, f64::from(d.ordinal - asof) / 365., d.timing)
+                    })
+                {
+                    value = amount(value + c.total()? * df(r, c.year)?)?;
+                }
+            }
+            if let Some(index) = first {
+                let date = &r.policy.exercise_dates[index];
+                let p = &path.points[index];
+                let (factor, fee) = match chosen[index] {
+                    Decision::Call => (
+                        date.call_clean_price_factor
+                            .ok_or("calibration call absent")?,
+                        date.call_fee,
+                    ),
+                    Decision::Put => (
+                        date.put_clean_price_factor
+                            .ok_or("calibration put absent")?,
+                        date.put_fee,
+                    ),
+                    Decision::Continue => unreachable!(),
+                };
+                value = amount(
+                    value
+                        + (p.principal * factor + p.legal + fee)
+                            * df(r, f64::from(date.ordinal - asof) / 365.)?,
+                )?;
+            }
+            Ok(value)
+        })
+        .collect()
 }
 fn close(a: f64, b: f64) -> bool {
     (a - b).abs() <= 1e-9 + 1e-12 * b.abs()
@@ -305,8 +372,10 @@ fn finish(
         trained,
         values,
         decisions,
+        joint_values,
     } = evaluated;
-    let (actual, sources) = samples.replay(&trained, &values, &decisions)?;
+    let (actual, sources) =
+        samples.replay(&trained, &values, &decisions, joint_values.as_deref())?;
     if !close(actual, target) {
         return Err("generated OAS final stopped cash quote residual unresolved".into());
     }

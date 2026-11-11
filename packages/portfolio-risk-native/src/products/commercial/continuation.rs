@@ -121,18 +121,22 @@ fn source_prefix(
     Ok(())
 }
 
-fn raw_prefix(r: &Request, cut: f64) -> Result<(), String> {
-    let a = &r.completed_source;
-    let b = &r.revised_source;
+fn raw_prefix(
+    a: &owner::Request,
+    b: &owner::Request,
+    cut_ordinal: i32,
+    cut: f64,
+) -> Result<(), String> {
     require_same(&a.source.original, &b.source.original)?;
     require_same(&a.source.acquisition, &b.source.acquisition)?;
+    require_same(&a.source.transfer, &b.source.transfer)?;
     require_same(&a.source.policy, &b.source.policy)?;
     require_same(&a.factor_policy, &b.factor_policy)?;
     require_same(&a.performing_draw_tranches, &b.performing_draw_tranches)?;
     require_same(&a.prepayment_terms, &b.prepayment_terms)?;
     require_same(&a.maturity_basis_policy, &b.maturity_basis_policy)?;
     require_same(&a.reviewed_credit_actions, &b.reviewed_credit_actions)?;
-    source_prefix(&a.source.current, &b.source.current, r.cut_ordinal)?;
+    source_prefix(&a.source.current, &b.source.current, cut_ordinal)?;
     let mut previous = 0.;
     if a.credit.intervals.len() != b.credit.intervals.len() {
         return Err("commercial continuation credit interval coverage changed".into());
@@ -191,13 +195,13 @@ fn raw_prefix(r: &Request, cut: f64) -> Result<(), String> {
         .source
         .current_accounting_rate_reviews
         .iter()
-        .filter(|p| p.reset_ordinal < r.cut_ordinal)
+        .filter(|p| p.reset_ordinal < cut_ordinal)
         .collect();
     let now: Vec<_> = b
         .source
         .current_accounting_rate_reviews
         .iter()
-        .filter(|p| p.reset_ordinal < r.cut_ordinal)
+        .filter(|p| p.reset_ordinal < cut_ordinal)
         .collect();
     require_same(&past, &now)
 }
@@ -210,6 +214,37 @@ pub struct Admission {
     pub retained_bytes_upper: usize,
 }
 
+/// Apply the same immutable-origin and observed-prefix rules without generating
+/// either source. Joint graph coordinators use this for Pricing as well as
+/// Physical histories before reserving their complete owners.
+pub fn validate_raw_prefix(r: &Request) -> Result<f64, String> {
+    checkpoint()?;
+    if r.schema != SCHEMA {
+        return Err("explicit commercial holding continuation schema required".into());
+    }
+    validate_raw_prefix_sources(&r.completed_source, &r.revised_source, r.cut_ordinal)
+}
+
+/// Borrow complete native source inputs during joint validation. This performs
+/// the same checks as the explicit continuation request without cloning owners.
+pub fn validate_raw_prefix_sources(
+    completed: &owner::Request,
+    revised: &owner::Request,
+    cut_ordinal: i32,
+) -> Result<f64, String> {
+    checkpoint()?;
+    let origin = completed.source.current.asof_ordinal;
+    let elapsed = cut_ordinal
+        .checked_sub(origin)
+        .ok_or("commercial cut calendar overflow")?;
+    if elapsed <= 0 {
+        return Err("commercial holding cut must follow original acquisition".into());
+    }
+    let cut = f64::from(elapsed) / 365.;
+    raw_prefix(completed, revised, cut_ordinal, cut)?;
+    Ok(cut)
+}
+
 pub fn admit(r: &Request) -> Result<Admission, String> {
     checkpoint()?;
     if portfolio_compute_control::active().is_none() {
@@ -219,16 +254,7 @@ pub fn admit(r: &Request) -> Result<Admission, String> {
         return Err("explicit commercial holding continuation schema required".into());
     }
     let raw = strict_json::serialized_size(r, MAX_RAW)?;
-    let origin = r.completed_source.source.current.asof_ordinal;
-    let elapsed = r
-        .cut_ordinal
-        .checked_sub(origin)
-        .ok_or("commercial cut calendar overflow")?;
-    if elapsed <= 0 {
-        return Err("commercial holding cut must follow original acquisition".into());
-    }
-    let cut = f64::from(elapsed) / 365.;
-    raw_prefix(r, cut)?;
+    let cut = validate_raw_prefix(r)?;
     // Both complete tails plus the prefix comparison, sealed opening copies and
     // retained suffix indices are charged before either owner is materialized.
     let a = owner::admit(&r.completed_source)?;
@@ -375,7 +401,7 @@ pub fn evaluate(r: &Request) -> Result<ResultData, String> {
         second_acquisition_posted: false,
         mixed_ledger_adoption: false,
         verified_prior_publication: false,
-        secondary_acquisition_adoption: false,
+        secondary_acquisition_adoption: r.completed_source.source.transfer.is_some(),
         empirical_validation: false,
     })
 }

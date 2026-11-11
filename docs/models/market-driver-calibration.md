@@ -30,6 +30,19 @@ changing only holdout observations must leave the training moments byte-stable.
 The optional selected stress rows are ranked by the training covariance
 Mahalanobis distance and are bounded to the declared driver domains.
 
+Independent publication replay verifies the requested scenario count, unique
+training indices, selected-row domains and descending training Mahalanobis
+ranking. A separate NumPy direct SVD retains the native relative singular cutoff
+of `1e-15`; it never calls the Rust selector or uses holdout rows. Scores are
+compared at the existing `3e-12` absolute/relative verification tolerance, so
+ordering among numerically indistinguishable distances is certified within that
+bound. Exact duplicate observations and the zero covariance operator retain the
+native reverse-index tie order. Empty, duplicate, lower-ranked or holdout
+substitutions cannot publish, including after persisted tables are reread.
+Original cancellation/deadline checks run through moment, HAC and selection
+replay. This verification does not change the native fit, selected rows, scenario
+economics, empirical eligibility or production adoption requirements.
+
 The optional `uncertainty_lag` requests a Bartlett HAC standard error for each
 component of the training mean. With centered observations (y_t), the native
 diagnostic uses

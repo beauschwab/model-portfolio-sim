@@ -14,7 +14,27 @@ fn main() {
         if input.len() > 128 * 1024 * 1024 {
             return Err("request exceeds 128 MiB".into());
         }
+        if portfolio_decision_native::commercial_intake::selects_cut(&input)? {
+            let mut output = io::stdout().lock();
+            portfolio_decision_native::commercial_cut_mixed::run_cli_started(
+                input,
+                started,
+                &mut output,
+            )?;
+            ftp_handled = true;
+            return Ok(serde_json::Value::Null);
+        }
         let request = portfolio_decision_native::commercial_intake::parse(&input)?;
+        if request["op"] == "analyze_commercial_candidate_holding_journal" {
+            return portfolio_decision_native::commercial_candidate_holding::run_envelope_started(
+                &input, started,
+            );
+        }
+        if request["op"] == "analyze_commercial_candidate_fee_treasury" {
+            return portfolio_decision_native::commercial_fee_candidate_treasury::run_envelope_started(
+                &input, started,
+            );
+        }
         if request["op"] == "analyze_commercial_fee_journal" {
             return portfolio_decision_native::commercial_fee_journal::run_started(&input, started);
         }
@@ -180,6 +200,9 @@ fn main() {
     match result {
         Ok(v) => println!("{}", serde_json::json!({"ok":v})),
         Err(e) => {
+            // A selected streaming route may already have emitted a partial
+            // success object. Keep a separately parseable rejection channel.
+            eprintln!("{}", serde_json::json!({"error":&e}));
             println!("{}", serde_json::json!({"error":e}));
             std::process::exit(2);
         }

@@ -30,6 +30,36 @@ driver domains, dates, hazard coefficients, positions and work before output.
 The market generator and state loop accept cooperative cancellation; no partial
 result is returned after a failed checkpoint.
 
+## Independent market-source verification
+
+Publication independently binds the returned tape to the original covariance,
+factor count and supplied normals or NumPy-compatible PCG64 seed. The verifier
+reconstructs the antithetic draw ordering, checks every increment, and then
+recomputes sample diagnostics, hazards and competing events. A coherent result
+generated with a different covariance or seed cannot certify the queued source.
+The same checks run on freshly reread persisted tables before publication.
+
+The independent NumPy eigensolve certifies the raw correlation spectrum and
+retained covariance. At a repeated eigenvalue across the truncation boundary,
+the historical numerical implementation has no platform-independent basis
+choice. The verifier checks the retained invariant subspace, top-factor spectrum
+and PSD root against the raw operator rather than choosing a different basis.
+This is a spectral certificate, not a claim of a unique basis at a degeneracy.
+
+Numerically null modes need special care: taking a square root can amplify
+eigensolver roundoff to the square root of machine precision. A bounded set of
+raw draw vectors supplies a candidate transformation in that null subspace.
+An independent direct SVD, symmetry/PSD checks and squared-operator residual
+certify it within the existing native `8 * epsilon * driver_count` bound.
+Every tape cell must still match its original draw at the unchanged `3e-12`
+relative/absolute verification tolerance. Producer diagnostics cannot enlarge
+either bound. Zero-variance rows remain exactly zero; the correlation trace
+counts positive-variance coordinates only.
+
+Verification has bounded dimensions and cooperative cancellation checkpoints.
+The receipt records `raw_covariance_verified`, `raw_draws_replayed` and
+`truncation_subspace_certified`; none grants product adoption or empirical status.
+
 The checked-in example is synthetic and deliberately reports
 `adoption_eligible=false`. Observed market/borrower calibration, uncertainty,
 product-specific policies, cohort/saved-book adoption, daily journal/FTP

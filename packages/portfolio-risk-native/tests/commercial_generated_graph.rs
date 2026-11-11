@@ -196,7 +196,10 @@ fn generated_current_q_exercise_stops_separate_p_cash_without_refitting_original
         .filter(|s| s.role == portfolio_risk_native::advanced_graph::Role::Physical)
     {
         assert_eq!(
-            source.projection["native_stops"].as_array().unwrap().len(),
+            serde_json::to_value(&source.projection).unwrap()["native_stops"]
+                .as_array()
+                .unwrap()
+                .len(),
             1
         );
         assert_eq!(source.source_request.source.acquisition.cost, 100.);

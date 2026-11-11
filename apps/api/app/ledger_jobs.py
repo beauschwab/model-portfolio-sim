@@ -134,7 +134,7 @@ def _run_source_balance_stress(owner, request, simulate, importer, *, executable
         from portfolio_risk.analytics.balance_stream import source_identity
         if source_identity()!=request['source_sha256']:raise RuntimeError('MODEL_VERSION_CHANGED: modeled source differs from queued identity')
     # One budget covers native execution, uploads, persisted replay and publication.
-    continuation = request.get('specification',{}).get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1'}
+    continuation = request.get('specification',{}).get('schema') in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}
     if continuation:
         import math
         publication_deadline=request.get('publication_deadline_unix')
@@ -184,5 +184,5 @@ def _run_source_balance_stress(owner, request, simulate, importer, *, executable
 
 def run_modeled_balance_stress(owner,request):
     from portfolio_risk.analytics.model_ledger import run_model_ledger,binary_path
-    importer='import_commercial_partitions' if request['specification']['schema']=='commercial-credit-ledger-1' else 'import_deposit_continuation_partitions' if request['specification']['schema'] in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2'} else 'import_credit_path_partitions' if request['specification']['schema']=='driven-credit-ledger-1' else 'import_dated_partitions'
+    importer='import_generated_commercial_partitions' if request['specification']['schema'] in {'commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'} else 'import_commercial_partitions' if request['specification']['schema']=='commercial-credit-ledger-1' else 'import_deposit_continuation_partitions' if request['specification']['schema'] in {'deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2'} else 'import_credit_path_partitions' if request['specification']['schema']=='driven-credit-ledger-1' else 'import_dated_partitions'
     return _run_source_balance_stress(owner,request,run_model_ledger,importer,executable=binary_path())

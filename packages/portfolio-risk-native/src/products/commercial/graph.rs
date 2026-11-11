@@ -8,8 +8,12 @@ use portfolio_model_core::{cashflow::validate_ordinal, credit::CreditMeasure, st
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 pub const SCHEMA: &str = "commercial-product-graph-1";
+#[path = "graph_fixed_capacity.rs"]
+mod fixed_capacity;
+pub use fixed_capacity::{fixed_construction_capacity, FixedConstructionCapacity};
 pub const MAX_WORK: usize = 32_000_000;
 pub const MAX_BYTES: usize = 128 << 20;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -50,6 +54,8 @@ pub struct Position {
     pub exercise: Option<crate::products::commercial::exercise::Policy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated_policy: Option<Box<crate::products::commercial::generated_policy::Request>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees: Option<crate::products::commercial::fee_source::adoption::Selection>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -66,6 +72,130 @@ pub struct Request {
     pub positions: Vec<Position>,
 }
 pub use crate::products::commercial::cash::{economic_cash, EconomicCash};
+
+/// Closed provenance scope, independent of a source's role or scenario label.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ProofScope {
+    OriginalPricing,
+    OriginalPhysical,
+    Current,
+}
+
+/// Call-local serialization view of an already compiled source. It exposes no
+/// native financial owner, projection method or constructor to observers.
+///
+/// A callback cannot retain this borrowed proof beyond its invocation:
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::{SourceObservation, SourceProof};
+/// let mut retained: Option<SourceProof<'static>> = None;
+/// let mut observer = |source: SourceObservation<'_>| {
+///     retained = Some(source.proof);
+///     Ok(())
+/// };
+/// let _: &mut portfolio_risk_native::commercial_graph::SourceObserver<'_> = &mut observer;
+/// ```
+/// Nor can it manufacture a proof from a financial source:
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::{NativeSource, SourceProof};
+/// fn forge(source: &NativeSource) -> SourceProof<'_> {
+///     SourceProof { source }
+/// }
+/// ```
+#[derive(Serialize)]
+#[serde(transparent)]
+pub struct SourceProof<'a> {
+    source: &'a NativeSource,
+}
+
+/// Metadata for one complete source proof. `position_index` indexes the raw
+/// request's positions. `history_index` starts at zero separately for each
+/// position, scope and scenario. `scenario_index` is None for original scopes
+/// and indexes the raw request's scenarios for Current. Original scopes follow their raw history
+/// vectors; Current follows physical, pricing, pricing_down, pricing_up order
+/// within that scenario's native source slice. Zero-weight histories remain.
+#[derive(Serialize)]
+pub struct SourceObservation<'a> {
+    pub scope: ProofScope,
+    pub position_index: usize,
+    pub scenario_index: Option<usize>,
+    pub history_index: usize,
+    pub role: Role,
+    pub proof: SourceProof<'a>,
+}
+
+/// Observers may serialize a call-local proof, but cannot retain its borrow.
+pub type SourceObserver<'observer> =
+    dyn for<'a> FnMut(SourceObservation<'a>) -> Result<(), String> + 'observer;
+
+fn observe_sources(
+    observer: &mut Option<&mut SourceObserver<'_>>,
+    scope: ProofScope,
+    position_index: usize,
+    scenario_index: Option<usize>,
+    sources: &[NativeSource],
+) -> Result<(), String> {
+    if let Some(observer) = observer.as_mut() {
+        for (history_index, source) in sources.iter().enumerate() {
+            check()?;
+            observer(SourceObservation {
+                scope,
+                position_index,
+                scenario_index,
+                history_index,
+                role: source.role,
+                proof: SourceProof { source },
+            })?;
+            check()?;
+        }
+    }
+    Ok(())
+}
+
+/// A complete proof shares the same sealed owner used by native calculations.
+/// There is no retained JSON copy of a finite Physical or Pricing projection.
+/// The variant is private so JSON cannot manufacture a journal-eligible owner.
+/// ```compile_fail
+/// use portfolio_risk_native::commercial_graph::SourceProjection;
+/// let _: SourceProjection = serde_json::from_str("{}").unwrap();
+/// ```
+pub struct SourceProjection(ProjectionOwner);
+enum ProjectionOwner {
+    Physical(Box<owner::ResultData>),
+    // Factor query/work counters are Cell-based. Proof sharing stays within
+    // this native request thread; it does not claim concurrent factor access.
+    Pricing(Rc<owner::EconomicResult>),
+    Generated(Value),
+}
+impl SourceProjection {
+    pub(crate) fn generated(receipt: Value) -> Self {
+        Self(ProjectionOwner::Generated(receipt))
+    }
+    /// Generated sources retain their small metadata receipt separately from
+    /// the sealed recipe. Finite sources serialize their typed owner directly.
+    pub fn retained_json_receipt(&self) -> Option<&Value> {
+        match &self.0 {
+            ProjectionOwner::Generated(receipt) => Some(receipt),
+            _ => None,
+        }
+    }
+    fn physical(&self) -> Option<&owner::ResultData> {
+        match &self.0 {
+            ProjectionOwner::Physical(owner) => Some(owner),
+            _ => None,
+        }
+    }
+}
+impl Serialize for SourceProjection {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match &self.0 {
+            ProjectionOwner::Physical(owner) => owner.serialize(serializer),
+            ProjectionOwner::Pricing(owner) => owner.as_ref().serialize(serializer),
+            ProjectionOwner::Generated(receipt) => receipt.serialize(serializer),
+        }
+    }
+}
+
 pub struct NativeSource {
     pub position_id: String,
     pub scenario_id: String,
@@ -76,10 +206,10 @@ pub struct NativeSource {
     pub role: Role,
     pub source_request: owner::Request,
     pub cash: Vec<EconomicCash>,
-    pub projection: Value,
-    /// Native-only financial owner retained from the very same graph pass.
-    /// JSON receipts cannot be deserialized into a journal-eligible owner.
-    pub(crate) physical_projection: Option<Box<owner::ResultData>>,
+    pub fee_projection: Option<Box<crate::products::commercial::fee_source::adoption::Projection>>,
+    pub(crate) generated_fee_projection:
+        Option<Box<crate::products::commercial::generated_policy::FeeProjection>>,
+    pub projection: SourceProjection,
     pub(crate) generated_projection: Option<(
         Box<crate::products::commercial::generated_policy::PhysicalSource>,
         std::sync::Arc<std::sync::Mutex<owner::NativeOriginalAcquisitionProof>>,
@@ -104,11 +234,19 @@ impl Serialize for NativeSource {
         out.serialize_field("role", &self.role)?;
         out.serialize_field("source_request", &self.source_request)?;
         out.serialize_field("cash", &self.cash)?;
+        if let Some(fees) = &self.fee_projection {
+            out.serialize_field("fee_projection", fees)?;
+        }
+        if let Some(fees) = self.generated_fee_source() {
+            out.serialize_field("generated_fee_projection", fees)?;
+        }
         if let Some((recipe, _)) = &self.generated_projection {
             out.serialize_field(
                 "projection",
                 &GeneratedProjection {
-                    receipt: &self.projection,
+                    receipt: self.projection.retained_json_receipt().ok_or_else(|| {
+                        serde::ser::Error::custom("generated source metadata receipt absent")
+                    })?,
                     book_points: recipe.book_points(),
                 },
             )?;
@@ -119,8 +257,38 @@ impl Serialize for NativeSource {
     }
 }
 impl NativeSource {
+    pub fn generated_fee_source(
+        &self,
+    ) -> Option<&crate::products::commercial::generated_policy::FeeProjection> {
+        self.generated_fee_projection.as_deref().or_else(|| {
+            self.generated_projection
+                .as_ref()
+                .and_then(|(p, _)| p.generated_fee_projection.as_ref())
+        })
+    }
+    pub fn materialize_generated_fees(
+        &self,
+        loan: &owner::ResultData,
+    ) -> Result<Option<crate::products::commercial::fee_source::adoption::Projection>, String> {
+        let Some(fees) = self.generated_fee_source() else {
+            return Ok(None);
+        };
+        let (recipe, _) = self
+            .generated_projection
+            .as_ref()
+            .ok_or("generated Physical fee recipe absent")?;
+        if exact(loan.raw_request())? != exact(&self.source_request)?
+            || exact(&loan.native_stops())? != exact(&recipe.stops())?
+        {
+            return Err(
+                "generated fee replay requires its exact sealed Physical loan owner/stops".into(),
+            );
+        }
+        fees.materialize(&self.source_request, loan.carry(), recipe.stops())
+            .map(Some)
+    }
     pub fn physical_accounting_source(&self) -> Option<&owner::ResultData> {
-        self.physical_projection.as_deref()
+        self.projection.physical()
     }
     pub fn physical_period(&self, left: f64, right: f64) -> Result<(f64, f64), String> {
         if let Some((recipe, _)) = &self.generated_projection {
@@ -153,12 +321,24 @@ impl NativeSource {
         self.generated_projection
             .as_ref()
             .map(|(recipe, proof)| {
-                let proof = proof
-                    .lock()
-                    .map_err(|_| "generated original proof owner poisoned")?;
+                let proof = lock_original_proof(proof)?;
                 recipe.materialize(&proof)
             })
             .transpose()
+    }
+}
+fn lock_original_proof(
+    proof: &std::sync::Mutex<owner::NativeOriginalAcquisitionProof>,
+) -> Result<std::sync::MutexGuard<'_, owner::NativeOriginalAcquisitionProof>, String> {
+    loop {
+        check()?;
+        match proof.try_lock() {
+            Ok(proof) => return Ok(proof),
+            Err(std::sync::TryLockError::Poisoned(_)) => {
+                return Err("generated original proof owner poisoned".into())
+            }
+            Err(std::sync::TryLockError::WouldBlock) => std::thread::yield_now(),
+        }
     }
 }
 #[derive(Clone, Serialize)]
@@ -194,7 +374,38 @@ pub struct ResultData {
     pub scope: &'static str,
     pub exercise_policies: Vec<ExerciseReceipt>,
     pub original_physical_sources: Vec<NativeSource>,
-    pub original_acquisition_proofs: Vec<Value>,
+    pub original_acquisition_proofs: Vec<OriginalAcquisitionProof>,
+}
+/// Public JSON retains the historical complete proof, while a generated graph
+/// serializes its already retained sealed proof instead of owning a second JSON
+/// document for every original path.
+pub struct OriginalAcquisitionProof(OriginalProofOwner);
+enum OriginalProofOwner {
+    Finite(Value),
+    Generated(std::sync::Arc<std::sync::Mutex<owner::NativeOriginalAcquisitionProof>>),
+}
+impl From<Value> for OriginalAcquisitionProof {
+    fn from(value: Value) -> Self {
+        Self(OriginalProofOwner::Finite(value))
+    }
+}
+impl OriginalAcquisitionProof {
+    pub(crate) fn generated(
+        proof: std::sync::Arc<std::sync::Mutex<owner::NativeOriginalAcquisitionProof>>,
+    ) -> Self {
+        Self(OriginalProofOwner::Generated(proof))
+    }
+}
+impl Serialize for OriginalAcquisitionProof {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match &self.0 {
+            OriginalProofOwner::Finite(value) => value.serialize(serializer),
+            OriginalProofOwner::Generated(proof) => {
+                let proof = lock_original_proof(proof).map_err(serde::ser::Error::custom)?;
+                proof.serialize(serializer)
+            }
+        }
+    }
 }
 #[derive(Serialize)]
 pub struct ExerciseReceipt {
@@ -294,7 +505,17 @@ pub(crate) fn validate_history(
 }
 /// Charges original calibration, all roles, report marks and retained receipts
 /// before any financial generator executes.
+/// Historical admission metadata remains exactly unchanged.
 pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
+    Ok(audit_capacity(r)?.work_upper)
+}
+/// Complete existing graph census, including retained Q/P receipts and owners.
+/// Borrowing coordinators must charge the byte census as well as source work.
+pub struct Capacity {
+    pub work_upper: usize,
+    pub retained_bytes_upper: usize,
+}
+pub fn audit_capacity(r: &Request) -> Result<Capacity, String> {
     check()?;
     if r.schema != SCHEMA
         || r.positions.is_empty()
@@ -396,6 +617,15 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
                 }
             }
         }
+        if let Some(fees) = &p.fees {
+            let (w, b) = crate::products::commercial::fee_source::adoption::audit(fees, r, p)?;
+            work = work
+                .checked_add(w)
+                .ok_or("commercial fee graph joined work overflow")?;
+            bytes = bytes
+                .checked_add(b)
+                .ok_or("commercial fee graph joined retention overflow")?;
+        }
         if let Some(generated) = &p.generated_policy {
             let upper = crate::products::commercial::generated_graph::admit(r, p, generated)?;
             work = work
@@ -457,9 +687,12 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
                     return Err("commercial paired scenarios and bumps require the exact shared draw stream/path key".into());
                 }
                 by_path.entry(h.path_id.clone()).or_insert(binding);
-                let anchor = exact(
-                    &serde_json::json!({"source":h.source.source.original,"acquisition":h.source.source.acquisition}),
-                )?;
+                let mut anchor_raw = serde_json::json!({"source":h.source.source.original,"acquisition":h.source.source.acquisition});
+                if let Some(transfer) = &h.source.source.transfer {
+                    anchor_raw["secondary_transfer"] =
+                        serde_json::to_value(transfer).map_err(|e| e.to_string())?;
+                }
+                let anchor = exact(&anchor_raw)?;
                 let original = if role == Role::Physical {
                     &mut physical_origins
                 } else {
@@ -481,8 +714,10 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
                     .checked_add(admitted.joined_bytes_upper)
                     .ok_or("commercial graph bytes overflow")?;
                 if role == Role::Physical {
-                    // Keep the sealed financial owner alongside its JSON
-                    // receipt for native candidate journal reuse.
+                    // Preserve the historical allowance while independent
+                    // source/private-allocation and complete cut bounds remain
+                    // open. Finite proofs now serialize the same sealed owner;
+                    // this representation change grants no admission discount.
                     bytes = bytes
                         .checked_add(admitted.joined_bytes_upper)
                         .ok_or("commercial retained journal owner bytes overflow")?;
@@ -593,18 +828,43 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
                 .collect::<Vec<_>>();
             work = work
                 .checked_add(
-                    crate::products::commercial::exercise::admitted_work(policy, &originals)?
-                        .checked_mul(102)
-                        .ok_or("original continuation solve work overflow")?,
+                    (if p.fees.is_some() {
+                        crate::products::commercial::exercise::admitted_reduction_work(
+                            policy, &originals,
+                        )
+                    } else {
+                        crate::products::commercial::exercise::admitted_work(policy, &originals)
+                    })?
+                    .checked_mul(
+                        if matches!(p.oas_target, OasTarget::Locked { .. })
+                            && (p.fees.is_some()
+                                || p.original_pricing
+                                    .iter()
+                                    .any(|h| h.source.factor_policy.terminal_obligations.is_some()))
+                        {
+                            1
+                        } else {
+                            // Complete omitted-fee receipts retain historical
+                            // admission metadata, including locked finite options.
+                            102
+                        },
+                    )
+                    .ok_or("original continuation solve work overflow")?,
                 )
                 .ok_or("commercial continuation aggregate overflow")?;
             for set in &p.histories {
                 for hs in [&set.pricing, &set.pricing_down, &set.pricing_up] {
                     let raws = hs.iter().map(|h| (&h.source, h.weight)).collect::<Vec<_>>();
                     work = work
-                        .checked_add(crate::products::commercial::exercise::admitted_work(
-                            policy, &raws,
-                        )?)
+                        .checked_add(
+                            (if p.fees.is_some() {
+                                crate::products::commercial::exercise::admitted_reduction_work(
+                                    policy, &raws,
+                                )
+                            } else {
+                                crate::products::commercial::exercise::admitted_work(policy, &raws)
+                            })?,
+                        )
                         .ok_or("commercial current continuation work overflow")?;
                 }
             }
@@ -623,7 +883,10 @@ pub fn audit_admitted_work(r: &Request) -> Result<usize, String> {
             "joined commercial graph work/retention exceeds 32M/128MiB before generation".into(),
         );
     }
-    Ok(work)
+    Ok(Capacity {
+        work_upper: work,
+        retained_bytes_upper: bytes,
+    })
 }
 fn generate(
     p: &Position,
@@ -632,19 +895,38 @@ fn generate(
     scene: &Scenario,
 ) -> Result<NativeSource, String> {
     check()?;
-    let (cash, projection, physical_projection) = if role == Role::Physical {
+    let fee_history = p
+        .fees
+        .as_ref()
+        .map(|s| s.history(&scene.scenario_id, role, &h.path_id, false))
+        .transpose()?;
+    let (cash, projection, fee_projection) = if role == Role::Physical {
         let v = owner::evaluate(&h.source)?;
+        let fees = p
+            .fees
+            .as_ref()
+            .zip(fee_history)
+            .map(|(s, f)| crate::products::commercial::fee_source::adoption::physical(s, f, &v))
+            .transpose()?;
         (
             economic_cash(v.carry())?,
-            serde_json::to_value(&v).map_err(|e| e.to_string())?,
-            Some(Box::new(v)),
+            SourceProjection(ProjectionOwner::Physical(Box::new(v))),
+            fees.map(Box::new),
         )
     } else {
         let v = owner::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing)?;
+        let fees = p
+            .fees
+            .as_ref()
+            .zip(fee_history)
+            .map(|(s, f)| {
+                crate::products::commercial::fee_source::adoption::pricing(s, f, &h.source, &v)
+            })
+            .transpose()?;
         (
             economic_cash(v.carry())?,
-            serde_json::to_value(v).map_err(|e| e.to_string())?,
-            None,
+            SourceProjection(ProjectionOwner::Pricing(Rc::new(v))),
+            fees.map(Box::new),
         )
     };
     Ok(NativeSource {
@@ -657,23 +939,31 @@ fn generate(
         role,
         source_request: h.source.clone(),
         cash,
+        fee_projection,
         projection,
-        physical_projection,
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
-fn pricing_bundle(hs: &[History]) -> Result<Vec<owner::EconomicResult>, String> {
+fn pricing_bundle(hs: &[History]) -> Result<Vec<Rc<owner::EconomicResult>>, String> {
     hs.iter()
-        .map(|h| owner::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing))
+        .map(|h| {
+            owner::evaluate_economic_with_measure(&h.source, CreditMeasure::Pricing).map(Rc::new)
+        })
         .collect()
 }
 fn compile_policy(
     policy: &crate::products::commercial::exercise::Policy,
     hs: &[History],
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
     scene: &Scenario,
     oas: f64,
     bump: f64,
+    fees: Option<(
+        &crate::products::commercial::fee_source::adoption::Selection,
+        Role,
+        bool,
+    )>,
 ) -> Result<crate::products::commercial::exercise::NativeExercisePolicy, String> {
     let views = hs
         .iter()
@@ -686,6 +976,24 @@ fn compile_policy(
             },
         )
         .collect::<Vec<_>>();
+    if let Some((fees, role, original)) = fees {
+        let policies = hs
+            .iter()
+            .map(|h| {
+                fees.history(&scene.scenario_id, role, &h.path_id, original)
+                    .map(|h| &h.policy)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        return crate::products::commercial::exercise::compile_with_fees(
+            policy,
+            &views,
+            &policies,
+            &scene.collateral_curve,
+            oas,
+            fees.discount_spread,
+            bump,
+        );
+    }
     crate::products::commercial::exercise::compile(
         policy,
         &views,
@@ -694,12 +1002,33 @@ fn compile_policy(
         bump,
     )
 }
+fn exercise_stops(
+    p: &Position,
+    h: &History,
+    c: &portfolio_model_core::credit_path_income::ResultData,
+    policy: &crate::products::commercial::exercise::NativeExercisePolicy,
+    scene: &Scenario,
+    role: Role,
+    original: bool,
+) -> Result<Vec<owner::NativeStop>, String> {
+    if let Some(fees) = &p.fees {
+        policy.stops_for_with_fees(
+            &h.source,
+            c,
+            &fees
+                .history(&scene.scenario_id, role, &h.path_id, original)?
+                .policy,
+        )
+    } else {
+        policy.stops_for(&h.source, c)
+    }
+}
 fn source_from_economic(
     p: &Position,
     h: &History,
     role: Role,
     scene: &Scenario,
-    v: &owner::EconomicResult,
+    v: &Rc<owner::EconomicResult>,
 ) -> Result<NativeSource, String> {
     Ok(NativeSource {
         position_id: p.position_id.clone(),
@@ -711,29 +1040,57 @@ fn source_from_economic(
         role,
         source_request: h.source.clone(),
         cash: economic_cash(v.carry())?,
-        projection: serde_json::to_value(v).map_err(|e| e.to_string())?,
-        physical_projection: None,
+        fee_projection: None,
+        projection: SourceProjection(ProjectionOwner::Pricing(Rc::clone(v))),
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
 fn stopped_pricing(
     p: &Position,
     hs: &[History],
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
     role: Role,
     scene: &Scenario,
     policy: &crate::products::commercial::exercise::NativeExercisePolicy,
+    original: bool,
 ) -> Result<Vec<NativeSource>, String> {
     let mut sources = Vec::new();
     for (h, v) in hs.iter().zip(bundle) {
         check()?;
-        let stops = policy.stops_for(&h.source, v.carry())?;
+        let stops = exercise_stops(p, h, v.carry(), policy, scene, role, original)?;
         if stops.is_empty() {
-            sources.push(source_from_economic(p, h, role, scene, v)?);
+            let mut source = source_from_economic(p, h, role, scene, v)?;
+            if let Some(fees) = &p.fees {
+                source.fee_projection = Some(Box::new(
+                    crate::products::commercial::fee_source::adoption::pricing(
+                        fees,
+                        fees.history(&scene.scenario_id, role, &h.path_id, original)?,
+                        &h.source,
+                        v,
+                    )?,
+                ));
+            }
+            sources.push(source);
         } else {
-            let revised =
-                owner::evaluate_economic_with_stops(&h.source, CreditMeasure::Pricing, &stops)?;
-            sources.push(source_from_economic(p, h, role, scene, &revised)?);
+            let revised = Rc::new(owner::evaluate_economic_with_stops(
+                &h.source,
+                CreditMeasure::Pricing,
+                &stops,
+            )?);
+            let mut source = source_from_economic(p, h, role, scene, &revised)?;
+            if let Some(fees) = &p.fees {
+                source.fee_projection = Some(Box::new(
+                    crate::products::commercial::fee_source::adoption::pricing_with_stops(
+                        fees,
+                        fees.history(&scene.scenario_id, role, &h.path_id, original)?,
+                        &h.source,
+                        &revised,
+                        &stops,
+                    )?,
+                ));
+            }
+            sources.push(source);
         }
     }
     Ok(sources)
@@ -744,19 +1101,39 @@ fn physical_with_policy(
     scene: &Scenario,
     policy: &crate::products::commercial::exercise::NativeExercisePolicy,
     acquisition: Option<&owner::NativeOriginalAcquisitionProof>,
+    original: bool,
 ) -> Result<NativeSource, String> {
     let revised = if let Some(proof) = acquisition {
         let prefix = owner::evaluate_physical_prefix_for_acquisition(&h.source)?;
-        let stops = policy.stops_for(&h.source, prefix.carry())?;
+        let stops = exercise_stops(
+            p,
+            h,
+            prefix.carry(),
+            policy,
+            scene,
+            Role::Physical,
+            original,
+        )?;
         owner::evaluate_with_native_original_acquisition(&h.source, &stops, proof)?
     } else {
         let raw = owner::evaluate(&h.source)?;
-        let stops = policy.stops_for(&h.source, raw.carry())?;
+        let stops = exercise_stops(p, h, raw.carry(), policy, scene, Role::Physical, original)?;
         if stops.is_empty() {
             raw
         } else {
             owner::evaluate_with_stops(&h.source, &stops)?
         }
+    };
+    let fee_projection = if let Some(fees) = &p.fees {
+        Some(Box::new(
+            crate::products::commercial::fee_source::adoption::physical(
+                fees,
+                fees.history(&scene.scenario_id, Role::Physical, &h.path_id, original)?,
+                &revised,
+            )?,
+        ))
+    } else {
+        None
     };
     Ok(NativeSource {
         position_id: p.position_id.clone(),
@@ -768,14 +1145,15 @@ fn physical_with_policy(
         role: Role::Physical,
         source_request: h.source.clone(),
         cash: economic_cash(revised.carry())?,
-        projection: serde_json::to_value(&revised).map_err(|e| e.to_string())?,
-        physical_projection: Some(Box::new(revised)),
+        fee_projection,
+        projection: SourceProjection(ProjectionOwner::Physical(Box::new(revised))),
         generated_projection: None,
+        generated_fee_projection: None,
     })
 }
 /// Native discounting excludes already settled cash and uses exact event time;
 /// the immutable original OAS and parallel bump enter once each.
-pub fn price(
+pub(crate) fn loan_price(
     source: &NativeSource,
     curve: &crate::market::analysis::curves::SuppliedCurve,
     asof: i32,
@@ -800,6 +1178,35 @@ pub fn price(
     }
     Ok(sum)
 }
+pub fn price(
+    source: &NativeSource,
+    curve: &crate::market::analysis::curves::SuppliedCurve,
+    asof: i32,
+    mark: i32,
+    oas: f64,
+    bump: f64,
+) -> Result<f64, String> {
+    let loan = loan_price(source, curve, asof, mark, oas, bump)?;
+    if let Some(fees) = &source.fee_projection {
+        money(loan + fees.price(curve, asof, mark, bump)?)
+    } else if let Some(fees) = source.generated_fee_source() {
+        money(loan + fees.price(curve, asof, mark, bump, false)?)
+    } else {
+        Ok(loan)
+    }
+}
+fn weighted_loan_price(
+    sources: &[NativeSource],
+    curve: &crate::market::analysis::curves::SuppliedCurve,
+    asof: i32,
+    mark: i32,
+    oas: f64,
+    bump: f64,
+) -> Result<f64, String> {
+    sources.iter().try_fold(0., |sum, s| {
+        money(sum + s.weight * loan_price(s, curve, asof, mark, oas, bump)?)
+    })
+}
 fn weighted_price(
     sources: &[NativeSource],
     curve: &crate::market::analysis::curves::SuppliedCurve,
@@ -816,7 +1223,7 @@ fn solve(
     p: &Position,
     sources: &[NativeSource],
     r: &Request,
-    bundle: &[owner::EconomicResult],
+    bundle: &[Rc<owner::EconomicResult>],
 ) -> Result<f64, String> {
     if let OasTarget::Locked { base_oas, .. } = p.oas_target {
         return Ok(base_oas);
@@ -828,8 +1235,62 @@ fn solve(
         return Err("signed draw/coupon Pricing cash requires explicit locked original OAS".into());
     }
     let curve = &r.original_scenario.collateral_curve;
+    // Freeze the actual native stopped loan/fee cash once. Original OAS trials
+    // only discount and regroup this immutable source; they never regenerate it.
+    let fee_views = p
+        .original_pricing
+        .iter()
+        .zip(bundle)
+        .map(
+            |(h, v)| crate::products::commercial::exercise::PricingView {
+                raw: &h.source,
+                carry: v.carry(),
+                weight: h.weight,
+            },
+        )
+        .collect::<Vec<_>>();
+    let fee_policies = if let (Some(_), Some(fees)) = (&p.exercise, &p.fees) {
+        p.original_pricing
+            .iter()
+            .map(|h| {
+                fees.history(
+                    &r.original_scenario.scenario_id,
+                    Role::Pricing,
+                    &h.path_id,
+                    true,
+                )
+                .map(|h| &h.policy)
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        Vec::new()
+    };
+    let prepared_fees = if let (Some(policy), Some(_)) = (&p.exercise, &p.fees) {
+        Some(crate::products::commercial::exercise::prepare_with_fees(
+            policy,
+            &fee_views,
+            &fee_policies,
+        )?)
+    } else {
+        None
+    };
     let original_price = |oas: f64| -> Result<f64, String> {
         if let Some(policy) = &p.exercise {
+            if let (Some(prepared), Some(fees)) = (&prepared_fees, &p.fees) {
+                return Ok(prepared
+                    .compile(
+                        policy,
+                        &fee_views,
+                        &fee_policies,
+                        crate::products::commercial::exercise::FeeDiscounts {
+                            curve,
+                            oas,
+                            spread: fees.discount_spread,
+                            bump: 0.,
+                        },
+                    )?
+                    .loan_value());
+            }
             Ok(compile_policy(
                 policy,
                 &p.original_pricing,
@@ -837,8 +1298,9 @@ fn solve(
                 &r.original_scenario,
                 oas,
                 0.,
+                p.fees.as_ref().map(|f| (f, Role::Pricing, true)),
             )?
-            .value)
+            .loan_value())
         } else {
             weighted_price(sources, curve, r.as_of_ordinal, r.as_of_ordinal, oas, 0.)
         }
@@ -862,6 +1324,27 @@ fn solve(
     Ok((lo + hi) / 2.)
 }
 pub fn analyze(r: &Request) -> Result<ResultData, String> {
+    analyze_observed(r, None)
+}
+
+/// Observe the existing complete finite source proofs without repricing,
+/// regenerating, changing admission or granting publication eligibility.
+/// Generated selections reject before any financial generation, including when
+/// mixed with otherwise finite positions.
+pub fn analyze_with_source_observer(
+    r: &Request,
+    observer: &mut SourceObserver<'_>,
+) -> Result<ResultData, String> {
+    if r.positions.iter().any(|p| p.generated_policy.is_some()) {
+        return Err("finite commercial source observer does not support generated policies".into());
+    }
+    analyze_observed(r, Some(observer))
+}
+
+fn analyze_observed(
+    r: &Request,
+    mut observer: Option<&mut SourceObserver<'_>>,
+) -> Result<ResultData, String> {
     let work = audit_admitted_work(r)?;
     if let Some(generated) = r.positions[0].generated_policy.as_ref() {
         return crate::products::commercial::generated_graph::analyze(
@@ -877,7 +1360,8 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
     let mut exercise_policies = Vec::new();
     let mut original_physical_sources = Vec::new();
     let mut original_acquisition_proofs = Vec::new();
-    for p in &r.positions {
+    for (position_index, p) in r.positions.iter().enumerate() {
+        let original_physical_begin = original_physical_sources.len();
         let original_bundle = pricing_bundle(&p.original_pricing)?;
         let mut original = p
             .original_pricing
@@ -895,6 +1379,7 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                 &r.original_scenario,
                 oas,
                 0.,
+                p.fees.as_ref().map(|f| (f, Role::Pricing, true)),
             )?;
             original = stopped_pricing(
                 p,
@@ -903,6 +1388,7 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                 Role::Pricing,
                 &r.original_scenario,
                 &policy,
+                true,
             )?;
             let cash_value = weighted_price(
                 &original,
@@ -927,7 +1413,17 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                     .original_physical
                     .iter()
                     .zip(&prefixes)
-                    .map(|(h, v)| policy.stops_for(&h.source, v.carry()))
+                    .map(|(h, v)| {
+                        exercise_stops(
+                            p,
+                            h,
+                            v.carry(),
+                            &policy,
+                            &r.original_scenario,
+                            Role::Physical,
+                            true,
+                        )
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 let inputs = p
                     .original_physical
@@ -943,10 +1439,14 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                         &r.original_scenario,
                         &policy,
                         Some(&proof),
+                        true,
                     )?);
                 }
-                original_acquisition_proofs
-                    .push(serde_json::to_value(&proof).map_err(|e| e.to_string())?);
+                original_acquisition_proofs.push(
+                    serde_json::to_value(&proof)
+                        .map_err(|e| e.to_string())?
+                        .into(),
+                );
                 acquisition = Some(proof);
             }
             exercise_policies.push(ExerciseReceipt {
@@ -957,7 +1457,7 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
             });
         }
         if !close(
-            weighted_price(
+            weighted_loan_price(
                 &original,
                 &r.original_scenario.collateral_curve,
                 r.as_of_ordinal,
@@ -977,7 +1477,64 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
             base_oas: oas,
             original_signed_cash_quote: p.original_signed_cash_quote,
         });
-        for scene in &r.scenarios {
+        if let Some(fees) = &p.fees {
+            let mut original_fee_value = 0.;
+            for ((h, owner), source) in p
+                .original_pricing
+                .iter()
+                .zip(&original_bundle)
+                .zip(&mut original)
+            {
+                if source.fee_projection.is_none() {
+                    let policy = fees.history(
+                        &r.original_scenario.scenario_id,
+                        Role::Pricing,
+                        &h.path_id,
+                        true,
+                    )?;
+                    source.fee_projection = Some(Box::new(
+                        crate::products::commercial::fee_source::adoption::pricing(
+                            fees, policy, &h.source, owner,
+                        )?,
+                    ));
+                }
+                let projection = source
+                    .fee_projection
+                    .as_ref()
+                    .ok_or("original fee stopped source absent")?;
+                original_fee_value = money(
+                    original_fee_value
+                        + h.weight
+                            * projection.original_price(
+                                &r.original_scenario.collateral_curve,
+                                r.as_of_ordinal,
+                            )?,
+                )?;
+            }
+            if !close(original_fee_value, fees.original_signed_fee_quote) {
+                return Err("separate original fee quote does not reconcile complete native Pricing fee cash at its own spread".into());
+            }
+        }
+        observe_sources(
+            &mut observer,
+            ProofScope::OriginalPricing,
+            position_index,
+            None,
+            &original,
+        )?;
+        observe_sources(
+            &mut observer,
+            ProofScope::OriginalPhysical,
+            position_index,
+            None,
+            &original_physical_sources[original_physical_begin..],
+        )?;
+        // Complete original Pricing proofs have been observed and all anchors
+        // established. They never belong to the current-source result. Release
+        // both shared references before retaining current scenario owners.
+        drop(original);
+        drop(original_bundle);
+        for (scenario_index, scene) in r.scenarios.iter().enumerate() {
             let h = p
                 .histories
                 .iter()
@@ -986,7 +1543,15 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
             let begin = native_sources.len();
             if let Some(exercise) = &p.exercise {
                 let bundle = pricing_bundle(&h.pricing)?;
-                let policy = compile_policy(exercise, &h.pricing, &bundle, scene, oas, 0.)?;
+                let policy = compile_policy(
+                    exercise,
+                    &h.pricing,
+                    &bundle,
+                    scene,
+                    oas,
+                    0.,
+                    p.fees.as_ref().map(|f| (f, Role::Pricing, false)),
+                )?;
                 for source in &h.physical {
                     native_sources.push(physical_with_policy(
                         p,
@@ -994,10 +1559,11 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                         scene,
                         &policy,
                         acquisition.as_ref(),
+                        false,
                     )?);
                 }
                 let priced =
-                    stopped_pricing(p, &h.pricing, &bundle, Role::Pricing, scene, &policy)?;
+                    stopped_pricing(p, &h.pricing, &bundle, Role::Pricing, scene, &policy, false)?;
                 if !close(
                     weighted_price(
                         &priced,
@@ -1029,8 +1595,16 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                     (Role::PricingUp, h.pricing_up.as_slice(), r.bump_bp * 1e-4),
                 ] {
                     let bundle = pricing_bundle(hs)?;
-                    let policy = compile_policy(exercise, hs, &bundle, scene, oas, bump)?;
-                    let priced = stopped_pricing(p, hs, &bundle, role, scene, &policy)?;
+                    let policy = compile_policy(
+                        exercise,
+                        hs,
+                        &bundle,
+                        scene,
+                        oas,
+                        bump,
+                        p.fees.as_ref().map(|f| (f, role, false)),
+                    )?;
+                    let priced = stopped_pricing(p, hs, &bundle, role, scene, &policy, false)?;
                     if !close(
                         weighted_price(
                             &priced,
@@ -1101,6 +1675,13 @@ pub fn analyze(r: &Request) -> Result<ResultData, String> {
                     dv01: money((down - up) / (2. * r.bump_bp))?,
                 });
             }
+            observe_sources(
+                &mut observer,
+                ProofScope::Current,
+                position_index,
+                Some(scenario_index),
+                &native_sources[begin..],
+            )?;
         }
     }
     let out=ResultData{schema:SCHEMA,raw_source:r.clone(),original_oas:anchors,native_sources,metrics,admitted_work_upper:work,

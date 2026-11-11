@@ -28,6 +28,10 @@ preserve exact retry identity without replacing original deadlines or inputs.
   upstream per-pool mortgage prepayment multiplier and deposit terminal policy.
   `abi_generated.py`, `abi_operations.rs` and [native-abi-layouts.md](native-abi-layouts.md)
   are generated. Native domain/shape validation still executes in Rust.
+- `native-income-coefficients-1.json`: additive versioned native reduction of
+  retained service fee coefficients, with separate fee and combined-income
+  disclosures. It does not change numeric ABI 10, external NII or the strategy
+  objective. Matching exports and retained selected fee coefficients are required.
 - `dependency-baseline.json`: reviewed existing cycle edges. This includes deferred
   reference/compatibility paths between Python products, analytics and core adapters;
   package reexports; and application worker/session dependencies. These are not

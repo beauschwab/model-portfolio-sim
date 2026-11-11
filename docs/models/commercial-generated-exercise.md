@@ -81,6 +81,14 @@ Basis richness and path count must be considered together; the controlled
 checks here do not establish general convergence, as discussed by
 [Glasserman and Yu](https://business.columbia.edu/faculty/research/number-paths-versus-number-basis-functions-american-option-pricing).
 
+Explicit linear and cubic policies now permit controlled basis refinement while
+the existing quadratic selection retains historical results. The selected degree
+uses the same training-only state/normalization and existing work budget; it is
+never chosen from evaluation outcomes. See [basis policies and independent
+normal-integral controls](commercial-policy-refinement.md) for identities,
+column counts, supported controls and interpretation of sampling versus policy
+approximation error. These controls do not turn the general convergence flag on.
+
 Backward induction chooses Call/Put/Continue using the fitted conditional
 continuation. Continue retains the realized discounted continuation target;
 the fitted value is not substituted for actual policy cash. Simultaneous

@@ -193,7 +193,7 @@ pub(crate) fn decode_selected(
     ))
 }
 
-fn window(tables: &Tables, specification: &Value, cut: usize) -> Result<Tables, String> {
+pub(crate) fn window(tables: &Tables, specification: &Value, cut: usize) -> Result<Tables, String> {
     let mut prefix = BTreeMap::<Key, f64>::new();
     let mut journal = Vec::new();
     let mut last = BTreeMap::<String, (usize, usize)>::new();
@@ -326,6 +326,17 @@ fn window(tables: &Tables, specification: &Value, cut: usize) -> Result<Tables, 
                 .cloned()
                 .collect(),
         );
+    }
+    for name in ["commercial_fee_daily", "commercial_fee_closing"] {
+        if let Some(rows) = tables.get(name) {
+            result.insert(
+                name.into(),
+                rows.iter()
+                    .filter(|r| r["day"].as_u64().is_some_and(|d| d >= cut as u64))
+                    .cloned()
+                    .collect(),
+            );
+        }
     }
     // Every non-P&L closing amount must reproduce the complete-origin native GL.
     for row in tables

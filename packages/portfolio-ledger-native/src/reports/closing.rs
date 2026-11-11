@@ -11,6 +11,12 @@ pub struct Reports {
     attribution: BTreeMap<(String, String, String), [f64; 3]>,
 }
 impl Reports {
+    /// Begin a genuine resumed window after a reconciled native prefix. Other
+    /// scenarios' completed attribution remains available for comparisons.
+    pub(crate) fn begin_cut_window(&mut self, scenario: &str) {
+        self.replay.clear();
+        self.attribution.retain(|(run, _, _), _| run != scenario);
+    }
     pub fn posting(&mut self, account: usize, gl: usize, instrument: usize, value: f64) {
         *self.replay.entry((account, gl, instrument)).or_default() += value;
     }
@@ -89,6 +95,8 @@ impl Reports {
                     | "credit_default_deferred_income"
                     | "commercial_fee_payable"
                     | "commercial_deferred_fee_income"
+                    | "commercial_acquired_fee_liability"
+                    | "commercial_acquired_fee_liability_valuation_adjustment"
                     | "derivative_liability"
                     | "derivative_unpaid_payable"
                     | "derivative_received_vm_liability"
@@ -162,5 +170,62 @@ impl Reports {
             }
         }
         rows
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn close(stock: &[(&str, f64)]) -> Value {
+        let account: Account = serde_json::from_value(json!({
+            "id":"bank","entity":"bank","currency":"USD","cash":1000.,"equity":1000.
+        }))
+        .unwrap();
+        let mut dictionary = vec!["bank".into(), "fee".into()];
+        let mut reports = Reports::default();
+        let mut trial = Vec::new();
+        for &(name, value) in stock {
+            let gl = dictionary.len();
+            dictionary.push(name.into());
+            reports.posting(0, gl, 1, value);
+            trial.push((0, gl, 1, value));
+        }
+        reports
+            .close("baseline", &[account], &trial, &dictionary)
+            .unwrap()
+            .into_iter()
+            .find(|(name, _)| *name == "closing_statements")
+            .unwrap()
+            .1
+    }
+    #[test]
+    fn conveyed_gross_liability_and_positive_adjustment_remain_liabilities() {
+        let row = close(&[
+            ("cash", 1005.),
+            ("opening_equity", -1000.),
+            ("commercial_fee_payable", -6.),
+            ("commercial_acquired_fee_liability_valuation_adjustment", 1.),
+        ]);
+        assert_eq!(row["assets"], 1005.);
+        assert_eq!(row["liabilities"], 5.);
+        assert_eq!(row["equity"], 1000.);
+        let row = close(&[
+            ("cash", 1005.),
+            ("opening_equity", -1000.),
+            ("commercial_acquired_fee_liability", -5.),
+        ]);
+        assert_eq!(row["assets"], 1005.);
+        assert_eq!(row["liabilities"], 5.);
+    }
+    #[test]
+    fn acquired_gross_asset_and_negative_adjustment_remain_assets() {
+        let row = close(&[
+            ("cash", 995.),
+            ("opening_equity", -1000.),
+            ("commercial_fee_receivable", 6.),
+            ("commercial_acquired_fee_asset_valuation_adjustment", -1.),
+        ]);
+        assert_eq!(row["assets"], 1000.);
+        assert_eq!(row["liabilities"], 0.);
     }
 }

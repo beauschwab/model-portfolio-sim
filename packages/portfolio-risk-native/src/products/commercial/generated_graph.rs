@@ -15,11 +15,20 @@ fn check() -> Result<(), String> {
 fn equal<T: Serialize>(a: &T, b: &T) -> Result<bool, String> {
     Ok(strict_json::encode(a, 4 << 20)? == strict_json::encode(b, 4 << 20)?)
 }
+/// Retained P recipes and their shared original proof after all public graph
+/// metadata is emitted and all Q/original receipt buffers are dropped. This
+/// excludes the separately charged live full accounting owner and compact Sim.
+pub fn physical_journal_retained_upper(g: &generated::Request) -> Result<usize, String> {
+    generated::physical_journal_retained_upper(g)
+}
+
 pub fn admit(
     r: &graph::Request,
     p: &graph::Position,
     g: &generated::Request,
 ) -> Result<generated::Admission, String> {
+    let selected = generated::selected_request(g)?;
+    let g = selected.as_ref();
     if r.positions.len() != 1
         || p.exercise.is_some()
         || !p.histories.is_empty()
@@ -97,6 +106,18 @@ pub fn admit(
             }
         }
     }
+    if let Some(fees) = &g.fee_acquisition {
+        if (fees.total_purchase_cost
+            - p.original_signed_cash_quote
+            - fees.original_signed_fee_quote)
+            .abs()
+            > 1e-9 + 1e-12 * fees.total_purchase_cost.abs()
+        {
+            return Err(
+                "generated total purchase cash must equal separate loan and fee quotes".into(),
+            );
+        }
+    }
     let mut upper = generated::admit(g)?;
     let add = |a: usize, b: usize| a.checked_add(b).ok_or("generated graph capacity overflow");
     let mul = |a: usize, b: usize| a.checked_mul(b).ok_or("generated graph capacity overflow");
@@ -110,24 +131,16 @@ pub fn admit(
         upper.retained_bytes_upper = add(
             upper.retained_bytes_upper,
             mul(
-                generated::raw_recipe_upper(&law.source)?,
+                generated::current_physical_source_capacity(g, law)?.raw_recipe_bytes_upper,
                 law.evaluation.paths,
-            )?,
+            )?
+            .checked_sub(generated::shared_authority_lower(g, law, false)?)
+            .ok_or("shared Physical authority reservation differs")?,
         )?;
     }
-    // Public original proof JSON coexists with the private immutable native proof.
-    let proof_raw = strict_json::serialized_size(&*g.original_physical.source, 1 << 20)?;
-    let proof_cash = mul(
-        g.original_physical.source.source.current.periods.len() + 36,
-        1536,
-    )?;
-    upper.retained_bytes_upper = add(
-        upper.retained_bytes_upper,
-        mul(
-            add(mul(proof_raw, 20)?, proof_cash)?,
-            g.original_physical.evaluation.paths,
-        )?,
-    )?;
+    // The public proof is a Serialize view of the SAME native Arc owner. There
+    // is no eager second Value tree; the generated admission already reserves
+    // the original EconomicSource/proof/raw-binding owners and cash partitions.
     if let Some(policy) = &g.oas_calibration {
         let (work, bytes) = stochastic::calibration::admitted(&g.pricing_training, policy)?;
         let (original_work, _) = stochastic::admit(&g.pricing_training)?;
@@ -160,7 +173,7 @@ fn source(
     role: Role,
     s: generated::EconomicSource,
 ) -> graph::NativeSource {
-    let (raw, stops, cash, weight) = s.into_parts();
+    let (raw, stops, cash, weight, generated_fee_projection) = s.into_parts();
     graph::NativeSource {
         position_id: p.position_id.clone(),
         scenario_id: scene.scenario_id.clone(),
@@ -169,11 +182,14 @@ fn source(
         path_key: raw.credit.paths[0].path_key,
         weight,
         role,
-        projection: json!({"schema":"commercial-generated-source-1","source_binding":"retained_source_request-1","native_stops":stops,"credit_measure":if role==Role::Physical{"physical"}else{"pricing"}}),
+        projection: graph::SourceProjection::generated(
+            json!({"schema":"commercial-generated-source-1","source_binding":"retained_source_request-1","native_stops":stops,"credit_measure":if role==Role::Physical{"physical"}else{"pricing"}}),
+        ),
         source_request: raw,
         cash,
-        physical_projection: None,
         generated_projection: None,
+        fee_projection: None,
+        generated_fee_projection: generated_fee_projection.map(Box::new),
     }
 }
 fn receipt(
@@ -199,7 +215,7 @@ fn weighted(
 ) -> Result<f64, String> {
     sources.iter().try_fold(0., |sum, s| {
         graph::money(
-            sum + s.weight * graph::price(s, &scene.collateral_curve, asof, mark, oas, bump)?,
+            sum + s.weight * graph::loan_price(s, &scene.collateral_curve, asof, mark, oas, bump)?,
         )
     })
 }
@@ -209,6 +225,8 @@ pub fn analyze(
     g: &generated::Request,
     work: usize,
 ) -> Result<graph::ResultData, String> {
+    let selected = generated::selected_request(g)?;
+    let g = selected.as_ref();
     check()?;
     let (prepared, base_oas, calibration) = if let Some(policy) = &g.oas_calibration {
         let solved = stochastic::calibration::solve(
@@ -263,6 +281,31 @@ pub fn analyze(
     {
         return Err("locked original generated OAS does not reconcile separately retained original Q fitted-policy cash quote".into());
     }
+    if let Some(fees) = &g.fee_acquisition {
+        let actual = native_sources.iter().try_fold(0., |sum, source| {
+            let fee = source
+                .generated_fee_source()
+                .ok_or("original generated fee source absent")?;
+            graph::money(
+                sum + source.weight
+                    * fee.price(
+                        &r.original_scenario.collateral_curve,
+                        r.as_of_ordinal,
+                        r.as_of_ordinal,
+                        0.,
+                        true,
+                    )?,
+            )
+        })?;
+        if (actual - fees.original_signed_fee_quote).abs()
+            > 1e-9 + 1e-12 * fees.original_signed_fee_quote.abs()
+        {
+            return Err(
+                "generated original separate fee quote differs from joint stopped native Q cash"
+                    .into(),
+            );
+        }
+    }
     let original_physical_sources = prepared
         .original_physical_sources
         .into_iter()
@@ -270,12 +313,9 @@ pub fn analyze(
         .collect();
     let original_proof =
         std::sync::Arc::new(std::sync::Mutex::new(prepared.original_acquisition_proof));
-    let original_acquisition_proofs = vec![serde_json::to_value(
-        &*original_proof
-            .lock()
-            .map_err(|_| "generated original proof owner poisoned")?,
-    )
-    .map_err(|e| e.to_string())?];
+    let original_acquisition_proofs = vec![graph::OriginalAcquisitionProof::generated(
+        original_proof.clone(),
+    )];
     for physical in prepared.current_physical {
         let scene = r
             .scenarios
@@ -296,9 +336,10 @@ pub fn analyze(
                 role: Role::Physical,
                 source_request: raw,
                 cash,
-                projection,
-                physical_projection: None,
+                projection: graph::SourceProjection::generated(projection),
                 generated_projection: Some((Box::new(s), original_proof.clone())),
+                fee_projection: None,
+                generated_fee_projection: None,
             });
         }
     }
