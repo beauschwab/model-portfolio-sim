@@ -1,5 +1,9 @@
 # Rates Workbench
 
+**Supported scope:** a default install admits the v1 ALM core only. See
+[supported scope](docs/supported-scope.md) for products, outputs, limits and what is
+experimental (`WORKBENCH_EXPERIMENTAL_MODELS=1`).
+
 Commercial follow-through (local 0.29.20): complete-origin secondary purchases
 retain separate principal, coupon entitlement, signed fee rights and buyer cost.
 Reviewed candidate journals feed closing capital and fee FTP. Generated loan/fee
