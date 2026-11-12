@@ -1,0 +1,5 @@
+id,balance,side,spread_bp,category
+IEDB,8400000000,asset,0.0,IEDB
+RESALE,3600000000,asset,29.0,RESALE
+REPO,5760000000,liability,36.0,REPO
+ST_BORROW,3840000000,liability,66.0,ST_BORROW

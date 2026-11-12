@@ -9,3 +9,6 @@ packages/portfolio-model-core/src/cashflows/amortization.rs text eol=lf
 packages/portfolio-model-core/src/cashflows/dated.rs text eol=lf
 packages/portfolio-model-core/src/conventions/floating_rate.rs text eol=lf
 packages/portfolio-model-core/src/validation/limits.rs text eol=lf
+# Golden-bank extracts are hashed as tape identities and compared byte for byte
+# with their generator on every platform.
+evals/golden_banks/banks/** text eol=lf

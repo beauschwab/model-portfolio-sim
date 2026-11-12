@@ -1,0 +1,56 @@
+{
+  "id": "harbor-120b",
+  "name": "Harbor Regional Bank (synthetic, $120B)",
+  "description": "Larger regional bank: bigger securities book, floating-rate commercial lending, more wholesale and brokered funding. The retail extract has missing fields that need explicit defaults, and the ledger carries two balances with no position extract.",
+  "generator": {
+    "seed": 2026120,
+    "prefix": "HB",
+    "entity": "harbor-bank",
+    "total_assets": 120000000000,
+    "mix": {
+      "money_market_assets": 0.10, "securities": 0.30, "resi_mortgage": 0.18, "commercial": 0.42,
+      "retail_deposits": 0.44, "wholesale_deposits": 0.14, "time_deposits": 0.13, "short_term_borrowings": 0.08, "debt": 0.11
+    },
+    "counts": {"securities": 110, "commercial_loans": 120, "long_term_debt": 30, "wholesale_deposits": 60, "time_deposits": 70},
+    "commercial_float_share": 0.70,
+    "brokered_cd_share": 0.45,
+    "tape": {
+      "mortgages": 1800, "deposits": 1400,
+      "states": {"NY": 0.4, "FL": 0.25, "CA": 0.2, "OTHER": 0.15},
+      "segments": {"DDA": 0.25, "NOW": 0.10, "SAV": 0.25, "MMDA": 0.40},
+      "missing": {"hpi_orig_ratio": 37, "svc_cost": 25}
+    },
+    "gl_only": [
+      {"gl_account": "1390", "description": "Residential loans in process (not yet boarded)", "side": "asset", "balance": "48250000.00"},
+      {"gl_account": "2090", "description": "Deposit suspense and unposted items", "side": "liability", "balance": "12500000.00"}
+    ]
+  },
+  "cohort_defaults": {"hpi_orig_ratio": 1.0, "svc_cost": 0.001},
+  "settings": {"compute_backend": "rust", "n_paths": 64, "n_paths_base": 256, "n_threads": 2, "seed": 11, "horizon_months": 24, "shocks_bp": [-200.0, -100.0, 100.0, 200.0]},
+  "market": {
+    "swap_rates": [0.0445, 0.0425, 0.0412, 0.0406, 0.0403, 0.0406, 0.0414, 0.0426, 0.0433, 0.0438],
+    "vol_pts": [[1.0, 2.0, 0.27], [1.0, 5.0, 0.255], [1.0, 10.0, 0.245], [3.0, 2.0, 0.25], [3.0, 5.0, 0.24], [3.0, 10.0, 0.23], [5.0, 2.0, 0.24], [5.0, 5.0, 0.23], [5.0, 10.0, 0.225]]
+  },
+  "scenario": {"name": "golden_down_150", "ust10y_bp": [-75, -150], "twos_tens_bp": [0, 40], "spread_bp": [25, 60], "vol_bp": [0, 0]},
+  "optimize": {"lcr_min": 1.0, "nsfr_min": 1.0, "cet1_min": 0.08, "eve_limit": 0.75, "max_total_assets": 130000000000, "cash_budget": 2000000000, "scenarios": ["golden_down_150"]},
+  "strategy": [
+    {"template": "agency_mbs", "purchase_m": 0, "notional": 1500000000},
+    {"template": "cml_float_3y", "purchase_m": 6, "notional": 1000000000},
+    {"template": "mmda_growth", "purchase_m": 0, "notional": 1200000000}
+  ],
+  "reconciliation": {"tolerance_abs_usd": 0.05, "expected_breaks": {"1390": 48250000.0, "2090": 12500000.0}, "not_in_books": ["3000"]},
+  "expected_gates": {
+    "G1-data-accepted": {"exceptions": [
+      {"id": "missing-hpi_orig_ratio", "field": "hpi_orig_ratio", "count": 37},
+      {"id": "missing-svc_cost", "field": "svc_cost", "count": 25}
+    ]},
+    "G2-mapping-approved": {"exceptions": [
+      {"id": "default-hpi_orig_ratio", "field": "hpi_orig_ratio", "count": 37},
+      {"id": "default-svc_cost", "field": "svc_cost", "count": 25}
+    ]},
+    "G3-reconciled": {"exceptions": [
+      {"id": "break-1390", "gl_account": "1390", "amount_usd": 48250000.0},
+      {"id": "break-2090", "gl_account": "2090", "amount_usd": 12500000.0}
+    ]}
+  }
+}

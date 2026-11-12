@@ -1,0 +1,11 @@
+gl_account,description,side,source_extract,balance
+1010,Interest-earning deposits and money-market assets,asset,money_market:asset,1200000000
+1200,Agency mortgage-backed securities,asset,securities,4000000000.00
+1300,Residential mortgage loans,asset,retail_tape:mortgage,6800000000.00
+1400,Commercial loans,asset,commercial_loans,8000000000.00
+2010,Retail non-maturity deposits,liability,retail_tape:deposit,13200000000.00
+2020,Commercial and wholesale non-maturity deposits,liability,wholesale_deposits,1600000000.00
+2100,Time deposits,liability,time_deposits,1800000000.00
+2200,Short-term borrowings,liability,money_market:liability,600000000
+2300,Long-term debt,liability,long_term_debt,800000000.00
+3000,Total equity,equity,,2000000000.00
