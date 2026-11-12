@@ -1,5 +1,9 @@
 # Native auto and personal installment paths
 
+The separately selected [auto collateral component](consumer-auto-collateral.md)
+links loss and prepayment to a used-vehicle index. It does not change the
+mechanics or the supplied recovery policy below.
+
 `portfolio_model_core::consumer_installment::project` accepts strict
 `consumer-installment-1` inputs and returns a deterministic, versioned account
 path. This is the contractual and supplied-policy calculation stage for issues
