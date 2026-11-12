@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter,HTTPException,Request,Depends
 from typing import Annotated
 from pydantic import BaseModel,ConfigDict,Field
-from . import persistence as db,store
+from . import persistence as db,store,supported_scope
 from .schemas import JobStatus
 
 router=APIRouter(prefix='/models')
@@ -114,7 +114,7 @@ async def _published_holding_body(http:Request):
     return value,started
 
 
-@router.post('/holding-journals',response_model=JobStatus)
+@router.post('/holding-journals',response_model=JobStatus,dependencies=[Depends(supported_scope.experimental('Commercial holding journal publication'))])
 def published_holding(request:PublishedHoldingRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
     import time
     from . import commercial_prior_source as source
@@ -138,13 +138,13 @@ def published_holding(request:PublishedHoldingRequest,raw_body:Annotated[tuple|N
     return enqueue(selected,'model_analysis',store.run_model_analysis,accepted_start=started,prior_publication=captured)
 
 
-@router.post('/candidate-holding-journals',response_model=JobStatus)
+@router.post('/candidate-holding-journals',response_model=JobStatus,dependencies=[Depends(supported_scope.experimental('Commercial holding journal publication'))])
 def published_candidate_holding(request:PublishedCandidateHoldingRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
     from . import commercial_candidate_prior_source as source
     return _published_candidate(request,raw_body,source)
 
 
-@router.post('/cut-mixed-journals',response_model=JobStatus)
+@router.post('/cut-mixed-journals',response_model=JobStatus,dependencies=[Depends(supported_scope.experimental('Commercial holding journal publication'))])
 def published_cut_mixed(request:PublishedCutMixedRequest,raw_body:Annotated[tuple|None,Depends(_published_holding_body)]=None):
     from . import commercial_cut_prior_source as source
     return _published_candidate(request,raw_body,source)
@@ -174,13 +174,14 @@ def _published_candidate(request,raw_body,source):
 
 @router.get('/contracts')
 def contracts():
-    return dict(schemas=list(EXAMPLES),revision=store.snapshot()['revision'],durable=db.REPO is not None,
+    return dict(**supported_scope.describe(list(EXAMPLES)),revision=store.snapshot()['revision'],durable=db.REPO is not None,
         scope='Explicit analytical contracts; synthetic examples do not establish empirical accuracy or upgrade saved economics')
 
 
 @router.get('/examples/{schema}')
 def example(schema:str):
     if schema not in EXAMPLES:raise HTTPException(404,'unsupported model contract')
+    supported_scope.require_model(schema)
     root=Path(__file__).resolve().parents[3]
     raw=json.loads((root/'examples/models'/EXAMPLES[schema]).read_text(encoding='utf-8'))
     request=raw['request'] if 'request' in raw else raw
@@ -240,6 +241,7 @@ def enqueue(request,kind,operation,*,accepted_start=None,prior_publication=None)
     if is_commercial_cohort(request.schema_name,request.request) or request.schema_name in {'market-indexed-books-1','term-product-graph-2','term-product-reprice-2','commercial-product-graph-1','commercial-units-1','commercial-treasury-1','commercial-candidate-fee-treasury-1','commercial-candidate-holding-journal-1','commercial-cut-mixed-journal-1','commercial-candidate-journal-1','commercial-holding-journal-1','commercial-fee-journal-1','commercial-generated-exercise-1','commercial-holding-continuation-1','lifetime-credit-loss-1','nonintegral-fee-accounting-1','hedge-accounting-1','hedge-treasury-1','derivative-treasury-1','saved-derivative-risk-1','net-investment-hedge-1','nonfinancial-hedge-1'}:
         import time
         indexed_deadline=(time.time() if accepted_start is None else accepted_start)+request.timeout
+    if request.schema_name in EXAMPLES:supported_scope.require_model(request.schema_name,request.request)
     if db.REPO is None:raise HTTPException(409,'model analyses require durable storage')
     if request.schema_name not in EXAMPLES:raise HTTPException(422,'unsupported model analysis contract')
     try:

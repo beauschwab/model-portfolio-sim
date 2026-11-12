@@ -16,6 +16,7 @@
   instructions before kernel/model edits. They own assumptions, invariants and extension recipes.
 - `apps/api`: FastAPI transport over engine drivers; adapters in `app/store.py` format Polars tables. Read [API instructions](apps/api/AGENTS.md) before persistence, publication or worker changes.
 - Long runs are durable jobs in the separate `app.worker` process, one at a time per workspace; kernels saturate cores. Preserve queued revision, backend, source and executable identity.
+- [Supported v1 scope](docs/supported-scope.md): `app/supported_scope.py` is the only registry; new contracts are experimental (refused unless `WORKBENCH_EXPERIMENTAL_MODELS=1`) until added to both.
 - `apps/web`: Vite/React talks only through `src/lib/api.ts`; primitives are in `components/ui.tsx`. Read [DESIGN.md](DESIGN.md) before styling; Aperture tokens live in `src/styles/aperture.css` and `tailwind.config.js`.
 - Preserve functions over module dictionaries, revisioned SQLite/PostgreSQL via `app.persistence`, and immutable local/S3 Parquet artifacts. Never add a second mutable source of truth.
 - New products follow the engine recipe, then a `run_*` adapter, book tab/KRD key and `unitlib.TEMPLATES` entry when available in Strategy Lab.
