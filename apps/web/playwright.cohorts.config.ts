@@ -6,7 +6,7 @@ import { cohortBrowserSpecs } from './playwright.suites';
 
 // Dedicated ports, SQLite file and object root; never touch the user's workspace.
 const folder=mkdtempSync(join(tmpdir(),'cohort-browser-'));
-const env={WORKBENCH_EXECUTION:'external',WORKBENCH_ENV:'development',WORKBENCH_SEED_DEMO:'1',
+const env={WORKBENCH_EXPERIMENTAL_MODELS:'1',WORKBENCH_EXECUTION:'external',WORKBENCH_ENV:'development',WORKBENCH_SEED_DEMO:'1',
   DATABASE_URL:`sqlite:///${join(folder,'state.db').replaceAll('\\','/')}`,ARTIFACT_URL:join(folder,'objects'),
   WORKBENCH_TENANT_ID:'tests',WORKBENCH_WORKSPACE_ID:'cohort-browser',
   WORKBENCH_WORKER_URL:'http://127.0.0.1:8026',WORKBENCH_WORKER_TOKEN:'',WORKBENCH_API_TOKEN:'',NUMBA_NUM_THREADS:'2'};
