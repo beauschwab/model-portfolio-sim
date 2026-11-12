@@ -1,6 +1,6 @@
 import { lazy, Suspense, Component, type ReactNode } from "react";
 import type { IDockviewPanelProps } from "dockview";
-import { Activity, BookOpen, ChartLine, Compass, Droplets, Gauge, Landmark, Layers, Scale, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, ChartLine, Compass, Droplets, Gauge, Landmark, Layers, MessageSquare, Scale, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
 import { Badge } from "../components/ui";
 const PipelineMonitor = lazy(() => import("../components/PipelineMonitor"));
 const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
@@ -17,9 +17,11 @@ const Cohorts = lazy(() => import("../pages/Cohorts"));
 const DecideWorkspace = lazy(() => import("../pages/Decide"));
 const StressWorkspace = lazy(() => import("../pages/Stress"));
 const SettingsPage = lazy(() => import("../pages/Settings"));
+const Analysts = lazy(() => import("../pages/Analysts"));
 
 export type PanelId =
   | "morning"
+  | "analysts"
   | "pipeline"
   | "risk"
   | "kpis"
@@ -58,6 +60,7 @@ export interface WorkspacePanelDef {
 
 export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "morning", group: "home", title: "Morning Sheet", icon: Sunrise, subtitle: "ALCO-ready summary · constraints · run notes", component: () => <MorningSheet /> },
+  { id: "analysts", group: "home", title: "Analysts", icon: MessageSquare, subtitle: "Operations · portfolio analysis · source evidence", component: () => <Analysts /> },
   { id: "pipeline", group: "system", title: "Pipeline", icon: Workflow, subtitle: "Live orchestration · scenario fan-out · path & calc telemetry", component: () => <PipelineMonitor /> },
   { id: "stress", group: "monitor", title: "Stress", icon: ShieldAlert, subtitle: "9Q rate shocks · balance-sheet liquidity, credit and capital", component: () => <StressWorkspace /> },
   { id: "risk", group: "monitor", title: "Risk Desk", icon: Activity, subtitle: "KRD profile · NII forecast", component: () => <Dashboard /> },

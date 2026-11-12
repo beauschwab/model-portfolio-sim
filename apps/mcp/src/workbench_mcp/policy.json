@@ -11,6 +11,22 @@
   "DELETE /scenarios/{name}": {
     "permission": "edit"
   },
+  "GET /analysts/conversations": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
+  "GET /analysts/conversations/{cid}": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
+  "GET /analysts/conversations/{cid}/evidence/{eid}": {
+    "exposed": false,
+    "reason": "Private application conversation evidence; authorized by user identity, never agent-recursive."
+  },
+  "GET /analysts/status": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
   "GET /assumptions": {
     "permission": "read"
   },
@@ -69,10 +85,10 @@
   "GET /derivatives/deposit-portfolio/example": {
     "permission": "read"
   },
-  "GET /derivatives/mixed/example": {
+  "GET /derivatives/hedge-mixed/example": {
     "permission": "read"
   },
-  "GET /derivatives/hedge-mixed/example": {
+  "GET /derivatives/mixed/example": {
     "permission": "read"
   },
   "GET /health": {
@@ -156,6 +172,22 @@
   },
   "PATCH /books/{name}/rows": {
     "permission": "edit"
+  },
+  "POST /analysts/conversations": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
+  "POST /analysts/conversations/{cid}/turns": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
+  "POST /analysts/conversations/{cid}/turns/{tid}/stop": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
+  },
+  "POST /analysts/tools/call": {
+    "exposed": false,
+    "reason": "Application-owned analyst identity/session control and capability gateway; never an agent tool or recursive delegation surface."
   },
   "POST /balance-stress/credit": {
     "job": true,
