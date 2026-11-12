@@ -12,6 +12,8 @@ jobs:
     uses: ./.github/workflows/architecture.yml
   backend-storage:
     uses: ./.github/workflows/backend-storage.yml
+  golden-banks:
+    uses: ./.github/workflows/golden-banks.yml
   ledger-native:
     uses: ./.github/workflows/ledger-native.yml
   lifecycle-verifier:

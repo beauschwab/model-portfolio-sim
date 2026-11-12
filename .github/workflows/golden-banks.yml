@@ -1,0 +1,52 @@
+name: Golden banks
+# One end-to-end signal per change: two synthetic banks go through tape intake, cohort build,
+# publication, trial-balance reconciliation, risk, NII, stress, capital, a market scenario and the
+# optimizer over the public HTTP API, and every output is compared with reviewed goldens.
+# Update goldens only with `make golden-update` and review the expected.json diff.
+on:
+  workflow_call:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --project apps/api --extra dev --locked
+      - run: python -m unittest scripts/tests/test_golden_banks.py -v
+      - uses: actions/cache@v4
+        id: native
+        with:
+          path: |
+            packages/portfolio-risk-native/target/release/portfolio*
+            packages/portfolio-risk-native/target/release/libportfolio*
+            packages/portfolio-ledger-native/target/release/portfolio*
+            packages/portfolio-ledger-native/target/release/libportfolio*
+            packages/portfolio-decision-native/target/release/portfolio*
+            packages/portfolio-decision-native/target/release/libportfolio*
+          key: native-release-${{ runner.os }}-1.93.1-${{ hashFiles('packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-*-native/**', 'scripts/build_*native.py', '!**/target/**') }}
+      - uses: dtolnay/rust-toolchain@1.93.1
+        if: steps.native.outputs.cache-hit != 'true'
+      - name: Build native artifacts (no cached build for these sources)
+        if: steps.native.outputs.cache-hit != 'true'
+        run: |
+          uv run --no-sync --project apps/api python scripts/build_native.py
+          uv run --no-sync --project apps/api python scripts/build_ledger_native.py
+          uv run --no-sync --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
+      - name: Golden-bank evaluation
+        run: uv run --no-sync --project apps/api python evals/golden_banks/suite.py --report golden-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: golden-bank-report
+          path: golden-report.json
+          if-no-files-found: ignore

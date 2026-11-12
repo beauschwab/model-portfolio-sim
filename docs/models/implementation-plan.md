@@ -1,5 +1,35 @@
 # Product model enhancement implementation and evidence
 
+## Auto collateral component (2026-11-11)
+
+The native `consumer-auto-collateral-1` library component values auto collateral
+from a supplied segment depreciation curve, a supplied used-vehicle index and
+supplied mileage and condition haircuts. It computes loss given default as
+exposure less haircut sale value plus repossession and remarketing costs, with a
+deficiency recovery tail and cash lags that do not enter the loss. Borrower
+equity is derived as a hazard covariate for the existing covariate estimator,
+and each interval is written as a `credit-model-1` period with term LGD and
+recovery timing. Seven fixtures cover the #94 hand LGD cases, probability
+conservation, bit-identical zero-coefficient behaviour and an index shock on
+shared draws. Synthetic fits stay adoption-ineligible. Transport, joint-driver
+and auto-graph wiring, independent verification and observed histories remain
+open under #94 and #25. See [the contract](consumer-auto-collateral.md).
+
+## Card behaviour component (2026-11-11)
+
+The native `consumer-card-behaviour-1` library component classifies statements as
+transactor, revolver or minimum payer from observed cash, fits state transitions
+with the existing covariate estimator, fits revolver payment and state-specific
+purchase fractions, and estimates a state-conditional credit conversion factor
+from the statement three to six cycles before default. Projection supplies
+ordinary `consumer-card-1` actions, including one undrawn-line conversion before
+a supplied default; the statement mechanics are unchanged. Ten synthetic
+fixtures cover the #93 limiting cases, parameter recovery with chronological
+holdout diagnostics and default reconciliation. Synthetic fits stay
+adoption-ineligible and publication is always refused. Transport, credit-model
+and card-graph wiring, independent verification and an observed panel remain
+open under #93 and #25. See [the contract](consumer-card-behaviour.md).
+
 ## Consumer panel specification component
 
 The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit

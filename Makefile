@@ -1,5 +1,5 @@
 # Rates Workbench monorepo
-.PHONY: smoke test-changed install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test-web test build build-native check-architecture check-native-service
+.PHONY: smoke test-changed install dev-api dev-worker dev-web dev-mcp init-db test-py test-mcp test-web test build build-native check-architecture check-native-service golden golden-update
 .NOTPARALLEL: test test-web
 
 install:            ## python (editable) + node deps
@@ -33,6 +33,12 @@ check-architecture: ## static boundaries and reproducible HTTP/native contracts
 	python scripts/generate_native_contracts.py --check
 	uv run --project apps/api python scripts/generate_http_contracts.py --check
 	uv run --project apps/api python scripts/generate_mcp_contracts.py --check
+
+golden:             ## golden-bank end-to-end evaluation through the public API (build native artifacts first)
+	uv run --project apps/api python evals/golden_banks/suite.py
+
+golden-update:      ## reviewed golden update after an intended engine change; commit the expected.json diff
+	uv run --project apps/api python evals/golden_banks/suite.py --update
 
 test-py: check-architecture ## engine and API regression suites
 	cd packages/portfolio-risk && uv run --extra dev python -m pytest tests/ -q
