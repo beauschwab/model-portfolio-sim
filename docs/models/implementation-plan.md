@@ -1,5 +1,20 @@
 # Product model enhancement implementation and evidence
 
+## Card behaviour component (2026-11-11)
+
+The native `consumer-card-behaviour-1` library component classifies statements as
+transactor, revolver or minimum payer from observed cash, fits state transitions
+with the existing covariate estimator, fits revolver payment and state-specific
+purchase fractions, and estimates a state-conditional credit conversion factor
+from the statement three to six cycles before default. Projection supplies
+ordinary `consumer-card-1` actions, including one undrawn-line conversion before
+a supplied default; the statement mechanics are unchanged. Ten synthetic
+fixtures cover the #93 limiting cases, parameter recovery with chronological
+holdout diagnostics and default reconciliation. Synthetic fits stay
+adoption-ineligible and publication is always refused. Transport, credit-model
+and card-graph wiring, independent verification and an observed panel remain
+open under #93 and #25. See [the contract](consumer-card-behaviour.md).
+
 ## Consumer panel specification component
 
 The standalone `consumer-behaviour-spec-1` component maps explicit product DPD/exit
