@@ -20,6 +20,7 @@ pub use models::credit::transition as credit;
 pub use models::joint_state;
 pub use products::commercial::coupon_accounting as commercial_coupon_accounting;
 pub use products::consumer::behavior as consumer_behavior;
+pub use products::consumer::card_behavior as consumer_card_behavior;
 pub use products::consumer::contracts as consumer_contract;
 pub use products::consumer::product_paths as consumer_product_paths;
 pub use products::deposits::state as deposit_state;

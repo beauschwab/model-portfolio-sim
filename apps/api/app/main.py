@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import store, market_data, decision_store, persistence
+from . import store, market_data, decision_store, persistence, supported_scope
 from .schemas import DecisionBuildRequest, DecisionUpdateRequest, DecisionEvalRequest, BalanceStressRequest, SavedBalanceStressRequest, StreamedBalanceStressRequest, DatedBalanceStressRequest, CreditBalanceStressRequest, CreditPathBalanceStressRequest, ModeledBalanceStressRequest
 from .schemas import MarketView, StateStatus, StressCapabilities
 from .schemas import (Allocation, OptimizeRequest, Program, AssumptionPatch, JobStatus, Market, MarketScenario,
@@ -343,7 +343,7 @@ def credit_balance_stress_example():
             'scope': 'Synthetic explicit physical credit transitions and reviewed accounting policies'}
 
 
-@app.post('/balance-stress/credit', response_model=JobStatus)
+@app.post('/balance-stress/credit', response_model=JobStatus, dependencies=[Depends(supported_scope.experimental('Credit balance stress'))])
 def credit_balance_stress(req: CreditBalanceStressRequest):
     return _submit_source_stress(req,'credit_balance_stress',store.run_credit_balance_stress)
 
@@ -357,7 +357,7 @@ def credit_path_balance_stress_example():
         scope='Synthetic realized physical credit paths and reviewed accounting policies')
 
 
-@app.post('/balance-stress/credit-path',response_model=JobStatus)
+@app.post('/balance-stress/credit-path',response_model=JobStatus,dependencies=[Depends(supported_scope.experimental('Credit-path balance stress'))])
 def credit_path_balance_stress(req: CreditPathBalanceStressRequest):
     return _submit_source_stress(req,'credit_path_balance_stress',store.run_credit_path_balance_stress)
 
@@ -402,6 +402,7 @@ def modeled_balance_stress(req:ModeledBalanceStressRequest, raw_body:Annotated[t
         try:exact(original,req.specification,'original accepted commercial ledger JSON')
         except ValueError as exc:raise HTTPException(422,str(exc)) from exc
     if req.specification.get('schema') not in {'graph-dated-ledger-1','driven-credit-ledger-1','deposit-graph-dated-ledger-1','deposit-graph-income-ledger-1','deposit-revised-income-ledger-1','deposit-performing-income-ledger-1','deposit-performing-portfolio-ledger-2','mortgage-mixed-accounting-1','commercial-credit-ledger-1','commercial-generated-candidate-journal-1','commercial-generated-candidate-fee-journal-1'}:raise HTTPException(422,'unsupported modeled source schema')
+    supported_scope.require_ledger(req.specification.get('schema'))
     return _submit_source_stress(req,'modeled_balance_stress',store.run_modeled_balance_stress,executable=binary_path(),accepted_start=accepted_start)
 
 

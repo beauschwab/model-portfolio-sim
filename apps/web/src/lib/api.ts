@@ -219,7 +219,7 @@ async function jArrow(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export const api = {
-  modelContracts: () => j<{schemas:string[];revision:number;durable:boolean;scope:string}>('/models/contracts'),
+  modelContracts: () => j<{schemas:string[];supported:string[];experimental:string[];experimental_enabled:boolean;revision:number;durable:boolean;scope:string}>('/models/contracts'),
   modelExample: (schema:string) => j<{schema_name:string;request:Record<string,unknown>;revision:number;synthetic:boolean}>(`/models/examples/${encodeURIComponent(schema)}`),
   runModel: (request:ModelRunRequest) => j<Job>('/models/runs',{method:'POST',body:JSON.stringify(request)}),
   buildAgedLibrary: (request:ModelRunRequest) => j<Job>('/models/aged-library',{method:'POST',body:JSON.stringify(request)}),
