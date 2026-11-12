@@ -18,9 +18,11 @@ dependencies = [
 
 [tool.uv.sources]
 portfolio-risk = { path = "../../packages/portfolio-risk", editable = true }
+rates-workbench-mcp = { path = "../mcp", editable = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
+analysts = ["rates-workbench-mcp", "psutil>=6,<8"]
 iceberg = [
     "pyiceberg[pyarrow,sql-sqlite]>=0.10,<0.11",
 ]

@@ -7,6 +7,40 @@ import type { HttpSettings, HttpMarket, HttpState, HttpJob, HttpStressCapabiliti
 
 const BASE = "/api";
 
+export type AnalystRole = 'ops' | 'strategy';
+export type AnalystWorkflow = 'morning-review' | 'explain-change' | 'job-recovery';
+export interface AnalystStatus {
+  history_available?: boolean;
+  available: boolean; reason: string | null; access: 'read-only'; provider: string | null; model: string | null;
+  roles: Record<AnalystRole, string>; workflows: Record<AnalystWorkflow, string>;
+}
+export interface AnalystEvidence {
+  id: string; tool: string; arguments: Record<string, unknown>; result: unknown; sha256: string | null;
+}
+export type AnalystEvidenceSummary = Pick<AnalystEvidence, 'id' | 'tool' | 'sha256'>;
+export interface AnalystTurn {
+  id: string; revision: number; workflow: AnalystWorkflow; prompt: string; answer: string;
+  status: 'running' | 'done' | 'error' | 'cancelled' | 'interrupted'; detail: string | null;
+  evidence: AnalystEvidenceSummary[]; receipt: Record<string, unknown>;
+}
+export interface AnalystConversation {
+  id: string; title: string; role: AnalystRole; turns?: AnalystTurn[];
+}
+export const analystApi = {
+  status: () => j<AnalystStatus>('/analysts/status'),
+  list: () => j<AnalystConversation[]>('/analysts/conversations'),
+  create: (role: AnalystRole, title: string) => j<AnalystConversation>('/analysts/conversations', {
+    method: 'POST', body: JSON.stringify({ role, title }),
+  }),
+  get: (id: string) => j<AnalystConversation>(`/analysts/conversations/${encodeURIComponent(id)}`),
+  evidence: (id: string, evidence: string) => j<AnalystEvidence>(
+    `/analysts/conversations/${encodeURIComponent(id)}/evidence/${encodeURIComponent(evidence)}`),
+  ask: (id: string, request: { request_id: string; workflow: AnalystWorkflow; prompt: string; expected_revision: number }) =>
+    j<AnalystTurn>(`/analysts/conversations/${encodeURIComponent(id)}/turns`, { method: 'POST', body: JSON.stringify(request) }),
+  stop: (id: string, turn: string) => j<{ stopped: boolean }>(
+    `/analysts/conversations/${encodeURIComponent(id)}/turns/${encodeURIComponent(turn)}/stop`, { method: 'POST' }),
+};
+
 export type ModeledFTPSourceKind = 'card_v2' | 'deposit_performing' | 'deposit_portfolio';
 export type ModeledFTPSourceMetadata = {
   job_id: string; kind: ModeledFTPSourceKind; status: 'done'; revision: number;

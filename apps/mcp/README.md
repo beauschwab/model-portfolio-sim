@@ -6,6 +6,12 @@ no financial calculations, database, worker or saved workspace. Rust execution,
 fixed base OAS, shared CRN, coefficient-only evaluation and independently verified
 publication remain unchanged.
 
+The optional in-app [embedded analyst pilot](../../docs/embedded-analysts.md)
+uses pinned Goose ACP and a separate `workbench-evidence` MCP server with 15
+read-only tools. Its signed turn gateway and private histories are distinct from
+the external-client profiles below. Analyst control routes are reviewed exclusions
+in `policy.json`; they are never exposed recursively as MCP tools.
+
 ## Implementation plan and acceptance
 
 1. Inventory every public FastAPI operation and analytical contract. Generate
