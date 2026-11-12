@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: [
     { command: `uv run --project ../api uvicorn app.main:app --app-dir ../api --port ${apiPort}`,
       url: `http://127.0.0.1:${apiPort}/health`, reuseExistingServer: reuse,
-      env: { NUMBA_NUM_THREADS: "4", WORKBENCH_EXECUTION: "memory" }, timeout: 120_000 },
+      env: { NUMBA_NUM_THREADS: "4", WORKBENCH_EXECUTION: "memory", WORKBENCH_EXPERIMENTAL_MODELS: "1" }, timeout: 120_000 },
     { command: `bun run dev -- --host 127.0.0.1 --port ${webPort} --strictPort`, url: `http://127.0.0.1:${webPort}`,
       env: { WORKBENCH_API_URL: `http://127.0.0.1:${apiPort}` }, reuseExistingServer: reuse },
   ],

@@ -1,7 +1,7 @@
 """Durable capital/FTP reports. Policy and exposures are immutable job inputs."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from . import persistence as db, store
+from . import persistence as db, store, supported_scope
 from .schemas import JobStatus
 from typing import Literal
 
@@ -70,7 +70,7 @@ class MortgageClosingRequest(BridgeRequest):
     timeout: float = Field(default=1800.,ge=.001,le=1800.,strict=True)
 
 
-@router.post('/mortgage-closing-capital')
+@router.post('/mortgage-closing-capital',dependencies=[Depends(supported_scope.experimental('Mortgage closing capital'))])
 def mortgage_closing_capital(request:MortgageClosingRequest):
     from . import mortgage_capital
     if db.REPO is None:raise HTTPException(409,'Mortgage closing capital requires durable storage')
