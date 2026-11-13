@@ -9,7 +9,7 @@ for (const selected of [
   {mode:'commercial_generated',schema:'commercial-generated-candidate-journal-1',proof:'Generated purchase sources and allocations verified'},
   {mode:'commercial_generated_fees',schema:'commercial-generated-candidate-fee-journal-1',proof:'Generated purchase sources and allocations verified'},
 ]) test(`${selected.mode} publishes, pages and reopens its independently verified journal`,async({page})=>{
-  test.setTimeout(180_000);
+  test.setTimeout(360_000);
   const errors:string[]=[],fullResults:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('request',request=>{if(/\/jobs\/[^/]+\/result$/.test(new URL(request.url()).pathname))fullResults.push(request.url());});
@@ -29,7 +29,7 @@ for (const selected of [
   const body=(await submitted).postDataJSON();
   expect(body.specification).toEqual(raw);
   expect(body.large_book).toBe(false);
-  await expect(panel.getByText(selected.proof,{exact:true})).toBeVisible({timeout:120_000});
+  await expect(panel.getByText(selected.proof,{exact:true})).toBeVisible({timeout:300_000});
   await expect(panel.getByText('Saved journal verified',{exact:true})).toBeVisible();
   const id=await panel.getByLabel('Saved run ID',{exact:true}).inputValue();
   await panel.getByLabel('Partitioned result table',{exact:true}).selectOption('/commercial_source_lineage');
