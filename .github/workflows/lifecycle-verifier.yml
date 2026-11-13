@@ -1,6 +1,7 @@
 name: Lifecycle verifier
 
 on:
+  workflow_call:
   push:
     paths:
       - 'packages/portfolio-verification-native/**'

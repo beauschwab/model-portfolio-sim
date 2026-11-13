@@ -1,5 +1,6 @@
 name: Backend storage contracts
 on:
+  workflow_call:
   push:
     paths: ['apps/api/**', 'packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', 'packages/portfolio-ledger-native/**', 'packages/portfolio-compute-control/**', '.github/workflows/backend-storage.yml']
   pull_request:

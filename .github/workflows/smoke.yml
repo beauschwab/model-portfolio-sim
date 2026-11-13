@@ -1,0 +1,50 @@
+name: Smoke tier
+# Every pull request and main push: contracts, web build and one test per engine area.
+# The five-minute budget is enforced by scripts/select_tests.py for the tier itself. Native
+# release artifacts are restored by exact source hash and rebuilt only when native code changed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: bun install --frozen-lockfile
+      - run: uv sync --project apps/api --extra dev --locked
+      # The engine lockfile is not kept current on main; the other engine workflows also sync it unlocked.
+      - run: uv sync --project packages/portfolio-risk --extra dev
+      - run: uv sync --project apps/mcp --extra dev --locked
+      - uses: actions/cache@v4
+        id: native
+        with:
+          path: |
+            packages/portfolio-risk-native/target/release/portfolio*
+            packages/portfolio-risk-native/target/release/libportfolio*
+            packages/portfolio-ledger-native/target/release/portfolio*
+            packages/portfolio-ledger-native/target/release/libportfolio*
+            packages/portfolio-decision-native/target/release/portfolio*
+            packages/portfolio-decision-native/target/release/libportfolio*
+          key: native-release-${{ runner.os }}-1.93.1-${{ hashFiles('packages/portfolio-model-core/**', 'packages/portfolio-compute-control/**', 'packages/portfolio-*-native/**', 'scripts/build_*native.py', '!**/target/**') }}
+      - uses: dtolnay/rust-toolchain@1.93.1
+        if: steps.native.outputs.cache-hit != 'true'
+      - name: Build native artifacts (native sources changed)
+        if: steps.native.outputs.cache-hit != 'true'
+        run: |
+          uv run --no-sync --project apps/api python scripts/build_native.py
+          uv run --no-sync --project apps/api python scripts/build_ledger_native.py
+          uv run --no-sync --project apps/api --with libclang --with cmake python scripts/build_decision_native.py
+      - run: python scripts/select_tests.py --smoke
