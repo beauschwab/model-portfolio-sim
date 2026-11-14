@@ -13,7 +13,7 @@ def test_durable_operation_allowlist_preserves_names_and_identity():
         'store.run_pricing', 'store.run_risk_all', 'store.run_stress_all',
         'store.run_kpis_scenario', 'store.run_nii', 'store.build_unitlib_job',
         'store.build_aged_unitlib_job', 'store.run_strategy_job', 'store.run_optimize_job',
-        'store.run_scenario_grid', 'store.run_forecast', 'store.run_balance_stress',
+        'store.run_scenario_grid', 'store.run_rate_shocks', 'store.run_forecast', 'store.run_balance_stress',
         'store.run_streamed_balance_stress', 'store.run_saved_balance_stress',
         'store.run_dated_balance_stress', 'store.run_credit_balance_stress',
         'store.run_credit_path_balance_stress', 'store.run_model_analysis',
