@@ -18,6 +18,7 @@ def client():
         store.ASSUMPTIONS.pop('rate_shock_policy', None)
         store.SETTINGS = main.RiskSettings(n_threads=2, n_paths=33, n_paths_base=35, horizon_months=24)
         store.STATE_META["revision"] = 0
+        store._FINGERPRINTS.update(revision=None, inputs={})   # memoised by revision, which this fixture resets
     with TestClient(main.app) as client:
         yield client
     with store._LOCK:
