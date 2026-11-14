@@ -25,6 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from . import store, market_data, decision_store, persistence, supported_scope
 from .schemas import DecisionBuildRequest, DecisionUpdateRequest, DecisionEvalRequest, BalanceStressRequest, SavedBalanceStressRequest, StreamedBalanceStressRequest, DatedBalanceStressRequest, CreditBalanceStressRequest, CreditPathBalanceStressRequest, ModeledBalanceStressRequest
 from .schemas import MarketView, StateStatus, StressCapabilities
+from .schemas import RateShockPolicyUpdate, RateShockRunRequest
 from .schemas import (Allocation, OptimizeRequest, Program, AssumptionPatch, JobStatus, Market, MarketScenario,
                       RiskSettings, RunRequest, ForecastRequest, PythonBackendDeprecated)
 
@@ -555,6 +556,53 @@ def del_scenario(name: str):
         store.SCENARIOS.pop(name, None)
         store.changed()
     return {"ok": True}
+
+
+# ---- standard rate shocks ----------------------------------------------------------
+@app.get("/rate-shocks/policy")
+def get_rate_shock_policy():
+    """Scenario conventions and limits, with the scenario names limits may refer to."""
+    from portfolio_risk.analytics.rate_shocks import METRICS, SCHEMA
+    state = store.snapshot()
+    policy = store.rate_shock_policy(state)
+    return {"schema": SCHEMA, "policy": policy, "configured": "rate_shock_policy" in state["assumptions"],
+            "metrics": list(METRICS), "revision": state["revision"],
+            "scenarios": _rate_shock_set(policy, state)["scenarios"]}
+
+
+def _rate_shock_set(policy, state):
+    from portfolio_risk.analytics.rate_shocks import shock_set
+    from portfolio_risk.core.runtime import RunConfig, run_context
+    state["settings"].require_production_backend()
+    try:
+        with run_context(RunConfig(compute_backend="rust")):
+            return shock_set(policy, state["market"]["swap_rates"])
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
+
+@app.put("/rate-shocks/policy")
+def put_rate_shock_policy(req: RateShockPolicyUpdate):
+    policy = req.policy.engine()
+    with store._LOCK:
+        state = store.snapshot()
+        if req.expected_revision != state["revision"]:
+            raise HTTPException(409, "Inputs changed. Reload before saving the rate shock policy.")
+        _rate_shock_set(policy, state)      # the engine validates conventions and limit references
+        store.ASSUMPTIONS["rate_shock_policy"] = policy
+        store.changed()
+    return {"ok": True, "revision": store.snapshot()["revision"]}
+
+
+@app.post("/rate-shocks/run")
+def run_rate_shocks(req: RateShockRunRequest) -> JobStatus:
+    state = store.snapshot()
+    if req.expected_revision != state["revision"]:
+        raise HTTPException(409, "Inputs changed. Reload before running the rate shock report.")
+    scenarios = _rate_shock_set(store.rate_shock_policy(state), state)["scenarios"]
+    plan = store.compute_run_plan("rate_shocks", list(state["books"]), state | {"_rate_shock_scenarios": len(scenarios)})
+    jid = store.submit("rate_shocks", store.run_rate_shocks, plan=plan, state=state, priority=req.priority)
+    return JobStatus(**store.job_status(jid))
 
 
 # ---- runs ----------------------------------------------------------------------------

@@ -146,7 +146,7 @@ def input_fingerprints(state=None) -> dict:
     hashes so a caller never files them under a revision they were not computed at.
 
     Nodes: ``books:<name>``, ``market``, ``settings``, ``assumptions:deposits``,
-    ``assumptions:cds``, ``assumptions:other``, ``scenarios``, ``cohorts`` and
+    ``assumptions:cds``, ``assumptions:other``, ``rate_shock_policy``, ``scenarios``, ``cohorts`` and
     ``context`` (every other snapshot key, so an input added later is covered)."""
     state = state or snapshot()
     with _LOCK:
@@ -158,7 +158,10 @@ def input_fingerprints(state=None) -> dict:
     nodes["settings"] = _fingerprint(state["settings"])
     nodes["assumptions:deposits"] = _fingerprint(assumptions.get("deposit_segments"))
     nodes["assumptions:cds"] = _fingerprint(assumptions.get("cd_ew_params"))
-    nodes["assumptions:other"] = _fingerprint({k: v for k, v in assumptions.items() if k not in ("deposit_segments", "cd_ew_params")})
+    nodes["assumptions:other"] = _fingerprint({k: v for k, v in assumptions.items()
+                                              if k not in ("deposit_segments", "cd_ew_params", "rate_shock_policy")})
+    # Limits and shock conventions feed only the rate shock report, never a base result.
+    nodes["rate_shock_policy"] = _fingerprint(assumptions.get("rate_shock_policy"))
     nodes["scenarios"] = _fingerprint(state["scenarios"])
     nodes["cohorts"] = _fingerprint({k: state.get(k) for k in _COHORT_KEYS})
     nodes["context"] = _fingerprint({k: v for k, v in state.items() if k not in _NODE_KEYS and not k.startswith("_")})
@@ -377,6 +380,14 @@ def run_strategy_job(sr, vp):
 
 def run_optimize_job(sr, vp, opt: dict):
     return strategy_jobs.run_optimize_job(_owner, sr, vp, opt)
+
+
+def rate_shock_policy(state=None):
+    return income_jobs.rate_shock_policy(_owner, state or snapshot())
+
+
+def run_rate_shocks():
+    return income_jobs.run_rate_shocks(_owner)
 
 
 def run_scenario_grid(sc: MarketScenario):

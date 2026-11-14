@@ -112,6 +112,10 @@ def compute_run_plan(owner, kind: str, books: list[str], state=None) -> dict:
         scope = positions
         revals_per = 9
         path_steps = paths * horizon * 9
+    elif kind == "rate_shocks":
+        scope = positions
+        revals_per = int(state.get("_rate_shock_scenarios", 14)) + 1   # base + scenario set
+        path_steps = paths * horizon * revals_per
     else:                                              # unitlib, strategy, optimize
         scope = positions
         revals_per = 1

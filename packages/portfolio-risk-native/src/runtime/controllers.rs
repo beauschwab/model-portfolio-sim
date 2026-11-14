@@ -23,6 +23,18 @@ pub enum Request {
         books: Box<AccountingRequest>,
         forecast: Forecast,
     },
+    /// Standard shock set for a par swap curve (`rate-shock-1`).
+    RateShockSet {
+        policy: Box<crate::risk::rate_shocks::Policy>,
+        tenors: Vec<f64>,
+        swap_rates: Vec<f64>,
+    },
+    /// EVE/NII deltas and policy-limit status from revalued outcomes.
+    RateShockReport {
+        policy: Box<crate::risk::rate_shocks::Policy>,
+        base: crate::risk::rate_shocks::Outcome,
+        outcomes: Vec<crate::risk::rate_shocks::Outcome>,
+    },
     DriverFit {
         dates: Vec<i32>,
         values: Vec<[f64; 4]>,
@@ -77,6 +89,16 @@ impl Request {
                 finite(&delta)?;
                 Ok(json!({"base":base,"conditional":conditional,"delta_nii":delta}))
             }
+            Self::RateShockSet {
+                policy,
+                tenors,
+                swap_rates,
+            } => crate::risk::rate_shocks::scenarios(&policy, &tenors, &swap_rates),
+            Self::RateShockReport {
+                policy,
+                base,
+                outcomes,
+            } => crate::risk::rate_shocks::report(&policy, &base, &outcomes),
             Self::DriverFit {
                 dates,
                 values,

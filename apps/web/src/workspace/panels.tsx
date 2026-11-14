@@ -1,11 +1,12 @@
 import { lazy, Suspense, Component, type ReactNode } from "react";
 import type { IDockviewPanelProps } from "dockview";
-import { Activity, BookOpen, ChartLine, Compass, Droplets, Gauge, Landmark, Layers, MessageSquare, Scale, Settings2, ShieldAlert, Sunrise, Table2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, ChartLine, Compass, Droplets, Gauge, Landmark, Layers, MessageSquare, Scale, Settings2, ShieldAlert, Sunrise, Table2, TrendingUpDown, Workflow, type LucideIcon } from "lucide-react";
 import { Badge } from "../components/ui";
 const PipelineMonitor = lazy(() => import("../components/PipelineMonitor"));
 const BalanceSheet = lazy(() => import("../pages/BalanceSheet"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const KpisPage = lazy(() => import("../pages/Kpis"));
+const RateShocks = lazy(() => import("../pages/RateShocks"));
 const Treasury = lazy(() => import("../pages/Treasury"));
 const ModelLab = lazy(() => import("../pages/ModelLab"));
 const HedgeAccounting = lazy(() => import("../pages/HedgeAccounting"));
@@ -26,6 +27,7 @@ export type PanelId =
   | "risk"
   | "kpis"
   | "treasury"
+  | "rate-shocks"
   | "models"
   | "hedges"
   | "lifecycle"
@@ -65,6 +67,7 @@ export const PANEL_DEFS: WorkspacePanelDef[] = [
   { id: "stress", group: "monitor", title: "Stress", icon: ShieldAlert, subtitle: "9Q rate shocks · balance-sheet liquidity, credit and capital", component: () => <StressWorkspace /> },
   { id: "risk", group: "monitor", title: "Risk Desk", icon: Activity, subtitle: "KRD profile · NII forecast", component: () => <Dashboard /> },
   { id: "kpis", group: "monitor", title: "KPIs", icon: Gauge, subtitle: "EVE · LCR · NSFR · CET1", component: () => <KpisPage /> },
+  { id: "rate-shocks", group: "monitor", title: "Rate Shocks", icon: TrendingUpDown, subtitle: "EVE · NII · standard shocks · policy limits", component: () => <RateShocks /> },
   { id: "treasury", group: "monitor", title: "Capital & FTP", icon: Landmark, subtitle: "Capital coverage · internal funding · profitability", component: () => <Treasury /> },
   { id: "decide", group: "decide", title: "Decide", icon: Compass, subtitle: "Sandbox → optimize → validate · what-if", component: () => <DecideWorkspace /> },
   { id: "positions", group: "data", title: "Positions", icon: Table2, subtitle: "Side → book → position · indicative client-side derivations", component: () => <Positions /> },

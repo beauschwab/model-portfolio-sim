@@ -5,8 +5,8 @@
 
 Each bank runs in a fresh durable workspace served by a real API and worker
 process: tape import, cohort build, publication, trial-balance reconciliation,
-risk, NII, stress, KPIs, a named market scenario, the optimizer and a strategy
-evaluation. The runner only transports and compares; it performs no financial
+risk, NII, stress, KPIs, a named market scenario, the optimizer, a strategy
+evaluation and the standard EVE/NII rate shock report. The runner only transports and compares; it performs no financial
 calculation beyond summing published balances for the reconciliation.
 """
 from __future__ import annotations
@@ -231,6 +231,17 @@ def execute(client, bank):
     log(f'optimize {time.monotonic() - started:.1f}s')
     flatten('unitlib', client.result(client.job('POST', '/run', dict(kind='unitlib'))), metrics)
     flatten('strategy_eval', envelope(client.call('POST', '/strategy/eval', spec['strategy'], raw=True)), metrics)
+    # 5. Standard EVE/NII rate shocks against the bank's board limits. Runs last: saving the policy moves the revision.
+    started = time.monotonic()
+    current = client.call('GET', '/rate-shocks/policy')
+    client.call('PUT', '/rate-shocks/policy', dict(policy=current['policy'] | spec['rate_shocks'], expected_revision=current['revision']))
+    shocks = client.result(client.job('POST', '/rate-shocks/run', dict(expected_revision=current['revision'] + 1)))
+    for row in shocks.pop('rows').to_dicts():   # one named value per scenario and metric, so a moved cell is visible by name
+        cell = f'rate_shocks.{row["scenario"]}.{row["metric"]}'
+        metrics[f'{cell}.status'] = [row['status'], None]
+        if row['value'] is not None: metrics[f'{cell}.value'] = [row['value'], abs(row['base'])]
+    flatten('rate_shocks', {k: v for k, v in shocks.items() if k not in ('policy', 'conventions', 'revision')}, metrics)
+    log(f'rate shocks {time.monotonic() - started:.1f}s: {shocks["status"]}')
     metrics = {k: v for k, v in metrics.items() if not ignored(k)}
     log(f'{len(metrics)} metrics')
     return metrics, dict(build_job=build, breaks=breaks, summary=summary['summary'], revision=client.call('GET', '/cohorts/presets')['revision'])

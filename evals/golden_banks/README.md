@@ -17,7 +17,7 @@ servicing-pool level, not individual borrowers.
 
 ```bash
 make build-native     # once, or after native changes
-make golden           # both banks, about two minutes locally
+make golden           # both banks, about five minutes on four cores
 uv run --project apps/api python evals/golden_banks/suite.py harbor-120b --report report.json
 ```
 
@@ -31,6 +31,8 @@ folder, so a run never touches a developer workspace. The steps are:
 3. Reconcile published books to `trial_balance.csv` by GL account.
 4. Run risk, NII, stress and KPIs on the base market; NII, KPIs and stress under
    the scenario; the optimizer; the unit library and a strategy evaluation.
+5. Save the bank's rate shock limits (`rate_shocks` in `bank.json`) and run the
+   standard EVE/NII rate shock report (`/rate-shocks/policy`, `/rate-shocks/run`).
 
 The runner transports and compares. Its only arithmetic is summing published
 balances for the reconciliation.
@@ -39,7 +41,9 @@ balances for the reconciliation.
 
 Every result is reduced to named scalars: row counts, the sum of each numeric
 column (with its L1 norm as the comparison scale), distinct counts of text
-columns, and every scalar in the result. A bank has about 465 metrics. A metric
+columns, and every scalar in the result. The rate shock report also records the
+value and limit status of every scenario and metric by name. A bank has about 590
+metrics. A metric
 that disappears or appears is a difference, so output-contract changes show up.
 
 | Metrics | Relative | Absolute | Why |

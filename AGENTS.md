@@ -32,7 +32,7 @@
 - Constraint-only edits reuse coefficients without pricing. Dirty edits selectively retain exactly equal sources; shared identity/grid/count changes require complete preparation. Retained capital limits need refreshed
   dependencies (`CAPITAL_REFRESH_REQUIRED`).
 - Conditional forecasts are income/runoff only, never OAS/EVE/derivative valuation. Fit/select on chronological training data only; holdout affects diagnostics. Stable observation ties and sorted forecast driver names
-  remain deterministic.
+  remain deterministic. [Rate shocks](docs/models/rate-shocks.md): full-revaluation EVE at fixed base OAS, base-anchored NII yields, income-only ramps; a missing limit never passes.
 - Cache keys retain complete collision-safe input/parent identity, model/backend identity and live cashflow ownership. Validate price/notional even on hits; eviction is safe recomputation, not changed economics. Budgets
   include retained identities.
 - Perform native aggregate work/byte admission before generation and reserve extra groups prospectively. Chunked cashflows/schedules must not become multi-million-row JSON. Component/cache limits never imply an aggregate

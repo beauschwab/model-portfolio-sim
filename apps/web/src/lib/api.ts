@@ -300,6 +300,10 @@ export const api = {
   putAssumptions: (p: Row) => j("/assumptions", { method: "PUT", body: JSON.stringify(p) }),
   scenarios: () => j<Record<string, Scenario>>("/scenarios"),
   putScenario: (s: Scenario) => j(`/scenarios/${s.name}`, { method: "PUT", body: JSON.stringify(s) }),
+  rateShockPolicy: () => j<{ policy: RateShockPolicy; configured: boolean; metrics: string[]; revision: number; scenarios: Row[] }>("/rate-shocks/policy"),
+  putRateShockPolicy: (policy: RateShockPolicy, expected_revision: number) =>
+    j<{ ok: boolean; revision: number }>("/rate-shocks/policy", { method: "PUT", body: JSON.stringify({ policy, expected_revision }) }),
+  runRateShocks: (expected_revision: number) => j<Job>("/rate-shocks/run", { method: "POST", body: JSON.stringify({ expected_revision }) }),
   pricingAssumptions: () => j<{ fields: Record<string, Record<string, [number, number]>>; defaults: Record<string, number> }>("/pricing/assumptions"),
   run: (kind: string, scenario?: string, books?: BookName[], pricing?: PricingOptions, priority?: "interactive" | "background") =>
     j<Job>("/run", { method: "POST", body: JSON.stringify({ kind, scenario, books, ...pricing, priority }) }),
@@ -336,6 +340,12 @@ export interface DecisionResult extends DecisionEvaluation {
   solver: { model_reused: boolean; simplex_iterations: number };
   timings_ms: { total: number; native_solve: number; pricing_and_coefficients: number; validation_and_publication: number };
 }
+
+export type RateShockLimit = { metric: "eve" | "nii_12m" | "nii_24m"; scenario: string; applicability: "internal_limit" | "not_applicable"; max_decline_pct: number | null };
+export type RateShockPolicy = { schema: "rate-shock-1"; parallel_bp: number[]; ramp_bp: number[]; ramp_months: number; short_bp: number; long_bp: number;
+  decay_years: number; steepener: [number, number]; flattener: [number, number]; floor: number | null; limits: RateShockLimit[] };
+export type RateShockResult = { schema: string; status: string; counts: Record<string, number>; rows: Table; scenarios: Table; nii_monthly: Table;
+  conventions: Record<string, string>; policy: RateShockPolicy; horizon_months: number; base_eve: number; base_hedge_value: number; revision: number };
 
 /** Metadata-only polling for reports whose tables are paged independently. */
 export async function awaitJobStatus(id:string,ms=1500):Promise<Job>{

@@ -99,6 +99,41 @@ def run_kpis(owner, sr, vp, oas_by_book=None):
     return out
 
 
+def rate_shock_policy(owner, state):
+    from portfolio_risk.analytics.rate_shocks import default_policy
+    return state['assumptions'].get('rate_shock_policy') or default_policy()
+
+
+def run_rate_shocks(owner):
+    """Standard EVE/NII shock report; the engine owns scenarios, deltas and limit status."""
+    from portfolio_risk.analytics.rate_shocks import run_rate_shocks as run
+    state = owner.current_state()
+    policy = owner.rate_shock_policy(state)
+    owner.node("build", parent=None, kind="build", status="running", label="Position build",
+               detail="standard rate shock set")
+    owner.report(stage="base calibration", pct=3.0, log="base OAS solved once and held")
+    oas = owner.base_calibration(state)
+    owner.node("build", status="done")
+    last = []
+
+    def progress(name, index, total):
+        if last:
+            owner.node(f"shock:{last[0]}", status="done")
+        last[:] = [name]
+        owner.node(f"shock:{name}", parent="build", kind="branch", label=name, status="running",
+                   detail="base market" if name == "base" else "fixed base OAS, shared draws")
+        owner.report(stage=f"scenario {index + 1}/{total}: {name}", pct=5 + 90 * index / total,
+                     scenario_paths=state['settings'].n_paths, log=f"{name}: EVE and NII")
+
+    out = run(owner.balance_sheet(state), state['market']["swap_rates"], state['market']["vol_pts"],
+              state['dep_hist'], policy, horizon=state['settings'].horizon_months,
+              seed=state['settings'].seed, oas_by_book=oas, progress=progress)
+    if last:
+        owner.node(f"shock:{last[0]}", status="done")
+    out['revision'] = state['revision']
+    return out
+
+
 def run_scenario_grid(owner, sc: MarketScenario):
     state = owner.current_state()
     """9Q scenario: revalue the books at each quarter's market and report

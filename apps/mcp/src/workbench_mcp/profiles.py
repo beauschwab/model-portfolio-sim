@@ -87,7 +87,7 @@ _OPS_ACTIONS = frozenset({
     'post_cohorts_builds_jid_attribution', 'post_cohorts_builds_jid_audit',
     'post_market_data_fetch', 'post_market_data_import', 'put_market_data_active_curve',
     'put_books_name', 'patch_books_name_rows', 'put_settings', 'put_assumptions',
-    'put_market', 'put_scenarios_name', 'delete_scenarios_name', 'put_programs_name',
+    'put_market', 'put_rate_shocks_policy', 'post_rate_shocks_run', 'put_scenarios_name', 'delete_scenarios_name', 'put_programs_name',
     'delete_programs_name', 'delete_jobs_jid', 'delete_decision_sessions_sid', 'post_run',
     'post_balance_stress_run', 'post_balance_stress_stream', 'post_balance_stress_saved_book',
     'post_balance_stress_dated', 'post_balance_stress_credit', 'post_balance_stress_credit_path',
@@ -100,7 +100,7 @@ _STRATEGY_ACTIONS = frozenset({
     'post_decision_sessions_sid_update', 'post_decision_sessions_sid_eval',
     'delete_decision_sessions_sid', 'delete_jobs_jid', 'post_forecasts_run',
     'post_models_runs', 'post_models_aged_library', 'post_treasury_runs',
-    'post_balance_stress_run', 'post_balance_stress_saved_book',
+    'post_balance_stress_run', 'post_balance_stress_saved_book', 'post_rate_shocks_run',
 })
 
 PROFILES = {

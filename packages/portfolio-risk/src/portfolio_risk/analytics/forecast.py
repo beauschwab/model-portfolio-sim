@@ -105,6 +105,8 @@ def compile_forecast(rows, scenario, start_period, horizon):
 
 def condition_paths(base, plan):
     """Copy-on-write recentering; same underlying draws, never mutate base paths."""
+    if "ramp" in plan:
+        return ramp_paths(base, plan["ramp"])
     t = plan["targets"]
     out = dict(base)
     short = t.get("short_rate", t.get("policy_rate"))
@@ -138,6 +140,31 @@ def condition_paths(base, plan):
         out["yoy"] = yoy_from_hpi(out["hpi"])
     if any(not np.isfinite(v).all() for v in out.values()):
         raise ValueError("non-finite conditioned path")
+    return out
+
+
+def ramp_paths(base, ramp):
+    """Reference for the income-only ramp: the cross-path mean of month m (zero-based)
+    moves by shift * min((m + 1) / months, 1) and shifted-rate deviations are rescaled
+    around it, as `condition_paths` does. Mortgage rates follow with the incentive lag."""
+    steps = base["short"].shape[1]
+    move = ramp["shift"] * np.minimum((np.arange(steps) + 1) / ramp["months"], 1.0)
+    out = dict(base)
+    if ramp["shift"] == 0:
+        return out
+
+    def rescale(values):
+        shifted = values.astype(np.float64) + SHIFT
+        mean = shifted.mean(axis=0)
+        if np.min(mean) <= 0 or np.min(mean + move) <= 0:
+            raise ValueError("rates cross the supported shifted-rate floor")
+        return shifted / mean * (mean + move) - SHIFT
+    out["short"] = rescale(base["short"])
+    out["swaps"] = rescale(base["swaps"])
+    out["df"] = np.cumprod(1 / (1 + out["short"] * DT), axis=1)
+    if "mtg" in base:
+        lagged = np.r_[np.zeros(INC_LAG), move[:steps - INC_LAG]] if INC_LAG else move
+        out["mtg"] = base["mtg"].astype(np.float64) + lagged
     return out
 
 

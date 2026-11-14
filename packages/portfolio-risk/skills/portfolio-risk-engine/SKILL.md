@@ -34,6 +34,12 @@ surveys. Preview source coverage before a relative replay on the saved book.
 never use its conditioned paths for OAS/EVE pricing. See the forecast sections
 in the references and repository `docs/forecast-scenarios.md`.
 
+Standard rate shocks: `analytics.rate_shocks.run_rate_shocks` produces the
+`rate-shock-1` EVE/NII report (parallel, short, steepener, flattener and ramp
+scenarios with policy limits). Rust owns the scenario set and limit status;
+EVE is a full revaluation at the supplied base OAS, NII keeps base accounting
+yields, and ramps are income only. See repository `docs/models/rate-shocks.md`.
+
 Research data: `core.curve.market_discount_factors_to_par` projects
 source DFs to annual model par rates and reports reconstruction errors. This
 does not provide an exact sub-year curve or replace volatility/behavioral fits.

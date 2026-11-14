@@ -43,7 +43,8 @@ are experimental.
 ## Supported outputs
 
 - Risk: PV, OAS (original base OAS held fixed), key-rate durations, DV01.
-- Earnings: NII forecast and scenario comparison; EVE and duration gap.
+- Earnings: NII forecast and scenario comparison; EVE and duration gap; the standard EVE/NII
+  rate shock report with policy limits ([`rate-shock-1`](models/rate-shocks.md)).
 - Stress: nine-quarter balance-sheet stress, including the saved-book and streamed routes.
 - KPIs: LCR, NSFR and CET1 projections with supplied weight tables.
 - Optimizer and Strategy Lab: unit library preparation and coefficient-only evaluation.
