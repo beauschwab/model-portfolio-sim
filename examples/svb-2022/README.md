@@ -26,6 +26,13 @@ conditions on the sale and withdrawal amounts and explicitly exposes the residua
 against the historical bank cash outcome. The March 10 request is not treated as
 a settled historical withdrawal.
 
+Since 2026-11-16 the runner also includes two counterfactual groups, with every
+input labelled as an assumption in `reference.json`: an HTM liquidity sale under
+the research `asc320-htm-v1` rule, and an assumed split of consolidated cash
+between the parent and the bank with transfer timing. Every run declares LCR and
+NSFR `not_applicable`. The first record (`2026-10-01-svb-reconstruction.*`) is
+kept unchanged; new output goes to `2026-11-16-svb-reconstruction.*`.
+
 Independent assertions cover opening totals, zero-event conservation, capital
 rounding, cash accounting, AFS realization without duplicate equity loss,
 non-anticipation and funding settlement timing. Passing these checks validates

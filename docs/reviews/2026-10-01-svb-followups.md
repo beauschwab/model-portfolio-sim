@@ -15,6 +15,10 @@ issues track the gaps; merging that experiment does not close or validate them.
 | Legal-entity liquidity restrictions and transfer timing | [#32](https://github.com/beauschwab/model-portfolio-sim/issues/32) |
 | Source-backed LCR/NSFR and correct regulatory applicability | [#33](https://github.com/beauschwab/model-portfolio-sim/issues/33) |
 
+Update 2026-11-16: #31, #32 and #33 are closed in the engine and the
+[extended reconstruction](2026-11-16-svb-reconstruction.md) now exercises them as
+labelled counterfactuals. #26 to #30 remain open and their residuals are unchanged.
+
 Each issue includes evidence, implementation scope, acceptance criteria and links
 to the existing product/model backlog. New financial behavior belongs in Rust;
 HiGHS remains C++. Mechanical reconciliation, empirical predictive accuracy and

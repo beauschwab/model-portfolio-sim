@@ -104,6 +104,11 @@
     "sale_cost_allocation": "pro-rata year-end AFS cost and fair value; actual sold subset unavailable",
     "tax_sensitivity": [0.26, 0.27, 0.28],
     "tax_sensitivity_basis": "March 8 Q1 guidance, retrospective comparison only; no immediate tax-refund liquidity assumed",
+    "htm_sale_counterfactual_proceeds": 5000.0,
+    "htm_sale_counterfactual_basis": "no HTM sale occurred; USD 5bn of proceeds for liquidity after all free AFS is an illustrative trigger for the asc320-htm-v1 rule with zero materiality, priced at the disclosed year-end HTM fair value",
+    "parent_cash_outside_bank_sensitivity": [1000.0, 2500.0, 5000.0],
+    "parent_cash_outside_bank_basis": "assumed sweep, not an observation; the parent-only condensed balance sheet in the 10-K is not transcribed here, and all positions and debt remain in one bank-and-subsidiaries account",
+    "liquidity_rule_applicability": "LCR and NSFR declared not_applicable: SVB was not subject to either at failure (fed_regulation source); no proxy ratio is computed or compared",
     "htm_funding": "none in base; optional capacity/lag counterfactuals assume sufficient eligible unencumbered HTM with 5% haircut, not historical access",
     "regulatory_ratios": "native treasury calculations use disclosed eligible capital and aggregate RWA; no bottom-up RWA or eligibility validation; daily ledger ratios are proxies and not reported as SVB capital"
   }

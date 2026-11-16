@@ -47,7 +47,7 @@ The residuals map to the issues that are still open:
 | Sale loss: security-level repricing and the actual sold lots | #29 |
 | AOCI and CET1: deferred-tax and loss-realization bridge | #30 |
 
-Three follow-ups have since been implemented and closed in the engine: HTM sale and reclassification consequences (#31), legal-entity transfer restrictions (#32) and source-backed LCR/NSFR applicability (#33). **The reconstruction script does not yet use any of them.** Its specifications set no HTM policy, model one consolidated entity and state that LCR and NSFR are not reproduced. Wiring them in would change what the experiment claims and needs reviewed SVB-specific inputs (sale reasons, entity structure, the Fed's retrospective LCR components), so it is left as a separate decision.
+Three follow-ups have since been implemented and closed in the engine: HTM sale and reclassification consequences (#31), legal-entity transfer restrictions (#32) and source-backed LCR/NSFR applicability (#33). At the time of this rerun the reconstruction script used none of them: its specifications set no HTM policy, modelled one consolidated entity and left LCR and NSFR unconfigured. The [extended reconstruction of 2026-11-16](2026-11-16-svb-reconstruction.md) wires them in as labelled counterfactuals; it changes the reference assumptions, so its reference hash differs from the one compared here.
 
 ## Limits of this recheck
 

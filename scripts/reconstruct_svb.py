@@ -60,7 +60,9 @@ def make_opening(reference):
     return dict(version='balance-stress-2', horizon_days=30, positions=positions,
                 accounts=[dict(id=account, entity=reference['entity'], currency='USD',
                                cash=o['cash'], equity=o['total_equity'], cet1_floor=0., leverage_floor=0.,
-                               lcr_floor=0., nsfr_floor=0.)],
+                               lcr_floor=0., nsfr_floor=0.,
+                               # SVB was not subject to LCR or NSFR at failure: declared, so no proxy can read as a pass.
+                               lcr_applicability='not_applicable', nsfr_applicability='not_applicable')],
                 scenarios=[dict(name='static')], provenance=dict(case_id=reference['case_id'],
                     basis='observed aggregated carrying values and explicit uncalibrated stress assumptions',
                     amount_unit='USD millions', as_of=reference['balance_sheet_date']))
@@ -116,6 +118,67 @@ def scenario_specs(reference):
     return specs
 
 
+EXTENSIONS = ('htm_sale', 'entity_')
+
+
+def event_withdrawals(spec, reference):
+    o, event = reference['observed_opening'], reference['observed_event']
+    spec['scenarios'] = [dict(name='event', start_day=3)]
+    spec['cashflows'] = []
+    for key in ('noninterest_deposits', 'interest_deposits'):
+        share = o[key]/o['total_deposits']
+        spec['cashflows'].append(dict(position=key, day=3, principal=0., scenario='baseline'))
+        spec['cashflows'].append(dict(position=key, day=3, principal=event['march9_withdrawals']*share, scenario='event'))
+    return spec
+
+
+def extension_specs(reference):
+    """Counterfactuals for the engine capabilities added after the first reconstruction:
+    HTM sale accounting (#31) and legal-entity transfer restrictions (#32). None of these
+    inputs is an SVB observation; every one is a labelled assumption."""
+    o, a = reference['observed_opening'], reference['assumptions']
+    base, specs = make_opening(reference), {}
+    # HTM: after every free AFS security is sold, sell HTM for liquidity. Liquidity is not an
+    # ASC 320 exception, so with zero materiality the rest of the portfolio is reclassified.
+    for name, policy in (('htm_sale_asc320', 'asc320-htm-v1'), ('htm_sale_not_assessed', '')):
+        spec = event_withdrawals(deepcopy(base), reference)
+        if policy:
+            spec['accounts'][0].update(htm_accounting=policy, htm_taint_materiality=0.)
+        sale = dict(id='htm_sale', account='svbfg', kind='sell', position='htm', trigger_cash=1e9,
+                    limit=a['htm_sale_counterfactual_proceeds'], delay_days=1, allow_htm_sale=True, htm_sale_limit=1e9)
+        if policy:
+            sale['sale_reason'] = 'liquidity'
+        spec['policies'] = [dict(id='afs_sale', account='svbfg', kind='sell', position='afs', trigger_cash=1e9,
+                                 limit=1e9, delay_days=1), sale]
+        spec['provenance']['basis'] = 'HTM sale counterfactual on frozen year-end consolidated balance sheet'
+        specs[name] = spec
+    # Entities: an assumed amount of the consolidated cash sits at the parent, outside the bank.
+    cases = [(x, 'trapped', None) for x in a['parent_cash_outside_bank_sensitivity']]
+    middle = a['parent_cash_outside_bank_sensitivity'][len(a['parent_cash_outside_bank_sensitivity'])//2]
+    cases += [(middle, 'prompt_transfer', dict(delay_days=1)), (middle, 'late_approval', dict(delay_days=1, approval_day=4))]
+    for cash, label, transfer in cases:
+        spec = event_withdrawals(deepcopy(base), reference)
+        bank = spec['accounts'][0]
+        bank['cash'] -= cash
+        bank['equity'] -= cash
+        spec['accounts'].append(dict(id='parent', entity='SVB Financial Group parent only (assumed split)', currency='USD',
+            cash=cash, equity=cash, cet1_floor=0., leverage_floor=0., lcr_floor=0., nsfr_floor=0.,
+            lcr_applicability='not_applicable', nsfr_applicability='not_applicable'))
+        spec['policies'] = [dict(id='afs_sale', account='svbfg', kind='sell', position='afs',
+            trigger_cash=o['cash']+21000., limit=21000., delay_days=1)]
+        if transfer:
+            spec['policies'].append(dict(id='parent_support', account='parent', destination='svbfg', kind='transfer',
+                                         trigger_cash=1e9, limit=cash, **transfer))
+        spec['provenance']['basis'] = 'assumed parent/bank cash split on frozen year-end consolidated balance sheet'
+        specs[f'entity_{int(cash)}_{label}'] = spec
+    return specs
+
+
+def account_row(result, scenario, day, account):
+    return result['path'].filter((pl.col('scenario') == scenario) & (pl.col('day') == day)
+                                 & (pl.col('account') == account)).row(0, named=True)
+
+
 def capital_spec(reference):
     o = reference['observed_opening']
     # Regulatory eligibility is observed, not reconstructed or inferred from
@@ -141,7 +204,8 @@ def run(reference, directory):
     outputs, results, validations = {}, {}, []
     experiment_source = source_identity()
     start = time.perf_counter()
-    for name, spec in scenario_specs(reference).items():
+    specs = scenario_specs(reference) | extension_specs(reference)
+    for name, spec in specs.items():
         manifest = run_streamed_balance_stress(spec, directory/name, backend='rust')
         result = load_streamed_result(manifest)
         m = result['manifest']
@@ -188,7 +252,7 @@ def run(reference, directory):
             day1_cash=day1['cash'], first_cash_breach_day=summary['first_cash_breach_day']))
     replays = []
     for name, result in results.items():
-        if name in {'opening_and_rate_sensitivity', 'behavioral_sensitivity'}:
+        if name in {'opening_and_rate_sensitivity', 'behavioral_sensitivity'} or name.startswith(EXTENSIONS):
             continue
         d2, d3, d4 = (path_row(result, 'event', d) for d in (2,3,4))
         sale = result['ledger'].filter((pl.col('scenario') == 'event') & (pl.col('event') == 'security_sale'))
@@ -229,7 +293,72 @@ def run(reference, directory):
             htm_unrecognized_loss=o['htm_carrying_value_net_allowance']-htm_value,
             book_equity=book['equity'], parent_equity_less_htm_gap=book['equity']-o['noncontrolling_equity']
                 -(o['htm_carrying_value_net_allowance']-htm_value)))
+    # ---- HTM sale accounting (#31): expected values computed here from the opening facts.
+    price = o['htm_fair_value']/o['htm_carrying_value_net_allowance']
+    proceeds = reference['assumptions']['htm_sale_counterfactual_proceeds']
+    sold_cost = proceeds/price
+    gap = o['htm_carrying_value_net_allowance']-o['htm_fair_value']
+    htm_rows = []
+    for name in ('htm_sale_asc320', 'htm_sale_not_assessed'):
+        result = results[name]
+        events = result['accounting_events'].filter(pl.col('scenario') == 'event')
+        sale = events.filter(pl.col('qualification').is_in(['non_exception', 'not_assessed'])).row(0, named=True)
+        moved = events.filter(pl.col('qualification') == 'reclassified_to_afs')
+        after = path_row(result, 'event', 3)
+        summary = next(r for r in outputs[name]['summaries'] if r['scenario'] == 'event')
+        htm_rows.append(dict(case=name, accounting_policy=sale['accounting_policy'], qualification=sale['qualification'],
+            sale_proceeds=proceeds, amortized_cost_sold=sale['amortized_cost'], realized_htm_loss=sale['amortized_cost']-proceeds,
+            reclassified_aoci=moved['aoci'].sum(), reclassification_day=summary['htm_reclassification_day'],
+            total_equity_after=after['equity'], equity_change=after['equity']-o['total_equity'], march9_cash=after['cash'],
+            parent_equity_after=after['equity']-o['noncontrolling_equity'],
+            tangible_common_equity_after=o['tangible_common_equity']+after['equity']-o['total_equity']))
+        assert abs(sale['amortized_cost']-sold_cost) < 1e-6
+    taint, plain = htm_rows
+    assert taint['qualification'] == 'non_exception' and taint['reclassification_day'] == 2
+    assert abs(taint['reclassified_aoci']-(o['htm_carrying_value_net_allowance']-sold_cost)*(price-1)) < 1e-6
+    # Realized loss on the sold part plus the reclassified remainder is the whole opening gap, once.
+    assert abs(taint['equity_change']+gap) < 1e-6
+    assert plain['qualification'] == 'not_assessed' and plain['reclassification_day'] is None
+    assert abs(plain['reclassified_aoci']) < 1e-9 and abs(plain['equity_change']+(sold_cost-proceeds)) < 1e-6
+    assert abs(taint['march9_cash']-plain['march9_cash']) < 1e-6      # accounting changes equity, not cash
+    # ---- Legal-entity cash (#32).
+    entity_rows = []
+    for name, result in results.items():
+        if not name.startswith('entity_'):
+            continue
+        cash = next(a['cash'] for a in specs[name]['accounts'] if a['id'] == 'parent')
+        bank3, parent3 = (account_row(result, 'event', 3, k) for k in ('svbfg', 'parent'))
+        bank4, parent4 = (account_row(result, 'event', 4, k) for k in ('svbfg', 'parent'))
+        moved = result['actions'].filter((pl.col('scenario') == 'event') & (pl.col('kind') == 'transfer')
+                                         & (pl.col('status') == 'executed'))
+        entity_rows.append(dict(case=name, assumed_parent_cash=cash, bank_march9_cash=bank3['cash'],
+            parent_march9_cash=parent3['cash'], consolidated_march9_cash=bank3['cash']+parent3['cash'],
+            bank_march10_cash=bank4['cash'], transfer_day=moved['day'].min() if moved.height else None,
+            transferred=moved['amount'].sum(), consolidated_equity=bank3['equity']+parent3['equity'],
+            bank_march9_difference_vs_observed=bank3['cash']-event['march9_closing_cash_approx']))
+        unadjusted = o['cash']+21000.-event['march9_withdrawals']
+        # No entity split changes consolidated cash or equity; it only decides where the cash is.
+        assert abs(entity_rows[-1]['consolidated_march9_cash']-unadjusted) < 1e-6
+        assert abs(entity_rows[-1]['consolidated_equity']-o['total_equity']) < 1e-6
+        if name.endswith('_trapped'):
+            assert moved.height == 0 and abs(bank3['cash']-(unadjusted-cash)) < 1e-6
+        elif name.endswith('_prompt_transfer'):
+            assert abs(bank3['cash']-unadjusted) < 1e-6 and abs(parent3['cash']) < 1e-6
+        else:       # approval on March 10 arrives after the March 9 breach
+            assert abs(bank3['cash']-(unadjusted-cash)) < 1e-6 and abs(bank4['cash']-unadjusted) < 1e-6
+            waiting = result['actions'].filter((pl.col('scenario') == 'event') & (pl.col('status') == 'delayed'))
+            assert set(waiting['reason']) == {'awaiting transfer approval'}
+    # ---- LCR/NSFR applicability (#33): declared not applicable in every run, never a pass.
+    statuses = {(r['lcr_applicability'], r['lcr_status'], r['nsfr_applicability'], r['nsfr_status'])
+                for v in outputs.values() for r in v['summaries']}
+    assert statuses == {('not_applicable',)*4}
     validations.extend([
+        dict(check='HTM liquidity sale under asc320-htm-v1 reclassifies the remaining portfolio; equity falls by the whole opening HTM gap exactly once', passed=True),
+        dict(check='without a selected HTM policy the sale is not assessed and only the realized loss reaches equity', passed=True),
+        dict(check='HTM accounting treatment leaves cash unchanged', passed=True),
+        dict(check='assumed parent cash lowers bank cash one for one; consolidated cash and equity are unchanged', passed=True),
+        dict(check='a transfer approved after the breach day does not cover the March 9 shortfall', passed=True),
+        dict(check='LCR and NSFR report not_applicable in every run and scenario', passed=True),
         dict(check='opening assets/liabilities/total equity/cash match independently transcribed disclosure', passed=True),
         dict(check='zero-event cash and equity unchanged through day 30', passed=True),
         dict(check='four native capital ratios match disclosed rounding', passed=True),
@@ -237,15 +366,17 @@ def run(reference, directory):
         dict(check='AFS realized loss matches independent cost allocation; no double-counted book equity loss', passed=True),
         dict(check='future March 10 requests do not change earlier output', passed=True),
         dict(check='prearranged funding covers only obligations after its modeled settlement date', passed=True),
-        dict(check='same engine source and ledger binary across all ten simulations', passed=True),
+        dict(check=f'same engine source and ledger binary across all {len(outputs)} simulations', passed=True),
     ])
     assert source_identity() == experiment_source, 'engine source changed during case study'
     return dict(case_id=reference['case_id'], engine_version=__version__, financial_backend='rust',
         created_utc=datetime.now(timezone.utc).isoformat(), platform=platform.platform(),
-        measured_scope='ten small aggregate native ledger runs, persisted local Parquet, independent replay, native capital check; excludes source research, report writing and API/browser',
+        measured_scope=f'{len(outputs)} small aggregate native ledger runs, persisted local Parquet, independent replay, native capital check; excludes source research, report writing and API/browser',
         elapsed_seconds=time.perf_counter()-start, reference=reference, runs=outputs,
         opening_comparison=comparisons, capital_comparison=capital_rows,
         behavioral_sensitivity=behavioral, conditional_replays=replays, rate_sensitivity=rate_rows,
+        htm_sale_accounting=htm_rows, entity_liquidity=entity_rows,
+        liquidity_applicability=dict(lcr='not_applicable', nsfr='not_applicable', runs=len(outputs)),
         after_tax_sale_comparison=[dict(tax_rate=t, proxy_loss=sale_case['realized_sale_pretax_loss']*(1-t),
             observed_loss=1800., difference=sale_case['realized_sale_pretax_loss']*(1-t)-1800.)
             for t in reference['assumptions']['tax_sensitivity']],
@@ -259,9 +390,10 @@ def run(reference, directory):
             'Negative cash measures unpaid funding need; not a completed withdrawal financed by a hidden overdraft',
             'March 10 expected withdrawals are a hypothetical obligation; receivership interrupts actual flows',
             'Gross AFS OCI excludes tax and other AOCI components; reported consolidated AOCI is not replicated',
-            'HTM permission is a policy limit, not full accounting taint/reclassification logic',
-            'Daily liquidity/capital proxies are not regulatory results; no LCR/NSFR, SLR or TLAC validation',
-            'Funding access, sale settlement, tax realization, legal-entity fungibility and intraday run timing remain material unknowns'])
+            'HTM reclassification applies the research asc320-htm-v1 rule to an assumed sale; no HTM sale occurred, and management intent, auditor judgment and tax are not modelled',
+            'Parent cash outside the bank is an assumed sweep, not the disclosed parent-only balance; all positions and debt stay in one bank-and-subsidiaries account',
+            'LCR and NSFR are declared not applicable and are not computed; the Fed retrospective estimates are quoted, not reproduced; no SLR or TLAC validation',
+            'Funding access, sale settlement, tax realization, actual legal-entity balances and intraday run timing remain material unknowns'])
 
 
 def report(r):
@@ -269,7 +401,7 @@ def report(r):
     lines = ['# SVB reconstruction and historical comparison', '',
         '**Conclusion: the aggregate ledger reproduces disclosed opening totals and demonstrates the liquidity failure mechanism. It does not reproduce the precise March cash position or predict the run.**', '',
         f"Engine {r['engine_version']}; Rust financial runtime. Amounts below are USD billions unless stated. "
-        f"Ten aggregate runs plus native capital checks completed in {r['elapsed_seconds']:.2f} seconds, including local Parquet and independent journal verification.", '',
+        f"{len(r['runs'])} aggregate runs plus native capital checks completed in {r['elapsed_seconds']:.2f} seconds, including local Parquet and independent journal verification.", '',
         '## Scope and information boundary', '',
         'Opening: December 31, 2022 consolidated SVB Financial Group, disclosed February 24. '
         'This differs from Silicon Valley Bank alone. Total equity includes $0.291bn noncontrolling interests. '
@@ -341,22 +473,58 @@ def report(r):
     lines += ['', 'The 26-28% range comes from March 8 tax guidance and is only an external sensitivity, not an exact sale tax rate. '
         'No immediate tax refund is added to simulated cash. Native realization reclassifies existing AFS OCI into earnings '
         'without charging total equity twice. The engine does not replicate the complete tax/AOCI bridge: its gross AFS OCI '
-        'is -$2.533bn versus reported total AOCI of -$1.911bn.', '',
+        'is -$2.533bn versus reported total AOCI of -$1.911bn.', '']
+    taint, plain = r['htm_sale_accounting']
+    lines += ['## HTM sale accounting counterfactual', '',
+        'SVB did not sell HTM securities. This asks what the books would have shown had it sold some for liquidity: '
+        f"all free AFS is sold first, then ${taint['sale_proceeds']/1000:.0f}bn of HTM proceeds at the disclosed year-end fair value. "
+        'A liquidity sale is not one of the ASC 320 exceptions, so under the research `asc320-htm-v1` rule with zero materiality '
+        'the rest of the portfolio is reclassified to AFS that day and its unrealized loss enters AOCI.', '',
+        '| Treatment | Qualification | Realized HTM loss | Reclassified to AOCI | Total equity after | Tangible common equity after |',
+        '|---|---|---:|---:|---:|---:|']
+    for row in r['htm_sale_accounting']:
+        lines.append(f"| {row['accounting_policy']} | {row['qualification']} | {row['realized_htm_loss']/1000:.3f} | {row['reclassified_aoci']/1000:.3f} | "
+                     f"{row['total_equity_after']/1000:.3f} | {row['tangible_common_equity_after']/1000:.3f} |")
+    lines += ['', f"With the rule selected, the realized loss and the reclassified remainder add to the whole ${-taint['equity_change']/1000:.3f}bn opening HTM gap, "
+        f"recognized once: total equity falls from {o['total_equity']/1000:.3f} to {taint['total_equity_after']/1000:.3f}. "
+        f"Without a selected policy the same sale is reported as not assessed and only the ${-plain['equity_change']/1000:.3f}bn realized loss reaches equity. "
+        f"Cash is identical in both ({taint['march9_cash']/1000:.3f} on March 9): the accounting changes equity, not liquidity. "
+        '**This is a mechanical consequence of an assumed sale, pre-tax. It is not a finding about what SVB\'s auditors would have required**; '
+        'management intent, auditor judgment, the tainting period and regulatory capital treatment of the resulting AOCI are not modelled.', '',
+        '## Legal-entity cash counterfactual', '',
+        'The opening balance sheet is consolidated. These runs assume part of the consolidated cash sits at the parent, outside the bank, '
+        'and replay the March 8 sale and March 9 withdrawals at the bank. **The parent cash amounts are an assumed sweep, not the disclosed parent-only balance**, '
+        'and every position and borrowing stays in one bank-and-subsidiaries account.', '',
+        '| Case | Assumed parent cash | Bank March 9 cash | Parent March 9 cash | Consolidated March 9 cash | Bank March 10 cash | Transfer day |',
+        '|---|---:|---:|---:|---:|---:|---|']
+    for row in r['entity_liquidity']:
+        lines.append(f"| {row['case']} | {row['assumed_parent_cash']/1000:.3f} | {row['bank_march9_cash']/1000:.3f} | {row['parent_march9_cash']/1000:.3f} | "
+                     f"{row['consolidated_march9_cash']/1000:.3f} | {row['bank_march10_cash']/1000:.3f} | {'none' if row['transfer_day'] is None else row['transfer_day']} |")
+    lines += ['', 'Consolidated cash is -7.197bn in every case; the split only decides where the shortfall lands. '
+        'Cash left at the parent deepens the bank shortfall one for one. A transfer scheduled before the event covers it; '
+        'one that waits for approval until March 10 (day 4) arrives after the March 9 breach. '
+        'No transfer is inferred from common ownership. '
+        'This moves the model further from the observed bank cash of about -0.958bn, not closer: the consolidated snapshot already overstates the shortfall, '
+        'so trapped parent cash cannot explain the residual. The bank-only balance sheet and roll-forward remain the missing inputs.', '',
         '## Regulatory comparison', '',
         'SVB was not subject to LCR/NSFR at failure. The Fed retrospectively estimated reduced LCR of 103.1% at December 30 '
         'and 102.5% at February 28. Those ratios did not establish resilience to an hours-long run. '
         'The reduced/full LCR distinction and legal applicability matter. This reconstruction does not claim to reproduce '
         'LCR or NSFR without the relevant flow, encumbrance and funding-detail data. SVB was not a GSIB; GSIB TLAC/SLR requirements '
         'must not be applied indiscriminately.', '',
+        f"Every account in all {r['liquidity_applicability']['runs']} runs declares LCR and NSFR `not_applicable`, and every scenario reports that status. "
+        'No proxy ratio is computed, so none can be read as a pass. The engine refuses a `regulatory` label for its research proxies, '
+        'and reproducing the Fed estimates would need its HQLA, outflow and inflow components, which are not transcribed here.', '',
         '## Validation and remaining gaps', '',
         f"All {len(r['validations'])} explicit reconstruction checks passed. Each run persisted Parquet, checked its hashes and schema, "
         'independently replayed the journal and reconciled the native closing ledger. '
         'Cash-breach scenarios intentionally have `dynamic_validated=false`; that is a stress result, not failed journal validation. '
         'Native binary and engine source identities, inputs, timings and artifact paths are retained in the JSON companion.', '',
-        'The separate [validation record](2026-10-01-svb-validation.json) records the regression checkpoint: '
-        '749 passed, two skipped, one source-identity interruption during concurrent engine edits; '
-        'the entire affected streamed-ledger suite then passed 55/55. This is not a claim of a clean all-suite run on one frozen revision.', '',
+        'The first [reconstruction](2026-10-01-svb-reconstruction.md) and its record are kept unchanged. '
+        'The original ten runs reproduce it exactly; declaring LCR/NSFR applicability changes only their status labels. '
+        'The HTM and legal-entity runs are new counterfactuals with labelled assumptions, checked against values computed in the script from the opening facts.', '',
         'Reconciliation is strong; sale-loss magnitude is approximate; bank cash tie is materially incomplete; run probability and timing are unvalidated. '
+        'The HTM and legal-entity counterfactuals show mechanisms and do not narrow any residual. '
         'No solver was invoked because this is a historical reconstruction with specified management actions, not an optimized hindsight strategy. '
         'No API database, saved user portfolio or production state was changed.', '',
         'Prioritized next requirements:', '',
@@ -364,7 +532,7 @@ def report(r):
         '2. Intraday withdrawal requests, settlement queues, payment cutoffs, collateral location/prepositioning and facility-specific execution capacity.',
         '3. Separate ordinary deposit decay from confidence-driven correlated jumps; estimate parameters on pre-event data and test across held-out bank events.',
         '4. Historical security-level repricing with observed curves, spreads, prepayment/extension and hedge positions; preserve fixed-OAS scenario contracts.',
-        '5. Deferred-tax and AOCI-to-CET1 bridges, HTM accounting consequences, legal-entity restrictions and actual LCR/NSFR data.', '',
+        '5. Deferred-tax and AOCI-to-CET1 bridges; the disclosed parent-only balances and dividend restrictions; the Fed LCR components.', '',
         '## Reproduce', '',
         '```powershell', 'uv run --project apps/api python scripts/reconstruct_svb.py', '```', '',
         'Reference facts and assumptions: `examples/svb-2022/reference.json`. Each run gets fresh immutable artifact directories. '
@@ -379,7 +547,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reference', type=Path, default=ROOT/'examples/svb-2022/reference.json')
     parser.add_argument('--artifacts', type=Path, default=ROOT/'artifacts/svb-reconstruction/runs')
-    parser.add_argument('--output', type=Path, default=ROOT/'docs/reviews/2026-10-01-svb-reconstruction.json')
+    parser.add_argument('--output', type=Path, default=ROOT/'docs/reviews/2026-11-16-svb-reconstruction.json')
     args = parser.parse_args()
     reference = json.loads(args.reference.read_text(encoding='utf-8'))
     result = run(reference, args.artifacts.resolve())
