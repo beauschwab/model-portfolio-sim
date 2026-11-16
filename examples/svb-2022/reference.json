@@ -92,7 +92,7 @@
   "regulatory_elections": {
     "aoci_in_regulatory_capital": "opt_out",
     "source": "fed_regulation",
-    "status": "retrospective source; transcribed from the Federal Reserve review's description of SVBFG's AOCI election and not re-read when this field was added; verify before relying on it"
+    "status": "retrospective source; transcribed from the Federal Reserve review's description of SVBFG's AOCI election and not re-read when this field was added. Corroborated at bank level by the FDIC Call Report in fdic_bank_2022q4.json: reported CET1 (16,995) exceeds total equity (15,456) by about the reported AOCI loss (1,896) less intangibles (285), which is only possible with AOCI excluded"
   },
   "assumptions": {
     "afs_duration_years": 3.5,

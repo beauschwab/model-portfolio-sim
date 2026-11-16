@@ -2,7 +2,7 @@
 
 **Conclusion: the aggregate ledger reproduces disclosed opening totals and demonstrates the liquidity failure mechanism. It does not reproduce the precise March cash position or predict the run.**
 
-Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 20 aggregate runs plus native capital checks completed in 2.19 seconds, including local Parquet and independent journal verification.
+Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 22 aggregate runs plus native capital checks completed in 2.40 seconds, including local Parquet and independent journal verification.
 
 ## Scope and information boundary
 
@@ -109,7 +109,7 @@ Tax-effecting the AFS mark explains most of the gap between gross AFS OCI and re
 
 Selling securities whose loss was already in AOCI leaves total equity unchanged and creates no cash from the tax benefit, which is a receivable. Because AOCI was excluded from regulatory capital, the sale moves the after-tax loss into CET1: that is the capital cost of realizing it. The after-tax loss is the same proxy as the sale-loss comparison above, now produced by the ledger; it remains about 0.3bn below the announced figure because the actual sold lots are unknown.
 
-CET1 from identifiable components: total equity 16.295 less preferred 3.646, noncontrolling interests 0.291, goodwill 0.375 and other intangibles 0.136, with reported AOCI of -1.911 excluded, gives 13.758 against reported 13.697: a residual of 0.061bn (12.11% against 12.05% of RWA). **The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record.
+CET1 from identifiable components: total equity 16.295 less preferred 3.646, noncontrolling interests 0.291, goodwill 0.375 and other intangibles 0.136, with reported AOCI of -1.911 excluded, gives 13.758 against reported 13.697: a residual of 0.061bn (12.11% against 12.05% of RWA). **The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record; the bank's Call Report corroborates it, since its reported CET1 exceeds its total equity by about the AOCI loss less intangibles (see the bank-only section).
 
 ## HTM sale accounting counterfactual
 
@@ -136,15 +136,39 @@ The opening balance sheet is consolidated. These runs assume part of the consoli
 
 Consolidated cash is -7.197bn in every case; the split only decides where the shortfall lands. Cash left at the parent deepens the bank shortfall one for one. A transfer scheduled before the event covers it; one that waits for approval until March 10 (day 4) arrives after the March 9 breach. No transfer is inferred from common ownership. This moves the model further from the observed bank cash of about -0.958bn, not closer: the consolidated snapshot already overstates the shortfall, so trapped parent cash cannot explain the residual. The bank-only balance sheet and roll-forward remain the missing inputs.
 
+## Bank-only balance sheet and replay
+
+Silicon Valley Bank alone, from its December 31, 2022 Call Report as published by the FDIC, at the same date as the consolidated 10-K. Every balance is an FDIC observation except one derived asset remainder; durations and the AFS pledge are the consolidated disclosures, applied as assumptions.
+
+| Measure | Bank ledger | Call Report | Difference | Consolidated | Consolidated less bank |
+|---|---:|---:|---:|---:|---:|
+| assets | 209.026 | 209.026 | 0.000000000 | 211.793 | 2.767 |
+| liabilities | 193.570 | 193.570 | 0.000000000 | 195.498 | 1.928 |
+| equity | 15.456 | 15.456 | 0.000000000 | 16.295 | 0.839 |
+| cash | 12.511 | 12.511 | 0.000000000 | 13.803 | 1.292 |
+
+Liabilities and deposits itemize exactly from the fetched fields. Assets leave 1.335bn that those fields do not itemize; it is carried as one derived line, not allocated. "Consolidated less bank" is the parent and other subsidiaries net of intercompany eliminations, so it is not the parent-only balance sheet: cash the parent keeps on deposit at the bank is eliminated on consolidation.
+
+| March 9 cash after the $21bn sale and $42bn withdrawals | Model | Observed (bank) | Residual |
+|---|---:|---:|---:|
+| Bank-only opening | -8.489 | -0.958 | -7.531 |
+| Consolidated opening | -7.197 | -0.958 | -6.239 |
+
+**Using the bank's own opening makes the unexplained cash residual larger, not smaller (-7.531bn against -6.239bn), because the bank held less cash than the group.** The residual is therefore not an entity-scope artefact: it is the January to March 9 roll-forward. The bank filed no Call Report after year-end, so there is no bank-only observation of deposit flows, borrowings, maturities or earnings in that window, and no flow is assumed to close the gap.
+
+Other year-end bank observations: 93.9% of domestic deposits were uninsured (86.4% of all deposits including foreign offices); FHLB advances 15.000bn; balance at the Federal Reserve 7.821bn; pledged securities 55.358bn; unrecognized HTM loss 15.159bn against bank equity of 15.456bn.
+
+Bank-level bridges, from Call Report fields only: tax-effecting the gross AFS mark of -2.526bn at 26-28% leaves 0.027 to 0.077bn of reported AOCI (-1.896bn) unexplained. Equity with AOCI excluded less intangibles gives 17.067bn against reported CET1 of 16.995bn, a residual of 0.072bn; reported CET1 over reported risk-weighted assets reproduces the published 15.26% ratio.
+
 ## Regulatory comparison
 
 SVB was not subject to LCR/NSFR at failure. The Fed retrospectively estimated reduced LCR of 103.1% at December 30 and 102.5% at February 28. Those ratios did not establish resilience to an hours-long run. The reduced/full LCR distinction and legal applicability matter. This reconstruction does not claim to reproduce LCR or NSFR without the relevant flow, encumbrance and funding-detail data. SVB was not a GSIB; GSIB TLAC/SLR requirements must not be applied indiscriminately.
 
-Every account in all 20 runs declares LCR and NSFR `not_applicable`, and every scenario reports that status. No proxy ratio is computed, so none can be read as a pass. The engine refuses a `regulatory` label for its research proxies, and reproducing the Fed estimates would need its HQLA, outflow and inflow components, which are not transcribed here.
+Every account in all 22 runs declares LCR and NSFR `not_applicable`, and every scenario reports that status. No proxy ratio is computed, so none can be read as a pass. The engine refuses a `regulatory` label for its research proxies, and reproducing the Fed estimates would need its HQLA, outflow and inflow components, which are not transcribed here.
 
 ## Validation and remaining gaps
 
-All 37 explicit reconstruction checks passed. Each run persisted Parquet, checked its hashes and schema, independently replayed the journal and reconciled the native closing ledger. Cash-breach scenarios intentionally have `dynamic_validated=false`; that is a stress result, not failed journal validation. Native binary and engine source identities, inputs, timings and artifact paths are retained in the JSON companion.
+All 42 explicit reconstruction checks passed. Each run persisted Parquet, checked its hashes and schema, independently replayed the journal and reconciled the native closing ledger. Cash-breach scenarios intentionally have `dynamic_validated=false`; that is a stress result, not failed journal validation. Native binary and engine source identities, inputs, timings and artifact paths are retained in the JSON companion.
 
 The first [reconstruction](2026-10-01-svb-reconstruction.md) and its record are kept unchanged. The original ten runs reproduce it exactly; declaring LCR/NSFR applicability changes only their status labels. The HTM and legal-entity runs are new counterfactuals with labelled assumptions, checked against values computed in the script from the opening facts.
 

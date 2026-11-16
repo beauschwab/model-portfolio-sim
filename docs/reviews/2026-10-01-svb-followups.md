@@ -23,7 +23,10 @@ policy, and the reconstruction bridges reported AOCI and CET1 with explicit resi
 notes. For #27 the engine has a standalone minute-resolution settlement replay
 ([`intraday-settlement-1`](../models/intraday-settlement.md)); it is not applied to SVB
 because no timestamped request, collateral-location or facility data is transcribed.
-#26, #28 and #29 remain open and their residuals are unchanged.
+For #26 the reconstruction now opens Silicon Valley Bank alone from its year-end FDIC
+Call Report and reports bank-only and consolidated results separately; the March cash
+residual is larger on the bank's own opening (about $7.5bn), which locates it in the
+unobserved January-March roll-forward. #28 and #29 remain open.
 
 Each issue includes evidence, implementation scope, acceptance criteria and links
 to the existing product/model backlog. New financial behavior belongs in Rust;
