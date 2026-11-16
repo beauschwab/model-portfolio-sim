@@ -10,7 +10,7 @@ import math
 import sys
 
 from . import product_strategy_reference as product
-from .balance_stress import Account, Position, Scenario, _decode
+from .balance_stress import Account, Position, Scenario, _decode, wire_row
 
 SCHEMA = 'product-candidate-journal-1'
 MAX_DAILY_ROWS = 250_000
@@ -118,7 +118,7 @@ def _spec(raw):
         raise ArithmeticError('candidate raw specification version/fields differ')
     if any(raw.get(k,[]) for k in ('netting_sets','policies','cashflows')):
         raise ArithmeticError('candidate mixed/legacy owners unsupported')
-    normalized=dict(horizon_days=raw.get('horizon_days',360),accounts=[asdict(_decode(Account,x)) for x in raw.get('accounts',[])],positions=[asdict(_decode(Position,x)) for x in raw.get('positions',[])],scenarios=[asdict(_decode(Scenario,x)) for x in raw.get('scenarios',[])],netting_sets=[],policies=[],cashflows=[],reverse_severities=deepcopy(raw.get('reverse_severities',[])),ruleset=raw.get('ruleset','research-weights-v2'))
+    normalized=dict(horizon_days=raw.get('horizon_days',360),accounts=[wire_row(_decode(Account,x)) for x in raw.get('accounts',[])],positions=[asdict(_decode(Position,x)) for x in raw.get('positions',[])],scenarios=[asdict(_decode(Scenario,x)) for x in raw.get('scenarios',[])],netting_sets=[],policies=[],cashflows=[],reverse_severities=deepcopy(raw.get('reverse_severities',[])),ruleset=raw.get('ruleset','research-weights-v2'))
     if not 30<=normalized['horizon_days']<=1080 or type(normalized['horizon_days']) is not int or normalized['ruleset']!='research-weights-v2':
         raise ArithmeticError('candidate specification calendar/ruleset unsupported')
     for key,identity in [('accounts','id'),('positions','id'),('scenarios','name')]:

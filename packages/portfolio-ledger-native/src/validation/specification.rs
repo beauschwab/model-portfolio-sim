@@ -259,9 +259,17 @@ fn validate_impl(
                 "unsupported tax accounting policy; only {TAX_POLICY} is implemented"
             ));
         }
-        range(row, "tax_benefit_allowance dta_cet1_deduction", 0., 1.)?;
-        range(row, "securities_tax_rate", 0., 0.99)?;
-        range(row, "other_aoci", -1e15, 1e15)?;
+        // Read from the account, not the serialized row: these fields are omitted at their defaults.
+        for (name, value, low, high) in [
+            ("tax_benefit_allowance", a.tax_benefit_allowance, 0., 1.),
+            ("dta_cet1_deduction", a.dta_cet1_deduction, 0., 1.),
+            ("securities_tax_rate", a.securities_tax_rate, 0., 0.99),
+            ("other_aoci", a.other_aoci, -1e15, 1e15),
+        ] {
+            if !value.is_finite() || value < low || value > high {
+                return Err(format!("{name} outside [{low}, {high}]"));
+            }
+        }
         if !["", "include", "opt_out"].contains(&a.aoci_cet1_treatment.as_str()) {
             return Err("AOCI CET1 treatment must be include or opt_out".into());
         }

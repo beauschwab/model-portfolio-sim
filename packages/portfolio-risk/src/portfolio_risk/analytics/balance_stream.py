@@ -21,7 +21,7 @@ import uuid
 
 import polars as pl
 
-from .balance_stress import validate, _simulate, Scenario, MODEL_VERSION
+from .balance_stress import validate, _simulate, Scenario, MODEL_VERSION, wire_row
 from .balance_rules import RULESET
 from .journal import Journal, SCHEMA as JOURNAL_SCHEMA, statements
 
@@ -223,7 +223,7 @@ def _rust(spec, writer, progress, cancelled, timeout, *, executable=None, workfl
     binary = executable or binary_path()
     if not binary.is_file():
         raise RuntimeError('Rust state engine is not built; run scripts/build_ledger_native.py. No fallback was used.')
-    normalized = {k: [asdict(x) if hasattr(x, '__dataclass_fields__') else x for x in v] if isinstance(v,list) else v for k,v in spec.items()}
+    normalized = {k: [wire_row(x) if hasattr(x, '__dataclass_fields__') else x for x in v] if isinstance(v,list) else v for k,v in spec.items()}
     # File input avoids a pipe deadlock on large requests while the child emits output.
     request = writer.root/'request.json'
     import datetime

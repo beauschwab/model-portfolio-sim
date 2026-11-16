@@ -59,6 +59,23 @@ class Account:
     tax_refund_day: int = 0  # day a tax receivable is paid in cash; zero means never in the horizon
 
 
+TAX_FIELDS = ('tax_accounting', 'securities_tax_rate', 'tax_benefit_allowance', 'other_aoci', 'other_aoci_in_cet1',
+              'aoci_cet1_treatment', 'aoci_cet1_effective_day', 'dta_cet1_deduction', 'tax_refund_day')
+
+
+def wire_row(record):
+    """A specification record as the native engine normalizes it. The deferred-tax account fields
+    are omitted at their defaults, so specifications that do not select the policy keep their bytes."""
+    row = asdict(record)
+    if isinstance(record, Account):
+        for name in TAX_FIELDS:
+            value = row[name]
+            default = value == 0 and math.copysign(1., value) > 0 if isinstance(value, float) else not value
+            if default:
+                del row[name]
+    return row
+
+
 @dataclass
 class Position:
     id: str

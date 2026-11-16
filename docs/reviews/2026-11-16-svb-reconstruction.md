@@ -2,7 +2,7 @@
 
 **Conclusion: the aggregate ledger reproduces disclosed opening totals and demonstrates the liquidity failure mechanism. It does not reproduce the precise March cash position or predict the run.**
 
-Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 20 aggregate runs plus native capital checks completed in 1.99 seconds, including local Parquet and independent journal verification.
+Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 20 aggregate runs plus native capital checks completed in 2.19 seconds, including local Parquet and independent journal verification.
 
 ## Scope and information boundary
 
