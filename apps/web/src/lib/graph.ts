@@ -27,8 +27,9 @@ export const STRESS_BOOKS: BookName[] = ["mbs", "deposits"];
 const SHARED = ["market", "settings", "assumptions:other", "context"];
 const PRODUCT_ASSUMPTIONS: Partial<Record<string, string>> = { deposits: "assumptions:deposits", cds: "assumptions:cds" };
 
-/** Input nodes a result node depends on. Scenarios feed no base result, and
- * tapes/cohort rules feed none until a publish changes a book. */
+/** Input nodes a result node depends on. Scenarios and the rate shock policy
+ * (`rate_shock_policy`) feed no base result, and tapes/cohort rules feed none
+ * until a publish changes a book. */
 export function dependsOn(node: string): string[] {
   const [kind, book] = node.split(":");
   if (kind === "kpis" || kind === "nii") {

@@ -32,7 +32,7 @@
 - Constraint-only edits reuse coefficients without pricing. Dirty edits selectively retain exactly equal sources; shared identity/grid/count changes require complete preparation. Retained capital limits need refreshed
   dependencies (`CAPITAL_REFRESH_REQUIRED`).
 - Conditional forecasts are income/runoff only, never OAS/EVE/derivative valuation. Fit/select on chronological training data only; holdout affects diagnostics. Stable observation ties and sorted forecast driver names
-  remain deterministic.
+  remain deterministic. [Rate shocks](docs/models/rate-shocks.md): full-revaluation EVE at fixed base OAS, base-anchored NII yields, income-only ramps; a missing limit never passes.
 - Cache keys retain complete collision-safe input/parent identity, model/backend identity and live cashflow ownership. Validate price/notional even on hits; eviction is safe recomputation, not changed economics. Budgets
   include retained identities.
 - Perform native aggregate work/byte admission before generation and reserve extra groups prospectively. Chunked cashflows/schedules must not become multi-million-row JSON. Component/cache limits never imply an aggregate
@@ -122,7 +122,7 @@
 - Liquidity applicability is `internal_limit` with positive floor, `not_applicable` or `unconfigured` without floor; legacy floor infers internal limit. Research proxies reject `regulatory`; undefined ratios are
   unavailable and nonapplicable rules never pass. Transfer approvals delay dispatch; intercompany balances eliminate per currency daily.
 - HTM `asc320-htm-v1` uses reviewed sale reasons/materiality and the 90-day near-maturity rule; excess unsupported sales reclassify remaining HTM to AFS with balanced AOCI postings. Without policy report not_assessed;
-  category LP constraints, auditor judgment and tainting periods are separate.
+  category LP constraints, auditor judgment and tainting periods are separate. `deferred-tax-aoci-1` carries AFS OCI net of tax; sale tax benefits are receivables, cash only on a dated refund.
 - [Hedge accounting](docs/models/hedge-accounting.md): explicitly reviewed Physical derivative/item/forecast sources, append-only relationships, hypothetical effectiveness, OCI/basis recognition and one ordered journal.
   Legacy `fvh`/`cfh` labels do not designate a hedge; marks/coupons/collateral/closeout post once and retained opening balances offset equity once.
 - Apply the documented ASC 815 rule matrix and reviewed ASU 2025-09/2022-01 adoption prospectively; preserve per-member/option hypotheticals, dated elections/dedesignation, assessment bounds and portfolio-layer breach

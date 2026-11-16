@@ -143,6 +143,9 @@
   "GET /pricing/assumptions": {
     "permission": "read"
   },
+  "GET /rate-shocks/policy": {
+    "permission": "read"
+  },
   "GET /programs": {
     "permission": "read"
   },
@@ -302,6 +305,10 @@
     "job": true,
     "permission": "compute"
   },
+  "POST /rate-shocks/run": {
+    "job": true,
+    "permission": "compute"
+  },
   "POST /strategy/eval": {
     "permission": "compute",
     "transport": "arrow"
@@ -345,6 +352,9 @@
     "permission": "publish"
   },
   "PUT /programs/{name}": {
+    "permission": "edit"
+  },
+  "PUT /rate-shocks/policy": {
     "permission": "edit"
   },
   "PUT /scenarios/{name}": {

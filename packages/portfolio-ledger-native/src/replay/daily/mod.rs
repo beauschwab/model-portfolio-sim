@@ -337,6 +337,11 @@ struct Sim<'a> {
     commitments: Vec<f64>,
     schedule_balance: Vec<f64>,
     aoci: Vec<f64>,
+    /// Selected deferred-tax policy: gross AFS OCI, its deferred tax and the tax receivable per
+    /// account. `aoci` stays the net amount inside equity.
+    gross_oci: Vec<f64>,
+    deferred_tax: Vec<f64>,
+    tax_receivable: Vec<f64>,
     /// Cash-flow-hedge OCI from formal hedge owners; separate from AFS `oci`.
     hedge_aoci: Vec<f64>,
     extra_assets: Vec<f64>,
@@ -429,6 +434,21 @@ impl<'a> Sim<'a> {
         lifecycle: Option<&'a crate::owners::lifecycle::Compiled<'a>>,
         commercials: Option<&'a crate::owners::commercial::intents::Compiled<'a>>,
     ) -> R<Self> {
+        if spec.accounts.iter().any(|a| a.taxed())
+            && (dated.is_some()
+                || consumers.is_some()
+                || mortgages.is_some()
+                || deposit_revisions.is_some()
+                || source_principals.is_some()
+                || derivatives.is_some()
+                || lifecycle.is_some()
+                || commercials.is_some())
+        {
+            return Err(
+                "the deferred tax policy supports the aggregate daily ledger only; dated, product and hedge owners reject it"
+                    .into(),
+            );
+        }
         let dated_state = dated
             .map(|source| {
                 source
@@ -508,6 +528,9 @@ impl<'a> Sim<'a> {
             commitments: spec.positions.iter().map(|p| p.commitment).collect(),
             schedule_balance: spec.positions.iter().map(|p| p.balance).collect(),
             aoci: vec![0.; a],
+            gross_oci: vec![0.; a],
+            deferred_tax: vec![0.; a],
+            tax_receivable: vec![0.; a],
             hedge_aoci: vec![0.; a],
             extra_assets: vec![0.; a],
             extra_debt: vec![0.; a],
@@ -593,6 +616,13 @@ impl<'a> Sim<'a> {
             }
         }
         for i in 0..a {
+            if sim.accounts[i].taxed() {
+                sim.gross_oci[i] = sim.aoci[i];
+                sim.deferred_tax[i] = sim.accounts[i].tax_effect(sim.gross_oci[i]);
+                sim.aoci[i] += sim.deferred_tax[i] + sim.accounts[i].other_aoci;
+            }
+        }
+        for i in 0..a {
             sim.hedge_aoci[i] = sim.derivative_opening_oci(i);
             sim.opening_equity[i] -= sim.aoci[i] + sim.hedge_aoci[i];
         }
@@ -675,10 +705,23 @@ impl<'a> Sim<'a> {
         event: &str,
         cash: f64,
         earnings: f64,
-        oci: f64,
+        mut oci: f64,
         mut changes: Changes,
         id: &str,
     ) -> R<()> {
+        if oci != 0. && self.accounts[a].taxed() {
+            // Every change in gross AFS OCI carries its deferred tax; the posting is the net amount.
+            self.gross_oci[a] += oci;
+            let target = self.accounts[a].tax_effect(self.gross_oci[a]);
+            add(
+                &mut changes,
+                "deferred_tax",
+                "",
+                target - self.deferred_tax[a],
+            );
+            oci += target - self.deferred_tax[a];
+            self.deferred_tax[a] = target;
+        }
         let egl = if event == "dividend" {
             "equity_distributions".into()
         } else {
@@ -745,10 +788,33 @@ impl<'a> Sim<'a> {
             );
         }
         for a in 0..self.accounts.len() {
+            if self.accounts[a].tax_refund_day == day && self.tax_receivable[a] > 0. {
+                let refund = self.tax_receivable[a];
+                self.tax_receivable[a] = 0.;
+                self.post(
+                    day,
+                    a,
+                    "tax_refund",
+                    refund,
+                    0.,
+                    0.,
+                    vec![entry("tax_receivable", "", -refund)],
+                    "",
+                )?;
+                if self.detail {
+                    self.sink.emit("accounting_events",json!({"scenario":self.scenario.name,"day":day,"account":self.accounts[a].id,"policy":"","position":"","sale_reason":"","accounting_policy":self.accounts[a].tax_accounting,"qualification":"tax_refund","amortized_cost":0.,"aoci":refund}))?;
+                }
+            }
+            // Security sale results are taxed through the selected policy, not again as operating income.
+            let taxed = self.accounts[a].taxed();
             let income: f64 = self
                 .aggregate
                 .iter()
-                .filter(|r| r.0 == a && r.1 != "dividend")
+                .filter(|r| {
+                    r.0 == a
+                        && r.1 != "dividend"
+                        && !(taxed && (r.1 == "security_sale" || r.1 == "securities_tax"))
+                })
                 .map(|r| r.2[1])
                 .sum();
             let tax = income.max(0.) * self.accounts[a].tax_rate;
@@ -773,8 +839,16 @@ impl<'a> Sim<'a> {
             let mut e = vec![
                 entry("cash", "", self.accounts[a].cash),
                 entry("opening_equity", "", -self.opening_equity[a]),
-                entry("oci", "", -self.aoci[a]),
             ];
+            if self.accounts[a].taxed() {
+                e.extend([
+                    entry("oci", "", -(self.aoci[a] - self.accounts[a].other_aoci)),
+                    entry("oci_other", "", -self.accounts[a].other_aoci),
+                    entry("deferred_tax", "", self.deferred_tax[a]),
+                ]);
+            } else {
+                e.push(entry("oci", "", -self.aoci[a]));
+            }
             for (i, p) in self.positions.iter().enumerate() {
                 if self.aid[p.account.as_str()] != a {
                     continue;
@@ -941,6 +1015,16 @@ impl<'a> Sim<'a> {
                 ("oci", -self.aoci[a]),
             ] {
                 expected.insert((a, self.sink.intern(g), self.sink.intern("")), v);
+            }
+            if self.accounts[a].taxed() {
+                for (g, v) in [
+                    ("oci", -(self.aoci[a] - self.accounts[a].other_aoci)),
+                    ("oci_other", -self.accounts[a].other_aoci),
+                    ("deferred_tax", self.deferred_tax[a]),
+                    ("tax_receivable", self.tax_receivable[a]),
+                ] {
+                    expected.insert((a, self.sink.intern(g), self.sink.intern("")), v);
+                }
             }
         }
         for (i, p) in self.positions.iter().enumerate() {
@@ -1236,6 +1320,13 @@ impl<'a> Sim<'a> {
             }
             rwa += self.extra_assets[ai];
             rsf += self.extra_assets[ai];
+            // Tax balances are assets when positive and liabilities when negative, at 100% proxy RWA/RSF.
+            for balance in [self.deferred_tax[ai], self.tax_receivable[ai]] {
+                assets += balance.max(0.);
+                liabilities += (-balance).max(0.);
+                rwa += balance.max(0.);
+                rsf += balance.max(0.);
+            }
             hqla += l2.min(hqla * 0.4 / (1. - 0.4));
             outflow = (outflow - inflow.min(0.75 * outflow)).max(0.);
             let error = assets - liabilities - a.equity;
@@ -1244,10 +1335,33 @@ impl<'a> Sim<'a> {
                 return Err(format!("balance sheet mismatch day {day}: {error}"));
             }
             // Cash-flow-hedge OCI never enters the research CET1 proxy (zero without hedge owners).
-            let cet1 = a.equity
-                - a.capital_deductions
-                - if a.include_aoci { 0. } else { self.aoci[ai] }
-                - self.hedge_aoci[ai];
+            let cet1 = if a.taxed() {
+                let opt_out = if a.aoci_cet1_treatment.is_empty() {
+                    !a.include_aoci
+                } else {
+                    a.aoci_cet1_treatment == "opt_out"
+                };
+                let excluded = if opt_out && day >= a.aoci_cet1_effective_day {
+                    self.aoci[ai]
+                        - if a.other_aoci_in_cet1 {
+                            a.other_aoci
+                        } else {
+                            0.
+                        }
+                } else {
+                    0.
+                };
+                a.equity
+                    - a.capital_deductions
+                    - excluded
+                    - a.dta_cet1_deduction
+                        * (self.deferred_tax[ai] + self.tax_receivable[ai]).max(0.)
+            } else {
+                a.equity
+                    - a.capital_deductions
+                    - if a.include_aoci { 0. } else { self.aoci[ai] }
+                    - self.hedge_aoci[ai]
+            };
             let exposure = assets.max(0.) + undrawn;
             self.minimum_cash[ai] = self.minimum_cash[ai].min(a.cash);
             let margins = [
@@ -2785,6 +2899,38 @@ impl Sim<'_> {
                         changes,
                         &pos.id,
                     )?;
+                    let result = amount - carry + reclass;
+                    if self.accounts[a].taxed() && result != 0. {
+                        // The realized result is taxed as a receivable or payable, never as cash.
+                        let benefit = self.accounts[a].tax_effect(result);
+                        self.tax_receivable[a] += benefit;
+                        self.post(
+                            day,
+                            a,
+                            "securities_tax",
+                            0.,
+                            benefit,
+                            0.,
+                            vec![entry("tax_receivable", "", benefit)],
+                            "",
+                        )?;
+                        let policy = self.accounts[a].tax_accounting.clone();
+                        self.accounting_event(
+                            day,
+                            a,
+                            &p.id,
+                            i,
+                            &p.sale_reason,
+                            &policy,
+                            if benefit > 0. {
+                                "realized_tax_benefit"
+                            } else {
+                                "realized_tax_expense"
+                            },
+                            result,
+                            benefit,
+                        )?;
+                    }
                     if pos.classification == "htm" && face > 0. {
                         self.positions[i] = pos.clone();
                         self.htm_sale(day, a, &p, i, face + adjustment)?;

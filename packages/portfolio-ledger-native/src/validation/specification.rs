@@ -9,6 +9,7 @@ const RULES: &str = "research-weights-v2";
 /// The only HTM accounting policy implemented: US GAAP ASC 320-10-25 sale
 /// exceptions with a portfolio reclassification above a stated materiality.
 pub const HTM_POLICY: &str = "asc320-htm-v1";
+pub const TAX_POLICY: &str = "deferred-tax-aoci-1";
 /// Sale reasons ASC 320-10-25-6 and 25-14 treat as consistent with HTM intent.
 pub const HTM_EXCEPTIONS: [&str; 5] = [
     "credit_deterioration",
@@ -252,6 +253,48 @@ fn validate_impl(
         range(row, "htm_taint_materiality", 0., 1.)?;
         if a.htm_taint_materiality > 0. && a.htm_accounting.is_empty() {
             return Err("HTM taint materiality needs a selected HTM accounting policy".into());
+        }
+        if !["", TAX_POLICY].contains(&a.tax_accounting.as_str()) {
+            return Err(format!(
+                "unsupported tax accounting policy; only {TAX_POLICY} is implemented"
+            ));
+        }
+        // Read from the account, not the serialized row: these fields are omitted at their defaults.
+        for (name, value, low, high) in [
+            ("tax_benefit_allowance", a.tax_benefit_allowance, 0., 1.),
+            ("dta_cet1_deduction", a.dta_cet1_deduction, 0., 1.),
+            ("securities_tax_rate", a.securities_tax_rate, 0., 0.99),
+            ("other_aoci", a.other_aoci, -1e15, 1e15),
+        ] {
+            if !value.is_finite() || value < low || value > high {
+                return Err(format!("{name} outside [{low}, {high}]"));
+            }
+        }
+        if !["", "include", "opt_out"].contains(&a.aoci_cet1_treatment.as_str()) {
+            return Err("AOCI CET1 treatment must be include or opt_out".into());
+        }
+        if a.aoci_cet1_effective_day > spec.horizon_days || a.tax_refund_day > spec.horizon_days {
+            return Err(
+                "AOCI effective day and tax refund day must be whole days within the horizon"
+                    .into(),
+            );
+        }
+        if !a.taxed()
+            && (a.securities_tax_rate != 0.
+                || a.tax_benefit_allowance != 0.
+                || a.other_aoci != 0.
+                || a.other_aoci_in_cet1
+                || !a.aoci_cet1_treatment.is_empty()
+                || a.aoci_cet1_effective_day != 0
+                || a.dta_cet1_deduction != 0.
+                || a.tax_refund_day != 0)
+        {
+            return Err(
+                "deferred tax and AOCI inputs need a selected tax accounting policy".into(),
+            );
+        }
+        if a.aoci_cet1_effective_day != 0 && a.aoci_cet1_treatment != "opt_out" {
+            return Err("an AOCI effective day applies only to an opt_out".into());
         }
     }
     for p in &spec.positions {
@@ -518,6 +561,23 @@ fn validate_impl(
     }
     for a in &spec.accounts {
         let (mut assets, mut liabilities) = (a.cash, 0.);
+        if a.taxed() {
+            // Deferred tax on opening gross AFS OCI is a separate opening balance.
+            let gross: f64 = spec
+                .positions
+                .iter()
+                .filter(|p| {
+                    p.account == a.id
+                        && p.start_day == 0
+                        && p.kind == "security"
+                        && p.classification == "afs"
+                })
+                .map(|p| p.balance * (p.opening_market_price - 1.) - p.book_adjustment)
+                .sum();
+            let tax = a.tax_effect(gross);
+            assets += tax.max(0.);
+            liabilities += (-tax).max(0.);
+        }
         for p in &spec.positions {
             if p.account == a.id && p.start_day == 0 {
                 if ["loan", "security", "reverse_repo"].contains(&p.kind.as_str()) {

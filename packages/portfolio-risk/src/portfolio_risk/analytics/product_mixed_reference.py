@@ -14,7 +14,7 @@ import unicodedata
 
 from . import product_candidate_reference as candidate
 from . import product_strategy_reference as product
-from .balance_stress import Account, Position, Scenario, _decode
+from .balance_stress import Account, Position, Scenario, _decode, wire_row
 
 SCHEMA = 'product-mixed-dated-1'
 RIGHTS = ('dated_interest_receivable', 'dated_interest_payable',
@@ -76,7 +76,7 @@ def _normalize(raw):
     if any(raw.get(k, []) for k in ('netting_sets', 'policies', 'cashflows')):
         raise ArithmeticError('mixed unsupported legacy/credit/netting owners')
     result = dict(horizon_days=raw.get('horizon_days', 360),
-        accounts=[asdict(_decode(Account, a)) for a in raw.get('accounts', [])],
+        accounts=[wire_row(_decode(Account, a)) for a in raw.get('accounts', [])],
         positions=[asdict(_decode(Position, p)) for p in raw.get('positions', [])],
         scenarios=[asdict(_decode(Scenario, s)) for s in raw.get('scenarios', [])],
         reverse_severities=deepcopy(raw.get('reverse_severities', [])),

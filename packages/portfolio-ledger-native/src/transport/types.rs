@@ -82,6 +82,56 @@ pub struct Account {
     /// amortized cost, above which the selected policy reclassifies the rest.
     #[serde(default)]
     pub htm_taint_materiality: f64,
+    // The deferred-tax fields are omitted from normalized output at their defaults, so
+    // specifications that do not select the policy keep their existing bytes.
+    /// Selected deferred-tax policy; empty keeps gross OCI and no tax on security sales.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub tax_accounting: String,
+    /// Rate on AFS OCI and on realized security sale results.
+    #[serde(default, skip_serializing_if = "zero_amount")]
+    pub securities_tax_rate: f64,
+    /// Share of tax benefits on losses that is not recognized.
+    #[serde(default, skip_serializing_if = "zero_amount")]
+    pub tax_benefit_allowance: f64,
+    /// Supplied other AOCI components, net of tax, held unchanged.
+    #[serde(default, skip_serializing_if = "zero_amount")]
+    pub other_aoci: f64,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub other_aoci_in_cet1: bool,
+    /// "include" or "opt_out"; empty keeps the legacy `include_aoci` flag.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub aoci_cet1_treatment: String,
+    /// An opt-out applies from this day; before it AOCI is included.
+    #[serde(default, skip_serializing_if = "zero_day")]
+    pub aoci_cet1_effective_day: usize,
+    /// Share of the recognized tax asset deducted from CET1.
+    #[serde(default, skip_serializing_if = "zero_amount")]
+    pub dta_cet1_deduction: f64,
+    /// Day a tax receivable is paid in cash; zero means never in the horizon.
+    #[serde(default, skip_serializing_if = "zero_day")]
+    pub tax_refund_day: usize,
+}
+fn zero_amount(v: &f64) -> bool {
+    *v == 0. && v.is_sign_positive()
+}
+fn zero_day(v: &usize) -> bool {
+    *v == 0
+}
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+impl Account {
+    /// Tax on a pre-tax amount: a loss gives a benefit net of the unrecognized share; a gain is taxed in full.
+    pub fn tax_effect(&self, amount: f64) -> f64 {
+        if amount < 0. {
+            -amount * self.securities_tax_rate * (1. - self.tax_benefit_allowance)
+        } else {
+            -amount * self.securities_tax_rate
+        }
+    }
+    pub fn taxed(&self) -> bool {
+        !self.tax_accounting.is_empty()
+    }
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

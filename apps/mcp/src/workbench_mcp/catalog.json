@@ -1219,6 +1219,19 @@
       "path": "/programs",
       "permission": "read"
     },
+    "get_rate_shocks_policy": {
+      "description": "Scenario conventions and limits, with the scenario names limits may refer to. [GET /rate-shocks/policy; permission=read].",
+      "inputSchema": {
+        "$defs": {},
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "method": "GET",
+      "path": "/rate-shocks/policy",
+      "permission": "read"
+    },
     "get_revisions": {
       "description": "Revision History [GET /revisions; permission=read].",
       "inputSchema": {
@@ -3873,6 +3886,64 @@
       "path": "/optimize",
       "permission": "compute"
     },
+    "post_rate_shocks_run": {
+      "description": "Run Rate Shocks [POST /rate-shocks/run; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
+      "inputSchema": {
+        "$defs": {
+          "RateShockRunRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "priority": {
+                "default": "interactive",
+                "enum": [
+                  "interactive",
+                  "background"
+                ],
+                "title": "Priority",
+                "type": "string"
+              }
+            },
+            "required": [
+              "expected_revision"
+            ],
+            "title": "RateShockRunRequest",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/RateShockRunRequest"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "description": "Unique key for this logical submission; reuse only for an exact retry.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "job": true,
+      "method": "POST",
+      "path": "/rate-shocks/run",
+      "permission": "compute"
+    },
     "post_run": {
       "description": "Run [POST /run; permission=compute]. Returns a durable job; poll get_jobs_jid, then inspect its manifest/tables. A timeout does not mean submission failed.",
       "inputSchema": {
@@ -4986,6 +5057,225 @@
       },
       "method": "PUT",
       "path": "/programs/{name}",
+      "permission": "edit"
+    },
+    "put_rate_shocks_policy": {
+      "description": "Put Rate Shock Policy [PUT /rate-shocks/policy; permission=edit].",
+      "inputSchema": {
+        "$defs": {
+          "RateShockLimit": {
+            "additionalProperties": false,
+            "description": "One board/ALCO limit. No entry for a metric and scenario is `unconfigured`, never a pass.",
+            "properties": {
+              "applicability": {
+                "default": "internal_limit",
+                "enum": [
+                  "internal_limit",
+                  "not_applicable"
+                ],
+                "title": "Applicability",
+                "type": "string"
+              },
+              "max_decline_pct": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0.0,
+                    "maximum": 100.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Max Decline Pct"
+              },
+              "metric": {
+                "enum": [
+                  "eve",
+                  "nii_12m",
+                  "nii_24m"
+                ],
+                "title": "Metric",
+                "type": "string"
+              },
+              "scenario": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-z0-9_]+$",
+                "title": "Scenario",
+                "type": "string"
+              }
+            },
+            "required": [
+              "metric",
+              "scenario"
+            ],
+            "title": "RateShockLimit",
+            "type": "object"
+          },
+          "RateShockPolicy": {
+            "additionalProperties": false,
+            "description": "`rate-shock-1` scenario conventions and limits; the engine validates the set as a whole.",
+            "properties": {
+              "decay_years": {
+                "default": 4,
+                "exclusiveMinimum": 0.0,
+                "maximum": 100.0,
+                "title": "Decay Years",
+                "type": "number"
+              },
+              "flattener": {
+                "default": [
+                  0.8,
+                  -0.6
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "title": "Flattener",
+                "type": "array"
+              },
+              "floor": {
+                "anyOf": [
+                  {
+                    "maximum": 0.2,
+                    "minimum": -0.2,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Floor"
+              },
+              "limits": {
+                "items": {
+                  "$ref": "#/$defs/RateShockLimit"
+                },
+                "maxItems": 256,
+                "title": "Limits",
+                "type": "array"
+              },
+              "long_bp": {
+                "default": 150,
+                "exclusiveMinimum": 0.0,
+                "maximum": 2000.0,
+                "title": "Long Bp",
+                "type": "number"
+              },
+              "parallel_bp": {
+                "default": [
+                  100,
+                  200,
+                  300,
+                  400
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 8,
+                "title": "Parallel Bp",
+                "type": "array"
+              },
+              "ramp_bp": {
+                "default": [
+                  200
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 8,
+                "title": "Ramp Bp",
+                "type": "array"
+              },
+              "ramp_months": {
+                "default": 12,
+                "maximum": 120.0,
+                "minimum": 1.0,
+                "title": "Ramp Months",
+                "type": "integer"
+              },
+              "schema": {
+                "const": "rate-shock-1",
+                "default": "rate-shock-1",
+                "title": "Schema",
+                "type": "string"
+              },
+              "short_bp": {
+                "default": 300,
+                "exclusiveMinimum": 0.0,
+                "maximum": 2000.0,
+                "title": "Short Bp",
+                "type": "number"
+              },
+              "steepener": {
+                "default": [
+                  -0.65,
+                  0.9
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "title": "Steepener",
+                "type": "array"
+              }
+            },
+            "title": "RateShockPolicy",
+            "type": "object"
+          },
+          "RateShockPolicyUpdate": {
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "minimum": 0.0,
+                "title": "Expected Revision",
+                "type": "integer"
+              },
+              "policy": {
+                "$ref": "#/$defs/RateShockPolicy"
+              }
+            },
+            "required": [
+              "policy",
+              "expected_revision"
+            ],
+            "title": "RateShockPolicyUpdate",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "$ref": "#/$defs/RateShockPolicyUpdate"
+          },
+          "expected_revision": {
+            "description": "Revision read from workspace state; never guess or silently refresh.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "method": "PUT",
+      "path": "/rate-shocks/policy",
       "permission": "edit"
     },
     "put_scenarios_name": {

@@ -38,6 +38,16 @@
     {"template": "cml_float_3y", "purchase_m": 6, "notional": 1000000000},
     {"template": "mmda_growth", "purchase_m": 0, "notional": 1200000000}
   ],
+  "rate_shocks": {"floor": 0.0, "limits": [
+    {"metric": "eve", "scenario": "parallel_up_200", "applicability": "internal_limit", "max_decline_pct": 12},
+    {"metric": "eve", "scenario": "parallel_down_200", "applicability": "internal_limit", "max_decline_pct": 12},
+    {"metric": "eve", "scenario": "short_up", "applicability": "internal_limit", "max_decline_pct": 10},
+    {"metric": "nii_12m", "scenario": "parallel_down_100", "applicability": "internal_limit", "max_decline_pct": 5},
+    {"metric": "nii_12m", "scenario": "parallel_down_200", "applicability": "internal_limit", "max_decline_pct": 8},
+    {"metric": "nii_24m", "scenario": "ramp_down_200", "applicability": "internal_limit", "max_decline_pct": 8},
+    {"metric": "nii_12m", "scenario": "flattener", "applicability": "internal_limit", "max_decline_pct": 5},
+    {"metric": "eve", "scenario": "short_down", "applicability": "not_applicable", "max_decline_pct": null}
+  ]},
   "reconciliation": {"tolerance_abs_usd": 0.05, "expected_breaks": {"1390": 48250000.0, "2090": 12500000.0}, "not_in_books": ["3000"]},
   "expected_gates": {
     "G1-data-accepted": {"exceptions": [

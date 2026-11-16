@@ -42,6 +42,18 @@
     {"template": "cml_fixed_5y", "purchase_m": 6, "notional": 150000000},
     {"template": "cd_2y", "purchase_m": 0, "notional": 200000000}
   ],
+  "rate_shocks": {"floor": 0.0, "limits": [
+    {"metric": "eve", "scenario": "parallel_up_200", "applicability": "internal_limit", "max_decline_pct": 15},
+    {"metric": "eve", "scenario": "parallel_down_200", "applicability": "internal_limit", "max_decline_pct": 15},
+    {"metric": "eve", "scenario": "parallel_up_400", "applicability": "internal_limit", "max_decline_pct": 25},
+    {"metric": "nii_12m", "scenario": "parallel_down_200", "applicability": "internal_limit", "max_decline_pct": 10},
+    {"metric": "nii_12m", "scenario": "parallel_up_200", "applicability": "internal_limit", "max_decline_pct": 10},
+    {"metric": "nii_24m", "scenario": "parallel_down_200", "applicability": "internal_limit", "max_decline_pct": 15},
+    {"metric": "nii_12m", "scenario": "ramp_down_200", "applicability": "internal_limit", "max_decline_pct": 5},
+    {"metric": "eve", "scenario": "steepener", "applicability": "internal_limit", "max_decline_pct": 10},
+    {"metric": "eve", "scenario": "flattener", "applicability": "internal_limit", "max_decline_pct": 10},
+    {"metric": "eve", "scenario": "short_down", "applicability": "not_applicable", "max_decline_pct": null}
+  ]},
   "reconciliation": {"tolerance_abs_usd": 0.05, "expected_breaks": {}, "not_in_books": ["3000"]},
   "expected_gates": {
     "G1-data-accepted": {"exceptions": []},

@@ -87,6 +87,52 @@ class MarketScenario(BaseModel):
         return values
 
 
+class RateShockLimit(BaseModel):
+    """One board/ALCO limit. No entry for a metric and scenario is `unconfigured`, never a pass."""
+    model_config = ConfigDict(extra="forbid")
+    metric: Literal["eve", "nii_12m", "nii_24m"]
+    scenario: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
+    applicability: Literal["internal_limit", "not_applicable"] = "internal_limit"
+    max_decline_pct: FiniteFloat | None = Field(None, gt=0, le=100)
+
+    @model_validator(mode="after")
+    def limit_matches_applicability(self):
+        if (self.applicability == "internal_limit") != (self.max_decline_pct is not None):
+            raise ValueError("an internal limit requires max_decline_pct; not_applicable must omit it")
+        return self
+
+
+class RateShockPolicy(BaseModel):
+    """`rate-shock-1` scenario conventions and limits; the engine validates the set as a whole."""
+    model_config = ConfigDict(extra="forbid")
+    schema_: Literal["rate-shock-1"] = Field("rate-shock-1", alias="schema")
+    parallel_bp: list[FiniteFloat] = Field(default=[100, 200, 300, 400], max_length=8)
+    ramp_bp: list[FiniteFloat] = Field(default=[200], max_length=8)
+    ramp_months: int = Field(12, ge=1, le=120, strict=True)
+    short_bp: FiniteFloat = Field(300, gt=0, le=2000)
+    long_bp: FiniteFloat = Field(150, gt=0, le=2000)
+    decay_years: FiniteFloat = Field(4, gt=0, le=100)
+    steepener: tuple[FiniteFloat, FiniteFloat] = (-0.65, 0.9)
+    flattener: tuple[FiniteFloat, FiniteFloat] = (0.8, -0.6)
+    floor: FiniteFloat | None = Field(None, ge=-0.2, le=0.2)
+    limits: list[RateShockLimit] = Field(default_factory=list, max_length=256)
+
+    def engine(self) -> dict:
+        return self.model_dump(by_alias=True, mode="json")
+
+
+class RateShockPolicyUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    policy: RateShockPolicy
+    expected_revision: int = Field(ge=0)
+
+
+class RateShockRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=0)
+    priority: Literal['interactive', 'background'] = 'interactive'
+
+
 class ForecastRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     snapshot_id: str = Field(pattern=r"^[a-f0-9]{64}$")

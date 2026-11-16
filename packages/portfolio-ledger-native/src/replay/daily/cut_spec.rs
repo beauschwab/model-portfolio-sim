@@ -271,9 +271,88 @@ macro_rules! typed_struct {
         }
     };
 }
-typed_struct!(Account, {id, entity, currency, cash, equity, cash_floor, cet1_floor, leverage_floor, capital_deductions,
+/// Mirrors the serde `skip_serializing_if` rules on the deferred-tax account fields.
+trait Omitted {
+    fn omitted(&self) -> bool;
+}
+impl Omitted for f64 {
+    fn omitted(&self) -> bool {
+        *self == 0. && self.is_sign_positive()
+    }
+}
+impl Omitted for usize {
+    fn omitted(&self) -> bool {
+        *self == 0
+    }
+}
+impl Omitted for bool {
+    fn omitted(&self) -> bool {
+        !*self
+    }
+}
+impl Omitted for String {
+    fn omitted(&self) -> bool {
+        self.is_empty()
+    }
+}
+/// A struct whose trailing fields are omitted from the wire at their defaults. Ownership and
+/// comparison still cover every field; only the emitted layout follows the wire.
+macro_rules! typed_struct_with_omitted {
+    ($t:ty, {$($f:ident),+ $(,)?}, {$($g:ident),+ $(,)?}) => {
+        impl Typed for $t {
+            fn cloned_heap(&self) -> R<usize> {
+                let Self { $($f: _,)+ $($g: _,)+ } = self;
+                tick(1)?;
+                let mut heap = 0usize;
+                $(heap = add(heap, self.$f.cloned_heap()?)?;)+
+                $(heap = add(heap, self.$g.cloned_heap()?)?;)+
+                Ok(heap)
+            }
+            fn visit(&self, c: &mut Counter) -> R<()> {
+                // No `..`: every added native field requires an explicit review.
+                let Self { $($f: _,)+ $($g: _,)+ } = self;
+                c.node(2)?;
+                let mut count = 0usize;
+                $(if count > 0 { c.bytes(1)?; }
+                  count = add(count, 1)?;
+                  c.field(stringify!($f))?;
+                  self.$f.visit(c)?;)+
+                // The omission test is a constant-time read; work is charged only for emitted fields.
+                $(if !self.$g.omitted() {
+                      if count > 0 { c.bytes(1)?; }
+                      count = add(count, 1)?;
+                      c.field(stringify!($g))?;
+                      self.$g.visit(c)?;
+                  })+
+                let _ = count;
+                Ok(())
+            }
+            fn same(&self, other: &Self) -> R<bool> {
+                let Self { $($f: _,)+ $($g: _,)+ } = self;
+                let Self { $($f: _,)+ $($g: _,)+ } = other;
+                tick(1)?;
+                $(tick(1)?; if !self.$f.same(&other.$f)? { return Ok(false); })+
+                $(tick(1)?; if !self.$g.same(&other.$g)? { return Ok(false); })+
+                Ok(true)
+            }
+            #[cfg(test)]
+            fn layout_value(&self) -> R<serde_json::Value> {
+                let Self { $($f: _,)+ $($g: _,)+ } = self;
+                let mut fields = serde_json::Map::new();
+                $(fields.insert(stringify!($f).into(), self.$f.layout_value()?);)+
+                $(if !self.$g.omitted() {
+                    fields.insert(stringify!($g).into(), self.$g.layout_value()?);
+                })+
+                Ok(serde_json::Value::Object(fields))
+            }
+        }
+    };
+}
+typed_struct_with_omitted!(Account, {id, entity, currency, cash, equity, cash_floor, cet1_floor, leverage_floor, capital_deductions,
     include_aoci, annual_fees, annual_costs, tax_rate, annual_dividends, lcr_floor, nsfr_floor, htm_asset_limit,
-    lcr_applicability, nsfr_applicability, htm_accounting, htm_taint_materiality});
+    lcr_applicability, nsfr_applicability, htm_accounting, htm_taint_materiality},
+    {tax_accounting, securities_tax_rate, tax_benefit_allowance, other_aoci, other_aoci_in_cet1, aoci_cet1_treatment,
+    aoci_cet1_effective_day, dta_cet1_deduction, tax_refund_day});
 typed_struct!(Position, {id, account, kind, balance, rate, payment_interval_days, floating_beta, maturity_day, classification,
     risk_weight, asf_weight, rsf_weight, lcr_outflow_weight, hqla_weight, duration, allowance, annual_pd, lgd, watch_fraction,
     watch_pd_multiplier, migration_rate, recovery_days, commitment, draw_fraction, monthly_runoff, uninsured_fraction,

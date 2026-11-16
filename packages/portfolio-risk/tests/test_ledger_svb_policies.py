@@ -1,5 +1,5 @@
-"""Liquidity-rule applicability (#33), trapped cash and transfer restrictions (#32)
-and HTM sale accounting (#31) in the daily ledger.
+"""Liquidity-rule applicability (#33), trapped cash and transfer restrictions (#32),
+HTM sale accounting (#31) and deferred tax, AOCI and CET1 (#30) in the daily ledger.
 
 Every case runs through the Rust state engine and the independent Python
 reference and must agree on all published tables. Expected values are computed
@@ -280,3 +280,122 @@ def test_large_transfers_eliminate_whatever_the_summation_order(tmp_path):
     for attempt in range(5):
         result = run(spec, tmp_path/str(attempt))
         assert (result['actions']['status'] == 'executed').sum() > 2
+
+
+# ---- #30 deferred tax, AOCI and CET1 ------------------------------------------
+
+def tax_book(shift=.02, price=.9, sale=True, **account):
+    """One AFS security marked at `price`; a rate move re-marks it by duration x shift and a
+    cash need sells part of it. Opening equity is the reported, after-tax figure."""
+    policy = dict(tax_accounting='deferred-tax-aoci-1', securities_tax_rate=.25) | account
+    gross = 100.*(price-1)
+    tax = -gross*policy['securities_tax_rate']*(1-policy.get('tax_benefit_allowance', 0.) if gross < 0 else 1.)
+    equity = 10. + 100.*price + tax - 62.5
+    spec = dict(version=MODEL_VERSION, horizon_days=30,
+                accounts=[dict(id='a', entity='bank', currency='USD', cash=10., equity=equity, **policy)],
+                positions=[dict(id='afs', account='a', kind='security', balance=100., classification='afs',
+                                opening_market_price=price, duration=5.),
+                           dict(id='wf', account='a', kind='funding', balance=62.5)],
+                scenarios=[dict(name='stress', rate_shift=shift)])
+    if sale:
+        spec['policies'] = [dict(id='sale', account='a', kind='sell', position='afs', trigger_cash=50., limit=40.)]
+    return spec
+
+
+def balance(result, account, scenario='stress'):
+    rows = result['trial_balance'].filter((pl.col('scenario') == scenario) & (pl.col('gl_account') == account))
+    return rows['balance'].sum()
+
+
+def test_oci_is_carried_net_of_tax_and_a_sale_does_not_charge_equity_twice(tmp_path):
+    result = run(tax_book(other_aoci=-1.), tmp_path)
+    # Opening: gross mark -10, deferred tax asset 2.5, supplied other AOCI -1.
+    assert path(result, 0)['aoci'] == pytest.approx(-10. + 2.5 - 1.)
+    assert path(result, 0)['assets'] == pytest.approx(10. + 90. + 2.5)
+    # Day 1: the price falls from 0.9 to 0.9 x (1 - 5 x 0.02) = 0.81; gross -9, net of 25% tax -6.75.
+    day1 = path(result, 1)
+    assert day1['aoci'] - path(result, 0)['aoci'] == pytest.approx(-6.75)
+    assert day1['equity'] == pytest.approx(path(result, 0)['equity'] - 6.75)
+    # Day 2: sell for 40 of proceeds at 0.81. Face 40/0.81; realized loss face x 0.19.
+    face = 40./.81
+    loss = face*.19
+    sale = result['ledger'].filter((pl.col('scenario') == 'stress') & (pl.col('day') == 2))
+    by_event = {r['event']: r for r in sale.to_dicts()}
+    assert by_event['security_sale']['earnings'] == pytest.approx(-loss)
+    assert by_event['security_sale']['aoci'] == pytest.approx(loss*.75)          # release, net of its tax
+    assert by_event['securities_tax']['earnings'] == pytest.approx(loss*.25)
+    assert by_event['securities_tax']['cash'] == 0.
+    day2 = path(result, 2)
+    assert day2['equity'] == pytest.approx(day1['equity'])                       # already marked: no second loss
+    assert day2['cash'] == pytest.approx(50.)                                    # proceeds only, no tax cash
+    assert balance(result, 'tax_receivable') == pytest.approx(loss*.25)
+    assert balance(result, 'deferred_tax') == pytest.approx((100.-face)*.19*.25)
+    assert balance(result, 'oci_other') == pytest.approx(1.)                     # credit balance of -(-1)
+    events = result['accounting_events'].filter(pl.col('scenario') == 'stress').to_dicts()
+    assert [(e['qualification'], e['accounting_policy']) for e in events] == [('realized_tax_benefit', 'deferred-tax-aoci-1')]
+    assert events[0]['amortized_cost'] == pytest.approx(-loss) and events[0]['aoci'] == pytest.approx(loss*.25)
+
+
+def test_tax_benefit_becomes_cash_only_on_a_dated_refund(tmp_path):
+    never = run(tax_book(), tmp_path/'never')
+    dated = run(tax_book(tax_refund_day=20), tmp_path/'dated')
+    benefit = 40./.81*.19*.25
+    assert path(never, 30)['cash'] == pytest.approx(50.)
+    assert path(dated, 19)['cash'] == pytest.approx(50.)
+    assert path(dated, 20)['cash'] == pytest.approx(50. + benefit)
+    assert path(dated, 20)['equity'] == pytest.approx(path(dated, 19)['equity'])   # settlement, not income
+    assert balance(dated, 'tax_receivable') == pytest.approx(0.)
+    assert 'tax_refund' in set(dated['accounting_events']['qualification'])
+
+
+def test_unrealizable_benefits_are_not_recognized_and_gains_are_taxed_in_full(tmp_path):
+    # 40% of the benefit on losses is not recognized: deferred tax asset 10 x 0.25 x 0.6.
+    loss = run(tax_book(tax_benefit_allowance=.4, sale=False), tmp_path/'loss')
+    assert path(loss, 0)['aoci'] == pytest.approx(-10. + 1.5)
+    assert path(loss, 1)['aoci'] == pytest.approx(-19. + 19.*.25*.6)
+    # A gain is a liability in full, whatever the allowance: price 1.0 -> 1.1, gross +10, tax -2.5.
+    gain = run(tax_book(shift=-.02, price=1., tax_benefit_allowance=.4, sale=False), tmp_path/'gain')
+    after = path(gain, 1)
+    assert after['aoci'] == pytest.approx(7.5)
+    assert balance(gain, 'deferred_tax') == pytest.approx(-2.5)
+    assert after['liabilities'] == pytest.approx(62.5 + 2.5)
+
+
+def test_cet1_follows_the_dated_opt_out_and_the_tax_asset_deduction(tmp_path):
+    base = dict(sale=False, other_aoci=-1.)
+    opted = run(tax_book(aoci_cet1_treatment='opt_out', aoci_cet1_effective_day=5, **base), tmp_path/'opted')
+    kept = run(tax_book(aoci_cet1_treatment='opt_out', other_aoci_in_cet1=True, **base), tmp_path/'kept')
+    included = run(tax_book(aoci_cet1_treatment='include', dta_cet1_deduction=1., **base), tmp_path/'included')
+    equity, net_marks = path(opted, 10)['equity'], -19.*.75
+    assert path(opted, 4)['cet1'] == pytest.approx(path(opted, 4)['equity'])        # before the election applies
+    assert path(opted, 10)['cet1'] == pytest.approx(equity - (net_marks - 1.))      # all AOCI excluded
+    assert path(kept, 10)['cet1'] == pytest.approx(equity - net_marks)              # other components stay in
+    assert path(included, 10)['cet1'] == pytest.approx(equity - 19.*.25)            # deferred tax asset deducted
+    assert path(opted, 10)['equity'] == pytest.approx(path(included, 10)['equity']) # treatment never moves equity
+
+
+@pytest.mark.parametrize('account, message', [
+    (dict(tax_accounting='ifrs-ias12'), 'unsupported tax accounting policy'),
+    (dict(tax_accounting='', securities_tax_rate=.25), 'need a selected tax accounting policy'),
+    (dict(tax_accounting='', other_aoci=-1., securities_tax_rate=0.), 'need a selected tax accounting policy'),
+    (dict(aoci_cet1_treatment='exclude'), 'include or opt_out'),
+    (dict(aoci_cet1_effective_day=3), 'applies only to an opt_out'),
+    (dict(tax_refund_day=31), 'within the horizon'),
+    (dict(securities_tax_rate=1.), 'securities_tax_rate'),
+])
+def test_tax_accounting_inputs_are_validated(account, message):
+    spec = tax_book()
+    spec['accounts'][0].update(account)
+    with pytest.raises(ValueError, match=message):
+        validate(spec)
+
+
+def test_without_a_tax_policy_oci_stays_gross_and_sales_carry_no_tax(tmp_path):
+    spec = tax_book()
+    for key in ('tax_accounting', 'securities_tax_rate'):
+        spec['accounts'][0].pop(key)
+    spec['accounts'][0]['equity'] = 10. + 90. - 62.5
+    result = run(spec, tmp_path)
+    assert path(result, 1)['aoci'] == pytest.approx(-19.)
+    assert 'securities_tax' not in set(result['ledger']['event'])
+    assert balance(result, 'deferred_tax') == 0. and result['accounting_events'].is_empty()

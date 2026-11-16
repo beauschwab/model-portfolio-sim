@@ -16,7 +16,7 @@ balance sheets fail before submission.
 
 | Area | Implemented | Remaining production work |
 |---|---|---|
-| Ledger | Daily assets, liabilities, equity, separate interest accrual/settlement, provisions, recoveries, fees/costs, tax and dividends; reconciliation gate | Exact contractual schedules, business calendars, effective-yield/premium amortization, deferred tax and full accounting policy |
+| Ledger | Daily assets, liabilities, equity, separate interest accrual/settlement, provisions, recoveries, fees/costs, tax and dividends; reconciliation gate | Exact contractual schedules, business calendars, effective-yield/premium amortization, general deferred tax and full accounting policy |
 | Liquidity | Deposit cohorts with uninsured/concentration/operational/digital attributes; rate competition; draws, rollover, funding maturity, collateral haircuts/encumbrance, sales and outages | Calibrated deposit migration/relationship behavior, intraday payments, collateral substitution and repo-specific pledge release |
 | Credit/capital | Two-state watch migration, expected defaults, LGD, delayed recovery, allowance roll, nonaccrual after default, dynamic exposure/RWA/CET1/leverage | Loan-level PD/LGD/EAD estimation, multi-rating migration, CECL/IFRS9, supervisory capital rules and buffers |
 | Entities | Explicit legal entity/currency accounts, intercompany receivable/payable, transfer caps/delays, donor cash floor | Cross-currency transfers, FX/basis modeling, consolidated eliminations and entity-wide regulatory capital |
@@ -134,6 +134,34 @@ journals; `accounting_events` records sales and reclassifications. This is a
 research implementation of that rule, not an accounting opinion: management
 intent, auditor judgment and the subsequent tainting period are not modeled. Mark factors are static stress proxies, not aging, full-repricing or
 credit-adjusted bond valuations. Securities repay face at maturity.
+
+An account may select `tax_accounting="deferred-tax-aoci-1"`. Supplied opening
+equity is then the reported, after-tax figure, and:
+
+- AFS OCI is carried net of deferred tax at `securities_tax_rate`. Every change in
+  gross AFS OCI (marks, sale releases, HTM reclassification, maturities) posts its
+  deferred tax to a separate `deferred_tax` balance, an asset for losses and a
+  liability for gains. `tax_benefit_allowance` is the share of benefits on losses
+  that is not recognized; gains are taxed in full.
+- `other_aoci` is a supplied, net-of-tax amount for every other AOCI component. It
+  sits in its own `oci_other` account and does not move.
+- A realized security sale result is taxed at the same rate as a `tax_receivable`
+  (or payable), never as cash, and is excluded from the immediate operating tax.
+  Selling an AFS security whose loss was already in OCI therefore leaves total
+  equity unchanged. The receivable becomes cash only on `tax_refund_day`.
+- CET1 follows `aoci_cet1_treatment`: `include`, or `opt_out` from
+  `aoci_cet1_effective_day` (before that day AOCI is included). An opt-out
+  excludes all AOCI unless `other_aoci_in_cet1` keeps the other components.
+  `dta_cet1_deduction` is the share of the recognized tax asset deducted.
+- `accounting_events` records each realized tax benefit or expense and refund;
+  the trial balance shows `deferred_tax`, `tax_receivable`, `oci` and `oci_other`.
+
+Without the policy nothing changes: OCI stays gross and sales carry no tax. The
+policy supports the aggregate daily ledger only and is rejected together with
+dated, product, derivative or hedge owners. It is a research rule with supplied
+rates and elections, not a tax provision: there are no temporary differences
+other than AFS marks, no carryforwards, no threshold deductions and no
+jurisdictional rules.
 
 Netting-set fair value decreases by supplied stress loss × market shock.
 Counterparty expected loss applies to positive FV net of received collateral,
