@@ -1,0 +1,755 @@
+{
+  "config": {
+    "outflow_event": 0.2,
+    "outflow_sensitivity": [
+      0.1,
+      0.2,
+      0.3
+    ],
+    "failure_window_end": "2023-06-30",
+    "alarm_share": 0.1,
+    "training_start": "20190331",
+    "minimum_training_quarters": 8,
+    "ordinary_lower_tail": 0.01
+  },
+  "cutoff": "20221231",
+  "universe": 162,
+  "evaluated": 160,
+  "events": 5,
+  "excluded": [
+    {
+      "name": "BANK OF THE WEST",
+      "reason": "no 2023Q1 Call Report and not on the FDIC failures list (merged or closed)"
+    },
+    {
+      "name": "COLUMBIA STATE BANK",
+      "reason": "no 2023Q1 Call Report and not on the FDIC failures list (merged or closed)"
+    }
+  ],
+  "event_banks": [
+    {
+      "name": "FIRST REPUBLIC BANK",
+      "assets": 212638872,
+      "failed_on": "2023-05-01",
+      "deposit_change_2023q1": -0.4078672098990558,
+      "uninsured_share": 0.6771309706949528,
+      "securities_loss_to_equity": 0.3004370017139244,
+      "uninsured_times_loss": 0.2034351986032308,
+      "deposit_decline_2022": -0.12868029075229392,
+      "deposit_growth_2019_2021": 0.7343349977654194
+    },
+    {
+      "name": "SILICON VALLEY BANK",
+      "assets": 209026000,
+      "failed_on": "2023-03-10",
+      "deposit_change_2023q1": null,
+      "uninsured_share": 0.93877222425207,
+      "securities_loss_to_equity": 1.1442158385093169,
+      "uninsured_times_loss": 1.0741580477418387,
+      "deposit_decline_2022": 0.08385789135510968,
+      "deposit_growth_2019_2021": 2.041302653836079
+    },
+    {
+      "name": "SIGNATURE BANK",
+      "assets": 110363650,
+      "failed_on": "2023-03-12",
+      "deposit_change_2023q1": null,
+      "uninsured_share": 0.8966973334167975,
+      "securities_loss_to_equity": 0.40134499739863505,
+      "uninsured_times_loss": 0.3598849889475276,
+      "deposit_decline_2022": 0.1652404720855165,
+      "deposit_growth_2019_2021": 1.6284707844528188
+    },
+    {
+      "name": "BANK OF AMERICA CA NA",
+      "assets": 18204000,
+      "failed_on": null,
+      "deposit_change_2023q1": -0.2745995423340961,
+      "uninsured_share": 0.02574370709382151,
+      "securities_loss_to_equity": 0.0,
+      "uninsured_times_loss": 0.0,
+      "deposit_decline_2022": 0.4712043864624693,
+      "deposit_growth_2019_2021": 1.3315993651913245
+    },
+    {
+      "name": "SILVERGATE BANK",
+      "assets": 11353376,
+      "failed_on": null,
+      "deposit_change_2023q1": -0.7628944877798719,
+      "uninsured_share": 0.588780439976317,
+      "securities_loss_to_equity": 0.1990317751255754,
+      "uninsured_times_loss": 0.11718601612770367,
+      "deposit_decline_2022": 0.5587036265655603,
+      "deposit_growth_2019_2021": null
+    }
+  ],
+  "medians": {
+    "uninsured_share": 0.4185343039479462,
+    "securities_loss_to_equity": 0.219297692267583,
+    "uninsured_times_loss": 0.08366143064969828,
+    "deposit_decline_2022": 0.0017319594893011603,
+    "deposit_growth_2019_2021": 0.38164873722800374
+  },
+  "signals": [
+    {
+      "signal": "uninsured_share",
+      "banks": 160,
+      "events": 5,
+      "auc": 0.7651612903225806,
+      "alarms": 16,
+      "hits": 3,
+      "missed": 2,
+      "false_alarms": 13,
+      "precision": 0.1875,
+      "recall": 0.6,
+      "event_ranks": {
+        "SILICON VALLEY BANK": 4,
+        "BANK OF AMERICA CA NA": 155,
+        "SILVERGATE BANK": 21,
+        "SIGNATURE BANK": 5,
+        "FIRST REPUBLIC BANK": 12
+      },
+      "sensitivity": [
+        {
+          "outflow": 0.1,
+          "events": 14,
+          "auc": 0.6135029354207436
+        },
+        {
+          "outflow": 0.2,
+          "events": 5,
+          "auc": 0.7651612903225806
+        },
+        {
+          "outflow": 0.3,
+          "events": 4,
+          "auc": 0.9487179487179487
+        }
+      ]
+    },
+    {
+      "signal": "securities_loss_to_equity",
+      "banks": 156,
+      "events": 5,
+      "auc": 0.5695364238410596,
+      "alarms": 16,
+      "hits": 1,
+      "missed": 4,
+      "false_alarms": 15,
+      "precision": 0.0625,
+      "recall": 0.2,
+      "event_ranks": {
+        "SILICON VALLEY BANK": 7,
+        "BANK OF AMERICA CA NA": 156,
+        "SILVERGATE BANK": 89,
+        "SIGNATURE BANK": 34,
+        "FIRST REPUBLIC BANK": 54
+      },
+      "sensitivity": [
+        {
+          "outflow": 0.1,
+          "events": 13,
+          "auc": 0.5782678859601936
+        },
+        {
+          "outflow": 0.2,
+          "events": 5,
+          "auc": 0.5695364238410596
+        },
+        {
+          "outflow": 0.3,
+          "events": 4,
+          "auc": 0.7138157894736842
+        }
+      ]
+    },
+    {
+      "signal": "uninsured_times_loss",
+      "banks": 160,
+      "events": 5,
+      "auc": 0.6896774193548387,
+      "alarms": 16,
+      "hits": 2,
+      "missed": 3,
+      "false_alarms": 14,
+      "precision": 0.125,
+      "recall": 0.4,
+      "event_ranks": {
+        "SILICON VALLEY BANK": 1,
+        "BANK OF AMERICA CA NA": 155,
+        "SILVERGATE BANK": 60,
+        "SIGNATURE BANK": 9,
+        "FIRST REPUBLIC BANK": 28
+      },
+      "sensitivity": [
+        {
+          "outflow": 0.1,
+          "events": 14,
+          "auc": 0.5797455968688845
+        },
+        {
+          "outflow": 0.2,
+          "events": 5,
+          "auc": 0.6896774193548387
+        },
+        {
+          "outflow": 0.3,
+          "events": 4,
+          "auc": 0.8589743589743589
+        }
+      ]
+    },
+    {
+      "signal": "deposit_decline_2022",
+      "banks": 160,
+      "events": 5,
+      "auc": 0.8038709677419354,
+      "alarms": 16,
+      "hits": 3,
+      "missed": 2,
+      "false_alarms": 13,
+      "precision": 0.1875,
+      "recall": 0.6,
+      "event_ranks": {
+        "SILICON VALLEY BANK": 28,
+        "BANK OF AMERICA CA NA": 2,
+        "SILVERGATE BANK": 1,
+        "SIGNATURE BANK": 10,
+        "FIRST REPUBLIC BANK": 126
+      },
+      "sensitivity": [
+        {
+          "outflow": 0.1,
+          "events": 14,
+          "auc": 0.8449119373776908
+        },
+        {
+          "outflow": 0.2,
+          "events": 5,
+          "auc": 0.8038709677419354
+        },
+        {
+          "outflow": 0.3,
+          "events": 4,
+          "auc": 0.7516025641025641
+        }
+      ]
+    },
+    {
+      "signal": "deposit_growth_2019_2021",
+      "banks": 155,
+      "events": 4,
+      "auc": 0.9486754966887417,
+      "alarms": 16,
+      "hits": 3,
+      "missed": 1,
+      "false_alarms": 13,
+      "precision": 0.1875,
+      "recall": 0.75,
+      "event_ranks": {
+        "SILICON VALLEY BANK": 1,
+        "BANK OF AMERICA CA NA": 8,
+        "SIGNATURE BANK": 5,
+        "FIRST REPUBLIC BANK": 27
+      },
+      "sensitivity": [
+        {
+          "outflow": 0.1,
+          "events": 13,
+          "auc": 0.7871072589382448
+        },
+        {
+          "outflow": 0.2,
+          "events": 4,
+          "auc": 0.9486754966887417
+        },
+        {
+          "outflow": 0.3,
+          "events": 3,
+          "auc": 0.9407894736842105
+        }
+      ]
+    }
+  ],
+  "ordinary_runoff": {
+    "banks": 157,
+    "expected_breach_share": 0.01,
+    "observed_breach_share": 0.044585987261146494,
+    "breaches": 7,
+    "event_z": {
+      "BANK OF AMERICA CA NA": -1.9913497154603235,
+      "SILVERGATE BANK": -4.0635247771701435,
+      "FIRST REPUBLIC BANK": -21.999477881756032
+    },
+    "unscored_events": [
+      "SILICON VALLEY BANK",
+      "SIGNATURE BANK"
+    ]
+  },
+  "pre_event_history": {
+    "bank_quarters": 2549,
+    "run_sized_declines": 9,
+    "share": 0.003530796390741467,
+    "cases": [
+      {
+        "name": "SILVERGATE BANK",
+        "quarter": "20221231",
+        "change": -0.5222228858228865
+      },
+      {
+        "name": "BANCO BILBAO VIZCAYA SA",
+        "quarter": "20210331",
+        "change": -0.3388485210478084
+      },
+      {
+        "name": "BANCO BILBAO VIZCAYA SA",
+        "quarter": "20211231",
+        "change": -0.28893315932251284
+      },
+      {
+        "name": "BEAL BANK USA",
+        "quarter": "20210331",
+        "change": -0.2829388339335751
+      },
+      {
+        "name": "BANK OF AMERICA CA NA",
+        "quarter": "20220930",
+        "change": -0.2724619553887847
+      },
+      {
+        "name": "DEUTSCHE BANK TR CO AMERICAS",
+        "quarter": "20210331",
+        "change": -0.21368511750898778
+      },
+      {
+        "name": "BANK OF CHINA",
+        "quarter": "20190331",
+        "change": -0.2130566166095067
+      },
+      {
+        "name": "STATE STREET BANK&TRUST CO",
+        "quarter": "20200630",
+        "change": -0.21052192035105965
+      },
+      {
+        "name": "BANCFIRST",
+        "quarter": "20211231",
+        "change": -0.2036650106019099
+      }
+    ]
+  },
+  "top_alarms": {
+    "uninsured_share": [
+      {
+        "name": "STATE STREET BANK&TRUST CO",
+        "value": 1.0136510619534063,
+        "event": false
+      },
+      {
+        "name": "DEUTSCHE BANK TR CO AMERICAS",
+        "value": 0.9714498695490122,
+        "event": false
+      },
+      {
+        "name": "BANK OF NEW YORK MELLON",
+        "value": 0.9662288000176322,
+        "event": false
+      },
+      {
+        "name": "SILICON VALLEY BANK",
+        "value": 0.93877222425207,
+        "event": true
+      },
+      {
+        "name": "SIGNATURE BANK",
+        "value": 0.8966973334167975,
+        "event": true
+      },
+      {
+        "name": "CITIBANK NATIONAL ASSN",
+        "value": 0.8183415184086978,
+        "event": false
+      },
+      {
+        "name": "COLUMBIA BANK",
+        "value": 0.8148532593519412,
+        "event": false
+      },
+      {
+        "name": "UMB BANK NATIONAL ASSN",
+        "value": 0.751083328203311,
+        "event": false
+      },
+      {
+        "name": "HSBC BANK USA NATIONAL ASSN",
+        "value": 0.7356234046836855,
+        "event": false
+      },
+      {
+        "name": "CIBC BANK USA",
+        "value": 0.7316865844292662,
+        "event": false
+      },
+      {
+        "name": "NORTHERN TRUST CO",
+        "value": 0.7241651465802315,
+        "event": false
+      },
+      {
+        "name": "FIRST REPUBLIC BANK",
+        "value": 0.6771309706949528,
+        "event": true
+      },
+      {
+        "name": "BNY MELLON NATIONAL ASSN",
+        "value": 0.6753045320420671,
+        "event": false
+      },
+      {
+        "name": "SERVISFIRST BANK",
+        "value": 0.6623539470575078,
+        "event": false
+      },
+      {
+        "name": "CITY NATIONAL BANK",
+        "value": 0.6604723218671185,
+        "event": false
+      },
+      {
+        "name": "CITIZENS BUSINESS BANK",
+        "value": 0.6531345036797658,
+        "event": false
+      }
+    ],
+    "securities_loss_to_equity": [
+      {
+        "name": "CHARLES SCHWAB PREMIER BK SS",
+        "value": 5.135646687697161,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB BANK SSB",
+        "value": 3.1414405010438413,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB TRUST BANK",
+        "value": 2.587121212121212,
+        "event": false
+      },
+      {
+        "name": "USAA FEDERAL SAVINGS BANK",
+        "value": 2.348105548037889,
+        "event": false
+      },
+      {
+        "name": "AMERIPRISE BANK FSB",
+        "value": 1.9776316066873274,
+        "event": false
+      },
+      {
+        "name": "FIRSTBANK",
+        "value": 1.1604368326525394,
+        "event": false
+      },
+      {
+        "name": "SILICON VALLEY BANK",
+        "value": 1.1442158385093169,
+        "event": true
+      },
+      {
+        "name": "BANK OF HAWAII",
+        "value": 0.8799611794932705,
+        "event": false
+      },
+      {
+        "name": "BANCO POPULAR DE PUERTO RICO",
+        "value": 0.8302600472813239,
+        "event": false
+      },
+      {
+        "name": "COMMERCE BANK",
+        "value": 0.7467000270422233,
+        "event": false
+      },
+      {
+        "name": "OPTUM BANK INC",
+        "value": 0.7337346695829754,
+        "event": false
+      },
+      {
+        "name": "ARVEST BANK",
+        "value": 0.6588771197824946,
+        "event": false
+      },
+      {
+        "name": "COMERICA BANK",
+        "value": 0.6308236272878536,
+        "event": false
+      },
+      {
+        "name": "FIRST FINANCIAL BANK NA",
+        "value": 0.6005396488810432,
+        "event": false
+      },
+      {
+        "name": "FROST BANK",
+        "value": 0.6003743750878718,
+        "event": false
+      },
+      {
+        "name": "WASHINGTON TRUST BANK",
+        "value": 0.5574073963418642,
+        "event": false
+      }
+    ],
+    "uninsured_times_loss": [
+      {
+        "name": "SILICON VALLEY BANK",
+        "value": 1.0741580477418387,
+        "event": true
+      },
+      {
+        "name": "CHARLES SCHWAB BANK SSB",
+        "value": 0.6477288307361289,
+        "event": false
+      },
+      {
+        "name": "BANK OF NEW YORK MELLON",
+        "value": 0.44298429919313054,
+        "event": false
+      },
+      {
+        "name": "BANCO POPULAR DE PUERTO RICO",
+        "value": 0.44170362842656846,
+        "event": false
+      },
+      {
+        "name": "BANK OF HAWAII",
+        "value": 0.4277322369075004,
+        "event": false
+      },
+      {
+        "name": "COMERICA BANK",
+        "value": 0.39416295981895766,
+        "event": false
+      },
+      {
+        "name": "FIRSTBANK",
+        "value": 0.37882850297938686,
+        "event": false
+      },
+      {
+        "name": "UMB BANK NATIONAL ASSN",
+        "value": 0.37824100050578147,
+        "event": false
+      },
+      {
+        "name": "SIGNATURE BANK",
+        "value": 0.3598849889475276,
+        "event": true
+      },
+      {
+        "name": "CITY NATIONAL BANK",
+        "value": 0.33934834884815984,
+        "event": false
+      },
+      {
+        "name": "FROST BANK",
+        "value": 0.3271094416219873,
+        "event": false
+      },
+      {
+        "name": "WASHINGTON TRUST BANK",
+        "value": 0.3244690409113524,
+        "event": false
+      },
+      {
+        "name": "CITY NB OF FLORIDA",
+        "value": 0.323110334293155,
+        "event": false
+      },
+      {
+        "name": "STATE STREET BANK&TRUST CO",
+        "value": 0.3076916651431612,
+        "event": false
+      },
+      {
+        "name": "FIRST FINANCIAL BANK NA",
+        "value": 0.30495099877725856,
+        "event": false
+      },
+      {
+        "name": "CITIZENS BUSINESS BANK",
+        "value": 0.30405362548259407,
+        "event": false
+      }
+    ],
+    "deposit_decline_2022": [
+      {
+        "name": "SILVERGATE BANK",
+        "value": 0.5587036265655603,
+        "event": true
+      },
+      {
+        "name": "BANK OF AMERICA CA NA",
+        "value": 0.4712043864624693,
+        "event": true
+      },
+      {
+        "name": "DEUTSCHE BANK TR CO AMERICAS",
+        "value": 0.28357810413885176,
+        "event": false
+      },
+      {
+        "name": "NORTHERN TRUST CO",
+        "value": 0.22958176026013932,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB PREMIER BK SS",
+        "value": 0.22588048853793818,
+        "event": false
+      },
+      {
+        "name": "MUFG UNION BANK NA",
+        "value": 0.19204489267015967,
+        "event": false
+      },
+      {
+        "name": "TEXAS CAPITAL BANK",
+        "value": 0.19074707157476078,
+        "event": false
+      },
+      {
+        "name": "WELLS FARGO NB WEST",
+        "value": 0.18721157304100278,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB BANK SSB",
+        "value": 0.16985701371293238,
+        "event": false
+      },
+      {
+        "name": "SIGNATURE BANK",
+        "value": 0.1652404720855165,
+        "event": true
+      },
+      {
+        "name": "BOKF NATIONAL ASSN",
+        "value": 0.1647477985936806,
+        "event": false
+      },
+      {
+        "name": "FIRST HORIZON BANK",
+        "value": 0.1429513648972094,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB TRUST BANK",
+        "value": 0.1383647798742138,
+        "event": false
+      },
+      {
+        "name": "BANK OF CHINA",
+        "value": 0.1336811126645604,
+        "event": false
+      },
+      {
+        "name": "EAGLEBANK",
+        "value": 0.13156365012673876,
+        "event": false
+      },
+      {
+        "name": "ZIONS BCORP N A",
+        "value": 0.13008138389190993,
+        "event": false
+      }
+    ],
+    "deposit_growth_2019_2021": [
+      {
+        "name": "SILICON VALLEY BANK",
+        "value": 2.041302653836079,
+        "event": true
+      },
+      {
+        "name": "CHARLES SCHWAB PREMIER BK SS",
+        "value": 1.7607301802821151,
+        "event": false
+      },
+      {
+        "name": "SOUTHSTATE BANK NA",
+        "value": 1.6732179455834002,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB TRUST BANK",
+        "value": 1.6613340398068046,
+        "event": false
+      },
+      {
+        "name": "SIGNATURE BANK",
+        "value": 1.6284707844528188,
+        "event": true
+      },
+      {
+        "name": "CADENCE BANK",
+        "value": 1.4467070549942562,
+        "event": false
+      },
+      {
+        "name": "WELLS FARGO NB WEST",
+        "value": 1.4457743491804007,
+        "event": false
+      },
+      {
+        "name": "BANK OF AMERICA CA NA",
+        "value": 1.3315993651913245,
+        "event": true
+      },
+      {
+        "name": "FIRST HORIZON BANK",
+        "value": 1.3057988305771828,
+        "event": false
+      },
+      {
+        "name": "FIRSTBANK",
+        "value": 1.1982317639523106,
+        "event": false
+      },
+      {
+        "name": "WESTERN ALLIANCE BANK",
+        "value": 1.0795154191414515,
+        "event": false
+      },
+      {
+        "name": "EASTERN BANK",
+        "value": 1.066664500730011,
+        "event": false
+      },
+      {
+        "name": "GLACIER BANK",
+        "value": 0.980429549025488,
+        "event": false
+      },
+      {
+        "name": "UBS BANK USA",
+        "value": 0.9784725029375911,
+        "event": false
+      },
+      {
+        "name": "ENTERPRISE BANK&TRUST",
+        "value": 0.9736821688452795,
+        "event": false
+      },
+      {
+        "name": "CHARLES SCHWAB BANK SSB",
+        "value": 0.9499230349073937,
+        "event": false
+      }
+    ]
+  },
+  "panel_sha256": "a003de3b50b85b967c04624330a769f6c35863041642189a390b05cb1bd02ddb",
+  "source_sha256": "4a4fc9d18c1eb60b4b9794a026b200a0df05473f531bf6f50dbe5911febc19b1"
+}
