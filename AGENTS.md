@@ -122,7 +122,7 @@
 - Liquidity applicability is `internal_limit` with positive floor, `not_applicable` or `unconfigured` without floor; legacy floor infers internal limit. Research proxies reject `regulatory`; undefined ratios are
   unavailable and nonapplicable rules never pass. Transfer approvals delay dispatch; intercompany balances eliminate per currency daily.
 - HTM `asc320-htm-v1` uses reviewed sale reasons/materiality and the 90-day near-maturity rule; excess unsupported sales reclassify remaining HTM to AFS with balanced AOCI postings. Without policy report not_assessed;
-  category LP constraints, auditor judgment and tainting periods are separate.
+  category LP constraints, auditor judgment and tainting periods are separate. `deferred-tax-aoci-1` carries AFS OCI net of tax; sale tax benefits are receivables, cash only on a dated refund.
 - [Hedge accounting](docs/models/hedge-accounting.md): explicitly reviewed Physical derivative/item/forecast sources, append-only relationships, hypothetical effectiveness, OCI/basis recognition and one ordered journal.
   Legacy `fvh`/`cfh` labels do not designate a hedge; marks/coupons/collateral/closeout post once and retained opening balances offset equity once.
 - Apply the documented ASC 815 rule matrix and reviewed ASU 2025-09/2022-01 adoption prospectively; preserve per-member/option hypotheticals, dated elections/dedesignation, assessment bounds and portfolio-layer breach

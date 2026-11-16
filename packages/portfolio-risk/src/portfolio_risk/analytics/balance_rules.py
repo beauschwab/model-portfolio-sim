@@ -9,6 +9,7 @@ INFLOW_CAP = .75
 # The only HTM accounting policy implemented: US GAAP ASC 320-10-25 sale
 # exceptions with a portfolio reclassification above a stated materiality.
 HTM_POLICY = 'asc320-htm-v1'
+TAX_POLICY = 'deferred-tax-aoci-1'
 # Sale reasons ASC 320-10-25-6 and 25-14 treat as consistent with HTM intent.
 HTM_EXCEPTIONS = ('credit_deterioration', 'tax_law_change', 'business_combination', 'regulatory_change', 'near_maturity')
 SALE_REASONS = (*HTM_EXCEPTIONS, 'liquidity', 'other')

@@ -2,7 +2,7 @@
 
 **Conclusion: the aggregate ledger reproduces disclosed opening totals and demonstrates the liquidity failure mechanism. It does not reproduce the precise March cash position or predict the run.**
 
-Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 17 aggregate runs plus native capital checks completed in 2.53 seconds, including local Parquet and independent journal verification.
+Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 20 aggregate runs plus native capital checks completed in 1.99 seconds, including local Parquet and independent journal verification.
 
 ## Scope and information boundary
 
@@ -87,7 +87,29 @@ The sale uses year-end AFS cost/value allocation and treats the rounded $21bn sa
 | 27% | 1.490 | 1.800 | -0.310 |
 | 28% | 1.469 | 1.800 | -0.331 |
 
-The 26-28% range comes from March 8 tax guidance and is only an external sensitivity, not an exact sale tax rate. No immediate tax refund is added to simulated cash. Native realization reclassifies existing AFS OCI into earnings without charging total equity twice. The engine does not replicate the complete tax/AOCI bridge: its gross AFS OCI is -$2.533bn versus reported total AOCI of -$1.911bn.
+The 26-28% range comes from March 8 tax guidance and is only an external sensitivity, not an exact sale tax rate. No immediate tax refund is added to simulated cash. Native realization reclassifies existing AFS OCI into earnings without charging total equity twice. This table applies the tax rate outside the ledger to gross AFS OCI of -$2.533bn; the next section carries deferred tax inside the ledger and bridges it to reported AOCI of -$1.911bn.
+
+## Tax, AOCI and CET1 bridge
+
+The same sale replay, with the engine's `deferred-tax-aoci-1` policy at each guided tax rate. AFS OCI is carried net of a deferred tax asset, which is reclassified out of disclosed other assets so total assets are unchanged. SVBFG had elected to exclude AOCI from regulatory capital, so the CET1 proxy excludes it.
+
+| Tax rate | Gross AFS OCI | Deferred tax | Net AFS OCI | Reported AOCI | Residual other components |
+|---:|---:|---:|---:|---:|---:|
+| 26% | -2.533 | 0.659 | -1.874 | -1.911 | -0.037 |
+| 27% | -2.533 | 0.684 | -1.849 | -1.911 | -0.062 |
+| 28% | -2.533 | 0.709 | -1.824 | -1.911 | -0.087 |
+
+Tax-effecting the AFS mark explains most of the gap between gross AFS OCI and reported AOCI: the unexplained remainder is 0.037 to 0.087bn instead of 0.622bn. That remainder is other AOCI components and the true effective rate, which need the disclosed AOCI note; it is carried as an explicit residual, not fitted.
+
+| Tax rate | Realized pre-tax loss | Tax benefit (receivable) | After-tax loss | Announced | Total equity after sale | CET1 change on sale |
+|---:|---:|---:|---:|---:|---:|---:|
+| 26% | 2.040 | 0.531 | 1.510 | 1.800 | 16.295 | -1.510 |
+| 27% | 2.040 | 0.551 | 1.490 | 1.800 | 16.295 | -1.490 |
+| 28% | 2.040 | 0.571 | 1.469 | 1.800 | 16.295 | -1.469 |
+
+Selling securities whose loss was already in AOCI leaves total equity unchanged and creates no cash from the tax benefit, which is a receivable. Because AOCI was excluded from regulatory capital, the sale moves the after-tax loss into CET1: that is the capital cost of realizing it. The after-tax loss is the same proxy as the sale-loss comparison above, now produced by the ledger; it remains about 0.3bn below the announced figure because the actual sold lots are unknown.
+
+CET1 from identifiable components: total equity 16.295 less preferred 3.646, noncontrolling interests 0.291, goodwill 0.375 and other intangibles 0.136, with reported AOCI of -1.911 excluded, gives 13.758 against reported 13.697: a residual of 0.061bn (12.11% against 12.05% of RWA). **The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record.
 
 ## HTM sale accounting counterfactual
 
@@ -118,11 +140,11 @@ Consolidated cash is -7.197bn in every case; the split only decides where the sh
 
 SVB was not subject to LCR/NSFR at failure. The Fed retrospectively estimated reduced LCR of 103.1% at December 30 and 102.5% at February 28. Those ratios did not establish resilience to an hours-long run. The reduced/full LCR distinction and legal applicability matter. This reconstruction does not claim to reproduce LCR or NSFR without the relevant flow, encumbrance and funding-detail data. SVB was not a GSIB; GSIB TLAC/SLR requirements must not be applied indiscriminately.
 
-Every account in all 17 runs declares LCR and NSFR `not_applicable`, and every scenario reports that status. No proxy ratio is computed, so none can be read as a pass. The engine refuses a `regulatory` label for its research proxies, and reproducing the Fed estimates would need its HQLA, outflow and inflow components, which are not transcribed here.
+Every account in all 20 runs declares LCR and NSFR `not_applicable`, and every scenario reports that status. No proxy ratio is computed, so none can be read as a pass. The engine refuses a `regulatory` label for its research proxies, and reproducing the Fed estimates would need its HQLA, outflow and inflow components, which are not transcribed here.
 
 ## Validation and remaining gaps
 
-All 31 explicit reconstruction checks passed. Each run persisted Parquet, checked its hashes and schema, independently replayed the journal and reconciled the native closing ledger. Cash-breach scenarios intentionally have `dynamic_validated=false`; that is a stress result, not failed journal validation. Native binary and engine source identities, inputs, timings and artifact paths are retained in the JSON companion.
+All 37 explicit reconstruction checks passed. Each run persisted Parquet, checked its hashes and schema, independently replayed the journal and reconciled the native closing ledger. Cash-breach scenarios intentionally have `dynamic_validated=false`; that is a stress result, not failed journal validation. Native binary and engine source identities, inputs, timings and artifact paths are retained in the JSON companion.
 
 The first [reconstruction](2026-10-01-svb-reconstruction.md) and its record are kept unchanged. The original ten runs reproduce it exactly; declaring LCR/NSFR applicability changes only their status labels. The HTM and legal-entity runs are new counterfactuals with labelled assumptions, checked against values computed in the script from the opening facts.
 

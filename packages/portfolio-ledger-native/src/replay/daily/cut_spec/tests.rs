@@ -208,7 +208,8 @@ fn every_float_leaf_preserves_negative_zero_and_adjacent_bits() {
         .into_iter()
         .filter(|p| base.pointer(p).unwrap().is_f64())
         .collect();
-    assert_eq!(float_paths.len(), 74);
+    // 74 before the four deferred-tax account amounts (rate, allowance, other AOCI, deduction).
+    assert_eq!(float_paths.len(), 78);
     for path in &float_paths {
         *base.pointer_mut(path).unwrap() = json!(0.0);
     }

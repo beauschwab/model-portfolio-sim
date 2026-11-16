@@ -51,8 +51,10 @@ production general ledger with close/approval/reversal controls.
 
 Taxes post **after** management actions, including realized security gains.
 Dividends are distributions and are excluded from taxable-income deductions.
-Tax remains immediate tax on positive daily earnings; deferred tax, tax loss
-carryforwards and jurisdictional rules are not implemented.
+Tax remains immediate tax on positive daily earnings. Deferred tax exists only
+under the selected `deferred-tax-aoci-1` policy (see the stress document), for AFS
+OCI and realized security sales; tax loss carryforwards and jurisdictional rules
+are not implemented.
 
 Secured policies create explicit claims linking pledged face, debt, rate and
 due date (`funding_tenor_days`, default 30). Funding maturity releases collateral.

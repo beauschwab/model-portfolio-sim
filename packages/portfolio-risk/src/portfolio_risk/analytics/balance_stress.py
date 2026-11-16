@@ -15,7 +15,7 @@ from typing import get_type_hints
 from functools import lru_cache
 from .journal import Journal, statements, SCHEMA as JOURNAL_SCHEMA
 from .balance_rules import (headroom, validation_status, liquidity_components, liquidity_basis, liquidity_status,
-                            RULESET, HTM_POLICY, HTM_EXCEPTIONS, SALE_REASONS, LIQUIDITY_STATUS)
+                            RULESET, HTM_POLICY, TAX_POLICY, HTM_EXCEPTIONS, SALE_REASONS, LIQUIDITY_STATUS)
 
 import polars as pl
 
@@ -48,6 +48,15 @@ class Account:
     nsfr_applicability: str = ""
     htm_accounting: str = ""  # selected HTM accounting policy; empty means sales are not assessed
     htm_taint_materiality: float = 0.0  # non-exception sales / opening HTM amortized cost that taint
+    tax_accounting: str = ""  # selected deferred-tax policy; empty keeps gross OCI and no tax on security sales
+    securities_tax_rate: float = 0.0  # rate on AFS OCI and on realized security sale results
+    tax_benefit_allowance: float = 0.0  # share of tax benefits on losses that is not recognized
+    other_aoci: float = 0.0  # supplied other AOCI components, net of tax, held unchanged
+    other_aoci_in_cet1: bool = False  # whether an AOCI opt-out keeps the other components in CET1
+    aoci_cet1_treatment: str = ""  # include or opt_out; empty keeps the legacy include_aoci flag
+    aoci_cet1_effective_day: int = 0  # an opt-out applies from this day; before it AOCI is included
+    dta_cet1_deduction: float = 0.0  # share of the recognized tax asset deducted from CET1
+    tax_refund_day: int = 0  # day a tax receivable is paid in cash; zero means never in the horizon
 
 
 @dataclass
@@ -248,6 +257,21 @@ def validate(raw, *, max_positions=2000, max_work=3_000_000):
         _range(a, "htm_taint_materiality")
         if a.htm_taint_materiality > 0 and not a.htm_accounting:
             raise ValueError("HTM taint materiality needs a selected HTM accounting policy")
+        if a.tax_accounting not in {"", TAX_POLICY}:
+            raise ValueError(f"unsupported tax accounting policy; only {TAX_POLICY} is implemented")
+        _range(a, "tax_benefit_allowance dta_cet1_deduction")
+        _range(a, "securities_tax_rate", 0, .99)
+        _range(a, "other_aoci", -1e15, 1e15)
+        if a.aoci_cet1_treatment not in {"", "include", "opt_out"}:
+            raise ValueError("AOCI CET1 treatment must be include or opt_out")
+        if type(a.aoci_cet1_effective_day) is not int or type(a.tax_refund_day) is not int \
+                or not 0 <= a.aoci_cet1_effective_day <= days or not 0 <= a.tax_refund_day <= days:
+            raise ValueError("AOCI effective day and tax refund day must be whole days within the horizon")
+        if not a.tax_accounting and (a.securities_tax_rate or a.tax_benefit_allowance or a.other_aoci or a.other_aoci_in_cet1
+                                     or a.aoci_cet1_treatment or a.aoci_cet1_effective_day or a.dta_cet1_deduction or a.tax_refund_day):
+            raise ValueError("deferred tax and AOCI inputs need a selected tax accounting policy")
+        if a.aoci_cet1_effective_day and a.aoci_cet1_treatment != "opt_out":
+            raise ValueError("an AOCI effective day applies only to an opt_out")
     for p in out["positions"]:
         if p.account not in accounts or p.kind not in {"loan", "security", "deposit", "funding", "repo", "reverse_repo"}:
             raise ValueError("invalid position account or kind")
@@ -369,6 +393,13 @@ def validate(raw, *, max_positions=2000, max_work=3_000_000):
     # Opening equity is supplied, never an implicit plug.
     for a in accounts.values():
         assets, liabilities = a.cash, 0.
+        if a.tax_accounting:
+            # Deferred tax on opening gross AFS OCI is a separate opening balance.
+            gross = sum(p.balance*(p.opening_market_price-1)-p.book_adjustment for p in out["positions"]
+                        if p.account == a.id and not p.start_day and p.kind == 'security' and p.classification == 'afs')
+            tax = -gross*a.securities_tax_rate*(1-a.tax_benefit_allowance) if gross < 0 else -gross*a.securities_tax_rate
+            assets += max(tax, 0.)
+            liabilities += max(-tax, 0.)
         for p in out["positions"]:
             if p.account == a.id and not p.start_day:
                 if p.kind in {"loan", "security", "reverse_repo"}:
@@ -446,11 +477,25 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
     htm_nonexception, htm_reclassified = defaultdict(float), {}
     liquidity_worst = {a: [0, 0] for a in accounts}
     accounting_events = []
+    # Selected deferred-tax policy state. `aoci` is the net amount inside equity; gross AFS marks,
+    # their deferred tax and the supplied other components are kept apart so each stays visible.
+    taxed = {a: bool(accounts[a].tax_accounting) for a in accounts}
+    gross_oci, deferred_tax, tax_receivable = defaultdict(float), defaultdict(float), defaultdict(float)
+
+    def tax_effect(a, amount):
+        """Tax on a pre-tax amount: a loss gives a benefit net of the unrecognized share; a gain is taxed in full."""
+        rate = a.securities_tax_rate
+        return -amount*rate*(1-a.tax_benefit_allowance) if amount < 0 else -amount*rate
 
     for p in positions:
         if p.kind == 'security' and p.classification == 'afs':
             marks[p.id] = p.balance*(market[p.id]-1)-p.book_adjustment
             aoci[p.account] += marks[p.id]
+    for a in accounts.values():
+        if taxed[a.id]:
+            gross_oci[a.id] = aoci[a.id]
+            deferred_tax[a.id] = tax_effect(a, gross_oci[a.id])
+            aoci[a.id] += deferred_tax[a.id] + a.other_aoci
     # Opening supplied equity already includes opening AOCI. Classify it instead
     # of recognizing an opening unrealized mark as current-period income.
     for a in accounts.values():
@@ -458,6 +503,13 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
 
     def post(day, account, event, cash=0., earnings=0., oci=0., changes=None, instrument=""):
         entries = defaultdict(float, changes or {})
+        if oci and taxed[account]:
+            # Every change in gross AFS OCI carries its deferred tax; the posting is the net amount.
+            gross_oci[account] += oci
+            target = tax_effect(accounts[account], gross_oci[account])
+            entries['deferred_tax', ''] += target-deferred_tax[account]
+            oci += target-deferred_tax[account]
+            deferred_tax[account] = target
         entries['cash', ''] += cash
         earnings_gl = 'equity_distributions' if event == 'dividend' else 'pnl:'+event
         entries[earnings_gl, instrument] -= earnings
@@ -479,6 +531,10 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
 
     for a in accounts.values():
         opening = {('cash', ''): a.cash, ('opening_equity', ''): -opening_equity[a.id], ('oci', ''): -aoci[a.id]}
+        if taxed[a.id]:
+            opening['oci', ''] = -(aoci[a.id]-a.other_aoci)
+            opening['oci_other', ''] = -a.other_aoci
+            opening['deferred_tax', ''] = deferred_tax[a.id]
         for p in positions:
             if p.account != a.id:
                 continue
@@ -549,6 +605,11 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             expected[a.id, 'restricted_cash', ''] = restricted[a.id]
             expected[a.id, 'opening_equity', ''] = -opening_equity[a.id]
             expected[a.id, 'oci', ''] = -aoci[a.id]
+            if taxed[a.id]:
+                expected[a.id, 'oci', ''] = -(aoci[a.id]-a.other_aoci)
+                expected[a.id, 'oci_other', ''] = -a.other_aoci
+                expected[a.id, 'deferred_tax', ''] = deferred_tax[a.id]
+                expected[a.id, 'tax_receivable', ''] = tax_receivable[a.id]
         for p in positions:
             sign = 1 if p.kind in {'loan', 'security', 'reverse_repo'} else -1
             expected[p.account, *principal_key(p)] = sign*p.balance
@@ -623,12 +684,25 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             # Intercompany and recovery receivables have 100% proxy RWA/RSF.
             rwa += extra_assets[a.id]
             rsf += extra_assets[a.id]
+            # Tax balances are assets when positive and liabilities when negative, at 100% proxy RWA/RSF.
+            for balance in (deferred_tax[a.id], tax_receivable[a.id]):
+                asset += max(balance, 0.)
+                liability += max(-balance, 0.)
+                rwa += max(balance, 0.)
+                rsf += max(balance, 0.)
             hqla, capped_inflow, outflow = liquidity_components(hqla, level2a, outflow, inflow)
             error = asset - liability - a.equity
             max_error = max(max_error, abs(error))
             if abs(error) > 1e-8 * max(1., abs(asset), liability):
                 raise ArithmeticError(f"balance sheet failed to reconcile: {a.id}, day {day}, {error}")
             cet1 = a.equity - a.capital_deductions - (0. if a.include_aoci else aoci[a.id])
+            if taxed[a.id]:
+                treatment = a.aoci_cet1_treatment or ('include' if a.include_aoci else 'opt_out')
+                excluded = 0.
+                if treatment == 'opt_out' and day >= a.aoci_cet1_effective_day:
+                    excluded = aoci[a.id] - (a.other_aoci if a.other_aoci_in_cet1 else 0.)
+                cet1 = a.equity - a.capital_deductions - excluded \
+                    - a.dta_cet1_deduction*max(deferred_tax[a.id]+tax_receivable[a.id], 0.)
             leverage_exposure = max(asset, 0.) + undrawn
             ratio = cet1 / rwa if rwa > 0 else None
             leverage = cet1 / leverage_exposure if leverage_exposure > 0 else None
@@ -1000,6 +1074,13 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                         changes['fair_value_adjustment', pos.id] = -face*(price-1)+adjustment
                     post(day, source.id, "security_sale", cash=amount, earnings=amount-carry+reclass, oci=-reclass,
                          changes=changes, instrument=pos.id)
+                    if taxed[source.id] and amount-carry+reclass:
+                        # The realized result is taxed as a receivable or payable, never as cash.
+                        benefit = tax_effect(source, amount-carry+reclass)
+                        tax_receivable[source.id] += benefit
+                        post(day, source.id, 'securities_tax', earnings=benefit, changes={('tax_receivable', ''): benefit})
+                        accounting_event(day, source.id, p.id, pos.id, p.sale_reason, source.tax_accounting,
+                                         'realized_tax_benefit' if benefit > 0 else 'realized_tax_expense', amount-carry+reclass, benefit)
                     if pos.classification == "htm" and face > 0:
                         htm_sale(day, source, p, pos, face+adjustment)
             used[p.id] += amount
@@ -1007,8 +1088,15 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
         # Tax all daily earnings, including completed management actions. Dividends
         # are distributions, not deductions from taxable operating income.
         for a in accounts.values():
+            if a.tax_refund_day == day and tax_receivable[a.id] > 0:
+                refund = tax_receivable[a.id]
+                tax_receivable[a.id] = 0.
+                post(day, a.id, 'tax_refund', cash=refund, changes={('tax_receivable', ''): -refund})
+                accounting_event(day, a.id, '', '', '', a.tax_accounting, 'tax_refund', 0., refund)
+            # Security sale results are taxed through the selected policy, not again as operating income.
+            skip = {'dividend', 'security_sale', 'securities_tax'} if taxed[a.id] else {'dividend'}
             income = sum(v[1] for (d, account, event), v in aggregate.items()
-                         if d == day and account == a.id and event != 'dividend')
+                         if d == day and account == a.id and event not in skip)
             tax = max(income, 0.)*a.tax_rate
             if tax:
                 post(day, a.id, 'tax', cash=-tax, earnings=-tax)
@@ -1128,7 +1216,7 @@ def _result_metadata(result,raw):
     result.update(model_version=MODEL_VERSION, specification=deepcopy(raw), warnings=[
         "Synthetic research model: explicit user assumptions; no regulatory certification or probability calibration.",
         "Independent stress specification, not an automatic mapping of the pricing books or optimizer allocations.",
-        "ACT/365 daily accrual, user-defined regular payment intervals and 30-day reporting months; no business-day calendars or deferred tax assets.",
+        "ACT/365 daily accrual, user-defined regular payment intervals and 30-day reporting months; no business-day calendars. Deferred tax exists only under the selected deferred-tax-aoci-1 policy, for AFS OCI and realized security sales.",
         "LCR uses shared 40% Level 2A and 75% inflow caps with explicit weights; NSFR and capital remain research proxies with 100% undrawn CCF.",
         "Credit uses deterministic expected defaults, two-state migration and a one-year expected-loss allowance, not CECL/IFRS9.",
         "Negative cash represents unfunded obligations. Paths continue diagnostically after failure; no automatic emergency borrowing.",

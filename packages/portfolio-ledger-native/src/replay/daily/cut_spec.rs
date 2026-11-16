@@ -273,7 +273,9 @@ macro_rules! typed_struct {
 }
 typed_struct!(Account, {id, entity, currency, cash, equity, cash_floor, cet1_floor, leverage_floor, capital_deductions,
     include_aoci, annual_fees, annual_costs, tax_rate, annual_dividends, lcr_floor, nsfr_floor, htm_asset_limit,
-    lcr_applicability, nsfr_applicability, htm_accounting, htm_taint_materiality});
+    lcr_applicability, nsfr_applicability, htm_accounting, htm_taint_materiality, tax_accounting, securities_tax_rate,
+    tax_benefit_allowance, other_aoci, other_aoci_in_cet1, aoci_cet1_treatment, aoci_cet1_effective_day, dta_cet1_deduction,
+    tax_refund_day});
 typed_struct!(Position, {id, account, kind, balance, rate, payment_interval_days, floating_beta, maturity_day, classification,
     risk_weight, asf_weight, rsf_weight, lcr_outflow_weight, hqla_weight, duration, allowance, annual_pd, lgd, watch_fraction,
     watch_pd_multiplier, migration_rate, recovery_days, commitment, draw_fraction, monthly_runoff, uninsured_fraction,

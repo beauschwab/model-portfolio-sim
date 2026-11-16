@@ -82,6 +82,45 @@ pub struct Account {
     /// amortized cost, above which the selected policy reclassifies the rest.
     #[serde(default)]
     pub htm_taint_materiality: f64,
+    /// Selected deferred-tax policy; empty keeps gross OCI and no tax on security sales.
+    #[serde(default)]
+    pub tax_accounting: String,
+    /// Rate on AFS OCI and on realized security sale results.
+    #[serde(default)]
+    pub securities_tax_rate: f64,
+    /// Share of tax benefits on losses that is not recognized.
+    #[serde(default)]
+    pub tax_benefit_allowance: f64,
+    /// Supplied other AOCI components, net of tax, held unchanged.
+    #[serde(default)]
+    pub other_aoci: f64,
+    #[serde(default)]
+    pub other_aoci_in_cet1: bool,
+    /// "include" or "opt_out"; empty keeps the legacy `include_aoci` flag.
+    #[serde(default)]
+    pub aoci_cet1_treatment: String,
+    /// An opt-out applies from this day; before it AOCI is included.
+    #[serde(default)]
+    pub aoci_cet1_effective_day: usize,
+    /// Share of the recognized tax asset deducted from CET1.
+    #[serde(default)]
+    pub dta_cet1_deduction: f64,
+    /// Day a tax receivable is paid in cash; zero means never in the horizon.
+    #[serde(default)]
+    pub tax_refund_day: usize,
+}
+impl Account {
+    /// Tax on a pre-tax amount: a loss gives a benefit net of the unrecognized share; a gain is taxed in full.
+    pub fn tax_effect(&self, amount: f64) -> f64 {
+        if amount < 0. {
+            -amount * self.securities_tax_rate * (1. - self.tax_benefit_allowance)
+        } else {
+            -amount * self.securities_tax_rate
+        }
+    }
+    pub fn taxed(&self) -> bool {
+        !self.tax_accounting.is_empty()
+    }
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

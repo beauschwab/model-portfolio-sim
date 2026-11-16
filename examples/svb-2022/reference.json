@@ -89,6 +89,11 @@
     "march10_additional_expected_withdrawals_lower_bound": 100000.0,
     "march10_status": "expected/requested, not completed withdrawals; bank closed that morning"
   },
+  "regulatory_elections": {
+    "aoci_in_regulatory_capital": "opt_out",
+    "source": "fed_regulation",
+    "status": "retrospective source; transcribed from the Federal Reserve review's description of SVBFG's AOCI election and not re-read when this field was added; verify before relying on it"
+  },
   "assumptions": {
     "afs_duration_years": 3.5,
     "afs_duration_basis": "illustrative aggregate sensitivity, not a fitted security tape or use of the later sold-subset duration",

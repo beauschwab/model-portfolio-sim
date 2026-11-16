@@ -29,7 +29,9 @@ a settled historical withdrawal.
 Since 2026-11-16 the runner also includes two counterfactual groups, with every
 input labelled as an assumption in `reference.json`: an HTM liquidity sale under
 the research `asc320-htm-v1` rule, and an assumed split of consolidated cash
-between the parent and the bank with transfer timing. Every run declares LCR and
+between the parent and the bank with transfer timing. A third group replays the
+sale under the `deferred-tax-aoci-1` policy at each guided tax rate and bridges
+reported AOCI and CET1 with explicit residuals. Every run declares LCR and
 NSFR `not_applicable`. The first record (`2026-10-01-svb-reconstruction.*`) is
 kept unchanged; new output goes to `2026-11-16-svb-reconstruction.*`.
 

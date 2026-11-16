@@ -118,7 +118,7 @@ def scenario_specs(reference):
     return specs
 
 
-EXTENSIONS = ('htm_sale', 'entity_')
+EXTENSIONS = ('htm_sale', 'entity_', 'tax_bridge_')
 
 
 def event_withdrawals(spec, reference):
@@ -171,7 +171,31 @@ def extension_specs(reference):
                                          trigger_cash=1e9, limit=cash, **transfer))
         spec['provenance']['basis'] = 'assumed parent/bank cash split on frozen year-end consolidated balance sheet'
         specs[f'entity_{int(cash)}_{label}'] = spec
+    # Tax, AOCI and CET1 (#30): the March 8 sale replay with deferred tax at each guided rate.
+    for rate in a['tax_sensitivity']:
+        spec = event_withdrawals(deepcopy(base), reference)
+        figures = tax_bridge_inputs(reference, rate)
+        spec['accounts'][0].update(tax_accounting='deferred-tax-aoci-1', securities_tax_rate=rate,
+            other_aoci=figures['other_aoci'], aoci_cet1_treatment=reference['regulatory_elections']['aoci_in_regulatory_capital'],
+            capital_deductions=figures['capital_deductions'])
+        # The deferred tax asset is carried separately, so it is taken out of disclosed other assets.
+        next(p for p in spec['positions'] if p['id'] == 'other_assets')['balance'] -= figures['deferred_tax']
+        spec['policies'] = [dict(id='afs_sale', account='svbfg', kind='sell', position='afs',
+            trigger_cash=o['cash']+21000., limit=21000., delay_days=1)]
+        spec['provenance']['basis'] = 'deferred-tax and AOCI opt-out bridge on frozen year-end consolidated balance sheet'
+        specs[f'tax_bridge_{int(round(rate*100))}'] = spec
     return specs
+
+
+def tax_bridge_inputs(reference, rate):
+    """Hand arithmetic for the tax bridge, from the reference facts only."""
+    o = reference['observed_opening']
+    gross = o['afs_fair_value']-o['afs_cost']
+    deferred = -gross*rate
+    return dict(gross_afs_oci=gross, deferred_tax=deferred, net_afs_oci=gross+deferred,
+        # What reported AOCI leaves unexplained after tax-effecting AFS: a derived residual, not an observation.
+        other_aoci=o['reported_aoci']-(gross+deferred),
+        capital_deductions=o['preferred_equity']+o['noncontrolling_equity']+o['goodwill']+o['other_intangibles'])
 
 
 def account_row(result, scenario, day, account):
@@ -348,6 +372,33 @@ def run(reference, directory):
             assert abs(bank3['cash']-(unadjusted-cash)) < 1e-6 and abs(bank4['cash']-unadjusted) < 1e-6
             waiting = result['actions'].filter((pl.col('scenario') == 'event') & (pl.col('status') == 'delayed'))
             assert set(waiting['reason']) == {'awaiting transfer approval'}
+    # ---- Deferred tax, AOCI and CET1 (#30).
+    tax_rows = []
+    loss = 21000.*(o['afs_cost']/o['afs_fair_value']-1)
+    for rate in reference['assumptions']['tax_sensitivity']:
+        name = f'tax_bridge_{int(round(rate*100))}'
+        result, figures = results[name], tax_bridge_inputs(reference, rate)
+        day0, day2, day3 = (path_row(result, 'event', d) for d in (0, 2, 3))
+        sale = {r['event']: r for r in result['ledger'].filter((pl.col('scenario') == 'event') & (pl.col('day') == 2)).to_dicts()}
+        bridge_cet1 = o['total_equity']-figures['capital_deductions']-o['reported_aoci']
+        tax_rows.append(dict(case=name, tax_rate=rate, gross_afs_oci=figures['gross_afs_oci'], deferred_tax=figures['deferred_tax'],
+            net_afs_oci=figures['net_afs_oci'], reported_aoci=o['reported_aoci'], other_aoci_residual=figures['other_aoci'],
+            opening_cet1_bridge=day0['cet1'], reported_cet1=o['cet1'], cet1_bridge_residual=day0['cet1']-o['cet1'],
+            opening_cet1_ratio_bridge=day0['cet1']/o['rwa'], reported_cet1_ratio=o['cet1_ratio'],
+            realized_pretax_loss=-sale['security_sale']['earnings'], tax_benefit=sale['securities_tax']['earnings'],
+            after_tax_loss=-sale['security_sale']['earnings']-sale['securities_tax']['earnings'], announced_after_tax_loss=1800.,
+            tax_cash=sale['securities_tax']['cash'], equity_after_sale=day2['equity'], cet1_after_sale=day2['cet1'],
+            cet1_change_on_sale=day2['cet1']-day0['cet1'], march9_cash=day3['cash']))
+        row = tax_rows[-1]
+        assert abs(day0['aoci']-o['reported_aoci']) < 1e-6 and abs(day0['equity']-o['total_equity']) < 1e-6
+        assert abs(day0['assets']-o['total_assets']) < 1e-6                       # the tax asset was reclassified, not added
+        assert abs(day0['cet1']-bridge_cet1) < 1e-6
+        assert abs(row['realized_pretax_loss']-loss) < 1e-6 and abs(row['tax_benefit']-loss*rate) < 1e-6
+        # Realizing a loss that was already in AOCI leaves total equity unchanged, creates no cash,
+        # and moves the after-tax loss out of excluded AOCI into CET1.
+        assert abs(row['equity_after_sale']-o['total_equity']) < 1e-6 and row['tax_cash'] == 0.
+        assert abs(row['cet1_change_on_sale']+loss*(1-rate)) < 1e-6
+        assert abs(row['march9_cash']-(o['cash']+21000.-event['march9_withdrawals'])) < 1e-6
     # ---- LCR/NSFR applicability (#33): declared not applicable in every run, never a pass.
     statuses = {(r['lcr_applicability'], r['lcr_status'], r['nsfr_applicability'], r['nsfr_status'])
                 for v in outputs.values() for r in v['summaries']}
@@ -359,6 +410,9 @@ def run(reference, directory):
         dict(check='assumed parent cash lowers bank cash one for one; consolidated cash and equity are unchanged', passed=True),
         dict(check='a transfer approved after the breach day does not cover the March 9 shortfall', passed=True),
         dict(check='LCR and NSFR report not_applicable in every run and scenario', passed=True),
+        dict(check='tax-effected opening reproduces reported AOCI, total assets and total equity with the deferred tax asset reclassified, not added', passed=True),
+        dict(check='the sale tax benefit equals loss x rate, is a receivable and adds no cash', passed=True),
+        dict(check='an already-marked AFS sale leaves total equity unchanged and lowers opt-out CET1 by the after-tax loss', passed=True),
         dict(check='opening assets/liabilities/total equity/cash match independently transcribed disclosure', passed=True),
         dict(check='zero-event cash and equity unchanged through day 30', passed=True),
         dict(check='four native capital ratios match disclosed rounding', passed=True),
@@ -375,7 +429,7 @@ def run(reference, directory):
         elapsed_seconds=time.perf_counter()-start, reference=reference, runs=outputs,
         opening_comparison=comparisons, capital_comparison=capital_rows,
         behavioral_sensitivity=behavioral, conditional_replays=replays, rate_sensitivity=rate_rows,
-        htm_sale_accounting=htm_rows, entity_liquidity=entity_rows,
+        htm_sale_accounting=htm_rows, entity_liquidity=entity_rows, tax_aoci_cet1_bridge=tax_rows,
         liquidity_applicability=dict(lcr='not_applicable', nsfr='not_applicable', runs=len(outputs)),
         after_tax_sale_comparison=[dict(tax_rate=t, proxy_loss=sale_case['realized_sale_pretax_loss']*(1-t),
             observed_loss=1800., difference=sale_case['realized_sale_pretax_loss']*(1-t)-1800.)
@@ -389,7 +443,8 @@ def run(reference, directory):
             'Daily time steps do not model intraday payment, collateral-transfer or discount-window cutoffs',
             'Negative cash measures unpaid funding need; not a completed withdrawal financed by a hidden overdraft',
             'March 10 expected withdrawals are a hypothetical obligation; receivership interrupts actual flows',
-            'Gross AFS OCI excludes tax and other AOCI components; reported consolidated AOCI is not replicated',
+            'The tax bridge applies one guided rate to all AFS OCI; other AOCI components are a derived residual, not the disclosed breakdown',
+            'The CET1 bridge uses only components identifiable in the reference facts; its residual is unexplained and no deferred-tax or other regulatory adjustments are itemized',
             'HTM reclassification applies the research asc320-htm-v1 rule to an assumed sale; no HTM sale occurred, and management intent, auditor judgment and tax are not modelled',
             'Parent cash outside the bank is an assumed sweep, not the disclosed parent-only balance; all positions and debt stay in one bank-and-subsidiaries account',
             'LCR and NSFR are declared not applicable and are not computed; the Fed retrospective estimates are quoted, not reproduced; no SLR or TLAC validation',
@@ -472,10 +527,36 @@ def report(r):
         lines.append(f"| {100*row['tax_rate']:.0f}% | {row['proxy_loss']/1000:.3f} | {row['observed_loss']/1000:.3f} | {row['difference']/1000:.3f} |")
     lines += ['', 'The 26-28% range comes from March 8 tax guidance and is only an external sensitivity, not an exact sale tax rate. '
         'No immediate tax refund is added to simulated cash. Native realization reclassifies existing AFS OCI into earnings '
-        'without charging total equity twice. The engine does not replicate the complete tax/AOCI bridge: its gross AFS OCI '
-        'is -$2.533bn versus reported total AOCI of -$1.911bn.', '']
+        'without charging total equity twice. This table applies the tax rate outside the ledger to gross AFS OCI of -$2.533bn; '
+        'the next section carries deferred tax inside the ledger and bridges it to reported AOCI of -$1.911bn.', '']
     taint, plain = r['htm_sale_accounting']
-    lines += ['## HTM sale accounting counterfactual', '',
+    mid = r['tax_aoci_cet1_bridge'][len(r['tax_aoci_cet1_bridge'])//2]
+    lines += ['## Tax, AOCI and CET1 bridge', '',
+        'The same sale replay, with the engine\'s `deferred-tax-aoci-1` policy at each guided tax rate. AFS OCI is carried net of a deferred tax asset, '
+        'which is reclassified out of disclosed other assets so total assets are unchanged. '
+        'SVBFG had elected to exclude AOCI from regulatory capital, so the CET1 proxy excludes it.', '',
+        '| Tax rate | Gross AFS OCI | Deferred tax | Net AFS OCI | Reported AOCI | Residual other components |',
+        '|---:|---:|---:|---:|---:|---:|']
+    for row in r['tax_aoci_cet1_bridge']:
+        lines.append(f"| {100*row['tax_rate']:.0f}% | {row['gross_afs_oci']/1000:.3f} | {row['deferred_tax']/1000:.3f} | {row['net_afs_oci']/1000:.3f} | "
+                     f"{row['reported_aoci']/1000:.3f} | {row['other_aoci_residual']/1000:.3f} |")
+    lines += ['', f"Tax-effecting the AFS mark explains most of the gap between gross AFS OCI and reported AOCI: the unexplained remainder is "
+        f"{min(abs(x['other_aoci_residual']) for x in r['tax_aoci_cet1_bridge'])/1000:.3f} to {max(abs(x['other_aoci_residual']) for x in r['tax_aoci_cet1_bridge'])/1000:.3f}bn "
+        'instead of 0.622bn. That remainder is other AOCI components and the true effective rate, which need the disclosed AOCI note; it is carried as an explicit residual, not fitted.', '',
+        '| Tax rate | Realized pre-tax loss | Tax benefit (receivable) | After-tax loss | Announced | Total equity after sale | CET1 change on sale |',
+        '|---:|---:|---:|---:|---:|---:|---:|']
+    for row in r['tax_aoci_cet1_bridge']:
+        lines.append(f"| {100*row['tax_rate']:.0f}% | {row['realized_pretax_loss']/1000:.3f} | {row['tax_benefit']/1000:.3f} | {row['after_tax_loss']/1000:.3f} | "
+                     f"{row['announced_after_tax_loss']/1000:.3f} | {row['equity_after_sale']/1000:.3f} | {row['cet1_change_on_sale']/1000:.3f} |")
+    lines += ['', 'Selling securities whose loss was already in AOCI leaves total equity unchanged and creates no cash from the tax benefit, which is a receivable. '
+        'Because AOCI was excluded from regulatory capital, the sale moves the after-tax loss into CET1: that is the capital cost of realizing it. '
+        'The after-tax loss is the same proxy as the sale-loss comparison above, now produced by the ledger; it remains about 0.3bn below the announced figure because the actual sold lots are unknown.', '',
+        f"CET1 from identifiable components: total equity {o['total_equity']/1000:.3f} less preferred {o['preferred_equity']/1000:.3f}, noncontrolling interests {o['noncontrolling_equity']/1000:.3f}, "
+        f"goodwill {o['goodwill']/1000:.3f} and other intangibles {o['other_intangibles']/1000:.3f}, with reported AOCI of {o['reported_aoci']/1000:.3f} excluded, "
+        f"gives {mid['opening_cet1_bridge']/1000:.3f} against reported {mid['reported_cet1']/1000:.3f}: "
+        f"a residual of {mid['cet1_bridge_residual']/1000:.3f}bn ({100*mid['opening_cet1_ratio_bridge']:.2f}% against {100*mid['reported_cet1_ratio']:.2f}% of RWA). "
+        '**The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record.', '',
+        '## HTM sale accounting counterfactual', '',
         'SVB did not sell HTM securities. This asks what the books would have shown had it sold some for liquidity: '
         f"all free AFS is sold first, then ${taint['sale_proceeds']/1000:.0f}bn of HTM proceeds at the disclosed year-end fair value. "
         'A liquidity sale is not one of the ASC 320 exceptions, so under the research `asc320-htm-v1` rule with zero materiality '

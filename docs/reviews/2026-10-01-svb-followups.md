@@ -17,7 +17,10 @@ issues track the gaps; merging that experiment does not close or validate them.
 
 Update 2026-11-16: #31, #32 and #33 are closed in the engine and the
 [extended reconstruction](2026-11-16-svb-reconstruction.md) now exercises them as
-labelled counterfactuals. #26 to #30 remain open and their residuals are unchanged.
+labelled counterfactuals. For #30 the ledger now has a deferred-tax and AOCI opt-out
+policy, and the reconstruction bridges reported AOCI and CET1 with explicit residuals
+(about $0.04-0.09bn and $0.06bn); itemizing them needs the disclosed AOCI and capital
+notes. #26 to #29 remain open and their residuals are unchanged.
 
 Each issue includes evidence, implementation scope, acceptance criteria and links
 to the existing product/model backlog. New financial behavior belongs in Rust;
