@@ -20,7 +20,10 @@ Update 2026-11-16: #31, #32 and #33 are closed in the engine and the
 labelled counterfactuals. For #30 the ledger now has a deferred-tax and AOCI opt-out
 policy, and the reconstruction bridges reported AOCI and CET1 with explicit residuals
 (about $0.04-0.09bn and $0.06bn); itemizing them needs the disclosed AOCI and capital
-notes. #26 to #29 remain open and their residuals are unchanged.
+notes. For #27 the engine has a standalone minute-resolution settlement replay
+([`intraday-settlement-1`](../models/intraday-settlement.md)); it is not applied to SVB
+because no timestamped request, collateral-location or facility data is transcribed.
+#26, #28 and #29 remain open and their residuals are unchanged.
 
 Each issue includes evidence, implementation scope, acceptance criteria and links
 to the existing product/model backlog. New financial behavior belongs in Rust;

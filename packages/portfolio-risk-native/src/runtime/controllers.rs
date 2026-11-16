@@ -35,6 +35,10 @@ pub enum Request {
         base: crate::risk::rate_shocks::Outcome,
         outcomes: Vec<crate::risk::rate_shocks::Outcome>,
     },
+    /// Timestamped payment queue, collateral and facility settlement (`intraday-settlement-1`).
+    IntradaySettlement {
+        request: Box<crate::treasury::intraday::Request>,
+    },
     DriverFit {
         dates: Vec<i32>,
         values: Vec<[f64; 4]>,
@@ -99,6 +103,7 @@ impl Request {
                 base,
                 outcomes,
             } => crate::risk::rate_shocks::report(&policy, &base, &outcomes),
+            Self::IntradaySettlement { request } => crate::treasury::intraday::run(&request),
             Self::DriverFit {
                 dates,
                 values,

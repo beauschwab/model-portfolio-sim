@@ -40,6 +40,12 @@ scenarios with policy limits). Rust owns the scenario set and limit status;
 EVE is a full revaluation at the supplied base OAS, NII keeps base accounting
 yields, and ramps are income only. See repository `docs/models/rate-shocks.md`.
 
+Intraday settlement: `analytics.intraday_settlement.run_intraday_settlement`
+replays timestamped payment requests through settlement cycles, collateral
+moves and facility draws at minute resolution (`intraday-settlement-1`). It is
+a standalone research replay with supplied timetables, not linked to the daily
+ledger. See repository `docs/models/intraday-settlement.md`.
+
 Research data: `core.curve.market_discount_factors_to_par` projects
 source DFs to annual model par rates and reports reconstruction errors. This
 does not provide an exact sub-year curve or replace volatility/behavioral fits.
