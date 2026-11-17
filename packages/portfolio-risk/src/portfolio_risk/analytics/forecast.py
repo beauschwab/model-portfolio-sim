@@ -106,6 +106,8 @@ def compile_forecast(rows, scenario, start_period, horizon):
 def condition_paths(base, plan):
     """Copy-on-write recentering; same underlying draws, never mutate base paths."""
     if "ramp" in plan:
+        if plan.get("targets"):
+            raise ValueError("forecast ramp and targets are mutually exclusive")
         return ramp_paths(base, plan["ramp"])
     t = plan["targets"]
     out = dict(base)

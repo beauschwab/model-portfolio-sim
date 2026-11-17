@@ -1321,12 +1321,21 @@ impl<'a> Sim<'a> {
             rwa += self.extra_assets[ai];
             rsf += self.extra_assets[ai];
             // Tax balances are assets when positive and liabilities when negative, at 100% proxy RWA/RSF.
+            // Only a deferred tax asset is subject to the CET1 deduction; a current receivable is not a
+            // DTA and a current payable is not a DTL, so neither nets against it. The deducted share
+            // carries no RWA (12 CFR 217.22(g)).
+            let dta_deducted = if a.taxed() {
+                a.dta_cet1_deduction * self.deferred_tax[ai].max(0.)
+            } else {
+                0.
+            };
             for balance in [self.deferred_tax[ai], self.tax_receivable[ai]] {
                 assets += balance.max(0.);
                 liabilities += (-balance).max(0.);
                 rwa += balance.max(0.);
                 rsf += balance.max(0.);
             }
+            rwa -= dta_deducted;
             hqla += l2.min(hqla * 0.4 / (1. - 0.4));
             outflow = (outflow - inflow.min(0.75 * outflow)).max(0.);
             let error = assets - liabilities - a.equity;
@@ -1351,11 +1360,7 @@ impl<'a> Sim<'a> {
                 } else {
                     0.
                 };
-                a.equity
-                    - a.capital_deductions
-                    - excluded
-                    - a.dta_cet1_deduction
-                        * (self.deferred_tax[ai] + self.tax_receivable[ai]).max(0.)
+                a.equity - a.capital_deductions - excluded - dta_deducted
             } else {
                 a.equity
                     - a.capital_deductions
@@ -2901,8 +2906,12 @@ impl Sim<'_> {
                     )?;
                     let result = amount - carry + reclass;
                     if self.accounts[a].taxed() && result != 0. {
-                        // The realized result is taxed as a receivable or payable, never as cash.
-                        let benefit = self.accounts[a].tax_effect(result);
+                        // The realized result is taxed as a receivable or payable, never as cash. Its tax is
+                        // incremental to the remaining AFS OCI (with-and-without), so the unrecognized share
+                        // is assessed on the same aggregate before and after the sale: a sale at its mark
+                        // moves tax between deferred and current and never changes equity.
+                        let benefit = self.accounts[a].tax_effect(self.gross_oci[a] + result)
+                            - self.deferred_tax[a];
                         self.tax_receivable[a] += benefit;
                         self.post(
                             day,

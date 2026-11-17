@@ -230,3 +230,14 @@ def test_zero_ramp_and_zero_shock_reproduce_the_anchored_base_exactly(inputs):
     # A ramp leaves month one nearly unchanged and moves later months more.
     delta = (moved['monthly']['nii'] - anchored['monthly']['nii']).abs().to_numpy()
     assert delta[-1] > 5 * delta[0] and delta[-1] > 0
+
+
+def test_a_forecast_with_both_a_ramp_and_targets_is_rejected_not_truncated():
+    from portfolio_risk.analytics.forecast import condition_paths
+    from portfolio_risk.core.lifecycle_native import native_forecast
+    plan = dict(ramp=dict(shift=.02, months=12), targets=dict(short_rate=[.03]*12))
+    with pytest.raises(ValueError, match='mutually exclusive'):
+        condition_paths({}, plan)
+    assert set(native_forecast(plan)) == {'ramp', 'targets'}                 # the engine sees, and rejects, both
+    assert native_forecast(dict(ramp=plan['ramp'], targets={})) == dict(ramp=plan['ramp'])
+    assert set(native_forecast(dict(targets=plan['targets']))) == {'targets'}

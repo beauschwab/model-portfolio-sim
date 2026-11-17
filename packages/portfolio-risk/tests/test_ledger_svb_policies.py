@@ -399,3 +399,66 @@ def test_without_a_tax_policy_oci_stays_gross_and_sales_carry_no_tax(tmp_path):
     assert path(result, 1)['aoci'] == pytest.approx(-19.)
     assert 'securities_tax' not in set(result['ledger']['event'])
     assert balance(result, 'deferred_tax') == 0. and result['accounting_events'].is_empty()
+
+
+def mixed_book(sell, trigger_cash, limit, **account):
+    """Two AFS securities with offsetting opening marks, +10 at 1.1 and -10 at 0.9, so gross OCI and
+    deferred tax open at zero; no rate move, so every sale is at its mark."""
+    policy = dict(tax_accounting='deferred-tax-aoci-1', securities_tax_rate=.25) | account
+    return dict(version=MODEL_VERSION, horizon_days=30,
+                accounts=[dict(id='a', entity='bank', currency='USD', cash=10., equity=10.+110.+90.-62.5, **policy)],
+                positions=[dict(id='gain', account='a', kind='security', balance=100., classification='afs',
+                                opening_market_price=1.1, duration=5.),
+                           dict(id='loss', account='a', kind='security', balance=100., classification='afs',
+                                opening_market_price=.9, duration=5.),
+                           dict(id='wf', account='a', kind='funding', balance=62.5)],
+                policies=[dict(id='sale', account='a', kind='sell', position=sell, trigger_cash=trigger_cash, limit=limit)],
+                scenarios=[dict(name='stress', rate_shift=0.)])
+
+
+def test_a_sale_at_its_mark_never_changes_equity_under_an_allowance(tmp_path):
+    # Sell 40 of proceeds of the loss position at 0.9: face 40/0.9, realized loss = released mark 40/0.9 x 0.1.
+    result = run(mixed_book('loss', 50., 40., tax_benefit_allowance=.4), tmp_path)
+    realized = 40./.9*.1                                  # 4.444
+    remaining = 10. - (10. - realized)                    # gross OCI after the sale: +10 - 5.556 = 4.444
+    # Deferred tax on the remaining net gain is a liability in full: 4.444 x 25% = 1.111.
+    assert balance(result, 'deferred_tax') == pytest.approx(-remaining*.25)
+    # The realized loss is taxed incrementally to that remaining OCI: te(4.444 - 4.444) - te(4.444) = +1.111.
+    # (Taxed standalone it would be 4.444 x 25% x 60% = 0.667, and equity would fall by 0.444.)
+    assert balance(result, 'tax_receivable') == pytest.approx(realized*.25)
+    assert path(result, 30)['equity'] == pytest.approx(path(result, 0)['equity'])
+    assert path(result, 30)['cash'] == pytest.approx(50.)
+
+
+def test_cet1_deducts_the_deferred_tax_asset_gross_of_a_current_tax_payable(tmp_path):
+    # Sell the whole gain position at 1.1: realized gain 10, current payable 2.5; the remaining -10
+    # mark carries a deferred tax asset of 2.5. 12 CFR 217.22(e) nets DTAs only against DTLs.
+    deducted = run(mixed_book('gain', 120., 110., aoci_cet1_treatment='include', dta_cet1_deduction=1.), tmp_path/'d')
+    kept = run(mixed_book('gain', 120., 110., aoci_cet1_treatment='include'), tmp_path/'k')
+    assert balance(deducted, 'deferred_tax') == pytest.approx(2.5)
+    assert balance(deducted, 'tax_receivable') == pytest.approx(-2.5)
+    day = path(deducted, 30)
+    assert day['equity'] == pytest.approx(path(deducted, 0)['equity'])           # sale at its mark
+    assert day['cet1'] == pytest.approx(day['equity'] - 2.5)                     # not max(2.5 - 2.5, 0) = 0
+    assert path(kept, 30)['cet1'] == pytest.approx(day['equity'])
+    assert path(kept, 30)['rwa'] - day['rwa'] == pytest.approx(2.5)              # deducted, so not risk-weighted (217.22(g))
+
+
+def test_a_tax_receivable_is_not_deducted_from_cet1(tmp_path):
+    # A realized loss benefit is a current receivable (refundable by carryback), not a DTA: risk-weighted, not deducted.
+    result = run(tax_book(aoci_cet1_treatment='include', dta_cet1_deduction=1.), tmp_path)
+    receivable, dta = balance(result, 'tax_receivable'), balance(result, 'deferred_tax')
+    assert receivable > 0 and dta > 0
+    day = path(result, 30)
+    assert day['cet1'] == pytest.approx(day['equity'] - dta)
+
+
+@pytest.mark.parametrize('shift, price, sale', [(.02, .9, True), (-.02, 1., False)])
+def test_closing_statements_classify_tax_and_other_aoci_like_the_daily_path(shift, price, sale, tmp_path):
+    # Other AOCI of -1 is equity, a deferred tax liability (gain case, 2.5) is a liability; closing totals
+    # must equal the final daily balance sheet.
+    result = run(tax_book(shift=shift, price=price, sale=sale, other_aoci=-1.), tmp_path)
+    closing = result['closing_statements'].filter((pl.col('scenario') == 'stress') & (pl.col('account') == 'a')).to_dicts()[0]
+    final = path(result, 30)
+    for key in ('assets', 'liabilities', 'equity'):
+        assert closing[key] == pytest.approx(final[key]), key

@@ -702,11 +702,16 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             rwa += extra_assets[a.id]
             rsf += extra_assets[a.id]
             # Tax balances are assets when positive and liabilities when negative, at 100% proxy RWA/RSF.
+            # Only a deferred tax asset is subject to the CET1 deduction; a current receivable is not a
+            # DTA and a current payable is not a DTL, so neither nets against it. The deducted share
+            # carries no RWA (12 CFR 217.22(g)).
+            dta_deducted = a.dta_cet1_deduction*max(deferred_tax[a.id], 0.) if taxed[a.id] else 0.
             for balance in (deferred_tax[a.id], tax_receivable[a.id]):
                 asset += max(balance, 0.)
                 liability += max(-balance, 0.)
                 rwa += max(balance, 0.)
                 rsf += max(balance, 0.)
+            rwa -= dta_deducted
             hqla, capped_inflow, outflow = liquidity_components(hqla, level2a, outflow, inflow)
             error = asset - liability - a.equity
             max_error = max(max_error, abs(error))
@@ -718,8 +723,7 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                 excluded = 0.
                 if treatment == 'opt_out' and day >= a.aoci_cet1_effective_day:
                     excluded = aoci[a.id] - (a.other_aoci if a.other_aoci_in_cet1 else 0.)
-                cet1 = a.equity - a.capital_deductions - excluded \
-                    - a.dta_cet1_deduction*max(deferred_tax[a.id]+tax_receivable[a.id], 0.)
+                cet1 = a.equity - a.capital_deductions - excluded - dta_deducted
             leverage_exposure = max(asset, 0.) + undrawn
             ratio = cet1 / rwa if rwa > 0 else None
             leverage = cet1 / leverage_exposure if leverage_exposure > 0 else None
@@ -1092,8 +1096,11 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                     post(day, source.id, "security_sale", cash=amount, earnings=amount-carry+reclass, oci=-reclass,
                          changes=changes, instrument=pos.id)
                     if taxed[source.id] and amount-carry+reclass:
-                        # The realized result is taxed as a receivable or payable, never as cash.
-                        benefit = tax_effect(source, amount-carry+reclass)
+                        # The realized result is taxed as a receivable or payable, never as cash. Its tax is
+                        # incremental to the remaining AFS OCI (with-and-without), so the unrecognized share
+                        # is assessed on the same aggregate before and after the sale: a sale at its mark
+                        # moves tax between deferred and current and never changes equity.
+                        benefit = tax_effect(source, gross_oci[source.id]+amount-carry+reclass)-deferred_tax[source.id]
                         tax_receivable[source.id] += benefit
                         post(day, source.id, 'securities_tax', earnings=benefit, changes={('tax_receivable', ''): benefit})
                         accounting_event(day, source.id, p.id, pos.id, p.sale_reason, source.tax_accounting,

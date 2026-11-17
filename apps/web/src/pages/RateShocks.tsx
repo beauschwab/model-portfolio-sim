@@ -1,6 +1,6 @@
 /** Standard EVE/NII rate shock report (`rate-shock-1`): one row per scenario,
  * limit status per metric, and the policy that defines both. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, awaitJob, errorText, fmt$, rowsOf, type RateShockPolicy, type RateShockResult, type Row } from "../lib/api";
 import { useEngineData } from "../lib/engine";
 import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Spinner, type Tone } from "../components/ui";
@@ -37,10 +37,19 @@ export default function RateShocks() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
+  // Text of the last saved policy the draft was seeded from. A workspace revision refreshes the
+  // saved baseline, but replaces the draft only while it has no unsaved edits.
+  const baseline = useRef("");
+
   useEffect(() => {
     let live = true;
-    api.rateShockPolicy().then(p => { if (live) { setPolicy(p.policy); setDraft(JSON.stringify(p.policy, null, 2)); } })
-      .catch(e => live && setError(errorText(e)));
+    api.rateShockPolicy().then(p => {
+      if (!live) return;
+      const text = JSON.stringify(p.policy, null, 2);
+      setPolicy(p.policy);
+      setDraft(d => (d === "" || d === baseline.current ? text : d));
+      baseline.current = text;
+    }).catch(e => live && setError(errorText(e)));
     return () => { live = false; };
   }, [revision]);
 
@@ -57,6 +66,7 @@ export default function RateShocks() {
     setError(null); setSaved(null);
     try {
       await api.putRateShockPolicy(JSON.parse(draft) as RateShockPolicy, revision);
+      baseline.current = draft;
       setSaved("Policy saved. Run the report again to apply it.");
     } catch (e) { setError(errorText(e)); }
   }
