@@ -342,6 +342,9 @@ struct Sim<'a> {
     gross_oci: Vec<f64>,
     deferred_tax: Vec<f64>,
     tax_receivable: Vec<f64>,
+    /// Unrecognized tax benefit released by realized results (with-and-without): carried in the
+    /// deferred tax balance on top of the tax on gross AFS OCI, so a later mark does not undo it.
+    tax_release: Vec<f64>,
     /// Cash-flow-hedge OCI from formal hedge owners; separate from AFS `oci`.
     hedge_aoci: Vec<f64>,
     extra_assets: Vec<f64>,
@@ -531,6 +534,7 @@ impl<'a> Sim<'a> {
             gross_oci: vec![0.; a],
             deferred_tax: vec![0.; a],
             tax_receivable: vec![0.; a],
+            tax_release: vec![0.; a],
             hedge_aoci: vec![0.; a],
             extra_assets: vec![0.; a],
             extra_debt: vec![0.; a],
@@ -712,7 +716,7 @@ impl<'a> Sim<'a> {
         if oci != 0. && self.accounts[a].taxed() {
             // Every change in gross AFS OCI carries its deferred tax; the posting is the net amount.
             self.gross_oci[a] += oci;
-            let target = self.accounts[a].tax_effect(self.gross_oci[a]);
+            let target = self.accounts[a].tax_effect(self.gross_oci[a]) + self.tax_release[a];
             add(
                 &mut changes,
                 "deferred_tax",
@@ -2906,23 +2910,28 @@ impl Sim<'_> {
                     )?;
                     let result = amount - carry + reclass;
                     if self.accounts[a].taxed() && result != 0. {
-                        // The realized result is taxed as a receivable or payable, never as cash. Its tax is
-                        // incremental to the remaining AFS OCI (with-and-without), so the unrecognized share
-                        // is assessed on the same aggregate before and after the sale: a sale at its mark
-                        // moves tax between deferred and current and never changes equity.
-                        let benefit = self.accounts[a].tax_effect(self.gross_oci[a] + result)
-                            - self.deferred_tax[a];
-                        self.tax_receivable[a] += benefit;
-                        self.post(
-                            day,
-                            a,
-                            "securities_tax",
-                            0.,
-                            benefit,
-                            0.,
-                            vec![entry("tax_receivable", "", benefit)],
-                            "",
-                        )?;
+                        // The realized result is taxed as a receivable or payable, never as cash, at the
+                        // standalone rate: a gain in full, a loss net of the unrecognized share. The total
+                        // tax is incremental to the remaining AFS OCI (with-and-without), so the
+                        // unrecognized share is assessed on the same aggregate before and after the sale
+                        // and a sale at its mark never changes equity. The difference is a change in the
+                        // unrecognized share, so it is carried in deferred tax, not in current tax.
+                        let account = &self.accounts[a];
+                        let current = account.tax_effect(result);
+                        let benefit = if account.tax_benefit_allowance == 0. {
+                            current
+                        } else {
+                            account.tax_increment(self.gross_oci[a], result)
+                        };
+                        let released = benefit - current;
+                        self.tax_receivable[a] += current;
+                        self.tax_release[a] += released;
+                        self.deferred_tax[a] += released;
+                        let mut changes = vec![entry("tax_receivable", "", current)];
+                        if released != 0. {
+                            changes.push(entry("deferred_tax", "", released));
+                        }
+                        self.post(day, a, "securities_tax", 0., benefit, 0., changes, "")?;
                         let policy = self.accounts[a].tax_accounting.clone();
                         self.accounting_event(
                             day,

@@ -421,13 +421,24 @@ def test_a_sale_at_its_mark_never_changes_equity_under_an_allowance(tmp_path):
     result = run(mixed_book('loss', 50., 40., tax_benefit_allowance=.4), tmp_path)
     realized = 40./.9*.1                                  # 4.444
     remaining = 10. - (10. - realized)                    # gross OCI after the sale: +10 - 5.556 = 4.444
-    # Deferred tax on the remaining net gain is a liability in full: 4.444 x 25% = 1.111.
-    assert balance(result, 'deferred_tax') == pytest.approx(-remaining*.25)
-    # The realized loss is taxed incrementally to that remaining OCI: te(4.444 - 4.444) - te(4.444) = +1.111.
-    # (Taxed standalone it would be 4.444 x 25% x 60% = 0.667, and equity would fall by 0.444.)
-    assert balance(result, 'tax_receivable') == pytest.approx(realized*.25)
+    # Current tax is standalone: the realized loss net of the 40% unrecognized share, 4.444 x 25% x 60% = 0.667.
+    assert balance(result, 'tax_receivable') == pytest.approx(realized*.25*.6)
+    # Total tax is incremental to the remaining OCI: te(4.444 - 4.444) - te(4.444) = +1.111. The other 0.444 is
+    # unrecognized benefit the remaining gain now supports, carried in deferred tax: -1.111 + 0.444 = -0.667.
+    assert balance(result, 'deferred_tax') == pytest.approx(-remaining*.25 + realized*.25*.4)
     assert path(result, 30)['equity'] == pytest.approx(path(result, 0)['equity'])
     assert path(result, 30)['cash'] == pytest.approx(50.)
+
+
+def test_a_realized_gain_is_taxed_in_full_and_releases_the_allowance_in_deferred_tax(tmp_path):
+    # Sell the whole gain position at 1.1 with a 40% allowance: realized gain 10, remaining gross OCI -10.
+    result = run(mixed_book('gain', 120., 110., tax_benefit_allowance=.4), tmp_path)
+    # The payable is the statutory tax on the gain, 10 x 25% = 2.5, not 1.5 net of the allowance release.
+    assert balance(result, 'tax_receivable') == pytest.approx(-2.5)
+    # The -10 mark's DTA is 10 x 25% x 60% = 1.5 standalone; the realized gain supports the other 1.0 (it was
+    # supported by the gain's DTL before the sale), so deferred tax is 2.5 and equity is unchanged.
+    assert balance(result, 'deferred_tax') == pytest.approx(2.5)
+    assert path(result, 30)['equity'] == pytest.approx(path(result, 0)['equity'])
 
 
 def test_cet1_deducts_the_deferred_tax_asset_gross_of_a_current_tax_payable(tmp_path):
