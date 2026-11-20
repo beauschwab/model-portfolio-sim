@@ -129,6 +129,22 @@ impl Account {
             -amount * self.securities_tax_rate
         }
     }
+    /// `tax_effect(base + delta) - tax_effect(base)` without differencing two large balances: within
+    /// one linear segment it is the slope times `delta`, and across zero it is the two short legs.
+    pub fn tax_increment(&self, base: f64, delta: f64) -> f64 {
+        let end = base + delta;
+        let below = if base != 0. { base < 0. } else { delta < 0. };
+        if end == 0. || (end < 0.) == below {
+            let slope = if below {
+                1. - self.tax_benefit_allowance
+            } else {
+                1.
+            };
+            -delta * self.securities_tax_rate * slope
+        } else {
+            self.tax_effect(end) - self.tax_effect(base)
+        }
+    }
     pub fn taxed(&self) -> bool {
         !self.tax_accounting.is_empty()
     }
@@ -428,5 +444,36 @@ fn default_spec_ruleset() -> String {
 impl PartialEq<String> for SharedText {
     fn eq(&self, other: &String) -> bool {
         self.as_str() == other.as_str()
+    }
+}
+
+#[cfg(test)]
+mod tax_increment_tests {
+    use super::Account;
+
+    fn account(allowance: f64) -> Account {
+        serde_json::from_value(serde_json::json!({
+            "id": "a", "entity": "bank", "currency": "USD", "cash": 0., "equity": 0.,
+            "tax_accounting": "deferred-tax-aoci-1", "securities_tax_rate": 0.25,
+            "tax_benefit_allowance": allowance,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_small_result_on_a_large_balance_is_taxed_at_its_own_slope() {
+        // Differencing tax_effect(1e14 + 0.1) - tax_effect(1e14) returns -0.0234375.
+        assert_eq!(account(0.).tax_increment(1e14, 0.1), -0.1 * 0.25);
+        assert_eq!(account(0.4).tax_increment(-1e14, -0.1), 0.1 * 0.25 * 0.6);
+    }
+
+    #[test]
+    fn a_result_that_crosses_zero_is_split_at_the_kink() {
+        let a = account(0.4);
+        // -10 to +10: the first 10 releases a 60%-recognized benefit, the next 10 is taxed in full.
+        assert!((a.tax_increment(-10., 20.) - (-10. * 0.25 * 0.6 - 10. * 0.25)).abs() < 1e-12);
+        assert!((a.tax_increment(10., -20.) - (10. * 0.25 + 10. * 0.25 * 0.6)).abs() < 1e-12);
+        assert_eq!(a.tax_increment(0., -4.), 4. * 0.25 * 0.6);
+        assert_eq!(a.tax_increment(-4., 4.), -4. * 0.25 * 0.6);
     }
 }

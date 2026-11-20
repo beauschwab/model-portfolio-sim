@@ -62,6 +62,7 @@ owned_state! {
     gross_oci: Vec<f64>,
     deferred_tax: Vec<f64>,
     tax_receivable: Vec<f64>,
+    tax_release: Vec<f64>,
     hedge_aoci: Vec<f64>,
     extra_assets: Vec<f64>,
     extra_debt: Vec<f64>,

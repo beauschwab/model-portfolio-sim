@@ -171,6 +171,17 @@ def mortgage_input(port, swap_rates, vol_pts, histories, seed):
             size_y=flat(22),state_multipliers=flat(23),channel_multipliers=flat(24)))
 
 
+def native_forecast(plan):
+    """Forecast instructions for the native request. A ramp and nonempty targets are both passed
+    through, so the engine rejects the conflict instead of this layer silently dropping one."""
+    out = {}
+    if 'ramp' in plan:
+        out['ramp'] = plan['ramp']
+    if 'ramp' not in plan or plan.get('targets'):
+        out['targets'] = {k:np.asarray(v).tolist() for k,v in plan['targets'].items()}
+    return out
+
+
 def accounting_request(bs, swap_rates, vol_pts, dep_hist, horizon, seed, asof,
                forecast_plan, accounting_anchor, capture_anchor, crn, capture_cashflows):
     import datetime as dt
@@ -209,7 +220,7 @@ def accounting_request(bs, swap_rates, vol_pts, dep_hist, horizon, seed, asof,
         hedges=None if bs.get('hedges') is None else hedge_input(bs['hedges'][0])['swaps'],
         withdrawal_parameters=np.asarray(assumption('cd_ew_params',CD_EW_PARAMS)).tolist(),anchors=anchors,
         deposit_initial_rate=(accounting_anchor or {}).get('deposit_initial_rate'),
-        forecast=None if forecast_plan is None else dict(ramp=forecast_plan['ramp']) if 'ramp' in forecast_plan else dict(targets={k:np.asarray(v).tolist() for k,v in forecast_plan['targets'].items()}),
+        forecast=None if forecast_plan is None else native_forecast(forecast_plan),
         draws=draws,capture_anchor=capture_anchor,capture_cashflows=capture_cashflows)
     return request
 

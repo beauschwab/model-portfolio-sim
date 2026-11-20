@@ -1,6 +1,6 @@
 /** Standard EVE/NII rate shock report (`rate-shock-1`): one row per scenario,
  * limit status per metric, and the policy that defines both. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, awaitJob, errorText, fmt$, rowsOf, type RateShockPolicy, type RateShockResult, type Row } from "../lib/api";
 import { useEngineData } from "../lib/engine";
 import { Badge, Button, Card, CardBody, CardHeader, InfoPop, Spinner, type Tone } from "../components/ui";
@@ -37,10 +37,28 @@ export default function RateShocks() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
+  // The saved policy the draft was seeded from and the workspace revision it was read at. A refresh
+  // replaces the draft only while it has no unsaved edits (a cleared draft counts as an edit). Under
+  // unsaved edits the base advances only if the saved policy is unchanged, so saving a draft written
+  // against a policy that changed elsewhere is a 409 conflict, never a silent overwrite.
+  const base = useRef<{ text: string; revision: number } | null>(null);
+  const latest = useRef(draft);
+  latest.current = draft;
+
   useEffect(() => {
     let live = true;
-    api.rateShockPolicy().then(p => { if (live) { setPolicy(p.policy); setDraft(JSON.stringify(p.policy, null, 2)); } })
-      .catch(e => live && setError(errorText(e)));
+    api.rateShockPolicy().then(p => {
+      if (!live) return;
+      const text = JSON.stringify(p.policy, null, 2);
+      const prev = base.current;
+      setPolicy(p.policy);
+      if (prev === null || latest.current === prev.text) {
+        setDraft(text);
+        base.current = { text, revision: p.revision };
+      } else if (text === prev.text) {
+        base.current = { text, revision: p.revision };
+      }
+    }).catch(e => live && setError(errorText(e)));
     return () => { live = false; };
   }, [revision]);
 
@@ -56,7 +74,8 @@ export default function RateShocks() {
   async function save() {
     setError(null); setSaved(null);
     try {
-      await api.putRateShockPolicy(JSON.parse(draft) as RateShockPolicy, revision);
+      const res = await api.putRateShockPolicy(JSON.parse(draft) as RateShockPolicy, base.current?.revision ?? revision);
+      base.current = { text: draft, revision: res.revision };
       setSaved("Policy saved. Run the report again to apply it.");
     } catch (e) { setError(errorText(e)); }
   }

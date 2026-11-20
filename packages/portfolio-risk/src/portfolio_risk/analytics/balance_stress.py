@@ -498,11 +498,23 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
     # their deferred tax and the supplied other components are kept apart so each stays visible.
     taxed = {a: bool(accounts[a].tax_accounting) for a in accounts}
     gross_oci, deferred_tax, tax_receivable = defaultdict(float), defaultdict(float), defaultdict(float)
+    # Unrecognized tax benefit released by realized results, carried in deferred tax on top of the tax on
+    # gross AFS OCI so a later mark does not undo it.
+    tax_release = defaultdict(float)
 
     def tax_effect(a, amount):
         """Tax on a pre-tax amount: a loss gives a benefit net of the unrecognized share; a gain is taxed in full."""
         rate = a.securities_tax_rate
         return -amount*rate*(1-a.tax_benefit_allowance) if amount < 0 else -amount*rate
+
+    def tax_increment(a, base, delta):
+        """tax_effect(a, base+delta) - tax_effect(a, base) without differencing two large balances:
+        the slope times delta within one linear segment, and the two short legs across zero."""
+        end = base+delta
+        below = base < 0 if base else delta < 0
+        if end == 0 or (end < 0) == below:
+            return -delta*a.securities_tax_rate*((1-a.tax_benefit_allowance) if below else 1)
+        return tax_effect(a, end)-tax_effect(a, base)
 
     for p in positions:
         if p.kind == 'security' and p.classification == 'afs':
@@ -523,7 +535,7 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
         if oci and taxed[account]:
             # Every change in gross AFS OCI carries its deferred tax; the posting is the net amount.
             gross_oci[account] += oci
-            target = tax_effect(accounts[account], gross_oci[account])
+            target = tax_effect(accounts[account], gross_oci[account])+tax_release[account]
             entries['deferred_tax', ''] += target-deferred_tax[account]
             oci += target-deferred_tax[account]
             deferred_tax[account] = target
@@ -702,11 +714,16 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
             rwa += extra_assets[a.id]
             rsf += extra_assets[a.id]
             # Tax balances are assets when positive and liabilities when negative, at 100% proxy RWA/RSF.
+            # Only a deferred tax asset is subject to the CET1 deduction; a current receivable is not a
+            # DTA and a current payable is not a DTL, so neither nets against it. The deducted share
+            # carries no RWA (12 CFR 217.22(g)).
+            dta_deducted = a.dta_cet1_deduction*max(deferred_tax[a.id], 0.) if taxed[a.id] else 0.
             for balance in (deferred_tax[a.id], tax_receivable[a.id]):
                 asset += max(balance, 0.)
                 liability += max(-balance, 0.)
                 rwa += max(balance, 0.)
                 rsf += max(balance, 0.)
+            rwa -= dta_deducted
             hqla, capped_inflow, outflow = liquidity_components(hqla, level2a, outflow, inflow)
             error = asset - liability - a.equity
             max_error = max(max_error, abs(error))
@@ -718,8 +735,7 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                 excluded = 0.
                 if treatment == 'opt_out' and day >= a.aoci_cet1_effective_day:
                     excluded = aoci[a.id] - (a.other_aoci if a.other_aoci_in_cet1 else 0.)
-                cet1 = a.equity - a.capital_deductions - excluded \
-                    - a.dta_cet1_deduction*max(deferred_tax[a.id]+tax_receivable[a.id], 0.)
+                cet1 = a.equity - a.capital_deductions - excluded - dta_deducted
             leverage_exposure = max(asset, 0.) + undrawn
             ratio = cet1 / rwa if rwa > 0 else None
             leverage = cet1 / leverage_exposure if leverage_exposure > 0 else None
@@ -1092,10 +1108,23 @@ def _simulate(spec, scenario, severity=1., detail=True, journal_factory=Journal)
                     post(day, source.id, "security_sale", cash=amount, earnings=amount-carry+reclass, oci=-reclass,
                          changes=changes, instrument=pos.id)
                     if taxed[source.id] and amount-carry+reclass:
-                        # The realized result is taxed as a receivable or payable, never as cash.
-                        benefit = tax_effect(source, amount-carry+reclass)
-                        tax_receivable[source.id] += benefit
-                        post(day, source.id, 'securities_tax', earnings=benefit, changes={('tax_receivable', ''): benefit})
+                        # The realized result is taxed as a receivable or payable, never as cash, at the
+                        # standalone rate: a gain in full, a loss net of the unrecognized share. The total
+                        # tax is incremental to the remaining AFS OCI (with-and-without), so the
+                        # unrecognized share is assessed on the same aggregate before and after the sale
+                        # and a sale at its mark never changes equity. The difference is a change in the
+                        # unrecognized share, so it is carried in deferred tax, not in current tax.
+                        result = amount-carry+reclass
+                        current = tax_effect(source, result)
+                        benefit = current if source.tax_benefit_allowance == 0 else tax_increment(source, gross_oci[source.id], result)
+                        released = benefit-current
+                        tax_receivable[source.id] += current
+                        tax_release[source.id] += released
+                        deferred_tax[source.id] += released
+                        changes = {('tax_receivable', ''): current}
+                        if released:
+                            changes['deferred_tax', ''] = released
+                        post(day, source.id, 'securities_tax', earnings=benefit, changes=changes)
                         accounting_event(day, source.id, p.id, pos.id, p.sale_reason, source.tax_accounting,
                                          'realized_tax_benefit' if benefit > 0 else 'realized_tax_expense', amount-carry+reclass, benefit)
                     if pos.classification == "htm" and face > 0:

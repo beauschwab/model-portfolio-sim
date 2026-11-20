@@ -81,7 +81,10 @@ impl Reports {
                 t[4] += value;
             }
             if gl.starts_with("pnl:")
-                || matches!(gl, "opening_equity" | "oci" | "equity_distributions")
+                || matches!(
+                    gl,
+                    "opening_equity" | "oci" | "oci_other" | "equity_distributions"
+                )
             {
                 t[2] -= value;
             } else if matches!(
@@ -102,7 +105,8 @@ impl Reports {
                     | "derivative_received_vm_liability"
             ) || (matches!(gl, "book_adjustment" | "accrued_interest")
                 && funding.contains(&(&key.0, &key.2)))
-                || (gl == "derivative_value" && value < 0.)
+                || (matches!(gl, "derivative_value" | "deferred_tax" | "tax_receivable")
+                    && value < 0.)
             {
                 t[1] -= value;
             } else {

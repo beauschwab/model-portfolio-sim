@@ -35,7 +35,7 @@ jobs:
   service:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
       - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features fault-injection
 
   storage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:17
@@ -80,7 +80,7 @@ jobs:
       - run: cargo test --locked --manifest-path apps/api-rust/Cargo.toml --features s3,fault-injection
 
   live:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.93.1
@@ -109,7 +109,7 @@ jobs:
   # research IM, then cancellation, deadline and stream/page tamper at 20,000, through the whole
   # Rust service and the live producer. Each SCALE line records the measured resources.
   scale:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4

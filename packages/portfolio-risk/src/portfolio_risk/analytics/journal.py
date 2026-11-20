@@ -81,14 +81,14 @@ def statements(trial, accounts, scenarios=()):
         t, gl, value = totals[key], r['gl_account'], r['balance']
         if gl in {'cash', 'restricted_cash'}:
             t[gl] += value
-        if gl.startswith('pnl:') or gl in {'opening_equity', 'oci', 'equity_distributions'}:
+        if gl.startswith('pnl:') or gl in {'opening_equity', 'oci', 'oci_other', 'equity_distributions'}:
             t['equity'] -= value
         elif gl in {'funding_principal', 'secured_funding', 'received_margin', 'intercompany_payable',
                     'dated_interest_payable', 'dated_deferred_income'}:
             t['liabilities'] -= value
         elif gl in {'book_adjustment', 'accrued_interest'} and (*key, r['instrument_id']) in funding:
             t['liabilities'] -= value
-        elif gl == 'derivative_value' and value < 0:
+        elif gl in {'derivative_value', 'deferred_tax', 'tax_receivable'} and value < 0:
             t['liabilities'] -= value
         else:
             t['assets'] += value

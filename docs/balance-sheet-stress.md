@@ -147,12 +147,19 @@ equity is then the reported, after-tax figure, and:
   sits in its own `oci_other` account and does not move.
 - A realized security sale result is taxed at the same rate as a `tax_receivable`
   (or payable), never as cash, and is excluded from the immediate operating tax.
-  Selling an AFS security whose loss was already in OCI therefore leaves total
-  equity unchanged. The receivable becomes cash only on `tax_refund_day`.
+  The current tax is standalone: a gain in full, a loss net of
+  `tax_benefit_allowance`. The total tax is incremental to the remaining gross AFS
+  OCI (with-and-without), so a sale at its mark leaves total equity unchanged; the
+  difference is unrecognized benefit the sale releases (or reinstates), carried in
+  `deferred_tax` on top of the tax on gross AFS OCI. With no allowance the two are
+  equal. The receivable becomes cash only on `tax_refund_day`.
+- `dta_cet1_deduction` applies to the deferred tax asset only. A current receivable
+  is not a DTA and a current payable is not a DTL, so neither nets against it
+  (12 CFR 217.22(e)(3)); the deducted share carries no RWA (217.22(g)).
 - CET1 follows `aoci_cet1_treatment`: `include`, or `opt_out` from
   `aoci_cet1_effective_day` (before that day AOCI is included). An opt-out
   excludes all AOCI unless `other_aoci_in_cet1` keeps the other components.
-  `dta_cet1_deduction` is the share of the recognized tax asset deducted.
+  `dta_cet1_deduction` is the share of the recognized deferred tax asset deducted.
 - `accounting_events` records each realized tax benefit or expense and refund;
   the trial balance shows `deferred_tax`, `tax_receivable`, `oci` and `oci_other`.
 
