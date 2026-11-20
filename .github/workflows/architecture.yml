@@ -1,5 +1,6 @@
 name: Architecture and interface contracts
 on:
+  workflow_call:
   push:
     paths: ['AGENTS.md', 'docs/changelog/**', 'docs/reviews/issue-67-agent-contract.md', 'apps/**', 'packages/**', 'scripts/**', 'docs/contracts/**', 'Makefile', 'package.json', '.github/workflows/architecture.yml']
   pull_request:

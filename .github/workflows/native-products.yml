@@ -1,5 +1,6 @@
 name: Native product and strategy parity
 on:
+  workflow_call:
   push:
     paths: ['packages/portfolio-risk/**', 'packages/portfolio-risk-native/**', 'packages/portfolio-decision-native/**', '.github/workflows/native-products.yml']
   pull_request:
