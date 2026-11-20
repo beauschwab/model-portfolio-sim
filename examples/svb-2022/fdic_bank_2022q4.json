@@ -1,0 +1,208 @@
+{
+  "institution": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+  "report_date": "2022-12-31",
+  "amount_unit": "USD thousands, as published",
+  "source": {
+    "publisher": "FDIC BankFind Suite, financials (quarterly Call Report data)",
+    "url": "https://banks.data.fdic.gov/api/financials?filters=CERT%3A24735%20AND%20REPDTE%3A20221231&fields=REPDTE,ASSET,CHBAL,CHBALI,CHBALNI,CHFRB,FREPO,SC,SCAF,SCAA,SCHA,SCHF,SCPLEDGE,TRADE,LNLSGR,LNATRES,LNLSNET,BKPREM,INTAN,INTANGW,OA,LIAB,DEP,DEPDOM,DEPFOR,DEPNIDOM,DEPIDOM,DEPINS,DEPUNINS,FREPP,TRADEL,INVSUB,OTHBOR,OTHBFHLB,SUBND,ALLOTHL,EQ,EQPP,EQCS,EQSUR,EQUPTOT,EQCCOMPI,EQCONSUB,RBCT1C,RBCT1J,RBCT2,RWAJT,RBCT1CER,UC&limit=1&format=json",
+    "field_dictionary": "https://api.fdic.gov/banks/docs/risview_properties.yaml",
+    "retrieved": "2026-11-16",
+    "index": "risview_20260819185831",
+    "role": "bank-only opening observations at the same date as the consolidated 10-K balance sheet; available before the event",
+    "note": "Silicon Valley Bank filed no Call Report for March 31, 2023; there is no bank-only observation after this date."
+  },
+  "fields": {
+    "TRADE": {
+      "value": 127000,
+      "title": "TRADING ACCOUNTS"
+    },
+    "DEPINS": {
+      "value": 9990000,
+      "title": "ESTIMATED INSURED DEPOSITS"
+    },
+    "LNATRES": {
+      "value": 636000,
+      "title": "ALLOW FOR LOANS LOSS ADJUSTED"
+    },
+    "DEPIDOM": {
+      "value": 82085000,
+      "title": "INTEREST-BEARING DEP-DOM"
+    },
+    "RBCT1CER": {
+      "value": 15.26,
+      "title": "COMMON EQUITY TIER 1 RATIO"
+    },
+    "RWAJT": {
+      "value": 111341000,
+      "title": "RWA-ADJUSTED-PCA-TOTAL RBC RAT"
+    },
+    "EQUPTOT": {
+      "value": 5364000,
+      "title": "UP-NET & OTHER CAPITAL COMP"
+    },
+    "CHBALI": {
+      "value": 11319000,
+      "title": "INTEREST-BEARING CASH & DUE"
+    },
+    "EQPP": {
+      "value": 0,
+      "title": "PERPETUAL PREFERRED STOCK"
+    },
+    "UC": {
+      "value": 59245000,
+      "title": "UNUSED COMMIT-TOTAL"
+    },
+    "EQCCOMPI": {
+      "value": -1896000,
+      "title": "OTHER COMPREHENSIVE INCOME"
+    },
+    "SC": {
+      "value": 117297000,
+      "title": "SECURITIES"
+    },
+    "OTHBOR": {
+      "value": 15040000,
+      "title": "OTHER BORROWED MONEY"
+    },
+    "OA": {
+      "value": 2822000,
+      "title": "OTHER ASSETS"
+    },
+    "ALLOTHL": {
+      "value": 2296000,
+      "title": "ALL OTHER LIABILITIES"
+    },
+    "RBCT2": {
+      "value": 876000,
+      "title": "RBC-TIER2-PCA"
+    },
+    "INTANGW": {
+      "value": 201000,
+      "title": "GOODWILL"
+    },
+    "SCAF": {
+      "value": 25976000,
+      "title": "SECURITIES-AF"
+    },
+    "BKPREM": {
+      "value": 170000,
+      "title": "PREMISES AND FIXED ASSETS"
+    },
+    "INTAN": {
+      "value": 285000,
+      "title": "INTANGIBLE ASSETS"
+    },
+    "SCAA": {
+      "value": 28502000,
+      "title": "TOTAL AVAILABLE-FOR-SALE AT AMORTIZED COST SECURITIES ON A CONSOLIDATED BASIS"
+    },
+    "LNLSNET": {
+      "value": 73613000,
+      "title": "LOANS AND LEASES-NET"
+    },
+    "SCPLEDGE": {
+      "value": 55358000,
+      "title": "PLEDGED SECURITIES"
+    },
+    "CHFRB": {
+      "value": 7821000,
+      "title": "BAL DUE FROM FRB"
+    },
+    "DEPFOR": {
+      "value": 13899000,
+      "title": "TOTAL DEPOSITS-FOR"
+    },
+    "DEPDOM": {
+      "value": 161479000,
+      "title": "Deposits held in domestic offices"
+    },
+    "SCHF": {
+      "value": 76168000,
+      "title": "TOTAL HELD-TO-MATURITY AT FAIR VALUE SECURITIES ON A CONSOLIDATED BASIS"
+    },
+    "ASSET": {
+      "value": 209026000,
+      "title": "TOTAL ASSETS"
+    },
+    "LNLSGR": {
+      "value": 74249000,
+      "title": "LOANS AND LEASES-TOTAL"
+    },
+    "EQ": {
+      "value": 15456000,
+      "title": "Equity capital"
+    },
+    "DEP": {
+      "value": 175378000,
+      "title": "Total deposits"
+    },
+    "SUBND": {
+      "value": 0,
+      "title": "SUBORDINATED NOTES & DEBENTURES"
+    },
+    "SCHA": {
+      "value": 91327000,
+      "title": "SECURITIES-HA"
+    },
+    "TRADEL": {
+      "value": 332000,
+      "title": "TRADING LIABILITIES"
+    },
+    "DEPUNINS": {
+      "value": 151592000,
+      "title": "ESTIMATED UNINSURED DEPOSITS IN DOMESTIC OFFICES AND IN INSURED BRANCHES IN US TERRITORIES AND POSSESSIONS"
+    },
+    "RBCT1J": {
+      "value": 16995000,
+      "title": "TIER 1 RBC ADJUSTED LLR - PCA"
+    },
+    "DEPNIDOM": {
+      "value": 79394000,
+      "title": "NONINTEREST-BEARING DEP-DOM"
+    },
+    "EQCONSUB": {
+      "value": 0,
+      "title": "MINOR INT IN CONSOL SUBS-EQ"
+    },
+    "EQSUR": {
+      "value": 10087000,
+      "title": "SURPLUS"
+    },
+    "FREPO": {
+      "value": 707000,
+      "title": "FED FUNDS & REPOS SOLD"
+    },
+    "CHBAL": {
+      "value": 12511000,
+      "title": "CASH & DUE FROM DEPOSITORY INST"
+    },
+    "FREPP": {
+      "value": 524000,
+      "title": "FED FUNDS & REPOS PURCHASED"
+    },
+    "EQCS": {
+      "value": 5000,
+      "title": "COMMON STOCK"
+    },
+    "RBCT1C": {
+      "value": 16995000,
+      "title": "RC-R COMMON EQ TIER 1 CAPITAL"
+    },
+    "CHBALNI": {
+      "value": 1192000,
+      "title": "NONINTEREST-BEARING CASH & DUE"
+    },
+    "LIAB": {
+      "value": 193570000,
+      "title": "TOTAL LIABILITIES"
+    },
+    "OTHBFHLB": {
+      "value": 15000000,
+      "title": "OTHER LIABILITIES-FHLB"
+    },
+    "INVSUB": {
+      "value": 153000,
+      "title": "INVEST IN UNCONSOLIDATED SUBS"
+    }
+  }
+}

@@ -118,7 +118,7 @@ def scenario_specs(reference):
     return specs
 
 
-EXTENSIONS = ('htm_sale', 'entity_', 'tax_bridge_')
+EXTENSIONS = ('htm_sale', 'entity_', 'tax_bridge_', 'bank_only_')
 
 
 def event_withdrawals(spec, reference):
@@ -198,6 +198,68 @@ def tax_bridge_inputs(reference, rate):
         capital_deductions=o['preferred_equity']+o['noncontrolling_equity']+o['goodwill']+o['other_intangibles'])
 
 
+BANK_ASSETS = ('FREPO', 'TRADE', 'LNLSNET', 'BKPREM', 'INTAN', 'OA', 'INVSUB')
+BANK_DEPOSITS = ('DEPNIDOM', 'DEPIDOM', 'DEPFOR')
+BANK_FUNDING = ('FREPP', 'TRADEL', 'OTHBOR', 'SUBND', 'ALLOTHL')
+
+
+def bank_figures(fdic):
+    """Call Report fields in USD millions, plus the asset remainder the fetched fields do not itemize."""
+    f = {k: v['value']/1000. for k, v in fdic['fields'].items() if k != 'RBCT1CER'}
+    f['unitemized_assets'] = f['ASSET']-f['CHBAL']-f['SCAF']-f['SCHA']-sum(f[k] for k in BANK_ASSETS)
+    return f
+
+
+def bank_specs(reference, fdic):
+    """Silicon Valley Bank alone, from its year-end Call Report (#26). Every balance is an FDIC
+    observation except the derived asset remainder; durations and the AFS pledge are the
+    consolidated disclosures, applied as assumptions."""
+    o, a, f = reference['observed_opening'], reference['assumptions'], bank_figures(fdic)
+    account, positions = 'bank', []
+
+    def add(ident, kind, balance, **kwargs):
+        positions.append(dict(id=ident, account=account, kind=kind, balance=balance,
+                              source_id=f"fdic-call-report-20221231:{ident}", risk_weight=0., **kwargs))
+
+    add('afs', 'security', f['SCAA'], classification='afs', opening_market_price=f['SCAF']/f['SCAA'],
+        duration=a['afs_duration_years'], encumbered_fraction=o['afs_pledged_cost']/o['afs_cost'])
+    add('htm', 'security', f['SCHA'], classification='htm', opening_market_price=f['SCHF']/f['SCHA'],
+        duration=o['htm_duration_years'])
+    add('LNLSNET', 'loan', f['LNLSNET'])
+    for key in BANK_ASSETS:
+        if key != 'LNLSNET' and f[key]:
+            add(key, 'security', f[key], classification='ac')
+    add('unitemized_assets', 'security', f['unitemized_assets'], classification='ac')
+    uninsured = f['DEPUNINS']/f['DEPDOM']
+    for key in BANK_DEPOSITS:
+        # Foreign-office deposits carry no FDIC insurance.
+        add(key, 'deposit', f[key], uninsured_fraction=1. if key == 'DEPFOR' else uninsured,
+            concentration=a['deposit_concentration'], digital_fraction=a['deposit_digital_fraction'],
+            operational_fraction=a['deposit_operational_fraction'])
+    for key in BANK_FUNDING:
+        if f[key]:
+            add(key, 'funding', f[key])
+    base = dict(version='balance-stress-2', horizon_days=30, positions=positions,
+                accounts=[dict(id=account, entity=fdic['institution'], currency='USD', cash=f['CHBAL'], equity=f['EQ'],
+                               cet1_floor=0., leverage_floor=0., lcr_floor=0., nsfr_floor=0.,
+                               lcr_applicability='not_applicable', nsfr_applicability='not_applicable')],
+                scenarios=[dict(name='static')], provenance=dict(case_id=reference['case_id'],
+                    basis='bank-only year-end Call Report balances', amount_unit='USD millions',
+                    as_of=fdic['report_date']))
+    event = reference['observed_event']
+    replay = deepcopy(base)
+    replay['scenarios'] = [dict(name='event', start_day=3)]
+    replay['cashflows'] = []
+    for key in BANK_DEPOSITS:
+        replay['cashflows'].append(dict(position=key, day=3, principal=0., scenario='baseline'))
+        replay['cashflows'].append(dict(position=key, day=3, principal=event['march9_withdrawals']*f[key]/f['DEP'],
+                                        scenario='event'))
+    replay['policies'] = [dict(id='afs_sale', account=account, kind='sell', position='afs',
+                               trigger_cash=f['CHBAL']+21000., limit=21000., delay_days=1)]
+    replay['provenance']['basis'] = 'conditional event replay on the frozen bank-only year-end Call Report'
+    return dict(bank_only_static=base, bank_only_sale21=replay)
+
+
 def account_row(result, scenario, day, account):
     return result['path'].filter((pl.col('scenario') == scenario) & (pl.col('day') == day)
                                  & (pl.col('account') == account)).row(0, named=True)
@@ -224,11 +286,11 @@ def path_row(result, scenario, day):
     return result['path'].filter((pl.col('scenario') == scenario) & (pl.col('day') == day)).row(0, named=True)
 
 
-def run(reference, directory):
+def run(reference, directory, fdic):
     outputs, results, validations = {}, {}, []
     experiment_source = source_identity()
     start = time.perf_counter()
-    specs = scenario_specs(reference) | extension_specs(reference)
+    specs = scenario_specs(reference) | extension_specs(reference) | bank_specs(reference, fdic)
     for name, spec in specs.items():
         manifest = run_streamed_balance_stress(spec, directory/name, backend='rust')
         result = load_streamed_result(manifest)
@@ -399,6 +461,38 @@ def run(reference, directory):
         assert abs(row['equity_after_sale']-o['total_equity']) < 1e-6 and row['tax_cash'] == 0.
         assert abs(row['cet1_change_on_sale']+loss*(1-rate)) < 1e-6
         assert abs(row['march9_cash']-(o['cash']+21000.-event['march9_withdrawals'])) < 1e-6
+    # ---- Bank-only opening and replay (#26): every expected value comes from the Call Report fields.
+    f = bank_figures(fdic)
+    bank0 = path_row(results['bank_only_static'], 'baseline', 0)
+    bank_opening = []
+    for field, key in [('assets', 'ASSET'), ('liabilities', 'LIAB'), ('equity', 'EQ'), ('cash', 'CHBAL')]:
+        assert math.isclose(bank0[field], f[key], abs_tol=1e-6)
+        bank_opening.append(dict(metric=field, model=bank0[field], observed=f[key], difference=bank0[field]-f[key],
+                                 consolidated=o[{'assets': 'total_assets', 'liabilities': 'total_liabilities',
+                                                 'equity': 'total_equity', 'cash': 'cash'}[field]]))
+    for row in bank_opening:
+        # Consolidated less bank: other subsidiaries and the parent, net of intercompany eliminations.
+        row['consolidated_less_bank'] = row['consolidated']-row['observed']
+    assert abs(sum(f[k] for k in BANK_DEPOSITS)-f['DEP']) < 1e-6
+    assert abs(f['DEP']+sum(f[k] for k in BANK_FUNDING)-f['LIAB']) < 1e-6          # liabilities itemize exactly
+    bank3 = path_row(results['bank_only_sale21'], 'event', 3)
+    unadjusted_bank = f['CHBAL']+21000.-event['march9_withdrawals']
+    assert abs(bank3['cash']-unadjusted_bank) < 1e-6
+    bank_gross = f['SCAF']-f['SCAA']
+    bank_replay = dict(march9_cash=bank3['cash'], observed_march9_cash=event['march9_closing_cash_approx'],
+        residual=bank3['cash']-event['march9_closing_cash_approx'],
+        consolidated_march9_cash=sale_case['march9_cash'],
+        consolidated_residual=sale_case['march9_cash_difference_vs_observed'],
+        uninsured_share_of_domestic_deposits=f['DEPUNINS']/f['DEPDOM'], uninsured_share_of_total_deposits=f['DEPUNINS']/f['DEP'],
+        fhlb_advances=f['OTHBFHLB'], balance_at_federal_reserve=f['CHFRB'], pledged_securities=f['SCPLEDGE'],
+        htm_unrecognized_loss=f['SCHA']-f['SCHF'], unitemized_assets=f['unitemized_assets'],
+        gross_afs_oci=bank_gross, reported_aoci=f['EQCCOMPI'],
+        aoci_residual_by_tax_rate=[dict(tax_rate=t, net_afs_oci=bank_gross*(1-t), residual=f['EQCCOMPI']-bank_gross*(1-t))
+                                   for t in reference['assumptions']['tax_sensitivity']],
+        cet1_from_components=f['EQ']-f['EQCCOMPI']-f['INTAN'], reported_cet1=f['RBCT1C'],
+        cet1_residual=f['EQ']-f['EQCCOMPI']-f['INTAN']-f['RBCT1C'], reported_cet1_ratio=fdic['fields']['RBCT1CER']['value']/100.,
+        cet1_ratio_recomputed=f['RBCT1C']/f['RWAJT'])
+    assert abs(bank_replay['cet1_ratio_recomputed']-bank_replay['reported_cet1_ratio']) < .00005
     # ---- LCR/NSFR applicability (#33): declared not applicable in every run, never a pass.
     statuses = {(r['lcr_applicability'], r['lcr_status'], r['nsfr_applicability'], r['nsfr_status'])
                 for v in outputs.values() for r in v['summaries']}
@@ -410,6 +504,9 @@ def run(reference, directory):
         dict(check='assumed parent cash lowers bank cash one for one; consolidated cash and equity are unchanged', passed=True),
         dict(check='a transfer approved after the breach day does not cover the March 9 shortfall', passed=True),
         dict(check='LCR and NSFR report not_applicable in every run and scenario', passed=True),
+        dict(check='bank-only opening assets, liabilities, equity and cash match the Call Report; liabilities and deposits itemize exactly', passed=True),
+        dict(check='bank-only cash replay matches bank cash + proceeds - withdrawals', passed=True),
+        dict(check='bank CET1 ratio recomputed from reported CET1 and risk-weighted assets matches the Call Report', passed=True),
         dict(check='tax-effected opening reproduces reported AOCI, total assets and total equity with the deferred tax asset reclassified, not added', passed=True),
         dict(check='the sale tax benefit equals loss x rate, is a receivable and adds no cash', passed=True),
         dict(check='an already-marked AFS sale leaves total equity unchanged and lowers opt-out CET1 by the after-tax loss', passed=True),
@@ -430,12 +527,13 @@ def run(reference, directory):
         opening_comparison=comparisons, capital_comparison=capital_rows,
         behavioral_sensitivity=behavioral, conditional_replays=replays, rate_sensitivity=rate_rows,
         htm_sale_accounting=htm_rows, entity_liquidity=entity_rows, tax_aoci_cet1_bridge=tax_rows,
+        bank_only_opening=bank_opening, bank_only=bank_replay, bank_source=fdic,
         liquidity_applicability=dict(lcr='not_applicable', nsfr='not_applicable', runs=len(outputs)),
         after_tax_sale_comparison=[dict(tax_rate=t, proxy_loss=sale_case['realized_sale_pretax_loss']*(1-t),
             observed_loss=1800., difference=sale_case['realized_sale_pretax_loss']*(1-t)-1800.)
             for t in reference['assumptions']['tax_sensitivity']],
         validations=validations,
-        limitations=['Aggregate consolidated entity, not March 9 bank legal-entity cash reconstruction',
+        limitations=['Bank-only runs open from the year-end Call Report; there is no bank-only observation after it and no January-March roll-forward',
             'Opening book totals and HTM fair values are inputs, not predicted outcomes',
             'No security/depositor tape, observed bank-specific histories, historical OAS or MBS prepayment calibration',
             'No Jan-March balance-sheet roll-forward, NII forecast, credit/default calibration or hedges',
@@ -555,7 +653,8 @@ def report(r):
         f"goodwill {o['goodwill']/1000:.3f} and other intangibles {o['other_intangibles']/1000:.3f}, with reported AOCI of {o['reported_aoci']/1000:.3f} excluded, "
         f"gives {mid['opening_cet1_bridge']/1000:.3f} against reported {mid['reported_cet1']/1000:.3f}: "
         f"a residual of {mid['cet1_bridge_residual']/1000:.3f}bn ({100*mid['opening_cet1_ratio_bridge']:.2f}% against {100*mid['reported_cet1_ratio']:.2f}% of RWA). "
-        '**The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record.', '',
+        '**The residual is unexplained regulatory adjustments; it is reported, not plugged.** The AOCI election is taken from the Federal Reserve review and was not re-read in the environment that produced this record; '
+        'the bank\'s Call Report corroborates it, since its reported CET1 exceeds its total equity by about the AOCI loss less intangibles (see the bank-only section).', '',
         '## HTM sale accounting counterfactual', '',
         'SVB did not sell HTM securities. This asks what the books would have shown had it sold some for liquidity: '
         f"all free AFS is sold first, then ${taint['sale_proceeds']/1000:.0f}bn of HTM proceeds at the disclosed year-end fair value. "
@@ -587,6 +686,32 @@ def report(r):
         'No transfer is inferred from common ownership. '
         'This moves the model further from the observed bank cash of about -0.958bn, not closer: the consolidated snapshot already overstates the shortfall, '
         'so trapped parent cash cannot explain the residual. The bank-only balance sheet and roll-forward remain the missing inputs.', '',
+        '## Bank-only balance sheet and replay', '',
+        'Silicon Valley Bank alone, from its December 31, 2022 Call Report as published by the FDIC, at the same date as the consolidated 10-K. '
+        'Every balance is an FDIC observation except one derived asset remainder; durations and the AFS pledge are the consolidated disclosures, applied as assumptions.', '',
+        '| Measure | Bank ledger | Call Report | Difference | Consolidated | Consolidated less bank |', '|---|---:|---:|---:|---:|---:|']
+    for row in r['bank_only_opening']:
+        lines.append(f"| {row['metric']} | {row['model']/1000:.3f} | {row['observed']/1000:.3f} | {row['difference']/1000:.9f} | {row['consolidated']/1000:.3f} | {row['consolidated_less_bank']/1000:.3f} |")
+    b = r['bank_only']
+    lines += ['', f"Liabilities and deposits itemize exactly from the fetched fields. Assets leave {b['unitemized_assets']/1000:.3f}bn that those fields do not itemize; it is carried as one derived line, not allocated. "
+        '"Consolidated less bank" is the parent and other subsidiaries net of intercompany eliminations, so it is not the parent-only balance sheet: '
+        'cash the parent keeps on deposit at the bank is eliminated on consolidation.', '',
+        '| March 9 cash after the $21bn sale and $42bn withdrawals | Model | Observed (bank) | Residual |', '|---|---:|---:|---:|',
+        f"| Bank-only opening | {b['march9_cash']/1000:.3f} | {b['observed_march9_cash']/1000:.3f} | {b['residual']/1000:.3f} |",
+        f"| Consolidated opening | {b['consolidated_march9_cash']/1000:.3f} | {b['observed_march9_cash']/1000:.3f} | {b['consolidated_residual']/1000:.3f} |", '',
+        f"**Using the bank's own opening makes the unexplained cash residual larger, not smaller ({b['residual']/1000:.3f}bn against {b['consolidated_residual']/1000:.3f}bn), "
+        'because the bank held less cash than the group.** The residual is therefore not an entity-scope artefact: it is the January to March 9 roll-forward. '
+        'The bank filed no Call Report after year-end, so there is no bank-only observation of deposit flows, borrowings, maturities or earnings in that window, '
+        'and no flow is assumed to close the gap.', '',
+        f"Other year-end bank observations: {100*b['uninsured_share_of_domestic_deposits']:.1f}% of domestic deposits were uninsured "
+        f"({100*b['uninsured_share_of_total_deposits']:.1f}% of all deposits including foreign offices); FHLB advances {b['fhlb_advances']/1000:.3f}bn; "
+        f"balance at the Federal Reserve {b['balance_at_federal_reserve']/1000:.3f}bn; pledged securities {b['pledged_securities']/1000:.3f}bn; "
+        f"unrecognized HTM loss {b['htm_unrecognized_loss']/1000:.3f}bn against bank equity of {r['bank_only_opening'][2]['observed']/1000:.3f}bn.", '',
+        f"Bank-level bridges, from Call Report fields only: tax-effecting the gross AFS mark of {b['gross_afs_oci']/1000:.3f}bn at 26-28% leaves "
+        f"{min(abs(x['residual']) for x in b['aoci_residual_by_tax_rate'])/1000:.3f} to {max(abs(x['residual']) for x in b['aoci_residual_by_tax_rate'])/1000:.3f}bn "
+        f"of reported AOCI ({b['reported_aoci']/1000:.3f}bn) unexplained. Equity with AOCI excluded less intangibles gives {b['cet1_from_components']/1000:.3f}bn "
+        f"against reported CET1 of {b['reported_cet1']/1000:.3f}bn, a residual of {b['cet1_residual']/1000:.3f}bn; "
+        f"reported CET1 over reported risk-weighted assets reproduces the published {100*b['reported_cet1_ratio']:.2f}% ratio.", '',
         '## Regulatory comparison', '',
         'SVB was not subject to LCR/NSFR at failure. The Fed retrospectively estimated reduced LCR of 103.1% at December 30 '
         'and 102.5% at February 28. Those ratios did not establish resilience to an hours-long run. '
@@ -627,11 +752,14 @@ def report(r):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--reference', type=Path, default=ROOT/'examples/svb-2022/reference.json')
+    parser.add_argument('--bank', type=Path, default=ROOT/'examples/svb-2022/fdic_bank_2022q4.json')
     parser.add_argument('--artifacts', type=Path, default=ROOT/'artifacts/svb-reconstruction/runs')
     parser.add_argument('--output', type=Path, default=ROOT/'docs/reviews/2026-11-16-svb-reconstruction.json')
     args = parser.parse_args()
     reference = json.loads(args.reference.read_text(encoding='utf-8'))
-    result = run(reference, args.artifacts.resolve())
+    fdic = json.loads(args.bank.read_text(encoding='utf-8'))
+    result = run(reference, args.artifacts.resolve(), fdic)
+    result['bank_source_sha256'] = hashlib.sha256(args.bank.read_bytes()).hexdigest()
     result['reference_sha256'] = hashlib.sha256(args.reference.read_bytes()).hexdigest()
     source = ROOT/'artifacts/svb-reconstruction/sources/svb-2022-10k.html'
     if source.is_file():

@@ -2,10 +2,10 @@
   "case_id": "svbfg-20221231-march2023-reconstruction-v1",
   "engine_version": "0.29.20",
   "financial_backend": "rust",
-  "created_utc": "2026-11-16T05:15:58.006062+00:00",
+  "created_utc": "2026-11-16T17:49:20.733185+00:00",
   "platform": "Linux-6.18.44-fc-v470-x86_64-with-glibc2.39",
-  "measured_scope": "20 small aggregate native ledger runs, persisted local Parquet, independent replay, native capital check; excludes source research, report writing and API/browser",
-  "elapsed_seconds": 2.1928938119999657,
+  "measured_scope": "22 small aggregate native ledger runs, persisted local Parquet, independent replay, native capital check; excludes source research, report writing and API/browser",
+  "elapsed_seconds": 2.403070736000018,
   "reference": {
     "case_id": "svbfg-20221231-march2023-reconstruction-v1",
     "balance_sheet_date": "2022-12-31",
@@ -100,7 +100,7 @@
     "regulatory_elections": {
       "aoci_in_regulatory_capital": "opt_out",
       "source": "fed_regulation",
-      "status": "retrospective source; transcribed from the Federal Reserve review's description of SVBFG's AOCI election and not re-read when this field was added; verify before relying on it"
+      "status": "retrospective source; transcribed from the Federal Reserve review's description of SVBFG's AOCI election and not re-read when this field was added. Corroborated at bank level by the FDIC Call Report in fdic_bank_2022q4.json: reported CET1 (16,995) exceeds total equity (15,456) by about the reported AOCI loss (1,896) less intangibles (285), which is only possible with AOCI excluded"
     },
     "assumptions": {
       "afs_duration_years": 3.5,
@@ -136,10 +136,10 @@
   },
   "runs": {
     "opening_and_rate_sensitivity": {
-      "manifest": "artifacts/svb-reconstruction/runs/opening_and_rate_sensitivity/run-6dd967a41c5e4891bbd3a021e687dfa1/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/opening_and_rate_sensitivity/run-e7bfebfc95b0480aa9216dcad74f967f/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.021670234000339406,
-        "replay_and_finalize_seconds": 0.060009134000210906
+        "compute_and_partition_seconds": 0.025821677999999793,
+        "replay_and_finalize_seconds": 0.060366665999993074
       },
       "validation": {
         "journal_replayed": true,
@@ -223,10 +223,10 @@
       ]
     },
     "behavioral_sensitivity": {
-      "manifest": "artifacts/svb-reconstruction/runs/behavioral_sensitivity/run-c04aff184a124c1ca51d5a0c67a730d3/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/behavioral_sensitivity/run-329c4fe622ee4fa5bba704b6e29c79ea/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.02403416900051525,
-        "replay_and_finalize_seconds": 0.057774844999585184
+        "compute_and_partition_seconds": 0.027585854999983894,
+        "replay_and_finalize_seconds": 0.04705848000003243
       },
       "validation": {
         "journal_replayed": true,
@@ -420,10 +420,10 @@
       ]
     },
     "observed_day1_cash_only": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_cash_only/run-ae20a57ed8e348c59cb7ad78a9496be3/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_cash_only/run-fb28134a5ee944b2866a89c770b9be6a/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.012494511000113562,
-        "replay_and_finalize_seconds": 0.05056494200016459
+        "compute_and_partition_seconds": 0.013422817999980907,
+        "replay_and_finalize_seconds": 0.04223118400000203
       },
       "validation": {
         "journal_replayed": true,
@@ -485,10 +485,10 @@
       ]
     },
     "observed_day1_sale21": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21/run-20710261480a406292e37b4da6919abe/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21/run-2f26f8f276c649d3a73fe7123858f4fb/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.014255838000281074,
-        "replay_and_finalize_seconds": 0.048835644999599026
+        "compute_and_partition_seconds": 0.015347152000003916,
+        "replay_and_finalize_seconds": 0.046897305000015876
       },
       "validation": {
         "journal_replayed": true,
@@ -550,10 +550,10 @@
       ]
     },
     "requested_day2_sale21": {
-      "manifest": "artifacts/svb-reconstruction/runs/requested_day2_sale21/run-da89c7f71b2443778a0c62e060dd8807/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/requested_day2_sale21/run-14cb067ecb0149dead198b03e2a134b8/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.01400393299991265,
-        "replay_and_finalize_seconds": 0.05898743099987769
+        "compute_and_partition_seconds": 0.015135881999981393,
+        "replay_and_finalize_seconds": 0.05997926300000245
       },
       "validation": {
         "journal_replayed": true,
@@ -615,10 +615,10 @@
       ]
     },
     "observed_day1_all_free_afs": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_all_free_afs/run-9337ea07f64d48cc8c063840a606af97/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_all_free_afs/run-db3e3893b9b34a329bc32ff68cd71273/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.017513987000711495,
-        "replay_and_finalize_seconds": 0.058584714999597054
+        "compute_and_partition_seconds": 0.017330411000045842,
+        "replay_and_finalize_seconds": 0.07029279199997518
       },
       "validation": {
         "journal_replayed": true,
@@ -680,10 +680,10 @@
       ]
     },
     "observed_day1_sale21_funding5": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding5/run-3b60cb55620b4a1db596df483a1e7a6f/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding5/run-ad1a30b6b60642028cb9cdb06ae9ed6c/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.012970609999683802,
-        "replay_and_finalize_seconds": 0.057434504000411835
+        "compute_and_partition_seconds": 0.01772905399997171,
+        "replay_and_finalize_seconds": 0.06110464200003207
       },
       "validation": {
         "journal_replayed": true,
@@ -745,10 +745,10 @@
       ]
     },
     "observed_day1_sale21_funding10": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding10/run-c085daaa41e640c3a29feedc176e51c7/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding10/run-13358597624543d8b5dab7875bca4aeb/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.018778696000481432,
-        "replay_and_finalize_seconds": 0.06316174699986732
+        "compute_and_partition_seconds": 0.017900634999989506,
+        "replay_and_finalize_seconds": 0.04838141700003007
       },
       "validation": {
         "journal_replayed": true,
@@ -810,10 +810,10 @@
       ]
     },
     "observed_day1_sale21_funding10_lag3": {
-      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding10_lag3/run-73115cc09f524000a905acc90ca9da82/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/observed_day1_sale21_funding10_lag3/run-4bd2c2ba1bbe4d5abfdc243ee4f94095/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.018408208999971976,
-        "replay_and_finalize_seconds": 0.060627038000347966
+        "compute_and_partition_seconds": 0.01430880100002696,
+        "replay_and_finalize_seconds": 0.05231246199997486
       },
       "validation": {
         "journal_replayed": true,
@@ -875,10 +875,10 @@
       ]
     },
     "requested_day2_sale21_funding20": {
-      "manifest": "artifacts/svb-reconstruction/runs/requested_day2_sale21_funding20/run-7283ef76b34f49cabe41a156251917b0/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/requested_day2_sale21_funding20/run-0896d5fdfc5f4881b2665cf75c223839/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.016045858000325097,
-        "replay_and_finalize_seconds": 0.05620041600013792
+        "compute_and_partition_seconds": 0.016237667999973837,
+        "replay_and_finalize_seconds": 0.05393943299998227
       },
       "validation": {
         "journal_replayed": true,
@@ -940,10 +940,10 @@
       ]
     },
     "htm_sale_asc320": {
-      "manifest": "artifacts/svb-reconstruction/runs/htm_sale_asc320/run-7185200d1c45497ba167fad4431beea7/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/htm_sale_asc320/run-7098f1ab532c424fa7fcd8e28ede085a/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.015833465000469005,
-        "replay_and_finalize_seconds": 0.05974599099954503
+        "compute_and_partition_seconds": 0.015983745000028193,
+        "replay_and_finalize_seconds": 0.053909897999972145
       },
       "validation": {
         "journal_replayed": true,
@@ -1005,10 +1005,10 @@
       ]
     },
     "htm_sale_not_assessed": {
-      "manifest": "artifacts/svb-reconstruction/runs/htm_sale_not_assessed/run-6367f7919a874e45a9f628845d74ded5/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/htm_sale_not_assessed/run-2729054760064f3d87f4d77c1e412de7/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.016124688000672904,
-        "replay_and_finalize_seconds": 0.052519868999297614
+        "compute_and_partition_seconds": 0.017053273999977137,
+        "replay_and_finalize_seconds": 0.04727879400002166
       },
       "validation": {
         "journal_replayed": true,
@@ -1070,10 +1070,10 @@
       ]
     },
     "entity_1000_trapped": {
-      "manifest": "artifacts/svb-reconstruction/runs/entity_1000_trapped/run-1d707fc869b646268694856d76a59828/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/entity_1000_trapped/run-79e1c358353646edba9b5f6406671300/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.017410307999853103,
-        "replay_and_finalize_seconds": 0.05702103000021452
+        "compute_and_partition_seconds": 0.018427937000012662,
+        "replay_and_finalize_seconds": 0.06139610799999673
       },
       "validation": {
         "journal_replayed": true,
@@ -1179,10 +1179,10 @@
       ]
     },
     "entity_2500_trapped": {
-      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_trapped/run-656248fe0d5f4e9f8d6785c24a94dd76/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_trapped/run-77e7440f5e674663b89b458db0a7e61b/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.015607272000124794,
-        "replay_and_finalize_seconds": 0.06272790000002715
+        "compute_and_partition_seconds": 0.01621263300000919,
+        "replay_and_finalize_seconds": 0.04512934100000621
       },
       "validation": {
         "journal_replayed": true,
@@ -1288,10 +1288,10 @@
       ]
     },
     "entity_5000_trapped": {
-      "manifest": "artifacts/svb-reconstruction/runs/entity_5000_trapped/run-1f45ce0771ea4f2380952c86bc2ca1aa/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/entity_5000_trapped/run-8d255082d37d4f4b995e6d50e94e54b1/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.01923494600032427,
-        "replay_and_finalize_seconds": 0.06244349600001442
+        "compute_and_partition_seconds": 0.015979544999993323,
+        "replay_and_finalize_seconds": 0.06185630400000264
       },
       "validation": {
         "journal_replayed": true,
@@ -1397,10 +1397,10 @@
       ]
     },
     "entity_2500_prompt_transfer": {
-      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_prompt_transfer/run-4e121bd358ea4bc1bb86a50bef35c985/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_prompt_transfer/run-1828e3c257124b9c9dac89122da11530/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.018562027999905695,
-        "replay_and_finalize_seconds": 0.05888793799931591
+        "compute_and_partition_seconds": 0.019793031999995492,
+        "replay_and_finalize_seconds": 0.05872335400005113
       },
       "validation": {
         "journal_replayed": true,
@@ -1506,10 +1506,10 @@
       ]
     },
     "entity_2500_late_approval": {
-      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_late_approval/run-5326fe2f564642f893aa5d5b5bf9cb14/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/entity_2500_late_approval/run-5ca6f89c76c54fdab94d0bb1d64f0c0c/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.01629507100005867,
-        "replay_and_finalize_seconds": 0.06566628699965804
+        "compute_and_partition_seconds": 0.019982552999977088,
+        "replay_and_finalize_seconds": 0.06309986700000536
       },
       "validation": {
         "journal_replayed": true,
@@ -1615,10 +1615,10 @@
       ]
     },
     "tax_bridge_26": {
-      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_26/run-5ae0aa8c45ae45ae845de291dc5c3a3c/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_26/run-fbdf69a4f8174d678a7c2d197190fe04/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.015160248000029242,
-        "replay_and_finalize_seconds": 0.05962266799997451
+        "compute_and_partition_seconds": 0.019630425999991985,
+        "replay_and_finalize_seconds": 0.06151210100000526
       },
       "validation": {
         "journal_replayed": true,
@@ -1680,10 +1680,10 @@
       ]
     },
     "tax_bridge_27": {
-      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_27/run-2fe5e4f5c5bb4a81b9849cf604465fbb/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_27/run-eac84e1ea1464a6d9b28fb306020459d/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.013671329999851878,
-        "replay_and_finalize_seconds": 0.05797529100073007
+        "compute_and_partition_seconds": 0.01888291099999151,
+        "replay_and_finalize_seconds": 0.057657191000032526
       },
       "validation": {
         "journal_replayed": true,
@@ -1745,10 +1745,10 @@
       ]
     },
     "tax_bridge_28": {
-      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_28/run-8c611d45f9f042cd92283dee54bdf3ae/manifest.json",
+      "manifest": "artifacts/svb-reconstruction/runs/tax_bridge_28/run-be67e55883344fd98511fe6d53aae969/manifest.json",
       "timings": {
-        "compute_and_partition_seconds": 0.01297900900044624,
-        "replay_and_finalize_seconds": 0.05149373899985221
+        "compute_and_partition_seconds": 0.01758580199998505,
+        "replay_and_finalize_seconds": 0.06210789000004979
       },
       "validation": {
         "journal_replayed": true,
@@ -1798,6 +1798,136 @@
           "final_equity": 16295.0,
           "minimum_cash": -7197.0,
           "peak_cash_shortfall": 7197.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": 3,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null,
+          "htm_reclassification_day": null
+        }
+      ]
+    },
+    "bank_only_static": {
+      "manifest": "artifacts/svb-reconstruction/runs/bank_only_static/run-f9c3c81ffbf54252a45c67a2898875ae/manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.017496461000007457,
+        "replay_and_finalize_seconds": 0.042011224000020775
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 42,
+        "gl_keys": 42,
+        "dynamic_validated": true,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "0ade9d6a3b58a0e5eef7b486f020787d678d4d033690095887036c7244bedb57",
+      "source_sha256": "d86b6e086bea7a40d88c4852dcac025ce16bda9bfeab1c9fa3014d13a94f1746",
+      "input_sha256": "690468c48b6cdc4fc7cc249b30f6ab3856e5debb0aee67c5b63188fd2ea7907b",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "bank",
+          "entity": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+          "currency": "USD",
+          "lcr_applicability": "not_applicable",
+          "nsfr_applicability": "not_applicable",
+          "lcr_status": "not_applicable",
+          "nsfr_status": "not_applicable",
+          "final_cash": 12511.0,
+          "final_equity": 15456.0,
+          "minimum_cash": 12511.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null,
+          "htm_reclassification_day": null
+        },
+        {
+          "scenario": "static",
+          "account": "bank",
+          "entity": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+          "currency": "USD",
+          "lcr_applicability": "not_applicable",
+          "nsfr_applicability": "not_applicable",
+          "lcr_status": "not_applicable",
+          "nsfr_status": "not_applicable",
+          "final_cash": 12511.0,
+          "final_equity": 15456.0,
+          "minimum_cash": 12511.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null,
+          "htm_reclassification_day": null
+        }
+      ]
+    },
+    "bank_only_sale21": {
+      "manifest": "artifacts/svb-reconstruction/runs/bank_only_sale21/run-a3a71ae0ae2d4569af25cf1551f48681/manifest.json",
+      "timings": {
+        "compute_and_partition_seconds": 0.016632749999985208,
+        "replay_and_finalize_seconds": 0.056352313000047616
+      },
+      "validation": {
+        "journal_replayed": true,
+        "journal_rows": 58,
+        "gl_keys": 44,
+        "dynamic_validated": false,
+        "ruleset": "research-weights-v2",
+        "regulatory_validated": false,
+        "calibration_validated": false
+      },
+      "binary_sha256": "0ade9d6a3b58a0e5eef7b486f020787d678d4d033690095887036c7244bedb57",
+      "source_sha256": "d86b6e086bea7a40d88c4852dcac025ce16bda9bfeab1c9fa3014d13a94f1746",
+      "input_sha256": "defbe7fa358d7b71e243552c57048ab0ada7e3a8533a5ab83a589abc5870577b",
+      "summaries": [
+        {
+          "scenario": "baseline",
+          "account": "bank",
+          "entity": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+          "currency": "USD",
+          "lcr_applicability": "not_applicable",
+          "nsfr_applicability": "not_applicable",
+          "lcr_status": "not_applicable",
+          "nsfr_status": "not_applicable",
+          "final_cash": 33511.0,
+          "final_equity": 15456.0,
+          "minimum_cash": 12511.0,
+          "peak_cash_shortfall": 0.0,
+          "max_reconciliation_error": 0.0,
+          "first_cash_breach_day": null,
+          "first_capital_breach_day": null,
+          "first_leverage_breach_day": null,
+          "first_lcr_breach_day": null,
+          "first_nsfr_breach_day": null,
+          "first_htm_breach_day": null,
+          "htm_reclassification_day": null
+        },
+        {
+          "scenario": "event",
+          "account": "bank",
+          "entity": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+          "currency": "USD",
+          "lcr_applicability": "not_applicable",
+          "nsfr_applicability": "not_applicable",
+          "lcr_status": "not_applicable",
+          "nsfr_status": "not_applicable",
+          "final_cash": -8489.0,
+          "final_equity": 15456.0,
+          "minimum_cash": -8489.0,
+          "peak_cash_shortfall": 8489.0,
           "max_reconciliation_error": 0.0,
           "first_cash_breach_day": 3,
           "first_capital_breach_day": null,
@@ -2247,10 +2377,290 @@
       "march9_cash": -7197.0
     }
   ],
+  "bank_only_opening": [
+    {
+      "metric": "assets",
+      "model": 209026.0,
+      "observed": 209026.0,
+      "difference": 0.0,
+      "consolidated": 211793.0,
+      "consolidated_less_bank": 2767.0
+    },
+    {
+      "metric": "liabilities",
+      "model": 193570.0,
+      "observed": 193570.0,
+      "difference": 0.0,
+      "consolidated": 195498.0,
+      "consolidated_less_bank": 1928.0
+    },
+    {
+      "metric": "equity",
+      "model": 15456.0,
+      "observed": 15456.0,
+      "difference": 0.0,
+      "consolidated": 16295.0,
+      "consolidated_less_bank": 839.0
+    },
+    {
+      "metric": "cash",
+      "model": 12511.0,
+      "observed": 12511.0,
+      "difference": 0.0,
+      "consolidated": 13803.0,
+      "consolidated_less_bank": 1292.0
+    }
+  ],
+  "bank_only": {
+    "march9_cash": -8489.0,
+    "observed_march9_cash": -958.0,
+    "residual": -7531.0,
+    "consolidated_march9_cash": -7197.0,
+    "consolidated_residual": -6239.0,
+    "uninsured_share_of_domestic_deposits": 0.93877222425207,
+    "uninsured_share_of_total_deposits": 0.8643729544184562,
+    "fhlb_advances": 15000.0,
+    "balance_at_federal_reserve": 7821.0,
+    "pledged_securities": 55358.0,
+    "htm_unrecognized_loss": 15159.0,
+    "unitemized_assets": 1335.0,
+    "gross_afs_oci": -2526.0,
+    "reported_aoci": -1896.0,
+    "aoci_residual_by_tax_rate": [
+      {
+        "tax_rate": 0.26,
+        "net_afs_oci": -1869.24,
+        "residual": -26.75999999999999
+      },
+      {
+        "tax_rate": 0.27,
+        "net_afs_oci": -1843.98,
+        "residual": -52.01999999999998
+      },
+      {
+        "tax_rate": 0.28,
+        "net_afs_oci": -1818.72,
+        "residual": -77.27999999999997
+      }
+    ],
+    "cet1_from_components": 17067.0,
+    "reported_cet1": 16995.0,
+    "cet1_residual": 72.0,
+    "reported_cet1_ratio": 0.15259999999999999,
+    "cet1_ratio_recomputed": 0.15263918951688957
+  },
+  "bank_source": {
+    "institution": "Silicon Valley Bank, Santa Clara, CA (FDIC certificate 24735)",
+    "report_date": "2022-12-31",
+    "amount_unit": "USD thousands, as published",
+    "source": {
+      "publisher": "FDIC BankFind Suite, financials (quarterly Call Report data)",
+      "url": "https://banks.data.fdic.gov/api/financials?filters=CERT%3A24735%20AND%20REPDTE%3A20221231&fields=REPDTE,ASSET,CHBAL,CHBALI,CHBALNI,CHFRB,FREPO,SC,SCAF,SCAA,SCHA,SCHF,SCPLEDGE,TRADE,LNLSGR,LNATRES,LNLSNET,BKPREM,INTAN,INTANGW,OA,LIAB,DEP,DEPDOM,DEPFOR,DEPNIDOM,DEPIDOM,DEPINS,DEPUNINS,FREPP,TRADEL,INVSUB,OTHBOR,OTHBFHLB,SUBND,ALLOTHL,EQ,EQPP,EQCS,EQSUR,EQUPTOT,EQCCOMPI,EQCONSUB,RBCT1C,RBCT1J,RBCT2,RWAJT,RBCT1CER,UC&limit=1&format=json",
+      "field_dictionary": "https://api.fdic.gov/banks/docs/risview_properties.yaml",
+      "retrieved": "2026-11-16",
+      "index": "risview_20260819185831",
+      "role": "bank-only opening observations at the same date as the consolidated 10-K balance sheet; available before the event",
+      "note": "Silicon Valley Bank filed no Call Report for March 31, 2023; there is no bank-only observation after this date."
+    },
+    "fields": {
+      "TRADE": {
+        "value": 127000,
+        "title": "TRADING ACCOUNTS"
+      },
+      "DEPINS": {
+        "value": 9990000,
+        "title": "ESTIMATED INSURED DEPOSITS"
+      },
+      "LNATRES": {
+        "value": 636000,
+        "title": "ALLOW FOR LOANS LOSS ADJUSTED"
+      },
+      "DEPIDOM": {
+        "value": 82085000,
+        "title": "INTEREST-BEARING DEP-DOM"
+      },
+      "RBCT1CER": {
+        "value": 15.26,
+        "title": "COMMON EQUITY TIER 1 RATIO"
+      },
+      "RWAJT": {
+        "value": 111341000,
+        "title": "RWA-ADJUSTED-PCA-TOTAL RBC RAT"
+      },
+      "EQUPTOT": {
+        "value": 5364000,
+        "title": "UP-NET & OTHER CAPITAL COMP"
+      },
+      "CHBALI": {
+        "value": 11319000,
+        "title": "INTEREST-BEARING CASH & DUE"
+      },
+      "EQPP": {
+        "value": 0,
+        "title": "PERPETUAL PREFERRED STOCK"
+      },
+      "UC": {
+        "value": 59245000,
+        "title": "UNUSED COMMIT-TOTAL"
+      },
+      "EQCCOMPI": {
+        "value": -1896000,
+        "title": "OTHER COMPREHENSIVE INCOME"
+      },
+      "SC": {
+        "value": 117297000,
+        "title": "SECURITIES"
+      },
+      "OTHBOR": {
+        "value": 15040000,
+        "title": "OTHER BORROWED MONEY"
+      },
+      "OA": {
+        "value": 2822000,
+        "title": "OTHER ASSETS"
+      },
+      "ALLOTHL": {
+        "value": 2296000,
+        "title": "ALL OTHER LIABILITIES"
+      },
+      "RBCT2": {
+        "value": 876000,
+        "title": "RBC-TIER2-PCA"
+      },
+      "INTANGW": {
+        "value": 201000,
+        "title": "GOODWILL"
+      },
+      "SCAF": {
+        "value": 25976000,
+        "title": "SECURITIES-AF"
+      },
+      "BKPREM": {
+        "value": 170000,
+        "title": "PREMISES AND FIXED ASSETS"
+      },
+      "INTAN": {
+        "value": 285000,
+        "title": "INTANGIBLE ASSETS"
+      },
+      "SCAA": {
+        "value": 28502000,
+        "title": "TOTAL AVAILABLE-FOR-SALE AT AMORTIZED COST SECURITIES ON A CONSOLIDATED BASIS"
+      },
+      "LNLSNET": {
+        "value": 73613000,
+        "title": "LOANS AND LEASES-NET"
+      },
+      "SCPLEDGE": {
+        "value": 55358000,
+        "title": "PLEDGED SECURITIES"
+      },
+      "CHFRB": {
+        "value": 7821000,
+        "title": "BAL DUE FROM FRB"
+      },
+      "DEPFOR": {
+        "value": 13899000,
+        "title": "TOTAL DEPOSITS-FOR"
+      },
+      "DEPDOM": {
+        "value": 161479000,
+        "title": "Deposits held in domestic offices"
+      },
+      "SCHF": {
+        "value": 76168000,
+        "title": "TOTAL HELD-TO-MATURITY AT FAIR VALUE SECURITIES ON A CONSOLIDATED BASIS"
+      },
+      "ASSET": {
+        "value": 209026000,
+        "title": "TOTAL ASSETS"
+      },
+      "LNLSGR": {
+        "value": 74249000,
+        "title": "LOANS AND LEASES-TOTAL"
+      },
+      "EQ": {
+        "value": 15456000,
+        "title": "Equity capital"
+      },
+      "DEP": {
+        "value": 175378000,
+        "title": "Total deposits"
+      },
+      "SUBND": {
+        "value": 0,
+        "title": "SUBORDINATED NOTES & DEBENTURES"
+      },
+      "SCHA": {
+        "value": 91327000,
+        "title": "SECURITIES-HA"
+      },
+      "TRADEL": {
+        "value": 332000,
+        "title": "TRADING LIABILITIES"
+      },
+      "DEPUNINS": {
+        "value": 151592000,
+        "title": "ESTIMATED UNINSURED DEPOSITS IN DOMESTIC OFFICES AND IN INSURED BRANCHES IN US TERRITORIES AND POSSESSIONS"
+      },
+      "RBCT1J": {
+        "value": 16995000,
+        "title": "TIER 1 RBC ADJUSTED LLR - PCA"
+      },
+      "DEPNIDOM": {
+        "value": 79394000,
+        "title": "NONINTEREST-BEARING DEP-DOM"
+      },
+      "EQCONSUB": {
+        "value": 0,
+        "title": "MINOR INT IN CONSOL SUBS-EQ"
+      },
+      "EQSUR": {
+        "value": 10087000,
+        "title": "SURPLUS"
+      },
+      "FREPO": {
+        "value": 707000,
+        "title": "FED FUNDS & REPOS SOLD"
+      },
+      "CHBAL": {
+        "value": 12511000,
+        "title": "CASH & DUE FROM DEPOSITORY INST"
+      },
+      "FREPP": {
+        "value": 524000,
+        "title": "FED FUNDS & REPOS PURCHASED"
+      },
+      "EQCS": {
+        "value": 5000,
+        "title": "COMMON STOCK"
+      },
+      "RBCT1C": {
+        "value": 16995000,
+        "title": "RC-R COMMON EQ TIER 1 CAPITAL"
+      },
+      "CHBALNI": {
+        "value": 1192000,
+        "title": "NONINTEREST-BEARING CASH & DUE"
+      },
+      "LIAB": {
+        "value": 193570000,
+        "title": "TOTAL LIABILITIES"
+      },
+      "OTHBFHLB": {
+        "value": 15000000,
+        "title": "OTHER LIABILITIES-FHLB"
+      },
+      "INVSUB": {
+        "value": 153000,
+        "title": "INVEST IN UNCONSOLIDATED SUBS"
+      }
+    }
+  },
   "liquidity_applicability": {
     "lcr": "not_applicable",
     "nsfr": "not_applicable",
-    "runs": 20
+    "runs": 22
   },
   "after_tax_sale_comparison": [
     {
@@ -2354,6 +2764,14 @@
       "passed": true
     },
     {
+      "check": "bank_only_static: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
+      "check": "bank_only_sale21: independently replayed journal and balanced subledger",
+      "passed": true
+    },
+    {
       "check": "HTM liquidity sale under asc320-htm-v1 reclassifies the remaining portfolio; equity falls by the whole opening HTM gap exactly once",
       "passed": true
     },
@@ -2375,6 +2793,18 @@
     },
     {
       "check": "LCR and NSFR report not_applicable in every run and scenario",
+      "passed": true
+    },
+    {
+      "check": "bank-only opening assets, liabilities, equity and cash match the Call Report; liabilities and deposits itemize exactly",
+      "passed": true
+    },
+    {
+      "check": "bank-only cash replay matches bank cash + proceeds - withdrawals",
+      "passed": true
+    },
+    {
+      "check": "bank CET1 ratio recomputed from reported CET1 and risk-weighted assets matches the Call Report",
       "passed": true
     },
     {
@@ -2418,12 +2848,12 @@
       "passed": true
     },
     {
-      "check": "same engine source and ledger binary across all 20 simulations",
+      "check": "same engine source and ledger binary across all 22 simulations",
       "passed": true
     }
   ],
   "limitations": [
-    "Aggregate consolidated entity, not March 9 bank legal-entity cash reconstruction",
+    "Bank-only runs open from the year-end Call Report; there is no bank-only observation after it and no January-March roll-forward",
     "Opening book totals and HTM fair values are inputs, not predicted outcomes",
     "No security/depositor tape, observed bank-specific histories, historical OAS or MBS prepayment calibration",
     "No Jan-March balance-sheet roll-forward, NII forecast, credit/default calibration or hedges",
@@ -2438,5 +2868,6 @@
     "LCR and NSFR are declared not applicable and are not computed; the Fed retrospective estimates are quoted, not reproduced; no SLR or TLAC validation",
     "Funding access, sale settlement, tax realization, actual legal-entity balances and intraday run timing remain material unknowns"
   ],
-  "reference_sha256": "8b7cf44e1c436993b4241ab9950bea92d4c5ecba4045907fc1d32b9fa19f3cb0"
+  "bank_source_sha256": "910d2e7188e865afebfd999522c61f709058f40f539010bc7cec5d1e1e3fe953",
+  "reference_sha256": "73b2981924a1091303297e13c12e686a126636de30e2c21d8d25ab70a5b5f2f7"
 }

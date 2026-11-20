@@ -1,0 +1,80 @@
+{
+  "description": "Quarterly Call Report balances for every FDIC-insured bank with total assets of at least USD 10bn on 2022-12-31, from 2018-12-31 to 2023-06-30.",
+  "amount_unit": "USD thousands, as published",
+  "retrieved": "2026-11-16",
+  "publisher": "FDIC BankFind Suite (financials and failures endpoints)",
+  "universe_rule": "ASSET >= 10,000,000 (USD thousands) at REPDTE 20221231; fixed before any 2023 outcome is read",
+  "universe_banks": 162,
+  "pre_event_query": "https://banks.data.fdic.gov/api/financials?filters=REPDTE:<quarter> AND ASSET:[5000000 TO *]&fields=CERT,NAME,REPDTE,ASSET,DEP,DEPDOM,DEPUNINS,EQ,SCHA,SCHF,SCAF,SCAA,CHBAL&limit=2000 for each quarter 20181231..20221231, then restricted to the universe",
+  "post_event_query": "same fields for REPDTE 20230331 and 20230630, selected by certificate so banks that shrank stay in the panel",
+  "indexes": [
+    "risview_20260819185831"
+  ],
+  "fields": {
+    "CERT": "FDIC certificate number",
+    "NAME": "institution name",
+    "REPDTE": "report date",
+    "ASSET": "total assets",
+    "DEP": "total deposits",
+    "DEPDOM": "deposits held in domestic offices",
+    "DEPUNINS": "estimated uninsured deposits in domestic offices and insured branches in US territories",
+    "EQ": "equity capital",
+    "SCHA": "held-to-maturity securities at amortized cost",
+    "SCHF": "held-to-maturity securities at fair value",
+    "SCAF": "available-for-sale securities at fair value",
+    "SCAA": "available-for-sale securities at amortized cost",
+    "CHBAL": "cash and due from depository institutions"
+  },
+  "failures": {
+    "url": "https://banks.data.fdic.gov/api/failures?filters=FAILDATE%3A%5B2023-01-01%20TO%202023-12-31%5D&fields=NAME,CERT,FAILDATE,QBFASSET,QBFDEP,RESTYPE1,COST&limit=50&format=json",
+    "index": "failures_1787667198788",
+    "rows": [
+      {
+        "QBFDEP": 175378000,
+        "COST": 18744254.463,
+        "QBFASSET": 209026000,
+        "FAILDATE": "3/10/2023",
+        "CERT": 24735,
+        "RESTYPE1": "PA",
+        "NAME": "SILICON VALLEY BANK"
+      },
+      {
+        "QBFDEP": 88612911,
+        "COST": 0,
+        "QBFASSET": 110363650,
+        "FAILDATE": "3/12/2023",
+        "CERT": 57053,
+        "RESTYPE1": "PA",
+        "NAME": "SIGNATURE BANK"
+      },
+      {
+        "QBFDEP": 176436706,
+        "COST": 15495761.533,
+        "QBFASSET": 212638872,
+        "FAILDATE": "5/1/2023",
+        "CERT": 59017,
+        "RESTYPE1": "PA",
+        "NAME": "FIRST REPUBLIC BANK"
+      },
+      {
+        "QBFDEP": 130110,
+        "COST": 42666.372,
+        "QBFASSET": 139446,
+        "FAILDATE": "7/28/2023",
+        "CERT": 25851,
+        "RESTYPE1": "PA",
+        "NAME": "HEARTLAND TRI-STATE BANK"
+      },
+      {
+        "QBFDEP": 52311,
+        "COST": 12464.63,
+        "QBFASSET": 60448,
+        "FAILDATE": "11/3/2023",
+        "CERT": 8758,
+        "RESTYPE1": "PA",
+        "NAME": "CITIZENS BANK"
+      }
+    ]
+  },
+  "note": "A bank with no row for a quarter did not file a Call Report for it: it had failed, merged or closed. Failures are identified only from the FDIC failures list, never inferred from a missing row."
+}
