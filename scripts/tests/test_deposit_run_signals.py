@@ -51,6 +51,44 @@ class DepositRunSignals(unittest.TestCase):
         self.assertEqual(uninsured['auc'], 1.0)
         self.assertEqual(uninsured['event_ranks'], {'BANK 1': 1, 'BANK 2': 2})
 
+    def test_missing_equity_is_unscored_not_zero_in_the_combined_signal(self):
+        module = load()
+        rows = [row(1, '20221231', 100), dict(row(2, '20221231', 100), EQ=None), dict(row(3, '20221231', 100), SCHF=60)]
+        table = {r['CERT']: r for r in module.signals(pl.DataFrame(rows)).iter_rows(named=True)}
+        self.assertAlmostEqual(table[1]['securities_loss_to_equity'], 0.1)            # (50-40 + 50-50) / 100
+        self.assertAlmostEqual(table[1]['uninsured_times_loss'], 0.05)                 # 50/100 uninsured x 0.1
+        self.assertIsNone(table[2]['securities_loss_to_equity'])                      # no equity: no ratio
+        self.assertIsNone(table[2]['uninsured_times_loss'])                           # and not a score of zero
+        self.assertAlmostEqual(table[3]['securities_loss_to_equity'], -0.1)           # a net gain
+        self.assertEqual(table[3]['uninsured_times_loss'], 0.)                         # floored at zero, still scored
+
+    def test_predictive_bound_matches_the_t_table_and_covers_one_percent(self):
+        module = load()
+        # Hand check from printed t tables: t(0.99, 15) = 2.602, t(0.99, 7) = 2.998.
+        self.assertAlmostEqual(module.predictive_bound(16, .01), -2.602*(17/16)**.5, places=3)   # -2.683
+        self.assertAlmostEqual(module.predictive_bound(8, .01), -2.998*(9/8)**.5, places=3)      # -3.180
+        import numpy as np
+        rng = np.random.default_rng(7)
+        draws = rng.standard_normal((200_000, 17))                  # 16 training quarters and one new one
+        train, new = draws[:, :16], draws[:, 16]
+        z = (new-train.mean(axis=1))/train.std(axis=1, ddof=1)
+        self.assertAlmostEqual((z < module.predictive_bound(16, .01)).mean(), .01, delta=.001)
+        self.assertGreater((z < -2.3263478740408408).mean(), .018)  # the normal quantile breaches about 2%, not 1%
+
+    def test_coverage_is_reported_per_signal(self):
+        module = load()
+        quarters = ['20191231', '20211231', '20221231']
+        rows = [row(c, q, 100, uninsured=u) for c, u in ((1, 90), (2, 60), (3, 30), (4, 10)) for q in quarters if not (c == 2 and q == '20191231')]
+        rows += [row(2, '20230331', 70), row(3, '20230331', 100), row(4, '20230331', 100)]
+        result = module.evaluate(pl.DataFrame(rows), [dict(CERT=1, FAILDATE='3/10/2023')])
+        growth = next(s for s in result['signals'] if s['signal'] == 'deposit_growth_2019_2021')
+        self.assertEqual((growth['banks'], growth['events'], growth['unscored_events']), (3, 1, ['BANK 2']))
+        self.assertNotIn('BANK 2', growth['event_ranks'])
+        uninsured = next(s for s in result['signals'] if s['signal'] == 'uninsured_share')
+        self.assertEqual((uninsured['banks'], uninsured['events'], uninsured['unscored_events']), (4, 2, []))
+        self.assertEqual(result['common_sample'], dict(banks=3, events=1, unscored_events=['BANK 2']))
+        self.assertEqual(uninsured['common_auc'], 1.0)                 # banks 1, 3, 4 only
+
 
 if __name__ == '__main__':
     unittest.main()

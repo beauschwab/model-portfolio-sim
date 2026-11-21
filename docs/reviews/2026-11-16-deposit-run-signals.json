@@ -86,7 +86,7 @@
   "medians": {
     "uninsured_share": 0.4185343039479462,
     "securities_loss_to_equity": 0.219297692267583,
-    "uninsured_times_loss": 0.08366143064969828,
+    "uninsured_times_loss": 0.08521819978285852,
     "deposit_decline_2022": 0.0017319594893011603,
     "deposit_growth_2019_2021": 0.38164873722800374
   },
@@ -109,6 +109,8 @@
         "SIGNATURE BANK": 5,
         "FIRST REPUBLIC BANK": 12
       },
+      "unscored_events": [],
+      "common_auc": 0.7278911564625851,
       "sensitivity": [
         {
           "outflow": 0.1,
@@ -145,6 +147,8 @@
         "SIGNATURE BANK": 34,
         "FIRST REPUBLIC BANK": 54
       },
+      "unscored_events": [],
+      "common_auc": 0.6054421768707483,
       "sensitivity": [
         {
           "outflow": 0.1,
@@ -165,9 +169,9 @@
     },
     {
       "signal": "uninsured_times_loss",
-      "banks": 160,
+      "banks": 156,
       "events": 5,
-      "auc": 0.6896774193548387,
+      "auc": 0.6841059602649007,
       "alarms": 16,
       "hits": 2,
       "missed": 3,
@@ -181,21 +185,23 @@
         "SIGNATURE BANK": 9,
         "FIRST REPUBLIC BANK": 28
       },
+      "unscored_events": [],
+      "common_auc": 0.6955782312925171,
       "sensitivity": [
         {
           "outflow": 0.1,
-          "events": 14,
-          "auc": 0.5797455968688845
+          "events": 13,
+          "auc": 0.6161915008068855
         },
         {
           "outflow": 0.2,
           "events": 5,
-          "auc": 0.6896774193548387
+          "auc": 0.6841059602649007
         },
         {
           "outflow": 0.3,
           "events": 4,
-          "auc": 0.8589743589743589
+          "auc": 0.8552631578947368
         }
       ]
     },
@@ -217,6 +223,8 @@
         "SIGNATURE BANK": 10,
         "FIRST REPUBLIC BANK": 126
       },
+      "unscored_events": [],
+      "common_auc": 0.75,
       "sensitivity": [
         {
           "outflow": 0.1,
@@ -252,6 +260,10 @@
         "SIGNATURE BANK": 5,
         "FIRST REPUBLIC BANK": 27
       },
+      "unscored_events": [
+        "SILVERGATE BANK"
+      ],
+      "common_auc": 0.9472789115646258,
       "sensitivity": [
         {
           "outflow": 0.1,
@@ -274,6 +286,14 @@
   "ordinary_runoff": {
     "banks": 157,
     "expected_breach_share": 0.01,
+    "bound_range": [
+      -3.1798078239023577,
+      -2.6825752862298677
+    ],
+    "training_quarters_range": [
+      8,
+      16
+    ],
     "observed_breach_share": 0.044585987261146494,
     "breaches": 7,
     "event_z": {
@@ -284,6 +304,13 @@
     "unscored_events": [
       "SILICON VALLEY BANK",
       "SIGNATURE BANK"
+    ]
+  },
+  "common_sample": {
+    "banks": 151,
+    "events": 4,
+    "unscored_events": [
+      "SILVERGATE BANK"
     ]
   },
   "pre_event_history": {
