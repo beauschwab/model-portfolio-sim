@@ -1,6 +1,6 @@
 # Deposit-run signals: held-out evaluation on 2023 outcomes
 
-**Result: the year-end 2022 signals carried real but noisy information. Deposit growth 2019 2021 ranked the banks that then ran best (AUC 0.95), followed by deposit decline 2022 (0.80) and uninsured share (0.77); securities loss to equity was close to uninformative (0.57). Every signal's top-decile alarm was mostly false alarms (at least 13 of 16), and the data before 2023 contain almost no run-sized outflows to estimate a run model from.**
+**Result: the year-end 2022 signals carried real but noisy information. On the 151 banks that every signal scores (4 events), deposit growth 2019 2021 ranked the banks that then ran best (AUC 0.95), followed by deposit decline 2022 (0.75) and uninsured share (0.73); securities loss to equity was close to uninformative (0.61). Every signal's top-decile alarm was mostly false alarms (at least 13 of 16), and the data before 2023 contain almost no run-sized outflows to estimate a run model from.**
 
 This is an evidence study on public quarterly data. It fits nothing to the outcome, changes no model and cannot say how fast a run is: quarterly balances do not show days.
 
@@ -26,27 +26,29 @@ Medians across all 160 banks: uninsured share 41.9%, securities loss to equity 2
 
 ## How the signals ranked them
 
-| Signal | Ranking quality (AUC) | Alarms | Hits | Missed | False alarms | Ranks of the event banks (1 = highest of 160) |
-|---|---:|---:|---:|---:|---:|---|
-| uninsured share | 0.77 | 16 | 3 | 2 | 13 | Silicon Valley Bank 4, Signature Bank 5, First Republic Bank 12, Silvergate Bank 21, Bank Of America Ca Na 155 |
-| securities loss to equity | 0.57 | 16 | 1 | 4 | 15 | Silicon Valley Bank 7, Signature Bank 34, First Republic Bank 54, Silvergate Bank 89, Bank Of America Ca Na 156 |
-| uninsured times loss | 0.69 | 16 | 2 | 3 | 14 | Silicon Valley Bank 1, Signature Bank 9, First Republic Bank 28, Silvergate Bank 60, Bank Of America Ca Na 155 |
-| deposit decline 2022 | 0.80 | 16 | 3 | 2 | 13 | Silvergate Bank 1, Bank Of America Ca Na 2, Signature Bank 10, Silicon Valley Bank 28, First Republic Bank 126 |
-| deposit growth 2019 2021 | 0.95 | 16 | 3 | 1 | 13 | Silicon Valley Bank 1, Signature Bank 5, Bank Of America Ca Na 8, First Republic Bank 27 |
+Each signal is scored only on the banks it has data for, so its AUC, hits and misses are conditional on that set. The last AUC column uses the 151 banks every signal scores (4 events), which is the like-for-like comparison; it leaves out Silvergate Bank.
 
-AUC is the chance that a randomly chosen event bank scores above a randomly chosen non-event bank: 0.5 is no information, 1.0 is perfect ranking. With 5 events these figures are imprecise; one bank changing category moves them materially.
+| Signal | Banks scored | Events scored | AUC | Alarms | Hits | Missed | False alarms | AUC, common banks | Ranks of the event banks among the banks scored (1 = highest) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| uninsured share | 160 | 5 | 0.77 | 16 | 3 | 2 | 13 | 0.73 | Silicon Valley Bank 4, Signature Bank 5, First Republic Bank 12, Silvergate Bank 21, Bank Of America Ca Na 155 |
+| securities loss to equity | 156 | 5 | 0.57 | 16 | 1 | 4 | 15 | 0.61 | Silicon Valley Bank 7, Signature Bank 34, First Republic Bank 54, Silvergate Bank 89, Bank Of America Ca Na 156 |
+| uninsured times loss | 156 | 5 | 0.68 | 16 | 2 | 3 | 14 | 0.70 | Silicon Valley Bank 1, Signature Bank 9, First Republic Bank 28, Silvergate Bank 60, Bank Of America Ca Na 155 |
+| deposit decline 2022 | 160 | 5 | 0.80 | 16 | 3 | 2 | 13 | 0.75 | Silvergate Bank 1, Bank Of America Ca Na 2, Signature Bank 10, Silicon Valley Bank 28, First Republic Bank 126 |
+| deposit growth 2019 2021 | 155 | 4 | 0.95 | 16 | 3 | 1 | 13 | 0.95 | Silicon Valley Bank 1, Signature Bank 5, Bank Of America Ca Na 8, First Republic Bank 27; not scored: Silvergate Bank |
+
+AUC is the chance that a randomly chosen event bank scores above a randomly chosen non-event bank: 0.5 is no information, 1.0 is perfect ranking. With 5 events these figures are imprecise; one bank changing category moves them materially. A signal is unscored for a bank when an input is missing: banks with no equity capital (US branches of foreign banks) have no loss ratio, and banks below $5bn in 2019 are not in the panel then, so they have no 2019 to 2021 growth.
 
 | Signal | AUC at 10% outflow | AUC at 20% | AUC at 30% |
 |---|---:|---:|---:|
 | uninsured share | 0.61 (14 events) | 0.77 (5 events) | 0.95 (4 events) |
 | securities loss to equity | 0.58 (13 events) | 0.57 (5 events) | 0.71 (4 events) |
-| uninsured times loss | 0.58 (14 events) | 0.69 (5 events) | 0.86 (4 events) |
+| uninsured times loss | 0.62 (13 events) | 0.68 (5 events) | 0.86 (4 events) |
 | deposit decline 2022 | 0.84 (14 events) | 0.80 (5 events) | 0.75 (4 events) |
 | deposit growth 2019 2021 | 0.79 (13 events) | 0.95 (4 events) | 0.94 (3 events) |
 
 ## The ordinary-runoff benchmark
 
-Each bank's quarterly deposit growth from 2019 to 2022 gives a mean and a deviation. If 2023 were ordinary, about 1.0% of banks would fall below their own 1% lower bound. 7 of 157 did (4.5%).
+Each bank's quarterly log deposit growth from 2019 to 2022 (8 to 16 quarters) gives a mean and a deviation. Its 1.0% lower bound for the next quarter is the Student-t predictive bound, 2.68 to 3.18 deviations below the mean, which allows for the mean and deviation being estimated from so few quarters. If quarterly growth were independent and normal with a constant mean and variance, and 2023 were ordinary, about 1.0% of banks would fall below it. 7 of 157 did (4.5%). Those assumptions are strong: 2020 deposit surges widen the deviations, growth is not independent across quarters or banks, and the bank count is small, so the comparison is indicative, not a test.
 
 | Event bank | First-quarter outcome, in deviations from its own history |
 |---|---:|

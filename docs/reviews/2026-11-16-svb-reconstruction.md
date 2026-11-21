@@ -2,7 +2,7 @@
 
 **Conclusion: the aggregate ledger reproduces disclosed opening totals and demonstrates the liquidity failure mechanism. It does not reproduce the precise March cash position or predict the run.**
 
-Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 22 aggregate runs plus native capital checks completed in 2.40 seconds, including local Parquet and independent journal verification.
+Engine 0.29.20; Rust financial runtime. Amounts below are USD billions unless stated. 22 aggregate runs plus native capital checks completed in 2.04 seconds, including local Parquet and independent journal verification.
 
 ## Scope and information boundary
 
@@ -156,7 +156,7 @@ Liabilities and deposits itemize exactly from the fetched fields. Assets leave 1
 
 **Using the bank's own opening makes the unexplained cash residual larger, not smaller (-7.531bn against -6.239bn), because the bank held less cash than the group.** The residual is therefore not an entity-scope artefact: it is the January to March 9 roll-forward. The bank filed no Call Report after year-end, so there is no bank-only observation of deposit flows, borrowings, maturities or earnings in that window, and no flow is assumed to close the gap.
 
-Other year-end bank observations: 93.9% of domestic deposits were uninsured (86.4% of all deposits including foreign offices); FHLB advances 15.000bn; balance at the Federal Reserve 7.821bn; pledged securities 55.358bn; unrecognized HTM loss 15.159bn against bank equity of 15.456bn.
+Other year-end bank observations: 93.9% of domestic deposits were uninsured (94.4% of all deposits, counting foreign-office deposits as uninsured); FHLB advances 15.000bn; balance at the Federal Reserve 7.821bn; pledged securities 55.358bn; unrecognized HTM loss 15.159bn against bank equity of 15.456bn.
 
 Bank-level bridges, from Call Report fields only: tax-effecting the gross AFS mark of -2.526bn at 26-28% leaves 0.027 to 0.077bn of reported AOCI (-1.896bn) unexplained. Equity with AOCI excluded less intangibles gives 17.067bn against reported CET1 of 16.995bn, a residual of 0.072bn; reported CET1 over reported risk-weighted assets reproduces the published 15.26% ratio.
 
