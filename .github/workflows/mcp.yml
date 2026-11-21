@@ -1,5 +1,6 @@
 name: Agent interface contracts
 on:
+  workflow_call:
   push:
     paths: ['apps/mcp/**', 'apps/api/**', 'docs/models/**', 'docs/architecture.md', 'docs/rust-production-contract.md', 'scripts/generate_mcp_contracts.py', '.github/workflows/mcp.yml']
   pull_request:

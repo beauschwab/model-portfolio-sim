@@ -1,5 +1,6 @@
 name: Storage operations
 on:
+  workflow_call:
   pull_request:
     paths: ['apps/api/**', 'packages/portfolio-ledger-native/**', '.github/workflows/storage-operations.yml']
   push:

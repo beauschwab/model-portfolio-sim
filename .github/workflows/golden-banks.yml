@@ -4,6 +4,7 @@ name: Golden banks
 # optimizer over the public HTTP API, and every output is compared with reviewed goldens.
 # Update goldens only with `make golden-update` and review the expected.json diff.
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [main]
