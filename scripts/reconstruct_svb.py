@@ -483,7 +483,10 @@ def run(reference, directory, fdic):
         residual=bank3['cash']-event['march9_closing_cash_approx'],
         consolidated_march9_cash=sale_case['march9_cash'],
         consolidated_residual=sale_case['march9_cash_difference_vs_observed'],
-        uninsured_share_of_domestic_deposits=f['DEPUNINS']/f['DEPDOM'], uninsured_share_of_total_deposits=f['DEPUNINS']/f['DEP'],
+        uninsured_share_of_domestic_deposits=f['DEPUNINS']/f['DEPDOM'],
+        # DEPUNINS covers domestic offices only. Foreign-office deposits are not FDIC-insured and
+        # bank_specs() carries them as fully uninsured, so they count in the all-deposit share.
+        uninsured_share_of_total_deposits=(f['DEPUNINS']+f['DEPFOR'])/f['DEP'],
         fhlb_advances=f['OTHBFHLB'], balance_at_federal_reserve=f['CHFRB'], pledged_securities=f['SCPLEDGE'],
         htm_unrecognized_loss=f['SCHA']-f['SCHF'], unitemized_assets=f['unitemized_assets'],
         gross_afs_oci=bank_gross, reported_aoci=f['EQCCOMPI'],
@@ -493,6 +496,10 @@ def run(reference, directory, fdic):
         cet1_residual=f['EQ']-f['EQCCOMPI']-f['INTAN']-f['RBCT1C'], reported_cet1_ratio=fdic['fields']['RBCT1CER']['value']/100.,
         cet1_ratio_recomputed=f['RBCT1C']/f['RWAJT'])
     assert abs(bank_replay['cet1_ratio_recomputed']-bank_replay['reported_cet1_ratio']) < .00005
+    # The reported all-deposit share is the one the engine runs on.
+    deposits = [p for p in specs['bank_only_static']['positions'] if p['kind'] == 'deposit']
+    modelled = sum(p['balance']*p['uninsured_fraction'] for p in deposits)/sum(p['balance'] for p in deposits)
+    assert abs(modelled-bank_replay['uninsured_share_of_total_deposits']) < 1e-12
     # ---- LCR/NSFR applicability (#33): declared not applicable in every run, never a pass.
     statuses = {(r['lcr_applicability'], r['lcr_status'], r['nsfr_applicability'], r['nsfr_status'])
                 for v in outputs.values() for r in v['summaries']}
@@ -704,7 +711,7 @@ def report(r):
         'The bank filed no Call Report after year-end, so there is no bank-only observation of deposit flows, borrowings, maturities or earnings in that window, '
         'and no flow is assumed to close the gap.', '',
         f"Other year-end bank observations: {100*b['uninsured_share_of_domestic_deposits']:.1f}% of domestic deposits were uninsured "
-        f"({100*b['uninsured_share_of_total_deposits']:.1f}% of all deposits including foreign offices); FHLB advances {b['fhlb_advances']/1000:.3f}bn; "
+        f"({100*b['uninsured_share_of_total_deposits']:.1f}% of all deposits, counting foreign-office deposits as uninsured); FHLB advances {b['fhlb_advances']/1000:.3f}bn; "
         f"balance at the Federal Reserve {b['balance_at_federal_reserve']/1000:.3f}bn; pledged securities {b['pledged_securities']/1000:.3f}bn; "
         f"unrecognized HTM loss {b['htm_unrecognized_loss']/1000:.3f}bn against bank equity of {r['bank_only_opening'][2]['observed']/1000:.3f}bn.", '',
         f"Bank-level bridges, from Call Report fields only: tax-effecting the gross AFS mark of {b['gross_afs_oci']/1000:.3f}bn at 26-28% leaves "
